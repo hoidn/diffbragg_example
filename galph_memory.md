@@ -2020,3 +2020,10 @@ Action State: ready_for_implementation
 - Mark ARCH-SIM-HKL-BOUNDS-001 HKL alignment phase complete (exit criterion 2 satisfied: ≥99% in-bounds)
 - Open new diagnostics or bugfix initiative to investigate intensity scale mismatch
 - Consider starting with a physics trace comparing nanobrag_torch scattering formula terms against known-good diffBragg output to identify which term(s) are off by ~14 orders of magnitude
+
+2025-12-09T210000Z focus=ARCH-SIM-CONSTRUCTION-001 state=gathering_evidence dwell=0 action=evidence_collection artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/ next_action=instrument_intensity_probe
+- DIAG-NANOBRAGG-OVERSAMPLE-001 + ARCH-SIM-HKL-BOUNDS-001 are now closed, so ARCH-SIM-CONSTRUCTION-001 re-enters active work targeting the remaining DB-AT-028/029 intensity failure.
+- Updated docs/fix_plan.md Tier 0 statuses (DIAG + ARCH-SIM-HKL-BOUNDS marked done, ARCH-SIM-CONSTRUCTION in_progress) and refreshed the initiative section with a new 2025-12-09 planning bullet.
+- Added Phase C.5 tasks to the implementation plan directing Ralph to extend `compare_simulator_outputs.py` so it logs calibration inputs and raw/scaled means for Stage A, reconstruction, and `simulate_forward_once`, then rerun DB-AT-028/029 with the new telemetry captured under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/`.
+- Rewrote input.md with the new Do Now (script instrumentation + probe run + pytest rerun) so Ralph can gather evidence next loop; this keeps us within Environment Freeze (scripts only) while producing the metrics we need to isolate the missing scale factor.
+Action State: gathering_evidence

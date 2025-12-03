@@ -251,6 +251,26 @@ Reconstruction helper `build_final_bragg_from_stage_a_telemetry()` violates fact
 - Code changes in 3 files (config_factories.py, nanobrag_bridge.py, reconstruction.py)
 - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/pytest_db_at_028_029.log`
 
+#### C.5 — Intensity Scale Evidence (Planned — 2025-12-09 Loop)
+- [ ] **Instrument simulator comparison probe:**
+  - Extend `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py` so it captures:
+    - Stage A, reconstruction, and `simulate_forward_once` raw means/max values
+    - Calibration inputs (`spot_scale_override`, `log_scale_baseline`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `adu_per_photon`)
+    - Post-run scaling contributions (`sqrt_spot_scale`, `scale_factor`, unit-mode)
+    - Ratios between paths (Stage A vs reconstruction, Stage A vs simulate_forward_once)
+  - Add CLI flags `--detector-size {small,full}` and `--device` for reproducibility.
+- [ ] **Run probe on canonical smoke data:**
+  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json`
+  - Capture console output + JSON + Markdown summary under the same report directory.
+- [ ] **Re-run DB-AT-028/029 with logging:**
+  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log`
+  - Ensures evidence ties directly to the failing acceptance criteria.
+
+**Artifacts:**
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/summary.md`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log`
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

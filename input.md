@@ -1,45 +1,37 @@
-Summary: Fix the nanobrag_torch incident-beam convention so Stage-A HKL queries fall inside the refined grid and DB-AT-028/029 can converge again.
-Mode: Parity
+Summary: Extend the simulator comparison probe so we have per-path intensity + calibration metrics for Stage A, reconstruction, and simulate_forward_once, then rerun DB-AT-028/029 with the new logging so we can isolate which scale term is still missing.
+Mode: none
 InitiativeType: architecture
-Focus: ARCH-SIM-HKL-BOUNDS-001 — Stage-A / mapping HKL alignment
-Branch: integration
-Mapped tests:
-- pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028"
-- pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_029"
-Artifacts: plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/
+Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
+Branch: main
+Mapped tests: pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/
 
 Do Now:
-- Implement: src/nanobrag-torch/src/nanobrag_torch/simulator.py::__init__ — store the incident beam unit vector as the SOURCE→SAMPLE direction by negating `detector.beam_vector`, update the default-without-detector fallback accordingly, and refresh the nearby comment so it cites docs/spec-db-core.md (§Detector conventions) plus DIAG-OVERSAMPLE-001. After editing, capture the patch per Environment Freeze rules (save `git diff -- src/nanobrag-torch/src/nanobrag_torch/simulator.py` to `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/patches/incident_beam_direction_fix.patch`) and mention the rebuild/test commands in summary.md.
-- Document: plans/active/ARCH-SIM-HKL-BOUNDS-001/implementation.md Phase B, docs/fix_plan.md (ARCH-SIM-HKL-BOUNDS-001 Attempts), and docs/findings.md (DIAG-OVERSAMPLE-001 row) with the new root-cause analysis, patch reference, HKL stats artifact path, and Stage-A parity status so the doc graph stays consistent.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py --detector-size small --out-dir plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/post_fix_hkl_stats to prove ≥99% in-bounds HKL coverage for both simulate_forward_once and the Stage-A warm cache.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" and archive the pytest log + metrics JSONs under the artifacts dir; if either selector still fails, capture the failure signature and gate values.
+- Implement: plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py::main — add CLI flags for `--detector-size` and `--device`, run Stage A warm cache, reconstruction cold path, and `simulate_forward_once` against the canonical smoke dataset, and record for each path the calibration inputs (`spot_scale_override`, `log_scale_baseline`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `adu_per_photon`), raw mean/max, sqrt-spot-scale-adjusted mean, final `scale_factor`, and cross-path ratios. Emit both `simulator_intensity_metrics.json` and a Markdown summary under the 2025-12-09T210000Z report dir.
+- Capture: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log
 
 How-To Map:
-- Edit simulator: use your editor on `src/nanobrag-torch/src/nanobrag_torch/simulator.py` and ensure `self.incident_beam_direction` is always initialized with `-self.detector.beam_vector.clone()` (and `torch.tensor([-1.0,0.0,0.0])` when no detector is present) plus refresh the comment to cite docs/spec-db-core.md §Detector conventions + DIAG-OVERSAMPLE-001; run `python -m compileall src/nanobrag-torch/src/nanobrag_torch/simulator.py` if you need a quick syntax check.
-- Capture the environment patch: `git diff -- src/nanobrag-torch/src/nanobrag_torch/simulator.py > plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/patches/incident_beam_direction_fix.patch` after edits; list the rebuild/test commands in `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/summary.md` per Environment Freeze exception.
-- HKL stats probe: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py --detector-size small --out-dir plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/post_fix_hkl_stats`.
-- Stage-A smokes: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/pytest_db_at_028_029_post_fix.log`.
+1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json
+2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log
 
 Pitfalls To Avoid:
-- Do not change detector conventions or HKL grid construction—only fix the incident-beam orientation.
-- Keep all edits device/dtype neutral; no CPU-only shortcuts inside simulator.
-- Maintain Environment Freeze rules: no pip installs, and every nanobrag_torch edit must be captured as a patch artifact with documented commands.
-- Leave multi-source code paths untouched; they already negate the beam direction correctly.
-- Use the canonical smoke fixtures from docs/data_dependency_manifest.md (refGeom_small assets) and keep `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
-- Capture HKL stats artifacts and pytest logs inside the assigned reports directory; do not scatter evidence elsewhere.
-- If Stage A tests still fail, stop after collecting logs—do not start speculative refactors or spec changes inside this loop.
+- Do not edit or reinstall nanobrag_torch itself; we are only authoring evidence scripts in the repo per Environment Freeze rules.
+- Keep the probe script in plans/active (T2 tool) and commit the JSON + Markdown artifacts under the timestamped report directory.
+- Use the smoke dataset (`DBEX_SMOKE_DETECTOR_SIZE=small`) so runs stay deterministic and within CPU limits.
+- Preserve existing script functionality (Stage A vs reconstruction comparison) while adding simulate_forward_once and the new telemetry fields.
+- When rerunning DB-AT-028/029 keep the CLI overrides exactly as listed so we can compare logs apples-to-apples with prior loops.
 
 If Blocked:
-- If nanobrag_torch imports or the fixture data fail to load, copy the traceback into `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/blockers.log`, update docs/fix_plan.md Attempts with the error signature, and mark the initiative blocked pending environment investigation instead of proceeding.
-- If HKL stats remain out-of-bounds even after the beam-direction fix, capture the JSON + summary showing the unexpected ranges, update docs/findings.md with the new evidence, and halt—this would trigger a new architecture/spec initiative rather than repeated tweaks.
+- If the smoke dataset or calibration assets are missing, log the missing file paths in plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/blocked.md along with the command output, then update docs/fix_plan.md + galph_memory.md with the block reason so we can escalate.
+- If pytest fails before reaching the Stage A selector for non-physics reasons (import error, fixture missing), capture the full traceback in the report dir and stop; do not attempt to downgrade tests or patch dependencies.
 
-Findings Applied (Mandatory):
-- docs/findings.md:51 (DIAG-OVERSAMPLE-001) — adhere to the documented HKL coverage lesson by using the same fixtures/configs and recording the post-fix stats.
+Findings Applied:
+- SCALE-002 — Stage A must reapply √spot_scale post-run; we need the probe to show whether reconstruction is missing this factor.
+- SCALE-009 — Reconstruction helpers must mirror Stage A scaling and calibration threading; the new metrics should confirm which term is still misaligned.
 
 Pointers:
-- plans/active/ARCH-SIM-HKL-BOUNDS-001/implementation.md#phase-b — current plan + Phase B checklist updates required this loop.
-- docs/spec-db-core.md:54-72 — detector convention / beam vector rules that demand source→sample orientation (cite in code comment).
-- src/nanobrag-torch/src/nanobrag_torch/simulator.py:520-620 — current incident-beam initialization that needs the sign fix.
-
-Next Up:
-- Once Stage A HKL coverage and DB-AT-028/029 are green, reassess ARCH-SIM-CONSTRUCTION-001 to lift the Phase D.3 block on reconstruction.
+- docs/spec-db-core.md:106 — Objective Function & Variance Model definition for Bragg + background scaling.
+- docs/spec-db-workflow.md:19 — Calibration Policy (ADU vs photons, spot_scale precedence) that governs expected scale factors.
+- docs/config_crosswalk.md:1 — Detector/beam/crystal mapping contract and calibration threading references for beam flux/exposure.
+- docs/fix_plan.md:133 — ARCH-SIM-CONSTRUCTION-001 ledger entry with latest lifecycle state and exit criteria.

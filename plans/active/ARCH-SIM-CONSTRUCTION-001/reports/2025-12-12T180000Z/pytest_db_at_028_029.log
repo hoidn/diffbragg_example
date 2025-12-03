@@ -1,0 +1,971 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity ERROR [ 50%]
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity ERROR [100%]
+
+==================================== ERRORS ====================================
+______________ ERROR at setup of test_db_at_028_loss_scale_sanity ______________
+
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...cuda:0'), {'grid_max': 2315.25439453125, 'grid_mean': 16.899139404296875, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7eb252067eb0>
+smoke_sigma_source = 'cli_override'
+
+    @pytest.fixture
+    def stage_a_smoke_result(
+        hkl_data,
+        refgeom_dataload,
+        smoke_sigma_source,
+    ):
+        """
+        Stage A-only refinement (nearest-neighbor HKL) for DB-AT-028/029 gates.
+        Uses build_mapping_stage_a_context to align HKL/calibration/inputs with mapping forward stack.
+    
+        Data dependencies:
+            - Reuses the same ``refgeom_dataload`` inputs (geometry, mask, HKL
+              override, calibration path) that DB-AT-028/029 are testing. Any change
+              to the DataLoad fixture propagates here automatically.
+            - Mapping context diagnostics MUST reflect those inputs (HKL source,
+              calibration path, sigma provenance) before computing ROI correlations.
+            - HKL sampling is nearest-neighbor (`enable_hkl_interpolation=False`)
+              per the Stage-A spec; interpolated grids would violate DB-AT-028/029.
+        """
+        # Build mapping context for unified HKL/calibration/inputs
+        device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = str(device_obj)
+    
+        # TOOLING-VIS-001: Pass through apply_calibration_n_cells from fixture
+        apply_n_cells = getattr(refgeom_dataload, 'apply_calibration_n_cells', True)
+    
+        mapping_context = build_mapping_stage_a_context(
+            refgeom_dataload,
+            default_sigma_readout=3.0,
+            device=device,
+            apply_calibration_n_cells=apply_n_cells,
+        )
+    
+        # Use mapping_context.inputs directly (TOOLING-VIS-001 alignment requirement)
+        refinement_inputs = mapping_context.inputs
+    
+        # Extract HKL grid from the mapping context's original indices/amplitudes
+        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+            indices=mapping_context.hkl_indices,
+            amplitudes=mapping_context.hkl_amplitudes,
+            device=device_obj,
+            halo=True,
+        )
+    
+        # Determine HKL source from mapping context diagnostics
+        hkl_source = mapping_context.diagnostics.get("hkl_source", "scaled.mtz")
+        hkl_path = mapping_context.diagnostics.get("hkl_path", "scaled.mtz")
+        hkl_count = len(mapping_context.hkl_indices) if hasattr(mapping_context, 'hkl_indices') else 0
+    
+        # Extract calibration metadata
+        spot_scale_override_val = 1.0
+        if mapping_context.calibration:
+            spot_scale_override_val = float(mapping_context.calibration.get("spot_scale_override", 1.0))
+    
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        config = RefinementConfig(
+            device=device,
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=20,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            enable_hkl_interpolation=False,  # DB-AT-028/029 require nearest-neighbor HKL sampling
+            enable_stage_b=False,
+            enable_stage_c=False,
+            calibration_metadata=mapping_context.calibration,
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+            apply_calibration_n_cells=apply_n_cells,  # TOOLING-VIS-001 Phase D.C gate
+        )
+    
+        # ARCH-REFACTOR-001 Phase D.3 Batch 2: Direct RefinementEngine usage
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,  # Stage C disabled (enable_stage_c=False)
+        )
+        stages = [StageA()]
+        engine = RefinementEngine(stages, config=config)
+>       telemetry_dict = engine.run({"context": refinement_context})
+
+tests/dbex/test_stage_a_smoke_parity.py:161: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dbex.refinement.stage_a.StageA object at 0x7eb2525578b0>
+inputs = {'context': RefinementContext(refinement_inputs=RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+       ...r=<dxtbx_model_ext.Detector object at 0x7eb251decf20>, asu_map=None, hkl_indices_grid=None, halo_mask=None, extras={})}
+telemetry_sink = None
+
+    def run(
+        self,
+        inputs: Any,
+        telemetry_sink: Optional[Path] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute Stage A LBFGS refinement calling extracted helpers directly.
+    
+        Args:
+            inputs: Dict with keys:
+                - 'refinement_inputs': RefinementInputs (target, loss_mask, panel_slices, etc.)
+                - 'detector': dxtbx Detector object
+                - 'beam': dxtbx Beam object
+                - 'crystal': dxtbx Crystal object
+                - 'hkl_grid': torch.Tensor structure factor grid
+                - 'hkl_metadata': dict with grid dimensions
+                - 'baseline_crystal': Optional baseline dxtbx Crystal for misset extraction
+                - 'baseline_detector': Optional baseline dxtbx Detector for Stage C telemetry
+            telemetry_sink: Optional path for telemetry output (unused by this implementation,
+                           telemetry returned via dict instead)
+    
+        Returns:
+            Telemetry dict with all required RefinementTelemetry fields plus:
+            - stage_type: "stage_a"
+            - mode: None (or "incremental_ub"/"u_matrix" if those modes are enabled)
+    
+        Raises:
+            RuntimeError: If simulator fails or gradients are NaN/Inf
+            ValueError: If config not set via configure()
+        """
+        if self._config is None:
+            raise ValueError("StageA not configured. Call configure(config) before run().")
+    
+        # ARCH-REFINE-001 Phase B.1: Extract context from inputs
+        # If inputs has 'context' key, use it; otherwise fall back to dict unpacking
+        ctx = inputs['context'] if isinstance(inputs, dict) and 'context' in inputs else inputs
+    
+        # Extract inputs (prefer context fields, fall back to dict keys for backward compatibility)
+        if hasattr(ctx, 'refinement_inputs'):
+            # Using RefinementContext
+            refinement_inputs = ctx.refinement_inputs
+            detector = ctx.detector
+            beam = ctx.beam
+            crystal = ctx.crystal
+            hkl_grid = ctx.hkl_grid
+            hkl_metadata = ctx.hkl_metadata
+            baseline_crystal = ctx.baseline_crystal
+            baseline_detector = ctx.baseline_detector
+        else:
+            # Legacy dict unpacking (fallback for backward compatibility)
+            refinement_inputs = inputs['refinement_inputs']
+            detector = inputs['detector']
+            beam = inputs['beam']
+            crystal = inputs['crystal']
+            hkl_grid = inputs['hkl_grid']
+            hkl_metadata = inputs['hkl_metadata']
+            baseline_crystal = inputs.get('baseline_crystal', None)
+            baseline_detector = inputs.get('baseline_detector', None)
+    
+        # Extract device/dtype from config
+        device = self._config.device
+        dtype = self._config.dtype
+    
+        # Build sigma_floor_sq_cache (Stage A warmup)
+        # CRITICAL: This dict MUST match the construction in run_nanobrag_refinement
+        # (dbex/nanobrag_refinement.py line 2195: empty dict, populated by _get_sigma_floor_sq_tensor)
+        sigma_floor_sq_cache = {}
+    
+        # Compute baseline_misset_deg_tensor if baseline_crystal provided
+        # (Matches run_nanobrag_refinement logic lines ~1958-1968)
+        baseline_misset_deg_tensor = None
+        if baseline_crystal is not None:
+            from dbex.nanobrag_bridge import compute_baseline_misset_deg
+            baseline_misset_deg_tensor = compute_baseline_misset_deg(
+                crystal, baseline_crystal, device=device, dtype=dtype
+            )
+    
+        # STEP 1: Build Stage A parameters
+        helper1_result = self._build_stage_a_params(
+            crystal=crystal,
+            detector=detector,
+            inputs=refinement_inputs,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            beam=beam
+        )
+    
+        # Unpack helper1 result
+        params = helper1_result['params']
+        param_values = helper1_result['param_values']
+        telemetry_state = helper1_result['telemetry_state']
+        stage_a_context = helper1_result['stage_a_context']
+        optimizer = helper1_result['optimizer']
+    
+        # Extract needed variables for helper 2/3 calls and telemetry assembly
+        initial_log_scale = param_values['initial_log_scale']
+        log_scale = param_values['log_scale']
+        log_cell_a_delta = param_values['log_cell_a_delta']
+        log_cell_b_delta = param_values['log_cell_b_delta']
+        log_cell_c_delta = param_values['log_cell_c_delta']
+        log_scale_baseline = param_values.get('log_scale_baseline')
+        log_scale_baseline_source = param_values.get('log_scale_baseline_source')  # TOOLING-VIS-001 Phase E
+        spot_scale_override_adjustment_factor = param_values.get('spot_scale_override_adjustment_factor')  # TOOLING-VIS-001 Phase E
+        target_mean_masked = param_values.get('target_mean_masked')  # TOOLING-VIS-001 Phase D.E
+        model_mean_masked = param_values.get('model_mean_masked')  # TOOLING-VIS-001 Phase D.E
+        angle_alpha_raw = param_values['angle_alpha_raw']
+        angle_beta_raw = param_values['angle_beta_raw']
+        angle_gamma_raw = param_values['angle_gamma_raw']
+        orientation_vec = param_values['orientation_vec']
+        canonical_baseline = stage_a_context['canonical_baseline']
+        full_stage_a_indices = stage_a_context['full_stage_a_indices']
+        stage_a_roi_label = stage_a_context['stage_a_roi_label']
+        stage_a_total_work_items = stage_a_context['stage_a_total_work_items']
+        sampled_stage_a_indices = stage_a_context['sampled_stage_a_indices']
+        masked_pixel_reference = int(refinement_inputs.loss_mask.sum())
+    
+        # ARCH-STAGE-CONTEXT-001 Phase E: Extract telemetry fields (dataclass-only)
+        perf_closure_evals = telemetry_state.perf_closure_evals
+        perf_validation_runs = telemetry_state.perf_validation_runs
+        perf_forward_times_ms = telemetry_state.perf_forward_times_ms
+        variance_floor_clamped_pixels = telemetry_state.variance_floor_clamped_pixels
+        variance_floor_masked_pixels = telemetry_state.variance_floor_masked_pixels
+        loss_trace_sample = telemetry_state.loss_trace_sample
+        loss_trace_full = telemetry_state.loss_trace_full
+        best_loss_full = telemetry_state.best_loss_full
+        chi_squared_trace_sample = telemetry_state.chi_squared_trace_sample
+        chi_squared_trace_full = telemetry_state.chi_squared_trace_full
+        chi_squared_best = telemetry_state.chi_squared_best
+        masked_mse_trace_sample = telemetry_state.masked_mse_trace_sample
+        masked_mse_trace_full = telemetry_state.masked_mse_trace_full
+        masked_mse_best = telemetry_state.masked_mse_best
+    
+        # ARCH-REFINE-001 Phase E.2: Compute force_panel_validation flag (REFINE-FLOW-001, REFINE-007)
+        # Switch Stage A baseline/final validations to panel mode whenever Stage B or Stage C runs,
+        # or when ROI count is small (≤32), so Stage A telemetry reports panel-level chi² that
+        # matches Stage B/C initial states. This ensures REFINE-FLOW-001 parity (Stage B initial chi²
+        # must match Stage A final within 0.1%) holds for ROI-heavy configs where ROI sampling would
+        # prevent Stage A from seeing the full-panel convergence that Stage B will use.
+        canonical_roi_count = len(refinement_inputs.panel_slices)
+        force_panel_validation = (
+            self._config.stage_a_force_panel_validation or
+            self._config.enable_stage_b or
+            self._config.enable_stage_c or
+            canonical_roi_count <= self._config.stage_a_panel_validation_roi_threshold
+        )
+        # Stash flag on context for closure builder
+        stage_a_context['force_panel_validation'] = force_panel_validation
+    
+        # ARCH-STAGE-CONTEXT-001: Build RefinementSharedContext to replace 11-parameter data clump
+        from dbex.refinement.context import RefinementSharedContext
+        shared_context = RefinementSharedContext.from_inputs(
+            crystal=crystal,
+            detector=detector,
+            beam=beam,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+        )
+    
+        # STEP 2: Build Stage A LBFGS closure
+        # ARCH-TELEMETRY-001 Phase B.1: Instantiate StageATelemetryCollector
+        from .telemetry_collectors import StageATelemetryCollector
+        collector = StageATelemetryCollector(state=telemetry_state)
+    
+        # ARCH-STAGE-CONTEXT-001 Phase B.2: Call inlined StageA._build_lbfgs_closure
+        compute_loss, closure = self._build_lbfgs_closure(
+            param_values=param_values,
+            telemetry_state=telemetry_state,
+            stage_a_context=stage_a_context,
+            shared_context=shared_context,
+            collector=collector,
+        )
+    
+        # STEP 3: Run Stage A LBFGS optimization
+        # ARCH-TELEMETRY-001 Phase B.1: Pass collector for baseline/final/exception validations
+        status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+            compute_loss=compute_loss,
+            closure=closure,
+            optimizer=optimizer,
+            params=params,
+            telemetry_state=telemetry_state,
+            config=self._config,
+            canonical_baseline=canonical_baseline,
+            full_stage_a_indices=full_stage_a_indices,
+            log_scale=log_scale,
+            log_cell_a_delta=log_cell_a_delta,
+            log_cell_b_delta=log_cell_b_delta,
+            log_cell_c_delta=log_cell_c_delta,
+            angle_alpha_raw=angle_alpha_raw,
+            angle_beta_raw=angle_beta_raw,
+            angle_gamma_raw=angle_gamma_raw,
+            orientation_vec=orientation_vec,
+            device=device,
+            dtype=dtype,
+            masked_pixel_reference=int(refinement_inputs.loss_mask.sum()),
+            force_panel_validation=force_panel_validation,
+            collector=collector,
+        )
+    
+        # ARCH-TELEMETRY-001 Phase C.2: Finalize collector to get typed StageResult
+        # This happens after _run_stage_a_lbfgs completes (including all validations)
+        collector_stage_result = collector.finalize()
+    
+        log_cell_max_delta = getattr(self._config, 'log_cell_max_delta', 1.0)
+        log_cell_a_delta_clamped = torch.clamp(
+            log_cell_a_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+        log_cell_b_delta_clamped = torch.clamp(
+            log_cell_b_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+        log_cell_c_delta_clamped = torch.clamp(
+            log_cell_c_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+    
+        # Build param_deltas dict for telemetry (matches run_nanobrag_refinement lines 2156-2198)
+        param_deltas = {
+            'log_scale': {
+                'initial': initial_log_scale,
+                'final': float(log_scale.item()),
+                'delta': float(log_scale.item()) - initial_log_scale
+            },
+            'log_scale_baseline': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+                'final': log_scale_baseline if log_scale_baseline is not None else 0.0,
+            },
+            # ARCH-SIM-CONSTRUCTION-001 Phase C.7: Capture effective log-scale for reconstruction
+            # Store the actual log_scale value used in the final forward pass (baseline + clamped_delta)
+            # so reconstruction helpers can use the authoritative scale_factor without recomputation
+            'log_scale_effective': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+>               'final': float(log_scale_clamped.item()) if hasattr(log_scale_clamped, 'item') else float(log_scale_clamped),
+                'delta': float(log_scale.item()) - initial_log_scale,
+                'delta_bound': delta_bound,
+                'log_scale_delta_clamped': float(log_scale_delta_clamped.item()) if log_scale_baseline_value is not None else float(log_scale.item()) - initial_log_scale,
+                'scale_factor': float(torch.exp(log_scale_clamped).item()) if hasattr(log_scale_clamped, 'item') else float(torch.exp(torch.tensor(log_scale_clamped)).item()),
+            },
+            'log_cell_a_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_a_delta_clamped.item()),
+                'delta': float(log_cell_a_delta_clamped.item())
+            },
+            'log_cell_b_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_b_delta_clamped.item()),
+                'delta': float(log_cell_b_delta_clamped.item())
+            },
+            'log_cell_c_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_c_delta_clamped.item()),
+                'delta': float(log_cell_c_delta_clamped.item())
+            },
+            'angle_alpha_raw': {
+                'initial': 0.0,
+                'final': float(angle_alpha_raw.item()),
+                'delta': float(angle_alpha_raw.item())
+            },
+            'angle_beta_raw': {
+                'initial': 0.0,
+                'final': float(angle_beta_raw.item()),
+                'delta': float(angle_beta_raw.item())
+            },
+            'angle_gamma_raw': {
+                'initial': 0.0,
+                'final': float(angle_gamma_raw.item()),
+                'delta': float(angle_gamma_raw.item())
+            },
+            'orientation_vec': {
+                'initial': [0.0, 0.0, 0.0],
+                'final': orientation_vec.detach().cpu().tolist(),
+                'delta': orientation_vec.detach().cpu().tolist(),
+                'norm': float(orientation_vec.norm().item())
+            }
+        }
+E       NameError: name 'log_scale_clamped' is not defined
+
+dbex/refinement/stage_a.py:1872: NameError
+______________ ERROR at setup of test_db_at_029_structure_parity _______________
+
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...cuda:0'), {'grid_max': 2315.25439453125, 'grid_mean': 16.899139404296875, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7eb252067eb0>
+smoke_sigma_source = 'cli_override'
+
+    @pytest.fixture
+    def stage_a_smoke_result(
+        hkl_data,
+        refgeom_dataload,
+        smoke_sigma_source,
+    ):
+        """
+        Stage A-only refinement (nearest-neighbor HKL) for DB-AT-028/029 gates.
+        Uses build_mapping_stage_a_context to align HKL/calibration/inputs with mapping forward stack.
+    
+        Data dependencies:
+            - Reuses the same ``refgeom_dataload`` inputs (geometry, mask, HKL
+              override, calibration path) that DB-AT-028/029 are testing. Any change
+              to the DataLoad fixture propagates here automatically.
+            - Mapping context diagnostics MUST reflect those inputs (HKL source,
+              calibration path, sigma provenance) before computing ROI correlations.
+            - HKL sampling is nearest-neighbor (`enable_hkl_interpolation=False`)
+              per the Stage-A spec; interpolated grids would violate DB-AT-028/029.
+        """
+        # Build mapping context for unified HKL/calibration/inputs
+        device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = str(device_obj)
+    
+        # TOOLING-VIS-001: Pass through apply_calibration_n_cells from fixture
+        apply_n_cells = getattr(refgeom_dataload, 'apply_calibration_n_cells', True)
+    
+        mapping_context = build_mapping_stage_a_context(
+            refgeom_dataload,
+            default_sigma_readout=3.0,
+            device=device,
+            apply_calibration_n_cells=apply_n_cells,
+        )
+    
+        # Use mapping_context.inputs directly (TOOLING-VIS-001 alignment requirement)
+        refinement_inputs = mapping_context.inputs
+    
+        # Extract HKL grid from the mapping context's original indices/amplitudes
+        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+            indices=mapping_context.hkl_indices,
+            amplitudes=mapping_context.hkl_amplitudes,
+            device=device_obj,
+            halo=True,
+        )
+    
+        # Determine HKL source from mapping context diagnostics
+        hkl_source = mapping_context.diagnostics.get("hkl_source", "scaled.mtz")
+        hkl_path = mapping_context.diagnostics.get("hkl_path", "scaled.mtz")
+        hkl_count = len(mapping_context.hkl_indices) if hasattr(mapping_context, 'hkl_indices') else 0
+    
+        # Extract calibration metadata
+        spot_scale_override_val = 1.0
+        if mapping_context.calibration:
+            spot_scale_override_val = float(mapping_context.calibration.get("spot_scale_override", 1.0))
+    
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        config = RefinementConfig(
+            device=device,
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=20,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            enable_hkl_interpolation=False,  # DB-AT-028/029 require nearest-neighbor HKL sampling
+            enable_stage_b=False,
+            enable_stage_c=False,
+            calibration_metadata=mapping_context.calibration,
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+            apply_calibration_n_cells=apply_n_cells,  # TOOLING-VIS-001 Phase D.C gate
+        )
+    
+        # ARCH-REFACTOR-001 Phase D.3 Batch 2: Direct RefinementEngine usage
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,  # Stage C disabled (enable_stage_c=False)
+        )
+        stages = [StageA()]
+        engine = RefinementEngine(stages, config=config)
+>       telemetry_dict = engine.run({"context": refinement_context})
+
+tests/dbex/test_stage_a_smoke_parity.py:161: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dbex.refinement.stage_a.StageA object at 0x7eb144485af0>
+inputs = {'context': RefinementContext(refinement_inputs=RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+       ...r=<dxtbx_model_ext.Detector object at 0x7eb251decf20>, asu_map=None, hkl_indices_grid=None, halo_mask=None, extras={})}
+telemetry_sink = None
+
+    def run(
+        self,
+        inputs: Any,
+        telemetry_sink: Optional[Path] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute Stage A LBFGS refinement calling extracted helpers directly.
+    
+        Args:
+            inputs: Dict with keys:
+                - 'refinement_inputs': RefinementInputs (target, loss_mask, panel_slices, etc.)
+                - 'detector': dxtbx Detector object
+                - 'beam': dxtbx Beam object
+                - 'crystal': dxtbx Crystal object
+                - 'hkl_grid': torch.Tensor structure factor grid
+                - 'hkl_metadata': dict with grid dimensions
+                - 'baseline_crystal': Optional baseline dxtbx Crystal for misset extraction
+                - 'baseline_detector': Optional baseline dxtbx Detector for Stage C telemetry
+            telemetry_sink: Optional path for telemetry output (unused by this implementation,
+                           telemetry returned via dict instead)
+    
+        Returns:
+            Telemetry dict with all required RefinementTelemetry fields plus:
+            - stage_type: "stage_a"
+            - mode: None (or "incremental_ub"/"u_matrix" if those modes are enabled)
+    
+        Raises:
+            RuntimeError: If simulator fails or gradients are NaN/Inf
+            ValueError: If config not set via configure()
+        """
+        if self._config is None:
+            raise ValueError("StageA not configured. Call configure(config) before run().")
+    
+        # ARCH-REFINE-001 Phase B.1: Extract context from inputs
+        # If inputs has 'context' key, use it; otherwise fall back to dict unpacking
+        ctx = inputs['context'] if isinstance(inputs, dict) and 'context' in inputs else inputs
+    
+        # Extract inputs (prefer context fields, fall back to dict keys for backward compatibility)
+        if hasattr(ctx, 'refinement_inputs'):
+            # Using RefinementContext
+            refinement_inputs = ctx.refinement_inputs
+            detector = ctx.detector
+            beam = ctx.beam
+            crystal = ctx.crystal
+            hkl_grid = ctx.hkl_grid
+            hkl_metadata = ctx.hkl_metadata
+            baseline_crystal = ctx.baseline_crystal
+            baseline_detector = ctx.baseline_detector
+        else:
+            # Legacy dict unpacking (fallback for backward compatibility)
+            refinement_inputs = inputs['refinement_inputs']
+            detector = inputs['detector']
+            beam = inputs['beam']
+            crystal = inputs['crystal']
+            hkl_grid = inputs['hkl_grid']
+            hkl_metadata = inputs['hkl_metadata']
+            baseline_crystal = inputs.get('baseline_crystal', None)
+            baseline_detector = inputs.get('baseline_detector', None)
+    
+        # Extract device/dtype from config
+        device = self._config.device
+        dtype = self._config.dtype
+    
+        # Build sigma_floor_sq_cache (Stage A warmup)
+        # CRITICAL: This dict MUST match the construction in run_nanobrag_refinement
+        # (dbex/nanobrag_refinement.py line 2195: empty dict, populated by _get_sigma_floor_sq_tensor)
+        sigma_floor_sq_cache = {}
+    
+        # Compute baseline_misset_deg_tensor if baseline_crystal provided
+        # (Matches run_nanobrag_refinement logic lines ~1958-1968)
+        baseline_misset_deg_tensor = None
+        if baseline_crystal is not None:
+            from dbex.nanobrag_bridge import compute_baseline_misset_deg
+            baseline_misset_deg_tensor = compute_baseline_misset_deg(
+                crystal, baseline_crystal, device=device, dtype=dtype
+            )
+    
+        # STEP 1: Build Stage A parameters
+        helper1_result = self._build_stage_a_params(
+            crystal=crystal,
+            detector=detector,
+            inputs=refinement_inputs,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            beam=beam
+        )
+    
+        # Unpack helper1 result
+        params = helper1_result['params']
+        param_values = helper1_result['param_values']
+        telemetry_state = helper1_result['telemetry_state']
+        stage_a_context = helper1_result['stage_a_context']
+        optimizer = helper1_result['optimizer']
+    
+        # Extract needed variables for helper 2/3 calls and telemetry assembly
+        initial_log_scale = param_values['initial_log_scale']
+        log_scale = param_values['log_scale']
+        log_cell_a_delta = param_values['log_cell_a_delta']
+        log_cell_b_delta = param_values['log_cell_b_delta']
+        log_cell_c_delta = param_values['log_cell_c_delta']
+        log_scale_baseline = param_values.get('log_scale_baseline')
+        log_scale_baseline_source = param_values.get('log_scale_baseline_source')  # TOOLING-VIS-001 Phase E
+        spot_scale_override_adjustment_factor = param_values.get('spot_scale_override_adjustment_factor')  # TOOLING-VIS-001 Phase E
+        target_mean_masked = param_values.get('target_mean_masked')  # TOOLING-VIS-001 Phase D.E
+        model_mean_masked = param_values.get('model_mean_masked')  # TOOLING-VIS-001 Phase D.E
+        angle_alpha_raw = param_values['angle_alpha_raw']
+        angle_beta_raw = param_values['angle_beta_raw']
+        angle_gamma_raw = param_values['angle_gamma_raw']
+        orientation_vec = param_values['orientation_vec']
+        canonical_baseline = stage_a_context['canonical_baseline']
+        full_stage_a_indices = stage_a_context['full_stage_a_indices']
+        stage_a_roi_label = stage_a_context['stage_a_roi_label']
+        stage_a_total_work_items = stage_a_context['stage_a_total_work_items']
+        sampled_stage_a_indices = stage_a_context['sampled_stage_a_indices']
+        masked_pixel_reference = int(refinement_inputs.loss_mask.sum())
+    
+        # ARCH-STAGE-CONTEXT-001 Phase E: Extract telemetry fields (dataclass-only)
+        perf_closure_evals = telemetry_state.perf_closure_evals
+        perf_validation_runs = telemetry_state.perf_validation_runs
+        perf_forward_times_ms = telemetry_state.perf_forward_times_ms
+        variance_floor_clamped_pixels = telemetry_state.variance_floor_clamped_pixels
+        variance_floor_masked_pixels = telemetry_state.variance_floor_masked_pixels
+        loss_trace_sample = telemetry_state.loss_trace_sample
+        loss_trace_full = telemetry_state.loss_trace_full
+        best_loss_full = telemetry_state.best_loss_full
+        chi_squared_trace_sample = telemetry_state.chi_squared_trace_sample
+        chi_squared_trace_full = telemetry_state.chi_squared_trace_full
+        chi_squared_best = telemetry_state.chi_squared_best
+        masked_mse_trace_sample = telemetry_state.masked_mse_trace_sample
+        masked_mse_trace_full = telemetry_state.masked_mse_trace_full
+        masked_mse_best = telemetry_state.masked_mse_best
+    
+        # ARCH-REFINE-001 Phase E.2: Compute force_panel_validation flag (REFINE-FLOW-001, REFINE-007)
+        # Switch Stage A baseline/final validations to panel mode whenever Stage B or Stage C runs,
+        # or when ROI count is small (≤32), so Stage A telemetry reports panel-level chi² that
+        # matches Stage B/C initial states. This ensures REFINE-FLOW-001 parity (Stage B initial chi²
+        # must match Stage A final within 0.1%) holds for ROI-heavy configs where ROI sampling would
+        # prevent Stage A from seeing the full-panel convergence that Stage B will use.
+        canonical_roi_count = len(refinement_inputs.panel_slices)
+        force_panel_validation = (
+            self._config.stage_a_force_panel_validation or
+            self._config.enable_stage_b or
+            self._config.enable_stage_c or
+            canonical_roi_count <= self._config.stage_a_panel_validation_roi_threshold
+        )
+        # Stash flag on context for closure builder
+        stage_a_context['force_panel_validation'] = force_panel_validation
+    
+        # ARCH-STAGE-CONTEXT-001: Build RefinementSharedContext to replace 11-parameter data clump
+        from dbex.refinement.context import RefinementSharedContext
+        shared_context = RefinementSharedContext.from_inputs(
+            crystal=crystal,
+            detector=detector,
+            beam=beam,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+        )
+    
+        # STEP 2: Build Stage A LBFGS closure
+        # ARCH-TELEMETRY-001 Phase B.1: Instantiate StageATelemetryCollector
+        from .telemetry_collectors import StageATelemetryCollector
+        collector = StageATelemetryCollector(state=telemetry_state)
+    
+        # ARCH-STAGE-CONTEXT-001 Phase B.2: Call inlined StageA._build_lbfgs_closure
+        compute_loss, closure = self._build_lbfgs_closure(
+            param_values=param_values,
+            telemetry_state=telemetry_state,
+            stage_a_context=stage_a_context,
+            shared_context=shared_context,
+            collector=collector,
+        )
+    
+        # STEP 3: Run Stage A LBFGS optimization
+        # ARCH-TELEMETRY-001 Phase B.1: Pass collector for baseline/final/exception validations
+        status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+            compute_loss=compute_loss,
+            closure=closure,
+            optimizer=optimizer,
+            params=params,
+            telemetry_state=telemetry_state,
+            config=self._config,
+            canonical_baseline=canonical_baseline,
+            full_stage_a_indices=full_stage_a_indices,
+            log_scale=log_scale,
+            log_cell_a_delta=log_cell_a_delta,
+            log_cell_b_delta=log_cell_b_delta,
+            log_cell_c_delta=log_cell_c_delta,
+            angle_alpha_raw=angle_alpha_raw,
+            angle_beta_raw=angle_beta_raw,
+            angle_gamma_raw=angle_gamma_raw,
+            orientation_vec=orientation_vec,
+            device=device,
+            dtype=dtype,
+            masked_pixel_reference=int(refinement_inputs.loss_mask.sum()),
+            force_panel_validation=force_panel_validation,
+            collector=collector,
+        )
+    
+        # ARCH-TELEMETRY-001 Phase C.2: Finalize collector to get typed StageResult
+        # This happens after _run_stage_a_lbfgs completes (including all validations)
+        collector_stage_result = collector.finalize()
+    
+        log_cell_max_delta = getattr(self._config, 'log_cell_max_delta', 1.0)
+        log_cell_a_delta_clamped = torch.clamp(
+            log_cell_a_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+        log_cell_b_delta_clamped = torch.clamp(
+            log_cell_b_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+        log_cell_c_delta_clamped = torch.clamp(
+            log_cell_c_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+    
+        # Build param_deltas dict for telemetry (matches run_nanobrag_refinement lines 2156-2198)
+        param_deltas = {
+            'log_scale': {
+                'initial': initial_log_scale,
+                'final': float(log_scale.item()),
+                'delta': float(log_scale.item()) - initial_log_scale
+            },
+            'log_scale_baseline': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+                'final': log_scale_baseline if log_scale_baseline is not None else 0.0,
+            },
+            # ARCH-SIM-CONSTRUCTION-001 Phase C.7: Capture effective log-scale for reconstruction
+            # Store the actual log_scale value used in the final forward pass (baseline + clamped_delta)
+            # so reconstruction helpers can use the authoritative scale_factor without recomputation
+            'log_scale_effective': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+>               'final': float(log_scale_clamped.item()) if hasattr(log_scale_clamped, 'item') else float(log_scale_clamped),
+                'delta': float(log_scale.item()) - initial_log_scale,
+                'delta_bound': delta_bound,
+                'log_scale_delta_clamped': float(log_scale_delta_clamped.item()) if log_scale_baseline_value is not None else float(log_scale.item()) - initial_log_scale,
+                'scale_factor': float(torch.exp(log_scale_clamped).item()) if hasattr(log_scale_clamped, 'item') else float(torch.exp(torch.tensor(log_scale_clamped)).item()),
+            },
+            'log_cell_a_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_a_delta_clamped.item()),
+                'delta': float(log_cell_a_delta_clamped.item())
+            },
+            'log_cell_b_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_b_delta_clamped.item()),
+                'delta': float(log_cell_b_delta_clamped.item())
+            },
+            'log_cell_c_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_c_delta_clamped.item()),
+                'delta': float(log_cell_c_delta_clamped.item())
+            },
+            'angle_alpha_raw': {
+                'initial': 0.0,
+                'final': float(angle_alpha_raw.item()),
+                'delta': float(angle_alpha_raw.item())
+            },
+            'angle_beta_raw': {
+                'initial': 0.0,
+                'final': float(angle_beta_raw.item()),
+                'delta': float(angle_beta_raw.item())
+            },
+            'angle_gamma_raw': {
+                'initial': 0.0,
+                'final': float(angle_gamma_raw.item()),
+                'delta': float(angle_gamma_raw.item())
+            },
+            'orientation_vec': {
+                'initial': [0.0, 0.0, 0.0],
+                'final': orientation_vec.detach().cpu().tolist(),
+                'delta': orientation_vec.detach().cpu().tolist(),
+                'norm': float(orientation_vec.norm().item())
+            }
+        }
+E       NameError: name 'log_scale_clamped' is not defined
+
+dbex/refinement/stage_a.py:1872: NameError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity - NameError: name 'log_scale_clamped' is not defined
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - NameError: name 'log_scale_clamped' is not defined
+======================== 5 warnings, 2 errors in 18.60s ========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity [ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 1.389551e+10
+  log_scale_effective (recorded): 23.354832
+  log_scale_baseline: 20.354832
+  log_scale_delta_clamped (recorded): 3.0
+  sqrt_spot_scale: 691817229.1071362
+  spot_scale_override: 4.786110784894759e+17
+  bragg_panel[0] mean (raw sim output): 1.865559e-09
+  bragg_panel[0] max: 5.243680e-05
+  bragg_scaled[0] mean (after scale_factor): 2.592290e+01
+  bragg_full mean (final output): 2.592289e+01
+  bragg_full max: 7.286362e+05
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-12T180000Z/db_at_028/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
+FAILED
+
+=================================== FAILURES ===================================
+_______________________ test_db_at_028_loss_scale_sanity _______________________
+
+stage_a_smoke_result = {'bragg_after': array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ......loat32), 'bragg_after_max': 728636.25, 'bragg_after_mean': 25.92289161682129, 'bragg_after_std': 2566.85400390625, ...}
+
+    @pytest.mark.allow_metadata_sigma
+    def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
+        """
+        DB-AT-028 (docs/spec-db-conformance.md:280-318): chi²-per-pixel and clamp sanity.
+        """
+        telemetry = stage_a_smoke_result["telemetry"]
+        chi_trace = stage_a_smoke_result["chi_trace"]
+        masked_pixels = stage_a_smoke_result["masked_pixels"]
+        clamp_fraction = stage_a_smoke_result["clamp_fraction"]
+    
+        assert chi_trace, "Stage A chi-squared trace missing"
+        chi2_initial = chi_trace[0][1]
+        chi2_final = chi_trace[-1][1]
+        chi2_per_pixel_initial = chi2_initial / masked_pixels
+        chi2_per_pixel_final = chi2_final / masked_pixels
+        log_scale_entry = telemetry.param_deltas.get("log_scale", {})
+        log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
+    
+        artifact_dir = _artifact_dir("DBAT028_ARTIFACT_DIR")
+    
+        # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
+        emit_mapping_context_diagnostics(
+            mapping_context=stage_a_smoke_result["mapping_context"],
+            dataload=stage_a_smoke_result["refgeom_dataload"],
+            output_path=artifact_dir / "mapping_context_fixture.json",
+            bragg_model=stage_a_smoke_result["bragg_before"],  # Use computed bragg_before from fixture
+            stage_name="fixture_db_at_028",
+        )
+    
+        # Extract calibration_path from mapping context diagnostics (TOOLING-VIS-001)
+        calibration_path = stage_a_smoke_result["mapping_context"].diagnostics.get("calibration_path", None)
+    
+        # Persist metrics before assertions so artifacts exist even on failure
+        metrics = {
+            "chi2_per_pixel_initial": chi2_per_pixel_initial,
+            "chi2_per_pixel_final": chi2_per_pixel_final,
+            "variance_floor_clamp_fraction": clamp_fraction,
+            "variance_floor_masked_pixels": masked_pixels,
+            "variance_floor_masked_pixels_loss_mask": int(stage_a_smoke_result["inputs"].loss_mask.sum()),
+            "chi_squared_trace_full": [[int(step), float(val)] for step, val in chi_trace],
+            "device": stage_a_smoke_result["config"].device,
+            "enable_hkl_interpolation": stage_a_smoke_result["config"].enable_hkl_interpolation,
+            "log_scale_initial": log_scale_entry.get("initial") if isinstance(log_scale_entry, dict) else None,
+            "log_scale_final": log_scale_entry.get("final") if isinstance(log_scale_entry, dict) else None,
+            "log_scale_baseline": log_scale_baseline_entry.get("final") if isinstance(log_scale_baseline_entry, dict) else None,
+            "log_scale_effective_init": stage_a_smoke_result.get("log_scale_effective_init"),
+            "log_scale_effective_final": stage_a_smoke_result.get("log_scale_effective_final"),
+            "bragg_before_mean": stage_a_smoke_result.get("bragg_before_mean"),
+            "bragg_before_std": stage_a_smoke_result.get("bragg_before_std"),
+            "bragg_before_max": stage_a_smoke_result.get("bragg_before_max"),
+            "bragg_after_mean": stage_a_smoke_result.get("bragg_after_mean"),
+            "bragg_after_std": stage_a_smoke_result.get("bragg_after_std"),
+            "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
+            "roi_cc_median_before": stage_a_smoke_result.get("roi_cc_median_before"),
+            "roi_cc_median_after": stage_a_smoke_result.get("roi_cc_median_after"),
+            "hkl_source": stage_a_smoke_result.get("hkl_source"),
+            "hkl_path": stage_a_smoke_result.get("hkl_path"),
+            "hkl_count": stage_a_smoke_result.get("hkl_count"),
+            "spot_scale_override": stage_a_smoke_result.get("spot_scale_override"),
+            "calibration_path": calibration_path,
+            "sigma_source": stage_a_smoke_result.get("sigma_source"),
+            "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
+            "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
+            "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
+            "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
+            # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+            "log_scale_baseline_source": telemetry.log_scale_baseline_source,
+            "spot_scale_override_adjustment_factor": telemetry.spot_scale_override_adjustment_factor,
+            # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+            "target_mean_masked": telemetry.target_mean_masked,
+            "model_mean_masked": telemetry.model_mean_masked,
+        }
+        (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
+    
+>       assert chi2_per_pixel_initial <= 1e2, f"chi²/pixel initial {chi2_per_pixel_initial:.3e} exceeds 1e2 bound"
+E       AssertionError: chi²/pixel initial 2.098e+05 exceeds 1e2 bound
+E       assert 209817.05893719808 <= 100.0
+
+tests/dbex/test_stage_a_smoke_parity.py:364: AssertionError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity - AssertionError: chi²/pixel initial 2.098e+05 exceeds 1e2 bound
+assert 209817.05893719808 <= 100.0
+======================== 1 failed, 5 warnings in 13.22s ========================

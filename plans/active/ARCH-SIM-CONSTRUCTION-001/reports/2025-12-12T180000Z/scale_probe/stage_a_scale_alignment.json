@@ -1,0 +1,52 @@
+{
+  "detector_size": "small",
+  "calibration_config": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json",
+  "device": "cpu",
+  "hkl_source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz",
+  "calibration_metadata": {
+    "spot_scale_override": 4.786110784894759e+17,
+    "log_scale_baseline": null,
+    "N_cells": [
+      41,
+      29,
+      32
+    ],
+    "beam_flux": 1000000000000.0,
+    "beam_exposure": 1.0,
+    "beamsize_mm": 1.0,
+    "sqrt_spot_scale": 691817229.1071362,
+    "scale_factor": null
+  },
+  "log_scale_effective_telemetry_structure": {
+    "note": "This probe doesn't run Stage A refinement; example structure shown here",
+    "initial": 0.0,
+    "final": "computed during Stage A final forward pass",
+    "delta": "log_scale parameter delta",
+    "delta_bound": "config.log_scale_max_delta (typically 3.0)",
+    "log_scale_delta_clamped": "clamped delta value",
+    "scale_factor": "exp(log_scale_baseline + clamped_delta)"
+  },
+  "mapping_path": {
+    "global_scale_hint": 1.435697062341783,
+    "bragg_masked_mean": 1.8453091382980347,
+    "bragg_masked_max": 137203.75,
+    "bragg_unmasked_mean": 1.668869137763977,
+    "bragg_unmasked_max": 137203.75,
+    "sigma_floor_value": 1.0
+  },
+  "reconstruction_path": {
+    "bragg_masked_mean": null,
+    "bragg_masked_max": null,
+    "bragg_unmasked_mean": null,
+    "bragg_unmasked_max": null
+  },
+  "ratios": {
+    "mapping_reconstruction_masked": null,
+    "mapping_reconstruction_unmasked": null
+  },
+  "mask_statistics": {
+    "total_pixels": 1048576,
+    "trusted_pixels": 948316,
+    "coverage_fraction": 0.9043846130371094
+  }
+}

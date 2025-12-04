@@ -43,7 +43,8 @@ def test_square_lattice_applies_ncells(device):
     # Test parameters
     Na, Nb, Nc = 41, 29, 32
     expected_ratio = (Na * Nb * Nc) ** 2
-    tolerance = 0.05  # 5% tolerance
+    # ARCH-SIM-CONSTRUCTION-001 C.35: Tightened tolerance after normalization fix
+    tolerance = 0.01  # 1% tolerance (was 5% before fix)
 
     # Create configs
     detector_config = DetectorConfig(
@@ -65,16 +66,26 @@ def test_square_lattice_applies_ncells(device):
     crystal_base = Crystal(crystal_config_base, device=device)
     detector = Detector(detector_config, device=device)
 
+    # ARCH-SIM-CONSTRUCTION-001 C.35: Enable partiality stats to capture steps_scalar
+    debug_config = {'collect_partiality_stats': True}
+
     sim_base = Simulator(
         crystal=crystal_base,
         detector=detector,
         crystal_config=crystal_config_base,
         beam_config=beam_config,
         device=device,
+        debug_config=debug_config,
     )
 
     image_base = sim_base.run()
     intensity_base = image_base.sum().item()
+
+    # Extract steps_scalar from partiality stats
+    stats_base = sim_base.partiality_stats
+    assert stats_base is not None, "Partiality stats should be available"
+    steps_scalar_base = stats_base.get('steps_scalar', None)
+    assert steps_scalar_base is not None, "steps_scalar must be emitted when collect_partiality_stats=True"
 
     # Run 2: N_cells=(Na, Nb, Nc)
     crystal_config_scaled = CrystalConfig(
@@ -91,10 +102,32 @@ def test_square_lattice_applies_ncells(device):
         crystal_config=crystal_config_scaled,
         beam_config=beam_config,
         device=device,
+        debug_config=debug_config,
     )
 
     image_scaled = sim_scaled.run()
     intensity_scaled = image_scaled.sum().item()
+
+    # Extract steps_scalar from partiality stats
+    stats_scaled = sim_scaled.partiality_stats
+    assert stats_scaled is not None, "Partiality stats should be available"
+    steps_scalar_scaled = stats_scaled.get('steps_scalar', None)
+    assert steps_scalar_scaled is not None, "steps_scalar must be emitted when collect_partiality_stats=True"
+
+    # ARCH-SIM-CONSTRUCTION-001 C.35: Assert SQUARE lattice normalization excludes oversample²
+    # For SQUARE shape, steps_scalar should be sources·phi_steps·mosaic_domains (no oversample²)
+    # Default config: sources=1, phi_steps=1, mosaic_domains=1 → steps_scalar should be 1
+    expected_steps_scalar_square = 1  # No oversample² for SQUARE
+    assert steps_scalar_base == expected_steps_scalar_square, (
+        f"SQUARE lattice must use integral normalization: "
+        f"expected steps_scalar={expected_steps_scalar_square}, "
+        f"observed={steps_scalar_base} (should not include oversample²)"
+    )
+    assert steps_scalar_scaled == expected_steps_scalar_square, (
+        f"SQUARE lattice must use integral normalization: "
+        f"expected steps_scalar={expected_steps_scalar_square}, "
+        f"observed={steps_scalar_scaled} (should not include oversample²)"
+    )
 
     # Verify ratio
     observed_ratio = intensity_scaled / intensity_base if intensity_base > 0 else 0.0

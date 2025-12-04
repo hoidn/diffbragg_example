@@ -1,3 +1,9 @@
+### Turn Summary (Ralph Implementation — 2026-01-06T010000Z)
+Implemented SQUARE lattice integral normalization fix (steps excludes oversample²); architecture test results: 0.0058%→41.5% of spec (7000× gain); steps_scalar=1 assertions pass; remaining 58% error indicates additional factors beyond normalization scope; documented evidence and escalated per input.md criteria (ratio ≤95% of spec after fix).
+Artifacts: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-06T010000Z/` — `pytest_partiality.log`, `square_lattice_probe.log`, `square_lattice_scaling.{json,md}`, `square_lattice_steps_fix.patch`.
+
+---
+
 # Supervisor Loop — 2026-01-06T010000Z
 
 ## Context

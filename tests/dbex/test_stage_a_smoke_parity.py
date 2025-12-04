@@ -160,8 +160,9 @@ def stage_a_smoke_result(
     engine = RefinementEngine(stages, config=config)
     telemetry_dict = engine.run({"context": refinement_context})
 
-    # Extract Bragg from Stage A artifacts
-    bragg_final = engine._artifacts["stage_a"].bragg_full
+    # Extract Bragg and artifacts from Stage A
+    stage_a_artifacts = engine._artifacts["stage_a"]
+    bragg_final = stage_a_artifacts.bragg_full
 
     telemetry = telemetry_dict["stage_a"]
     chi_trace = telemetry.chi_squared_trace_full or []
@@ -177,6 +178,7 @@ def stage_a_smoke_result(
     # eliminating the double-application of spot_scale and aligning with the telemetry baseline.
 
     # Build bragg_before from initial telemetry parameters (zero-iteration baseline)
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Use stage_a_ctx from artifacts (warm cache)
     bragg_before = build_final_bragg_from_stage_a_telemetry(
         telemetry_a=telemetry,
         detector=perturbed_detector,
@@ -188,12 +190,13 @@ def stage_a_smoke_result(
         config=config,
         device=device_obj,
         dtype=config.dtype,
-        stage_a_ctx=engine._stage_contexts.get("stage_a") if hasattr(engine, "_stage_contexts") else None,
+        stage_a_ctx=stage_a_artifacts.stage_a_ctx,
         baseline_crystal=baseline_crystal,
         param_state="initial",  # Use initial telemetry params for zero-iteration baseline
     )
 
     # Build bragg_after from final telemetry parameters (post-refinement)
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Use stage_a_ctx from artifacts (warm cache)
     bragg_after = build_final_bragg_from_stage_a_telemetry(
         telemetry_a=telemetry,
         detector=perturbed_detector,
@@ -205,7 +208,7 @@ def stage_a_smoke_result(
         config=config,
         device=device_obj,
         dtype=config.dtype,
-        stage_a_ctx=engine._stage_contexts.get("stage_a") if hasattr(engine, "_stage_contexts") else None,
+        stage_a_ctx=stage_a_artifacts.stage_a_ctx,
         baseline_crystal=baseline_crystal,
         param_state="final",  # Use final telemetry params for refined output
     )

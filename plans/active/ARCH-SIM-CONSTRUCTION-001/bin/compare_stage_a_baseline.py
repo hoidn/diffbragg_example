@@ -237,8 +237,12 @@ def main():
 
     print("[Stage A Baseline Probe] Running RefinementEngine with Stage A...")
     telemetry_dict = engine.run({"context": refinement_context})
+
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Extract artifacts for warm cache access
+    stage_a_artifacts = engine._artifacts["stage_a"]
+
     telemetry = telemetry_dict["stage_a"]
-    print("[Stage A Baseline Probe] Stage A complete, extracting telemetry...")
+    print("[Stage A Baseline Probe] Stage A complete, extracting telemetry and artifacts...")
 
     # Extract telemetry fields of interest
     param_deltas = telemetry.param_deltas if hasattr(telemetry, 'param_deltas') else {}
@@ -268,7 +272,8 @@ def main():
     scale_factor_telem = log_scale_effective_entry.get("scale_factor", float("nan"))
 
     # Reconstruct bragg_before from initial telemetry parameters
-    print("[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry...")
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Use stage_a_ctx from artifacts (warm cache)
+    print("[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry with warm cache...")
     bragg_before = build_final_bragg_from_stage_a_telemetry(
         telemetry_a=telemetry,
         detector=perturbed_detector,
@@ -280,7 +285,7 @@ def main():
         config=config,
         device=device_obj,
         dtype=config.dtype,
-        stage_a_ctx=engine._stage_contexts.get("stage_a") if hasattr(engine, "_stage_contexts") else None,
+        stage_a_ctx=stage_a_artifacts.stage_a_ctx,
         baseline_crystal=baseline_crystal,
         param_state="initial",  # Use initial telemetry params for zero-iteration baseline
     )

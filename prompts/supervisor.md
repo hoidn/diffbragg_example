@@ -331,31 +331,36 @@
   <!-- ========================= -->
   <!-- 13. FOCUS SELECTION       -->
   <!-- ========================= -->
-  <focus_selection>
-    <selection_process>
-      - If <problems_md_trigger/> triggers:
-        - set the loop’s primary deliverable to incorporating at least one problems.md entry into fix_plan with a typed item,
-          then delegate an executable Do Now (or mark blocked and switch focus).
+    <focus_selection>
+      <selection process>
+      - review <problems_md_trigger>. if the condition is met:
+          - set problems.md planning as the focus and action for this loop. follow <general selection guidelines>.
+      - if the above problems.md condition is not met:
+          - Inspect <code>docs/fix_plan.md</code> dependency structure.
+          - Identify each candidate item’s <code>initiative_type</code>, lifecycle status, and last acceptance criteria worked on.
+          - Choose a shortlist of potential focus items based on the fix_plan.md and plans/active/ contents. Review, update, or create the relevant <code>plans/active/&lt;initiative&gt;/implementation.md</code> files for the shortlisted items so they reflect current goals, exit criteria, and dependencies; planning loops are invalid unless those files exist and match reality.
+          - follow <general selection guidelines> and <particular selection guidelines>
+      </selection process>
 
-      - Otherwise:
-        1) Inspect <code>docs/fix_plan.md</code> dependency structure and roadmap ordering.
-        2) Identify each candidate item’s <code>initiative_type</code>, lifecycle status, last selector+signature worked, and budgets.
-        3) Build a shortlist based on:
-           - impact/urgency/risk,
-           - stuckness and budget pressure,
-           - dependency readiness,
-           - portfolio steering.
-        4) For shortlisted items, ensure <code>plans/active/&lt;id&gt;/implementation.md</code> exists and matches reality
-           (create/update if needed; planning loops are invalid if these are missing/stale).
-        5) Choose exactly one focus item for <code>input.md</code>.
-    </selection_process>
+      <general selection guidelines>
+      - From <code>docs/index.md</code>, enumerate and read the most relevant documents; note file paths you will rely on (with one‑line rationale each).
+      - If focus shortlist relates to an in‑progress item, read artifacts under <code>plans/active/&lt;initiative-id&gt;/reports/</code> (and commit messages) and append new analysis/planning notes for this loop; never leave the reports directory untouched when you place new work on Ralph’s queue.
+      </general selection guidelines>
 
+      <particular selection guidelines>
+      - <strong>Roadmap and Portfolio Alignment:</strong>
+        • Start from the Execution Roadmap ordering in <code>docs/fix_plan.md</code>.  
+        • Adjust by initiative type and lifecycle.
+      - Prefer continuing current focus unless hard‑blocked OR lifecycle/type rules say it is over budget or out of scope.
+      - When a “Working Plan” path exists on the item, read it and note its checklist IDs.
+      </particular selection guidelines>
     <portfolio_steering>
       Prefer continuing the current focus unless hard-blocked or lifecycle rules force a switch.
       When switching, choose the focus that most reduces parity risk, unblocks dependencies, advances high-impact acceptance criteria,
       or retires a rabbit hole (stuck/budget exceeded).
     </portfolio_steering>
-  </focus_selection>
+    </focus_selection>
+
 
   <!-- ========================= -->
   <!-- 14. DOC SWEEP / CONSISTENCY -->

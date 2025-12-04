@@ -284,7 +284,7 @@ def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> Beam
     return BeamConfig(**beam_kwargs)
 
 
-def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True, crystal_overrides=None, misset_deg_override=None) -> Tuple[CrystalConfig, bool]:
+def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True, crystal_overrides=None, misset_deg_override=None, diagnostics=None) -> Tuple[CrystalConfig, bool]:
     """
     Create CrystalConfig from dxtbx crystal and experiment with optional calibration overrides.
 
@@ -292,12 +292,13 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     - Unit cell parameters in Angstroms and degrees (no conversion)
     - MOSFLM A* injection from crystal.get_A() columns
     - Misset angles default to zero (identity rotation)
-    - Stills defaults: phi_steps=1, osc_range_deg=0, mosaic off
+    - Stills defaults: phi_steps=1, osc_range_deg=0, mosaic extracted from experiment metadata
     - Optional N_cells from DiffBragg calibration metadata (gated by apply_n_cells per SCALE-005)
+    - ARCH-SIM-CONSTRUCTION-001: Extracts ML_half_mosaicity_deg and ML_domain_size_ang from experiment.crystal.to_dict()
 
     Args:
         crystal: dxtbx Crystal object
-        experiment: dxtbx Experiment object (for scan/goniometer)
+        experiment: dxtbx Experiment object (for scan/goniometer and crystal metadata)
         N_cells: Optional tuple of 3 ints for mosaic domain counts (from calibration metadata)
         apply_n_cells: If False, ignore N_cells even if provided (SCALE-005 guard)
         crystal_overrides: Optional dict of tensor-valued crystal parameter overrides
@@ -308,6 +309,7 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
                             for orientation refinement (TORCH-REFINE-002). When provided,
                             overrides the default zero misset. Can be torch.Tensor to preserve
                             gradient flow for differentiable orientation refinement.
+        diagnostics: Optional dict to populate with applied mosaic/N_cells values for logging
 
     Returns:
         Tuple of (CrystalConfig, n_cells_applied: bool) where n_cells_applied indicates
@@ -372,6 +374,54 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     mosaic_domains = 1
     mosaic_spread_deg = 0.0
 
+    # ARCH-SIM-CONSTRUCTION-001: Extract mosaic spread and domain size from experiment metadata
+    # Read crystal metadata from experiment.crystal.to_dict() to get ML_half_mosaicity_deg
+    # and optionally ML_domain_size_ang for fallback N_cells computation
+    # Guard against None experiment (can occur in reconstruction contexts)
+    ml_half_mosaicity_deg = None
+    ml_domain_size_ang = None
+    if experiment is not None:
+        crystal_dict = experiment.crystal.to_dict()
+        ml_half_mosaicity_deg = crystal_dict.get('ML_half_mosaicity_deg', None)
+        ml_domain_size_ang = crystal_dict.get('ML_domain_size_ang', None)
+
+    # Apply mosaic spread if available (use the refined half-mosaicity value directly)
+    # DiffBragg reports degrees, so pass them straight through (no conversion)
+    # Guard against zero/negative values to avoid underflow in simulator
+    if ml_half_mosaicity_deg is not None and ml_half_mosaicity_deg > 0.0:
+        mosaic_spread_deg = max(ml_half_mosaicity_deg, np.finfo(float).eps)
+        if diagnostics is not None:
+            diagnostics['mosaic_spread_deg'] = mosaic_spread_deg
+            diagnostics['mosaic_source'] = 'ML_half_mosaicity_deg'
+    else:
+        if diagnostics is not None:
+            diagnostics['mosaic_spread_deg'] = 0.0
+            diagnostics['mosaic_source'] = 'default_zero'
+
+    # Compute fallback N_cells from ML_domain_size_ang if N_cells is not provided
+    # Divide domain size by each unit cell edge and round to nearest positive integer
+    # to support anisotropic crystals (per input.md How-To Map)
+    fallback_n_cells = None
+    if N_cells is None and ml_domain_size_ang is not None and ml_domain_size_ang > 0.0:
+        # Extract scalar values from cell parameters (handle both float and tensor cases)
+        a_val = float(a) if hasattr(a, 'item') else float(a)
+        b_val = float(b) if hasattr(b, 'item') else float(b)
+        c_val = float(c) if hasattr(c, 'item') else float(c)
+
+        # Compute N_cells per axis, rounding to at least 1
+        n_a = max(1, int(round(ml_domain_size_ang / a_val)))
+        n_b = max(1, int(round(ml_domain_size_ang / b_val)))
+        n_c = max(1, int(round(ml_domain_size_ang / c_val)))
+        fallback_n_cells = (n_a, n_b, n_c)
+
+        if diagnostics is not None:
+            diagnostics['n_cells_fallback'] = fallback_n_cells
+            diagnostics['n_cells_source'] = 'ML_domain_size_ang'
+
+    # Use fallback N_cells if no explicit N_cells was provided
+    if N_cells is None and fallback_n_cells is not None:
+        N_cells = fallback_n_cells
+
     # Build kwargs for CrystalConfig, only including N_cells if provided AND apply_n_cells=True
     crystal_kwargs = {
         'cell_a': a,
@@ -396,5 +446,14 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     if N_cells is not None and apply_n_cells:
         crystal_kwargs['N_cells'] = N_cells
         n_cells_applied = True
+        if diagnostics is not None:
+            diagnostics['n_cells_applied'] = N_cells
+    else:
+        if diagnostics is not None:
+            diagnostics['n_cells_applied'] = None
+            if N_cells is not None:
+                diagnostics['n_cells_suppression_reason'] = 'apply_n_cells=False'
+            else:
+                diagnostics['n_cells_suppression_reason'] = 'N_cells not provided'
 
     return CrystalConfig(**crystal_kwargs), n_cells_applied

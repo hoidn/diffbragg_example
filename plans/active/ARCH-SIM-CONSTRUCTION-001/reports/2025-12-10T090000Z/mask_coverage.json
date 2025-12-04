@@ -152,5 +152,27 @@
         "fallback_reason": null
       }
     ]
+  },
+  {
+    "timestamp": "2025-12-04T01:01:08.739831Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T01:01:08.778235Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
   }
 ]

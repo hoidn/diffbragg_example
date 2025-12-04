@@ -1,0 +1,46 @@
+[
+  {
+    "timestamp": "2025-12-04T01:01:47.318716Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T01:01:47.355815Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T01:01:53.777430Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T01:01:53.813845Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  }
+]

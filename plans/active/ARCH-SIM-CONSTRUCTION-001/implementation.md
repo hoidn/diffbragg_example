@@ -415,6 +415,23 @@ Result: Deterministic evidence now isolates the remaining divergence to the sinc
 - [ ] Execute the probe with Na=41, Nb=29, Nc=32 and compare the measured ratio against `(Na·Nb·Nc)^2`, noting whether the minimalist configuration still shows the 0.25 % shortfall. Capture stdout/logs under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/`.
 - [ ] Rerun `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1` to document the current enforcement failure alongside the probe evidence (log to the same artifacts directory).
 
+#### C.31 — Lattice-scaling pipeline instrumentation (In Progress — 2026-01-03T010000Z)
+- [x] **Instrument `compute_physics_for_position` with opt-in debug payload:** Added Phase C.31 hooks to capture `F_cell`, `F_total²` (pre-Lorentz), and `intensity_pre_polar` (post-Lorentz, pre-polarization) when `partiality_stats` is enabled. Edits preserve opt-in semantics (production runs unaffected) and device/dtype neutrality. Files: `src/nanobrag-torch/src/nanobrag_torch/simulator.py:382-387, 456-458`.
+- [x] **Thread payload through probe script:** Extended `probe_square_lattice_scaling.py` to extract the new debug fields from `partiality_stats`, compute derived ratios (`F_latt_ratio`, `F_total_sq_ratio`, `I_pre_polar_ratio`, `{base,scaled}_I_pre_polar_over_F_total_sq`), and persist them in JSON + Markdown outputs alongside the existing metrics. Files: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py:96-131, 206-256, 276-285, 316-341`.
+- [x] **Document instrumentation scope and hypotheses:** Added this Phase C.31 entry to `implementation.md` listing the captured quantities and the bisection strategy: compare `(I_pre_polar) / (F_cell·F_latt)²` for base vs scaled runs; if the ratio deviates from 1, inspect normalization branch after `F_total = F_cell * F_latt`; if ratio is constant, the missing multiplier lies in Lorentz/polarization path.
+- [ ] **Execute probe and capture artifacts:** Run the updated probe under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-03T010000Z/` with full payload extraction and store JSON/Markdown/logs showing the derived ratios to determine the first divergence point in the intensity pipeline.
+- [ ] **Rerun enforcement test:** Execute `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` to archive current enforcement status alongside the new payload evidence.
+- [ ] **Update Attempts History:** Record the Phase C.31 loop in `docs/fix_plan.md` with timestamp, measured derived ratios, and decision: if derived evidence points to Lorentz or F_total computation, escalate to `patch_ready` with targeted fix; else continue bisection in C.32.
+
+**Hypotheses to confirm/refute:**
+1. If `F_latt_ratio ≠ Na·Nb·Nc`, then the sincg product is collapsing (contradicts C.30 trace evidence).
+2. If `F_total_sq_ratio ≠ (Na·Nb·Nc)²`, then the squaring or product `F_cell * F_latt` is incorrect.
+3. If `I_pre_polar_ratio ≠ (Na·Nb·Nc)²`, then the Lorentz factor introduces an unexpected normalization.
+4. If `{base,scaled}_I_pre_polar_over_F_total_sq` differ significantly, then the Lorentz formula scales incorrectly with `F_latt`.
+5. If all ratios match expected but final intensity does not, then the polarization or post-polar normalization is wrong.
+
+**Evidence artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-03T010000Z/` containing `square_lattice_scaling.{json,md}`, `square_lattice_probe.log`, `pytest_partiality.log`.
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

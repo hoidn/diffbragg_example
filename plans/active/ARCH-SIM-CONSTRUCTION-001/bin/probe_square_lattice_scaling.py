@@ -94,16 +94,34 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
 
     # Extract debug stats if available
     debug_stats = {}
+    # Phase C.31: Extract partiality stats for F_cell, F_latt, F_total^2, intensity_pre_polar
+    payload = {}
+
+    # Access partiality_stats directly from simulator._partiality_stats
+    if hasattr(simulator, '_partiality_stats') and simulator._partiality_stats is not None:
+        pstats = simulator._partiality_stats
+        # Phase C.31: Extract key metrics for scaling analysis
+        if 'F_cell' in pstats:
+            F_cell = pstats['F_cell']
+            payload['F_cell'] = float(F_cell.mean().item()) if isinstance(F_cell, torch.Tensor) else F_cell
+        if 'f_latt' in pstats:
+            f_latt = pstats['f_latt']
+            payload['F_latt'] = float(f_latt.mean().item()) if isinstance(f_latt, torch.Tensor) else f_latt
+        if 'F_total_squared_pre_lorentz' in pstats:
+            F_total_sq = pstats['F_total_squared_pre_lorentz']
+            payload['F_total_squared_pre_lorentz'] = float(F_total_sq.mean().item()) if isinstance(F_total_sq, torch.Tensor) else F_total_sq
+        if 'intensity_pre_polar' in pstats:
+            I_pre_polar = pstats['intensity_pre_polar']
+            payload['intensity_pre_polar'] = float(I_pre_polar.mean().item()) if isinstance(I_pre_polar, torch.Tensor) else I_pre_polar
+
+        debug_stats['partiality_stats'] = {
+            k: (v.tolist() if isinstance(v, torch.Tensor) else v)
+            for k, v in pstats.items()
+            if k not in ['delta_h', 'delta_k', 'delta_l', 'F_latt_a', 'F_latt_b', 'F_latt_c']
+        }
+
     if hasattr(simulator, 'debug_stats') and simulator.debug_stats is not None:
         stats = simulator.debug_stats
-        # Extract relevant scalar stats
-        if 'partiality_stats' in stats:
-            pstats = stats['partiality_stats']
-            debug_stats['partiality_stats'] = {
-                k: (v.tolist() if isinstance(v, torch.Tensor) else v)
-                for k, v in pstats.items()
-                if k not in ['delta_h', 'delta_k', 'delta_l', 'F_latt_a', 'F_latt_b', 'F_latt_c']
-            }
         if 'trace_pixel' in stats:
             trace = stats['trace_pixel']
             debug_stats['trace_pixel'] = {
@@ -111,7 +129,7 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
                 for k, v in trace.items()
             }
 
-    return total_intensity, debug_stats
+    return total_intensity, debug_stats, payload
 
 
 def main():
@@ -152,29 +170,78 @@ def main():
 
     # Run base case: N_cells=(1,1,1)
     print("Running base case: N_cells=(1,1,1)")
-    intensity_base, debug_base = run_simulation(
+    intensity_base, debug_base, payload_base = run_simulation(
         1, 1, 1,
         args.spixels, args.fpixels,
         args.oversample, args.phi_count, args.mosaic_count,
         args.device
     )
     print(f"  Base intensity: {intensity_base:.6e}")
+    if payload_base:
+        print(f"  Base payload: F_cell={payload_base.get('F_cell', 'N/A'):.6e}, "
+              f"F_latt={payload_base.get('F_latt', 'N/A'):.6e}, "
+              f"F_total²={payload_base.get('F_total_squared_pre_lorentz', 'N/A'):.6e}, "
+              f"I_pre_polar={payload_base.get('intensity_pre_polar', 'N/A'):.6e}")
     print()
 
     # Run scaled case: N_cells=(Na,Nb,Nc)
     print(f"Running scaled case: N_cells=({na},{nb},{nc})")
-    intensity_scaled, debug_scaled = run_simulation(
+    intensity_scaled, debug_scaled, payload_scaled = run_simulation(
         na, nb, nc,
         args.spixels, args.fpixels,
         args.oversample, args.phi_count, args.mosaic_count,
         args.device
     )
     print(f"  Scaled intensity: {intensity_scaled:.6e}")
+    if payload_scaled:
+        print(f"  Scaled payload: F_cell={payload_scaled.get('F_cell', 'N/A'):.6e}, "
+              f"F_latt={payload_scaled.get('F_latt', 'N/A'):.6e}, "
+              f"F_total²={payload_scaled.get('F_total_squared_pre_lorentz', 'N/A'):.6e}, "
+              f"I_pre_polar={payload_scaled.get('intensity_pre_polar', 'N/A'):.6e}")
     print()
 
     # Compute observed ratio
     observed_ratio = intensity_scaled / intensity_base if intensity_base > 0 else 0.0
     relative_error = abs(observed_ratio - expected_ratio) / expected_ratio if expected_ratio > 0 else float('inf')
+
+    # Phase C.31: Compute derived ratios from payload
+    # These help bisect where the (Na·Nb·Nc)² scaling is lost
+    derived_ratios = {}
+    if payload_base and payload_scaled:
+        # Ratio of F_latt values (should be Na*Nb*Nc for SQUARE)
+        if 'F_latt' in payload_base and 'F_latt' in payload_scaled:
+            F_latt_base = payload_base['F_latt']
+            F_latt_scaled = payload_scaled['F_latt']
+            if F_latt_base > 0:
+                derived_ratios['F_latt_ratio'] = F_latt_scaled / F_latt_base
+                derived_ratios['F_latt_ratio_expected'] = na * nb * nc
+
+        # Ratio of F_total² pre-Lorentz (should be (Na*Nb*Nc)² for SQUARE)
+        if 'F_total_squared_pre_lorentz' in payload_base and 'F_total_squared_pre_lorentz' in payload_scaled:
+            F_tot_sq_base = payload_base['F_total_squared_pre_lorentz']
+            F_tot_sq_scaled = payload_scaled['F_total_squared_pre_lorentz']
+            if F_tot_sq_base > 0:
+                derived_ratios['F_total_sq_ratio'] = F_tot_sq_scaled / F_tot_sq_base
+                derived_ratios['F_total_sq_ratio_expected'] = (na * nb * nc) ** 2
+
+        # Ratio of intensity_pre_polar (should also be (Na*Nb*Nc)² if Lorentz is consistent)
+        if 'intensity_pre_polar' in payload_base and 'intensity_pre_polar' in payload_scaled:
+            I_pre_polar_base = payload_base['intensity_pre_polar']
+            I_pre_polar_scaled = payload_scaled['intensity_pre_polar']
+            if I_pre_polar_base > 0:
+                derived_ratios['I_pre_polar_ratio'] = I_pre_polar_scaled / I_pre_polar_base
+                derived_ratios['I_pre_polar_ratio_expected'] = (na * nb * nc) ** 2
+
+        # Derived ratio: (I_pre_polar) / (F_cell * F_latt)²
+        # This isolates the Lorentz contribution
+        for label, payload in [('base', payload_base), ('scaled', payload_scaled)]:
+            if 'intensity_pre_polar' in payload and 'F_cell' in payload and 'F_latt' in payload:
+                I_pre = payload['intensity_pre_polar']
+                F_c = payload['F_cell']
+                F_l = payload['F_latt']
+                denominator = (F_c * F_l) ** 2
+                if denominator > 0:
+                    derived_ratios[f'{label}_I_pre_polar_over_F_total_sq'] = I_pre / denominator
 
     print(f"Results")
     print(f"=" * 60)
@@ -182,6 +249,11 @@ def main():
     print(f"Observed ratio: {observed_ratio:,.1f}")
     print(f"Relative error: {relative_error:.2%}")
     print(f"Ratio deviation: {observed_ratio / expected_ratio:.6f}x expected")
+    if derived_ratios:
+        print()
+        print("Phase C.31 Derived Ratios:")
+        for k, v in derived_ratios.items():
+            print(f"  {k}: {v:.6e}")
     print()
 
     # Prepare JSON output
@@ -202,6 +274,11 @@ def main():
             "relative_error": relative_error,
             "deviation_factor": observed_ratio / expected_ratio if expected_ratio > 0 else 0.0
         },
+        "payload": {
+            "base": payload_base,
+            "scaled": payload_scaled
+        },
+        "derived_ratios": derived_ratios,
         "debug_stats": {
             "base": debug_base,
             "scaled": debug_scaled
@@ -236,6 +313,25 @@ def main():
         f.write(f"- **Observed ratio**: {observed_ratio:,.1f}\n")
         f.write(f"- **Relative error**: {relative_error:.2%}\n")
         f.write(f"- **Deviation factor**: {observed_ratio / expected_ratio:.6f}x expected\n\n")
+
+        f.write("## Phase C.31 Payload Analysis\n\n")
+        if payload_base:
+            f.write("### Base Case (N_cells=1,1,1)\n")
+            for k, v in payload_base.items():
+                f.write(f"- **{k}**: {v:.6e}\n")
+            f.write("\n")
+        if payload_scaled:
+            f.write(f"### Scaled Case (N_cells={na},{nb},{nc})\n")
+            for k, v in payload_scaled.items():
+                f.write(f"- **{k}**: {v:.6e}\n")
+            f.write("\n")
+
+        if derived_ratios:
+            f.write("### Derived Ratios\n\n")
+            f.write("These ratios help bisect where the (Na·Nb·Nc)² scaling is lost:\n\n")
+            for k, v in derived_ratios.items():
+                f.write(f"- **{k}**: {v:.6e}\n")
+            f.write("\n")
 
         f.write("## Commentary\n\n")
         if relative_error < 0.05:

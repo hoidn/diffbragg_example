@@ -1,3 +1,9 @@
+2025-12-22T150000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-22T150000Z/ next_action=instrument_spot_profile_partitioning
+- Mosaic-domain sweep (domain=1 vs 16) under 2025-12-22T010000Z kept Stage A/Ref median at 0.0612 and DB-AT-028/029 failures unchanged (chi²=2.097e5, ROI corr=-0.053), so the deterministic parity crisis persists regardless of mosaic sampling.
+- Planned Phase C.22 to extend `compare_stage_a_baseline.py` with an optional spot-profile mode that analyzes the full-panel Stage A baseline (ROI vs halo energy fractions, per-axis FWHM, halo bbox) and records the stats + console summary when `--collect-spot-profiles` is requested.
+- Next loop will run the new probe (baseline geometry) with spot-profile capture, emit a markdown/JSON bundle under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-22T150000Z/`, and rerun DB-AT-028/029 so the energy-partition evidence is ready before scheduling a nanobrag_torch instrumentation patch.
+Action State: ready_for_implementation
+
 2025-12-22T010000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-22T010000Z/ next_action=stage_a_mosaic_domain_sweep
 - Refreshed the transformation ledger with five ROI rows (ROI 0/11/14/27/28) using the 2025-12-21 baseline probe; Stage A still deviates 0.002×–234× from the independent DIALS reflection table even though target/ref ≈ 1.0, so the deterministic parity crisis persists at the simulator boundary.
 - Authored a boundary-bisection plan for a mosaic-domain sweep: add `--stage-a-mosaic-domains` to `compare_stage_a_baseline.py`, run baseline geometry twice (domains=1 vs 16) under the new report directory, and re-run DB-AT-028/029 to see whether the new RefinementConfig field changes anything.

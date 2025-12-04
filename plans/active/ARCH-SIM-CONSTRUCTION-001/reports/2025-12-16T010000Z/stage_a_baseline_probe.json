@@ -1,0 +1,88 @@
+{
+  "probe_metadata": {
+    "timestamp": "2025-12-15T010000Z",
+    "initiative": "ARCH-SIM-CONSTRUCTION-001",
+    "phase": "C.9",
+    "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines with aligned HKL/calibration inputs",
+    "device": "cuda:0",
+    "apply_calibration_n_cells": true,
+    "spot_scale_override": 4.786110784894759e+17,
+    "warm_cache_available": true,
+    "stage_a_ctx_used": true,
+    "bragg_full_cached_available": true,
+    "mtz_file": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz",
+    "mtz_col": "F(+),SIGF(+),F(-),SIGF(-)",
+    "calibration_config_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json"
+  },
+  "telemetry_fields": {
+    "target_mean_masked": 87.11842346191406,
+    "model_mean_masked": 87.11842346191412,
+    "log_scale_baseline_value": NaN,
+    "log_scale_delta_clamped": -0.0007634966168552637,
+    "log_scale_clamped_value": NaN,
+    "scale_factor": 5203844096.0,
+    "log_scale_effective_initial": 22.373426605533158,
+    "variance_floor_value": 1.0
+  },
+  "reconstructed_bragg_before": {
+    "mean_masked": 87.11841583251953,
+    "mean_unmasked": 14.010913848876953,
+    "target_mean_masked": 87.11841583251953,
+    "target_mean_unmasked": 0.3439619839191437,
+    "chi_squared_per_pixel_initial": 1887335.3893719807,
+    "n_masked_pixels": 4140
+  },
+  "comparison": {
+    "target_mean_masked_match": false,
+    "target_mean_masked_delta": 7.62939453125e-06,
+    "model_mean_masked_vs_reconstructed_delta": 7.629394588093419e-06,
+    "model_mean_masked_vs_reconstructed_ratio": 1.0000000875749921
+  },
+  "db_at_thresholds": {
+    "DB_AT_028_chi_squared_per_pixel_threshold": 100.0,
+    "DB_AT_028_chi_squared_per_pixel_actual": 1887335.3893719807,
+    "DB_AT_028_pass": false
+  },
+  "mask_metadata": {
+    "telemetry": {
+      "loss_mask_pixel_count": 4140,
+      "panel_true_pixels": [
+        24,
+        24,
+        24,
+        24,
+        12,
+        36,
+        12,
+        36,
+        36,
+        36,
+        36,
+        24,
+        48,
+        12,
+        24,
+        36,
+        12,
+        24,
+        48,
+        24,
+        48,
+        48,
+        36,
+        24,
+        48,
+        36,
+        12,
+        12,
+        12
+      ],
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "reconstruction": {
+      "loss_mask_pixel_count": 4140,
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "checksum_match": true
+  }
+}

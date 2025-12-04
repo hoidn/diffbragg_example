@@ -1,0 +1,178 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu] FAILED [ 50%]
+
+=================================== FAILURES ===================================
+___________________ test_square_lattice_applies_ncells[cpu] ____________________
+
+device = 'cpu'
+
+    @pytest.mark.parametrize("device", ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"])
+    def test_square_lattice_applies_ncells(device):
+        """
+        Test that SQUARE lattice applies (Na·Nb·Nc)² scaling as specified.
+    
+        ARCH-CONTRACT: docs/spec-db-core.md:60-140
+        Owner: nanobrag_torch.simulator.compute_physics_for_position (SQUARE branch)
+        Contract: lattice weights must be proportional to (Na·Nb·Nc)²
+    
+        This test:
+        1. Runs the simulator with N_cells=(1,1,1) to get base intensity I₁
+        2. Runs with N_cells=(Na,Nb,Nc) to get scaled intensity I₂
+        3. Verifies that I₂/I₁ ≈ (Na·Nb·Nc)² within 5% tolerance
+    
+        The fix in SIM-CONSTR-PARTIALITY-001 ensures fractional HKL deltas are
+        computed in float64 before sincg evaluation, preventing underflow.
+        """
+        # Test parameters
+        Na, Nb, Nc = 41, 29, 32
+        expected_ratio = (Na * Nb * Nc) ** 2
+        # ARCH-SIM-CONSTRUCTION-001 C.35: Tightened tolerance after normalization fix
+        tolerance = 0.01  # 1% tolerance (was 5% before fix)
+    
+        # Create configs
+        # ARCH-SIM-CONSTRUCTION-001 C.39: Test with oversample>1 to validate omega compensation
+        test_oversample = 13
+    
+        detector_config = DetectorConfig(
+            distance_mm=100.0,
+            pixel_size_mm=0.1,
+            spixels=10,
+            fpixels=10,
+            oversample=test_oversample,
+        )
+    
+        beam_config = BeamConfig()  # Use defaults (wavelength_A=1.0)
+    
+        # Run 1: N_cells=(1,1,1)
+        crystal_config_base = CrystalConfig(
+            default_F=100.0,  # Constant structure factor
+            N_cells=(1, 1, 1),
+            shape=CrystalShape.SQUARE,
+        )
+    
+        crystal_base = Crystal(crystal_config_base, device=device)
+        detector = Detector(detector_config, device=device)
+    
+        # ARCH-SIM-CONSTRUCTION-001 C.35: Enable partiality stats to capture steps_scalar
+        debug_config = {'collect_partiality_stats': True}
+    
+        sim_base = Simulator(
+            crystal=crystal_base,
+            detector=detector,
+            crystal_config=crystal_config_base,
+            beam_config=beam_config,
+            device=device,
+            debug_config=debug_config,
+        )
+    
+        image_base = sim_base.run()
+        intensity_base = image_base.sum().item()
+    
+        # Extract steps_scalar from partiality stats
+        stats_base = sim_base.partiality_stats
+        assert stats_base is not None, "Partiality stats should be available"
+        steps_scalar_base = stats_base.get('steps_scalar', None)
+        assert steps_scalar_base is not None, "steps_scalar must be emitted when collect_partiality_stats=True"
+    
+        # Run 2: N_cells=(Na, Nb, Nc)
+        crystal_config_scaled = CrystalConfig(
+            default_F=100.0,  # Same structure factor
+            N_cells=(Na, Nb, Nc),
+            shape=CrystalShape.SQUARE,
+        )
+    
+        crystal_scaled = Crystal(crystal_config_scaled, device=device)
+    
+        sim_scaled = Simulator(
+            crystal=crystal_scaled,
+            detector=detector,
+            crystal_config=crystal_config_scaled,
+            beam_config=beam_config,
+            device=device,
+            debug_config=debug_config,
+        )
+    
+        image_scaled = sim_scaled.run()
+        intensity_scaled = image_scaled.sum().item()
+    
+        # Extract steps_scalar from partiality stats
+        stats_scaled = sim_scaled.partiality_stats
+        assert stats_scaled is not None, "Partiality stats should be available"
+        steps_scalar_scaled = stats_scaled.get('steps_scalar', None)
+        assert steps_scalar_scaled is not None, "steps_scalar must be emitted when collect_partiality_stats=True"
+    
+        # ARCH-SIM-CONSTRUCTION-001 C.35: Assert SQUARE lattice normalization excludes oversample²
+        # For SQUARE shape, steps_scalar should be sources·phi_steps·mosaic_domains (no oversample²)
+        # Default config: sources=1, phi_steps=1, mosaic_domains=1 → steps_scalar should be 1
+        expected_steps_scalar_square = 1  # No oversample² for SQUARE
+        assert steps_scalar_base == expected_steps_scalar_square, (
+            f"SQUARE lattice must use integral normalization: "
+            f"expected steps_scalar={expected_steps_scalar_square}, "
+            f"observed={steps_scalar_base} (should not include oversample²)"
+        )
+        assert steps_scalar_scaled == expected_steps_scalar_square, (
+            f"SQUARE lattice must use integral normalization: "
+            f"expected steps_scalar={expected_steps_scalar_square}, "
+            f"observed={steps_scalar_scaled} (should not include oversample²)"
+        )
+    
+        # ARCH-SIM-CONSTRUCTION-001 C.39: Verify omega compensation telemetry for oversample>1
+        # When oversample>1 and shape=SQUARE, omega must be applied once after sum
+        # The omega_applied_post_sum flag must be True to catch regressions
+        if test_oversample > 1:
+            omega_applied_post_sum_base = stats_base.get('omega_applied_post_sum', None)
+            omega_applied_post_sum_scaled = stats_scaled.get('omega_applied_post_sum', None)
+    
+            assert omega_applied_post_sum_base is True, (
+                f"SQUARE lattice with oversample>1 must apply omega once after sum: "
+                f"omega_applied_post_sum={omega_applied_post_sum_base} (expected True)"
+            )
+            assert omega_applied_post_sum_scaled is True, (
+                f"SQUARE lattice with oversample>1 must apply omega once after sum: "
+                f"omega_applied_post_sum={omega_applied_post_sum_scaled} (expected True)"
+            )
+    
+        # Verify ratio
+        observed_ratio = intensity_scaled / intensity_base if intensity_base > 0 else 0.0
+        relative_error = abs(observed_ratio - expected_ratio) / expected_ratio
+    
+        # Assertions
+        assert intensity_base > 0, "Base intensity (N_cells=1) must be non-zero"
+        assert intensity_scaled > 0, "Scaled intensity must be non-zero"
+    
+>       assert relative_error < tolerance, (
+            f"Lattice weight scaling violation: "
+            f"expected ratio={(Na*Nb*Nc)**2:.1f}, "
+            f"observed={observed_ratio:.1f}, "
+            f"relative_error={relative_error:.2%} (tolerance={tolerance:.0%})"
+        )
+E       AssertionError: Lattice weight scaling violation: expected ratio=1447650304.0, observed=3494551.6, relative_error=99.76% (tolerance=1%)
+E       assert 0.9975860526648781 < 0.01
+
+tests/architecture/test_nanobrag_partiality.py:160: AssertionError
+=============================== warnings summary ===============================
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu]
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:388: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Na_f64 = torch.tensor(Na, dtype=torch.float64, device=h.device)
+
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu]
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:389: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nb_f64 = torch.tensor(Nb, dtype=torch.float64, device=h.device)
+
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu]
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:390: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nc_f64 = torch.tensor(Nc, dtype=torch.float64, device=h.device)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu] - AssertionError: Lattice weight scaling violation: expected ratio=1447650304.0, observed=3494551.6, relative_error=99.76% (tolerance=1%)
+assert 0.9975860526648781 < 0.01
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 3 warnings in 0.89s =========================

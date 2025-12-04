@@ -108,3 +108,47 @@ Coverage analysis (`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-05T15
 - ARCH-SIM-CONSTRUCTION-001 Phase C.35: `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md:450-457`
 - Normative simulator contracts: `docs/spec-db-core.md:60-140`
 - Finding: SIM-CONSTR-PARTIALITY-001
+
+---
+
+# Environment Tag: nanobrag-partiality-omega-2026-01-12
+
+## Patch Applied
+- **Date**: 2026-01-12T15:00:00Z
+- **Initiative**: ARCH-SIM-CONSTRUCTION-001
+- **Patch File**: `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/omega_compensation.patch`
+
+## Description
+Applied Phase C.39 omega-compensation patch to `src/nanobrag-torch/src/nanobrag_torch/simulator.py`.
+
+**Change**: When `crystal.shape == CrystalShape.SQUARE` and `oversample > 1`:
+- Changed from center-sample-only to **Riemann-sum** across all subpixels
+- Apply omega (from center subpixel) **once after** the Riemann-sum aggregation
+- This restores the missing `(Na·Nb·Nc)²` lattice weight while maintaining integral semantics
+
+## Files Modified
+- `src/nanobrag-torch/src/nanobrag_torch/simulator.py` (lines 1333-1408)
+  - Modified oversample>1 SQUARE lattice path to sum all subpixels then apply omega once
+  - Updated telemetry flag from `square_used_center_only` to `square_used_riemann_sum`
+  - Preserved `omega_applied_post_sum=True` flag for architecture test enforcement
+
+## Rebuild Command
+The nanobrag-torch package is installed in editable mode, so changes take effect immediately:
+```bash
+# No rebuild needed - editable install picks up changes automatically
+python -c "import nanobrag_torch; print(nanobrag_torch.__file__)"
+```
+
+## Validation Targets
+- Architecture test: `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`
+- Probe script: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py`
+- Acceptance tests: DB-AT-028, DB-AT-029
+
+## Expected Outcomes
+- Normalized/raw intensity ratio → 1.0 (was 1e-6)
+- Architecture test ratios → (41·29·32)² within ≤1%
+- DB-AT-028 chi²/pixel initial → ≤100 (was 2.1e5)
+- DB-AT-029 median ROI corr → ≥0.2 (was -0.053)
+
+## SIM-CONSTR-PARTIALITY-001 Note
+This patch implements the canonical omega placement for SQUARE lattices with oversample>1 per docs/spec-db-core.md:60-140 SCALE-009 contract. The Lorentz solid-angle correction (`omega`) must be applied exactly once after the Riemann-sum accumulation to preserve the lattice weight `(Na·Nb·Nc)²`.

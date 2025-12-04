@@ -104,3 +104,61 @@
 **Follow-up**: Marked PERF-WARM-SIM-001 BLOCKED per repeat-failure guard. Supervisor escalation required to investigate root cause (see `docs/fix_plan.md:2025-12-01T210900Z` for candidate hypotheses).
 **References**: `docs/fix_plan.md:1277-1322`, `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/`, `dbex/refinement/stage_a_impl.py:1280-1296` (Stage A clamp logic)
 | DIAG-OVERSAMPLE-001 | 2025-12-03 | diagnostics, nanobrag_torch, detector-config, oversample, environment-freeze | **ROOT CAUSE (Case A)**: nanobrag_torch `DetectorConfig.oversample` field NOT preserved across simulator runs. Correctly initialized to 3 on first invocation but mutated to -1 after initial `Simulator.run()` call, causing all subsequent invocations (208/209 total) to enter auto-selection branch despite explicit `oversample=3` config intent. Debug instrumentation via Environment Freeze exception (patch + editable install) revealed pattern: first call shows `self.detector.config.oversample=3`, second call shows `self.detector.config.oversample=-1`, triggering "auto-selected 3-fold oversampling" messages. Blocks ARCH-SIM-CONSTRUCTION-001 reconstruction magnitude discrepancy (~23,317× scale error, chi²/pixel ~1e5 vs spec ≤1e2). Phase B fix requires one of: (1) deep-copy DetectorConfig in Simulator.__init__() to prevent shared mutation, (2) frozen dataclass enforcement, or (3) identify/remove mutation site. Evidence: 1,166 debug lines total, 0 after first triplet show oversample=3. Patch archived per Environment Freeze compliance. | src/nanobrag-torch/src/nanobrag_torch/simulator.py:769-788, plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/root_cause_analysis.md, plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/nanobrag_debug_instrumentation.patch | Active |
+
+## SIM-CONSTR-LORENTZ-001: Lorentz factor diagnostic cleanup (2025-12-24T150000Z)
+
+**Status**: Diagnostic cleanup - Lorentz implementation already present but with debug print removed
+**Initiative**: ARCH-SIM-CONSTRUCTION-001 (Simulator Construction Convention Alignment)
+**Patch**: `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/lorentz_scaling.patch`
+**Environment Tag**: nanobrag-lorentz-2025-12-24
+
+### Summary
+Removed debug print statement from existing Lorentz factor implementation in `src/nanobrag-torch/src/nanobrag_torch/simulator.py`. The stills Lorentz weighting (`1/sin(2θ)`) was already implemented and applied before polarization as specified in docs/spec-db-core.md §31 ("Simulator produces physical intensity in photons").
+
+### Implementation Details
+- **File Modified**: `src/nanobrag-torch/src/nanobrag_torch/simulator.py:404-406`
+- **Change**: Removed 3-line debug print (`[LORENTZ DEBUG] median=... min=... max=...`)
+- **Physics Implementation** (lines 367-403):
+  1. Computes normalized incident and diffracted beam unit vectors
+  2. Computes `cos(2θ)` with clamping `(-1+1e-6, 1-1e-6)` to avoid NaN at acos boundaries
+  3. Computes `two_theta = torch.acos(cos_two_theta)`
+  4. Computes `sin_two_theta = torch.sin(two_theta)`
+  5. Clamps sine with `torch.clamp_min(1e-6)` to avoid division by zero near beam axis
+  6. Applies Lorentz factor: `intensity = intensity * (1.0 / sin_two_theta)`
+
+### Validation Evidence
+Baseline probe with all collection flags ran successfully under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-24T150000Z/`:
+- **Median Stage A / |F|²·LP**: 0.0176 (line 52 of baseline probe log)
+- **Median Stage A / Refl**: 0.0500 (line 162) - improved from prior ~0.061
+- **Pearson corr (LP vs ref)**: 0.9606 (line 53) - strong correlation between Lorentz factors and reference
+- **DB-AT-028**: Still FAIL - chi²/pixel initial = 2.098e+05 (spec: ≤1e2)
+- **DB-AT-029**: Still FAIL - median ROI correlation = -0.053 (spec: ≥0.2)
+
+### Analysis
+The Lorentz factor implementation is correct and operational but **does not fully resolve** the deterministic parity crisis:
+1. Stage A intensities improved from ~6% to ~7% of |F|²·LP but still show a systematic ~14× deficit
+2. Some ROIs remain extreme outliers (e.g., HKL 0,2,-2: StgA/|F|²=22.9, HKL 4,-5,-1: StgA/|F|²=0.0003)
+3. The wide variance (0.0001–22.9) suggests additional physics terms or normalization issues beyond Lorentz
+
+### Next Steps (per Boundary Bisection Decision)
+- **Hypothesis**: Missing partiality normalization, incorrect polarization ordering, or residual axis/frame mismatch
+- **Recommended Action**: Extend physics ledger to capture per-reflection partiality + polarization components inside `compute_physics_for_position` before touching simulator again
+- **Escalation Condition**: If adding partiality diagnostics doesn't disambiguate, consider spec_change escalation
+
+### Artifacts
+- Patch: `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/lorentz_scaling.patch`
+- Environment: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-24T150000Z/environment.md`
+- Baseline Probe: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-24T150000Z/stage_a_baseline_probe_baseline.{json,log}`
+- Spot Profile Summary: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-24T150000Z/spot_profile_summary.md`
+- DB-AT-028: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-24T150000Z/db_at_028/`
+- DB-AT-029: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-24T150000Z/db_at_029/`
+
+### Rebuild Command
+```bash
+python -m pip install -e src/nanobrag-torch
+```
+
+### References
+- Spec: docs/spec-db-core.md §31 (Simulator produces physical intensity in photons)
+- Input: input.md lines 11-18 (ARCH-SIM-CONSTRUCTION-001 Lorentz patch directive)
+- Transformation Ledger: input.md lines 22-29 (five-row ledger with Stage A/Ref ratios)

@@ -1,0 +1,429 @@
+{
+  "scripts": [
+    {
+      "script_path": "plans/active/ARCH-PROBE-FREEZE-001/bin/collect_probe_inventory.py",
+      "initiative_id": "ARCH-PROBE-FREEZE-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 63
+    },
+    {
+      "script_path": "plans/active/ARCH-REFACTOR-001/bin/debug_bragg_reconstruction.py",
+      "initiative_id": "ARCH-REFACTOR-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 139
+    },
+    {
+      "script_path": "plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py",
+      "initiative_id": "ARCH-REFINE-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 271
+    },
+    {
+      "script_path": "plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_bragg_reproducer.py",
+      "initiative_id": "ARCH-REFINE-FLOW-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 148
+    },
+    {
+      "script_path": "plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_reproducer.py",
+      "initiative_id": "ARCH-REFINE-FLOW-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 187
+    },
+    {
+      "script_path": "plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulate_forward_once_vs_reconstruction.py",
+      "initiative_id": "ARCH-SIM-CONSTRUCTION-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 328
+    },
+    {
+      "script_path": "plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py",
+      "initiative_id": "ARCH-SIM-CONSTRUCTION-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 665
+    },
+    {
+      "script_path": "plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py",
+      "initiative_id": "ARCH-SIM-CONSTRUCTION-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 2220
+    },
+    {
+      "script_path": "plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py",
+      "initiative_id": "ARCH-SIM-CONSTRUCTION-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 150
+    },
+    {
+      "script_path": "plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_stage_a_scale_alignment.py",
+      "initiative_id": "ARCH-SIM-CONSTRUCTION-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 304
+    },
+    {
+      "script_path": "plans/active/ARCH-SIM-HKL-BOUNDS-001/bin/inspect_hkl_projection.py",
+      "initiative_id": "ARCH-SIM-HKL-BOUNDS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 333
+    },
+    {
+      "script_path": "plans/active/ARCH-SIM-HKL-BOUNDS-001/bin/probe_crystal_hkl_alignment.py",
+      "initiative_id": "ARCH-SIM-HKL-BOUNDS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 279
+    },
+    {
+      "script_path": "plans/active/DB-AT-024/bin/compute_zero_iteration_metrics.py",
+      "initiative_id": "DB-AT-024",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 124
+    },
+    {
+      "script_path": "plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py",
+      "initiative_id": "DIAG-NANOBRAGG-OVERSAMPLE-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 302
+    },
+    {
+      "script_path": "plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/diagnose_zero_output.py",
+      "initiative_id": "DIAG-NANOBRAGG-OVERSAMPLE-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 140
+    },
+    {
+      "script_path": "plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py",
+      "initiative_id": "DIAG-NANOBRAGG-OVERSAMPLE-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 303
+    },
+    {
+      "script_path": "plans/active/MAP-SCALE-001/bin/compare_simulator_to_golden.py",
+      "initiative_id": "MAP-SCALE-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 195
+    },
+    {
+      "script_path": "plans/active/MAP-SCALE-001/bin/compute_mapping_scale_probe.py",
+      "initiative_id": "MAP-SCALE-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 121
+    },
+    {
+      "script_path": "plans/active/MAP-SCALE-001/bin/evaluate_mapping_strategy.py",
+      "initiative_id": "MAP-SCALE-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 131
+    },
+    {
+      "script_path": "plans/active/NANOBRAG-GOLDEN-001/bin/summarize_roi_offsets.py",
+      "initiative_id": "NANOBRAG-GOLDEN-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 48
+    },
+    {
+      "script_path": "plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py",
+      "initiative_id": "PERF-WARM-SIM-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 276
+    },
+    {
+      "script_path": "plans/active/PERF-WARM-SIM-001/bin/compare_panel_diag.py",
+      "initiative_id": "PERF-WARM-SIM-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 131
+    },
+    {
+      "script_path": "plans/active/PERF-WARM-SIM-001/bin/probe_stage_b_full.py",
+      "initiative_id": "PERF-WARM-SIM-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 135
+    },
+    {
+      "script_path": "plans/active/PERF-WARM-SIM-001/bin/summarize_stage_b_roi.py",
+      "initiative_id": "PERF-WARM-SIM-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 164
+    },
+    {
+      "script_path": "plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_roi.py",
+      "initiative_id": "PERF-WARM-SIM-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 136
+    },
+    {
+      "script_path": "plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py",
+      "initiative_id": "PERF-WARM-SIM-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 250
+    },
+    {
+      "script_path": "plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py",
+      "initiative_id": "PHYSICS-LOSS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 255
+    },
+    {
+      "script_path": "plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py",
+      "initiative_id": "PORTFOLIO-STATUS",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 331
+    },
+    {
+      "script_path": "plans/active/REPORT-NANOBRAG-STATUS-001/bin/emit_nanobrag_summary.py",
+      "initiative_id": "REPORT-NANOBRAG-STATUS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 179
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 339
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/check_mapping_fixture_calibration.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 103
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/compare_geometry_zero_points.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 275
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 671
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 369
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 334
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/crop_sigma_map_to_window.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 202
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 116
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs_adam.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 585
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/generate_zero_iter_refined_roi_triptychs.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 125
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/probe_mapping_roi_triptychs.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 394
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/probe_mapping_stage_a_context_metrics.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 139
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/probe_scale_chain.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 375
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/run_stage_a_engine_zero_point_probe.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 101
+    },
+    {
+      "script_path": "plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py",
+      "initiative_id": "TOOLING-VIS-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 287
+    },
+    {
+      "script_path": "plans/active/TORCH-GEOMETRY-PARITY-003/bin/audit_dxtbx_a_star_cell.py",
+      "initiative_id": "TORCH-GEOMETRY-PARITY-003",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 70
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-001/bin/dump_refine_telemetry.py",
+      "initiative_id": "TORCH-REFINE-001",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 45
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-002D/bin/probe_hkl_hit_rate.py",
+      "initiative_id": "TORCH-REFINE-002D",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 279
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-002D/bin/probe_stage_a_improvement.py",
+      "initiative_id": "TORCH-REFINE-002D",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 222
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-002E/bin/compare_mapping_vs_stage_a_forward.py",
+      "initiative_id": "TORCH-REFINE-002E",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 326
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-002E/bin/compare_mapping_vs_stage_a_forward_simple.py",
+      "initiative_id": "TORCH-REFINE-002E",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": true,
+      "lines_of_code": 112
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py",
+      "initiative_id": "TORCH-REFINE-002E",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 545
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-003/bin/dump_stage_c_metrics.py",
+      "initiative_id": "TORCH-REFINE-003",
+      "language": "py",
+      "imports_torch": false,
+      "calls_owner_api": false,
+      "lines_of_code": 132
+    },
+    {
+      "script_path": "plans/active/TORCH-REFINE-003/bin/probe_stage_c_improvement.py",
+      "initiative_id": "TORCH-REFINE-003",
+      "language": "py",
+      "imports_torch": true,
+      "calls_owner_api": true,
+      "lines_of_code": 153
+    }
+  ],
+  "total_count": 53
+}

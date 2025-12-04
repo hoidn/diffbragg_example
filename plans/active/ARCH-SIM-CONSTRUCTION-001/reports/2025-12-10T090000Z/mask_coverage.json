@@ -658,5 +658,49 @@
         "fallback_reason": null
       }
     ]
+  },
+  {
+    "timestamp": "2025-12-04T07:00:48.249034Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T07:03:52.688415Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T07:04:30.898015Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T07:05:19.624248Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
   }
 ]

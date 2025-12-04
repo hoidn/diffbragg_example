@@ -274,5 +274,281 @@
       },
       "checksum_mismatch": false
     }
+  },
+  {
+    "timestamp": "2025-12-04T07:00:48.251008Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 99.67402648925781,
+      "mean_unmasked": 2.657553195953369
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 87.11842346191406
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 1.1441211000889235,
+      "bragg_vs_target": 1.1441212002853194
+    },
+    "chi_squared": {
+      "per_pixel": 1866962.4888888889,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 173456512.0,
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "cache_hit",
+    "mask_metadata": {
+      "telemetry": {
+        "loss_mask_pixel_count": 4140,
+        "panel_true_pixels": [
+          24,
+          24,
+          24,
+          24,
+          12,
+          36,
+          12,
+          36,
+          36,
+          36,
+          36,
+          24,
+          48,
+          12,
+          24,
+          36,
+          12,
+          24,
+          48,
+          24,
+          48,
+          48,
+          36,
+          24,
+          48,
+          36,
+          12,
+          12,
+          12
+        ],
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-04T07:03:52.690417Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 99.67402648925781,
+      "mean_unmasked": 2.657553195953369
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 87.11842346191406
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 1.1441211000889235,
+      "bragg_vs_target": 1.1441212002853194
+    },
+    "chi_squared": {
+      "per_pixel": 1866962.4888888889,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 173456512.0,
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "cache_hit",
+    "mask_metadata": {
+      "telemetry": {
+        "loss_mask_pixel_count": 4140,
+        "panel_true_pixels": [
+          24,
+          24,
+          24,
+          24,
+          12,
+          36,
+          12,
+          36,
+          36,
+          36,
+          36,
+          24,
+          48,
+          12,
+          24,
+          36,
+          12,
+          24,
+          48,
+          24,
+          48,
+          48,
+          36,
+          24,
+          48,
+          36,
+          12,
+          12,
+          12
+        ],
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-04T07:04:30.899965Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 99.67402648925781,
+      "mean_unmasked": 2.657553195953369
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 87.11842346191406
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 1.1441211000889235,
+      "bragg_vs_target": 1.1441212002853194
+    },
+    "chi_squared": {
+      "per_pixel": 1866962.4888888889,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 173456512.0,
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "cache_hit",
+    "mask_metadata": {
+      "telemetry": {
+        "loss_mask_pixel_count": 4140,
+        "panel_true_pixels": [
+          24,
+          24,
+          24,
+          24,
+          12,
+          36,
+          12,
+          36,
+          36,
+          36,
+          36,
+          24,
+          48,
+          12,
+          24,
+          36,
+          12,
+          24,
+          48,
+          24,
+          48,
+          48,
+          36,
+          24,
+          48,
+          36,
+          12,
+          12,
+          12
+        ],
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-04T07:05:19.626419Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 99.67402648925781,
+      "mean_unmasked": 2.657553195953369
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 87.11842346191406
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 1.1441211000889235,
+      "bragg_vs_target": 1.1441212002853194
+    },
+    "chi_squared": {
+      "per_pixel": 1866962.4888888889,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 173456512.0,
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "cache_hit",
+    "mask_metadata": {
+      "telemetry": {
+        "loss_mask_pixel_count": 4140,
+        "panel_true_pixels": [
+          24,
+          24,
+          24,
+          24,
+          12,
+          36,
+          12,
+          36,
+          36,
+          36,
+          36,
+          24,
+          48,
+          12,
+          24,
+          36,
+          12,
+          24,
+          48,
+          24,
+          48,
+          48,
+          36,
+          24,
+          48,
+          36,
+          12,
+          12,
+          12
+        ],
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
   }
 ]

@@ -284,6 +284,33 @@
       further extension is forbidden. You must either:
       (a) promote to <code>scripts/tools/</code> under a <code>harness</code> initiative with a minimal pytest, or
       (b) stop using it and instrument inside the real production call path.
+
+    - <strong>Enforcement guard:</strong>
+      <code>tests/architecture/test_probe_contracts.py</code> mechanically enforces these policies:
+      (a) <code>test_plan_bin_growth_cap</code> walks <code>plans/active/**/bin/*.py</code> and fails when any script exceeds 400 LOC unless it appears in the <code>GROWTH_CAP_EXCEPTIONS</code> allowlist,
+      (b) <code>test_probe_shims_delegate_to_owner_clis</code> parses Phase B shim scripts (embed_sigma_external_lookup.py, compare_mapping_dataset_metrics.py, capture_smoke_calibration.py) and asserts they contain only imports plus an <code>if __name__ == "__main__":</code> block delegating to canonical <code>dbex.tools.*</code> owner modules.
+
+    - <strong>Allowlist maintenance:</strong>
+      When adding entries to <code>GROWTH_CAP_EXCEPTIONS</code>, document with plan ID and cleanup intent. Remove entries once scripts are refactored to thin wrappers or retired. The allowlist is explicit so new scripts cannot bypass the cap silently.
+
+    - <strong>Shim expectations:</strong>
+      New thin-wrapper scripts must contain:
+      (a) import statements only,
+      (b) optional <code>sys.path</code> manipulation for legacy compatibility,
+      (c) <code>if __name__ == "__main__":</code> block calling <code>tool.main()</code> from canonical owner module.
+      Function/class definitions are forbidden.
+
+    - <strong>Artifacts policy when tests fail:</strong>
+      If <code>test_plan_bin_growth_cap</code> fails, review the specific script and either:
+      (a) refactor to thin wrapper delegating to owner module (reduce LOC below 400), or
+      (b) promote to <code>scripts/tools/</code> under a harness initiative with pytest coverage.
+      If <code>test_probe_shims_delegate_to_owner_clis</code> fails, remove function/class definitions and migrate business logic to owner modules per ARCH-PROBE-FREEZE-001 Phase B.
+
+    - <strong>References:</strong>
+      <code>tests/architecture/test_probe_contracts.py</code> (enforcement guard),
+      <code>docs/TESTING_GUIDE.md:255-320</code> (execution workflow and maintenance guidance),
+      <code>docs/findings.md::PROBE-FREEZE-001</code> (decision-carrying finding),
+      <code>plans/active/ARCH-PROBE-FREEZE-001/implementation.md</code> (Phase C guardrails).
   </diagnostic_script_policy>
 
   <!-- ========================= -->

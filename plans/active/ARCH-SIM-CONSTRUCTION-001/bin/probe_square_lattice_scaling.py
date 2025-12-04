@@ -173,26 +173,24 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
             I_pre_polar = pstats['intensity_pre_polar']
             payload['intensity_pre_polar'] = float(I_pre_polar.mean().item()) if isinstance(I_pre_polar, torch.Tensor) else I_pre_polar
 
-        # Phase C.32: Extract per-axis delta and F_latt components for reference comparison
+        # Phase C.34: Extract per-subpixel trace data from trace_* keys
+        # These are sliced to the single traced pixel but retain all subpixel samples
         per_axis_data = {}
-        if 'delta_h' in pstats and 'F_latt_a' in pstats:
-            delta_h = pstats['delta_h']
-            F_latt_a = pstats['F_latt_a']
-            if isinstance(delta_h, torch.Tensor) and isinstance(F_latt_a, torch.Tensor):
-                per_axis_data['delta_h'] = delta_h.cpu().numpy().astype(np.float64)
-                per_axis_data['F_latt_a'] = F_latt_a.cpu().numpy().astype(np.float64)
-        if 'delta_k' in pstats and 'F_latt_b' in pstats:
-            delta_k = pstats['delta_k']
-            F_latt_b = pstats['F_latt_b']
-            if isinstance(delta_k, torch.Tensor) and isinstance(F_latt_b, torch.Tensor):
-                per_axis_data['delta_k'] = delta_k.cpu().numpy().astype(np.float64)
-                per_axis_data['F_latt_b'] = F_latt_b.cpu().numpy().astype(np.float64)
-        if 'delta_l' in pstats and 'F_latt_c' in pstats:
-            delta_l = pstats['delta_l']
-            F_latt_c = pstats['F_latt_c']
-            if isinstance(delta_l, torch.Tensor) and isinstance(F_latt_c, torch.Tensor):
-                per_axis_data['delta_l'] = delta_l.cpu().numpy().astype(np.float64)
-                per_axis_data['F_latt_c'] = F_latt_c.cpu().numpy().astype(np.float64)
+        for axis_key, delta_key, f_latt_key in [('h', 'trace_delta_h', 'trace_F_latt_a'),
+                                                   ('k', 'trace_delta_k', 'trace_F_latt_b'),
+                                                   ('l', 'trace_delta_l', 'trace_F_latt_c')]:
+            if delta_key in pstats and f_latt_key in pstats:
+                delta_vals = pstats[delta_key]
+                f_latt_vals = pstats[f_latt_key]
+                if isinstance(delta_vals, torch.Tensor) and isinstance(f_latt_vals, torch.Tensor):
+                    per_axis_data[f'delta_{axis_key}'] = delta_vals.cpu().numpy().astype(np.float64)
+                    per_axis_data[f'F_latt_{axis_key}'] = f_latt_vals.cpu().numpy().astype(np.float64)
+
+        # Also extract trace_F_total_squared_pre_lorentz for per-subpixel intensity contribution
+        if 'trace_F_total_squared_pre_lorentz' in pstats:
+            f_total_sq_trace = pstats['trace_F_total_squared_pre_lorentz']
+            if isinstance(f_total_sq_trace, torch.Tensor):
+                per_axis_data['F_total_squared_pre_lorentz'] = f_total_sq_trace.cpu().numpy().astype(np.float64)
 
         payload['per_axis_data'] = per_axis_data
 
@@ -207,7 +205,7 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
         debug_stats['partiality_stats'] = {
             k: (v.tolist() if isinstance(v, torch.Tensor) else v)
             for k, v in pstats.items()
-            if k not in ['delta_h', 'delta_k', 'delta_l', 'F_latt_a', 'F_latt_b', 'F_latt_c']
+            if not k.startswith('trace_')
         }
 
     if hasattr(simulator, 'debug_stats') and simulator.debug_stats is not None:
@@ -268,10 +266,18 @@ def main():
     )
     print(f"  Base intensity: {intensity_base:.6e}")
     if payload_base:
-        print(f"  Base payload: F_cell={payload_base.get('F_cell', 'N/A'):.6e}, "
-              f"F_latt={payload_base.get('F_latt', 'N/A'):.6e}, "
-              f"F_total²={payload_base.get('F_total_squared_pre_lorentz', 'N/A'):.6e}, "
-              f"I_pre_polar={payload_base.get('intensity_pre_polar', 'N/A'):.6e}")
+        f_cell = payload_base.get('F_cell')
+        f_latt = payload_base.get('F_latt')
+        f_tot_sq = payload_base.get('F_total_squared_pre_lorentz')
+        i_pre = payload_base.get('intensity_pre_polar')
+        f_cell_str = f"{f_cell:.6e}" if f_cell is not None else 'N/A'
+        f_latt_str = f"{f_latt:.6e}" if f_latt is not None else 'N/A'
+        f_tot_sq_str = f"{f_tot_sq:.6e}" if f_tot_sq is not None else 'N/A'
+        i_pre_str = f"{i_pre:.6e}" if i_pre is not None else 'N/A'
+        print(f"  Base payload: F_cell={f_cell_str}, "
+              f"F_latt={f_latt_str}, "
+              f"F_total²={f_tot_sq_str}, "
+              f"I_pre_polar={i_pre_str}")
     print()
 
     # Run scaled case: N_cells=(Na,Nb,Nc)
@@ -284,10 +290,18 @@ def main():
     )
     print(f"  Scaled intensity: {intensity_scaled:.6e}")
     if payload_scaled:
-        print(f"  Scaled payload: F_cell={payload_scaled.get('F_cell', 'N/A'):.6e}, "
-              f"F_latt={payload_scaled.get('F_latt', 'N/A'):.6e}, "
-              f"F_total²={payload_scaled.get('F_total_squared_pre_lorentz', 'N/A'):.6e}, "
-              f"I_pre_polar={payload_scaled.get('intensity_pre_polar', 'N/A'):.6e}")
+        f_cell = payload_scaled.get('F_cell')
+        f_latt = payload_scaled.get('F_latt')
+        f_tot_sq = payload_scaled.get('F_total_squared_pre_lorentz')
+        i_pre = payload_scaled.get('intensity_pre_polar')
+        f_cell_str = f"{f_cell:.6e}" if f_cell is not None else 'N/A'
+        f_latt_str = f"{f_latt:.6e}" if f_latt is not None else 'N/A'
+        f_tot_sq_str = f"{f_tot_sq:.6e}" if f_tot_sq is not None else 'N/A'
+        i_pre_str = f"{i_pre:.6e}" if i_pre is not None else 'N/A'
+        print(f"  Scaled payload: F_cell={f_cell_str}, "
+              f"F_latt={f_latt_str}, "
+              f"F_total²={f_tot_sq_str}, "
+              f"I_pre_polar={i_pre_str}")
         # C.33: Display min_abs_delta stats to verify oversample centering
         if 'min_abs_delta_h' in payload_scaled or 'min_abs_delta_k' in payload_scaled or 'min_abs_delta_l' in payload_scaled:
             print(f"  Min |Δ| stats (C.33 oversample centering):")
@@ -433,6 +447,56 @@ def main():
                 if denominator > 0:
                     derived_ratios[f'{label}_I_pre_polar_over_F_total_sq'] = I_pre / denominator
 
+    # Phase C.34: Subpixel coverage analysis
+    # Compute how many subpixels hit the central sincg lobe and their intensity contribution
+    coverage_analysis = {}
+    if payload_scaled and 'per_axis_data' in payload_scaled:
+        per_axis = payload_scaled['per_axis_data']
+
+        # Check if we have per-subpixel data (from trace_* keys)
+        if 'delta_h' in per_axis and 'delta_k' in per_axis and 'delta_l' in per_axis:
+            delta_h = per_axis['delta_h'].flatten()
+            delta_k = per_axis['delta_k'].flatten()
+            delta_l = per_axis['delta_l'].flatten()
+
+            # Get F_total_squared_pre_lorentz per subpixel if available
+            f_total_sq_per_subpixel = None
+            if 'F_total_squared_pre_lorentz' in per_axis:
+                f_total_sq_per_subpixel = per_axis['F_total_squared_pre_lorentz'].flatten()
+
+            n_subpixels = len(delta_h)
+
+            # Define central lobe thresholds: |Δ| < 1/N for each axis
+            threshold_h = 1.0 / na if na > 0 else 0.0
+            threshold_k = 1.0 / nb if nb > 0 else 0.0
+            threshold_l = 1.0 / nc if nc > 0 else 0.0
+
+            # Count subpixels hitting central lobe (all three axes within threshold)
+            in_central_lobe = (np.abs(delta_h) < threshold_h) & (np.abs(delta_k) < threshold_k) & (np.abs(delta_l) < threshold_l)
+            n_central = np.sum(in_central_lobe)
+
+            coverage_analysis['n_subpixels'] = n_subpixels
+            coverage_analysis['n_central_lobe'] = int(n_central)
+            coverage_analysis['frac_central_lobe'] = n_central / n_subpixels if n_subpixels > 0 else 0.0
+            coverage_analysis['threshold_h'] = threshold_h
+            coverage_analysis['threshold_k'] = threshold_k
+            coverage_analysis['threshold_l'] = threshold_l
+
+            # Compute intensity contribution from central lobe samples
+            if f_total_sq_per_subpixel is not None:
+                total_intensity_sq = np.sum(f_total_sq_per_subpixel)
+                central_intensity_sq = np.sum(f_total_sq_per_subpixel[in_central_lobe])
+                coverage_analysis['total_F_total_sq'] = float(total_intensity_sq)
+                coverage_analysis['central_F_total_sq'] = float(central_intensity_sq)
+                coverage_analysis['frac_intensity_from_central'] = central_intensity_sq / total_intensity_sq if total_intensity_sq > 0 else 0.0
+
+                # Implied (Na·Nb·Nc)² if central lobe dominated
+                # The spec expects central lobe samples to carry (Na·Nb·Nc)² scaling
+                # If only central_frac of subpixels contribute but we divide by all subpixels (oversample²),
+                # the effective ratio would be central_frac * (Na·Nb·Nc)²
+                implied_ratio = (central_intensity_sq / total_intensity_sq) * expected_ratio if total_intensity_sq > 0 else 0.0
+                coverage_analysis['implied_ratio_from_coverage'] = implied_ratio
+
     print(f"Results")
     print(f"=" * 60)
     print(f"Expected ratio: {expected_ratio:,.1f}")
@@ -469,6 +533,15 @@ def main():
             print(f"    Prod vs ref: {comp['prod_vs_ref_ratio']:.6f}x")
             if 'expected_ratio_from_ref' in comp:
                 print(f"  Expected intensity ratio from ref F_latt: {comp['expected_ratio_from_ref']:.6e}")
+    if coverage_analysis:
+        print()
+        print("Phase C.34 Subpixel Coverage Analysis:")
+        print(f"  Total subpixels: {coverage_analysis['n_subpixels']}")
+        print(f"  Subpixels in central lobe: {coverage_analysis['n_central_lobe']} ({coverage_analysis['frac_central_lobe']:.2%})")
+        print(f"  Thresholds: |Δh| < {coverage_analysis['threshold_h']:.6f}, |Δk| < {coverage_analysis['threshold_k']:.6f}, |Δl| < {coverage_analysis['threshold_l']:.6f}")
+        if 'frac_intensity_from_central' in coverage_analysis:
+            print(f"  Intensity share from central lobe: {coverage_analysis['frac_intensity_from_central']:.2%}")
+            print(f"  Implied (Na·Nb·Nc)² ratio from coverage: {coverage_analysis['implied_ratio_from_coverage']:.6e}")
     print()
 
     # Prepare JSON output
@@ -495,6 +568,7 @@ def main():
         },
         "derived_ratios": derived_ratios,
         "reference_analysis": reference_analysis,
+        "coverage_analysis": coverage_analysis,
         "debug_stats": {
             "base": debug_base,
             "scaled": debug_scaled
@@ -607,6 +681,36 @@ def main():
                     f.write(f"\n**Predicted intensity ratio using reference F_latt**: {comp['expected_ratio_from_ref']:.6e}\n")
                     f.write(f"(Expected (Na·Nb·Nc)² = {expected_ratio:,.1f})\n")
                 f.write("\n")
+
+        # Phase C.34: Add coverage analysis section
+        if coverage_analysis:
+            f.write("## Phase C.34 Subpixel Coverage Analysis\n\n")
+            f.write("This section quantifies how many subpixels hit the central sincg lobe (|Δ_{h,k,l}| < 1/N)\n")
+            f.write("and what fraction of the total intensity they contribute.\n\n")
+            f.write(f"- **Total subpixels sampled**: {coverage_analysis['n_subpixels']}\n")
+            f.write(f"- **Subpixels in central lobe**: {coverage_analysis['n_central_lobe']} ")
+            f.write(f"({coverage_analysis['frac_central_lobe']:.2%})\n")
+            f.write(f"- **Central lobe thresholds**:\n")
+            f.write(f"  - |Δh| < {coverage_analysis['threshold_h']:.6f}\n")
+            f.write(f"  - |Δk| < {coverage_analysis['threshold_k']:.6f}\n")
+            f.write(f"  - |Δl| < {coverage_analysis['threshold_l']:.6f}\n")
+            if 'frac_intensity_from_central' in coverage_analysis:
+                f.write(f"- **Intensity share from central lobe**: {coverage_analysis['frac_intensity_from_central']:.2%}\n")
+                f.write(f"- **Implied (Na·Nb·Nc)² ratio from coverage**: {coverage_analysis['implied_ratio_from_coverage']:.6e}\n")
+                f.write(f"  (Expected: {expected_ratio:,.1f})\n\n")
+
+                # Add decision logic commentary
+                if coverage_analysis['frac_central_lobe'] < 0.01:
+                    f.write("**Diagnosis**: Less than 1% of subpixels reach the central lobe.\n")
+                    f.write("This explains the (Na·Nb·Nc)² deficit: the oversample grid is not capturing the sincg peak.\n")
+                    f.write("Next step: investigate subpixel positioning or increase oversample factor.\n\n")
+                elif coverage_analysis['frac_intensity_from_central'] < 0.10:
+                    f.write("**Diagnosis**: Central lobe samples contribute <10% of total intensity.\n")
+                    f.write("This indicates the intensity is dominated by subpixels off the central peak.\n")
+                    f.write("Next step: audit the `steps` normalization or sincg accumulation logic.\n\n")
+                else:
+                    f.write("**Diagnosis**: Central lobe coverage appears healthy.\n")
+                    f.write("The deficit must originate elsewhere (normalization, Lorentz, or polar ordering).\n\n")
 
         f.write("## Commentary\n\n")
         if relative_error < 0.05:

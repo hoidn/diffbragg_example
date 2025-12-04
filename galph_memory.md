@@ -1,3 +1,10 @@
+2025-12-22T010000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-22T010000Z/ next_action=stage_a_mosaic_domain_sweep
+- Refreshed the transformation ledger with five ROI rows (ROI 0/11/14/27/28) using the 2025-12-21 baseline probe; Stage A still deviates 0.002×–234× from the independent DIALS reflection table even though target/ref ≈ 1.0, so the deterministic parity crisis persists at the simulator boundary.
+- Authored a boundary-bisection plan for a mosaic-domain sweep: add `--stage-a-mosaic-domains` to `compare_stage_a_baseline.py`, run baseline geometry twice (domains=1 vs 16) under the new report directory, and re-run DB-AT-028/029 to see whether the new RefinementConfig field changes anything.
+- Hypothesis now: nanobrag_torch ignores the domain override entirely—if Stage A/ref medians remain ~0.061 for both sweeps we escalate to a targeted nanobrag_torch instrumentation patch per Environment Freeze exception requirements.
+- Next Do Now will focus on implementing the CLI knob, capturing both probe outputs, and wiring pytest selectors so the sweep evidence becomes decision-carrying.
+Action State: ready_for_implementation
+
 2025-12-21T010000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/ next_action=inject_mosaic_spread
 - Transformation ledger + ROI diagnostics (2025-12-20T230000Z) now prove Stage A conserves total masked energy yet redistributes it catastrophically: some ROIs see +1.6e3 ADU spikes while most collapse to ≪1 % of the reference despite reflection-table and HKL amplitudes agreeing.
 - Static audit of `dbex/refinement/config_factories.py:368-390` shows every stills config forces `mosaic_spread_deg=0` / `mosaic_domains=1`, so the simulator always uses a perfect-crystal sinc kernel even though `refGeom_small.expt` embeds `ML_half_mosaicity_deg≈3.18e-3°`.

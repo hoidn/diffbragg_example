@@ -7,8 +7,8 @@ Focus: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation
 Branch: integration
 Mapped tests:
   - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small --smoke-sigma-source=metadata
-Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T150000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small --smoke-sigma-source=metadata
+Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T150000Z/
 Findings Applied (Mandatory):
   - PHYSICS-LOSS-005 — metadata sigma tiles must register as `external_lookup`; migrating the embedding helper keeps provenance inside production owners.
   - PHYSICS-LOSS-001 — sigma provenance + variance telemetry belong to owner modules, not plan scripts; exposing the helper via `dbex.tools` satisfies this finding while obeying diagnostic_script_policy.
@@ -27,9 +27,9 @@ Do Now (hard validity contract)
 3. Implement: `docs/TESTING_GUIDE.md` (sigma metadata section), `sp.proc/README.md`, and the skip/diagnostic text in `tests/conftest.py`, `tests/dbex/test_mapping_consistency.py`, `tests/dbex/test_artifact_parity.py`, and `tests/dbex/test_torch_refine_smoke.py` — update all instructions to reference `python -m dbex.tools.embed_sigma_external_lookup` (mention the plan path only as a legacy alias) and ensure error messages stay actionable.
 Mapped Validation (pytest):
   - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small --smoke-sigma-source=metadata
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T150000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small --smoke-sigma-source=metadata
 Artifacts deliverables:
-  - CLI help output + summary in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/tool_migration_notes.md` documenting the new entry point.
+  - CLI help output + summary in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T150000Z/tool_migration_notes.md` documenting the new entry point.
   - `pytest_sp_proc_sigma_metadata_fixture.log` and `pytest_stage_a_metadata_smoke.log` under the same artifacts directory.
   - Copy of the refreshed Stage A baseline metrics JSON for the metadata run (in `db_at_metrics_dir/`).
 Forbidden This Loop:
@@ -47,5 +47,5 @@ Pitfalls To Avoid:
   - Don’t drop the `lookup_key` flag — Stage A smokes still expect pedestal entries.
   - Ensure the Stage A metadata smoke command sets `DBEX_SMOKE_SIGMA_SOURCE=metadata`; otherwise Stage A won’t exercise the new embedding path.
 If Blocked:
-  - Document the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/blockers.md`, update `docs/fix_plan.md` Attempts History with evidence, and ping Galph before touching any plan-local scripts.
+  - Document the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T150000Z/blockers.md`, update `docs/fix_plan.md` Attempts History with evidence, and ping Galph before touching any plan-local scripts.
 Doc Sync Plan (Conditional): Not required — no pytest selectors are being renamed; documentation updates are covered in Do Now step 3.

@@ -2468,3 +2468,23 @@ Action State: ready_for_implementation
 - ready_for_implementation — Implement the new `dbex.tools.embed_sigma_external_lookup` CLI + manifest/report helpers, convert the plan script to a one-line wrapper, refresh docs/tests to reference the owner tool, and rerun `pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py` plus the Stage A metadata smoke selector with `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
 
 Action State: ready_for_implementation
+
+## Loop 2025-12-29T150000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase B.4 sigma embedding migration)
+**State**: ready_for_implementation (user-directed)
+**Dwell**: 2 (two prior planning loops)
+**Action Type**: implementation_ready
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Problems ledger directive “Freeze plan-local probe scripts…” still open; new `user_input.md` mandates executing the sigma embedding migration now.
+2. Implementation plan + fix_plan confirm Phase B.4 scope: promote the helper into `dbex/tools/embed_sigma_external_lookup.py`, reduce the plan script to a legacy shim, update docs/tests/skip hints, and validate via sigma manifest fixture + Stage A metadata smokes.
+3. Diagnostic_script_policy (prompts/supervisor.md:272-309) + spec-db-core sigma provenance (docs/spec-db-core.md:32-68) require metadata fixtures/tests to reference the owner module; no new plan-local probes allowed.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T150000Z/`
+
+**Next Actions**:
+- implementation_ready — Ralph to follow the three-step Do Now (owner CLI, shim, docs/tests updates) and rerun the mapped tests while capturing CLI help + pytest logs + Stage A baseline metrics JSON under the reserved artifacts directory.
+
+Action State: implementation_ready

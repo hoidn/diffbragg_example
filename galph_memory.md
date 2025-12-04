@@ -2286,3 +2286,9 @@ Action State: ready_for_implementation
 - Updated input.md with a Parity-mode Do Now that (1) enriches `compare_stage_a_baseline.py` with ROI-level StageA↔target stats, (2) reruns the probe in both baseline and perturbed geometry modes, and (3) reruns DB-AT-028/029 with artifacts rooted at `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-19T010000Z/` to see whether chi²/ROI regressions persist after the C.14 fix.
 - No code edits scheduled outside plan scripts/tests; this loop focuses on instrumentation + parity evidence so we can decide whether the remaining DB-AT failures require implementation vs spec-change escalation.
 Action State: ready_for_implementation
+
+2025-12-20T230000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T230000Z/ next_action=ready_for_implementation
+- Added a decision-carrying transformation ledger (global masked means + five representative ROIs) that ties Stage A outputs to the independent reflection reference and HKL amplitudes, proving the simulator redistributes energy rather than mis-calibrating the baseline.
+- Authored a boundary-bisection plan plus input.md update instructing Ralph to extend `compare_stage_a_baseline.py` with a `--collect-hkl-stats` flag that reuses `_build_stage_a_context(..., debug_config={'collect_hkl_stats': True})` and `simulate_forward_once(..., debug_config=…)` so HKL query ranges/hit rates are recorded alongside the reflection ledger.
+- Updated docs/fix_plan.md Attempts History with the new evidence + plan and reserved `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T230000Z/` for the upcoming probe + DB-AT artifacts.
+Action State: ready_for_implementation

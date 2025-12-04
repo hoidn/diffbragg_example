@@ -38,11 +38,12 @@ import torch
 from dials.array_family import flex
 
 from dbex.data_load import DataLoad
-from dbex.nanobrag_bridge import build_structure_factor_grid
+from dbex.nanobrag_bridge import build_structure_factor_grid, simulate_forward_once
 from dbex.refinement.config import RefinementConfig
 from dbex.refinement.context import build_refinement_context
 from dbex.refinement.engine import RefinementEngine
 from dbex.refinement.stage_a import StageA
+from dbex.refinement.stage_a_utils import _build_stage_a_context
 from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
 from dbex.vis.mapping import build_mapping_stage_a_context
 
@@ -168,6 +169,139 @@ def get_refgeom_dataload():
     return DataLoad(args)
 
 
+def aggregate_hkl_stats(per_panel_stats):
+    """
+    Aggregate per-panel HKL stats into a single summary dict.
+
+    Args:
+        per_panel_stats: list of {"panel_id": int, "hkl_stats": {...}} entries
+
+    Returns:
+        dict with aggregated min/max h,k,l and summed hit counts (or None when empty)
+    """
+    if not per_panel_stats:
+        return None
+
+    h_min = min(entry["hkl_stats"]["h_min"] for entry in per_panel_stats)
+    h_max = max(entry["hkl_stats"]["h_max"] for entry in per_panel_stats)
+    k_min = min(entry["hkl_stats"]["k_min"] for entry in per_panel_stats)
+    k_max = max(entry["hkl_stats"]["k_max"] for entry in per_panel_stats)
+    l_min = min(entry["hkl_stats"]["l_min"] for entry in per_panel_stats)
+    l_max = max(entry["hkl_stats"]["l_max"] for entry in per_panel_stats)
+    total_queries = sum(entry["hkl_stats"]["total_queries"] for entry in per_panel_stats)
+    in_bounds = sum(entry["hkl_stats"]["in_bounds_count"] for entry in per_panel_stats)
+    out_of_bounds = sum(entry["hkl_stats"]["out_of_bounds_count"] for entry in per_panel_stats)
+
+    return {
+        "h_min": h_min,
+        "h_max": h_max,
+        "k_min": k_min,
+        "k_max": k_max,
+        "l_min": l_min,
+        "l_max": l_max,
+        "total_queries": total_queries,
+        "in_bounds_count": in_bounds,
+        "out_of_bounds_count": out_of_bounds,
+        "in_bounds_fraction": in_bounds / total_queries if total_queries > 0 else 0.0,
+    }
+
+
+def collect_stage_a_hkl_stats(
+    detector,
+    beam,
+    crystal,
+    refinement_inputs,
+    hkl_grid,
+    hkl_metadata,
+    config,
+    device,
+):
+    """
+    Build a diagnostic Stage A context with HKL stats enabled and aggregate results.
+    """
+    print("[Stage A Baseline Probe] Collecting Stage A HKL stats (debug context)...")
+    trusted_mask = getattr(refinement_inputs, "trusted_mask", None)
+    if trusted_mask is None:
+        raise RuntimeError("RefinementInputs.trusted_mask is required for HKL stats.")
+
+    stage_a_ctx_diag = _build_stage_a_context(
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        trusted_mask=trusted_mask,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        enable_hkl_interpolation=config.enable_hkl_interpolation,
+        device=device,
+        dtype=config.dtype,
+        panel_slices=None,
+        enable_roi_mode=False,
+        calibration_metadata=config.calibration_metadata,
+        log_scale_baseline=getattr(config, "log_scale_baseline", None),
+        apply_calibration_n_cells=config.apply_calibration_n_cells,
+        config=config,
+        debug_config={"collect_hkl_stats": True},
+    )
+
+    per_panel_stats = []
+    for panel_id, simulator in enumerate(stage_a_ctx_diag.simulators):
+        try:
+            _ = simulator.run()
+        except Exception as exc:  # pragma: no cover - diagnostics only
+            print(f"[Stage A Baseline Probe] WARNING: simulator.run() failed for panel {panel_id}: {exc}")
+            continue
+        stats = getattr(simulator, "hkl_stats", None)
+        if stats:
+            per_panel_stats.append({"panel_id": panel_id, "hkl_stats": stats})
+
+    aggregated = aggregate_hkl_stats(per_panel_stats)
+    return {
+        "n_panels": getattr(stage_a_ctx_diag, "n_panels", len(stage_a_ctx_diag.simulators)),
+        "per_panel_stats": per_panel_stats,
+        "aggregated": aggregated,
+    }
+
+
+def collect_mapping_hkl_stats(
+    refinement_inputs,
+    detector,
+    beam,
+    crystal,
+    experiment,
+    mapping_context,
+    device,
+    apply_n_cells,
+):
+    """
+    Run simulate_forward_once with HKL stats enabled and aggregate diagnostics.
+    """
+    print("[Stage A Baseline Probe] Collecting simulate_forward_once HKL stats...")
+    bragg_unused, diagnostics = simulate_forward_once(
+        inputs=refinement_inputs,
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        experiment=experiment,
+        hkl_indices=mapping_context.hkl_indices,
+        hkl_amplitudes=mapping_context.hkl_amplitudes,
+        calibration=mapping_context.calibration,
+        spot_scale_override=mapping_context.calibration.get("spot_scale_override", 1.0) if mapping_context.calibration else None,
+        device=device,
+        sigma_floor_value=1.0,
+        apply_calibration_n_cells=apply_n_cells,
+        debug_config={"collect_hkl_stats": True},
+    )
+
+    per_panel_stats = diagnostics.get("per_panel_hkl_stats", [])
+    aggregated = aggregate_hkl_stats(per_panel_stats)
+    return {
+        "n_panels": len(per_panel_stats),
+        "per_panel_stats": per_panel_stats,
+        "aggregated": aggregated,
+        "hkl_grid_metadata": diagnostics.get("hkl_stats"),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Stage A baseline telemetry verification probe"
@@ -190,6 +324,11 @@ def main():
         choices=["perturbed", "baseline"],
         default="perturbed",
         help="Geometry mode: 'perturbed' applies smoke perturbations (default), 'baseline' uses mapping geometry without perturbation",
+    )
+    parser.add_argument(
+        "--collect-hkl-stats",
+        action="store_true",
+        help="When set, capture nanobrag_torch HKL query stats for Stage A and simulate_forward_once paths.",
     )
     args = parser.parse_args()
 
@@ -585,6 +724,39 @@ def main():
                 mask_checksum_match = (telem_checksum == mask_checksum)
 
     # Extract mapping diagnostic fields (ARCH-SIM-CONSTRUCTION-001 masked-mean scaling)
+    stage_a_hkl_stats = None
+    mapping_hkl_stats = None
+    if args.collect_hkl_stats:
+        try:
+            stage_a_hkl_stats = collect_stage_a_hkl_stats(
+                detector=refinement_detector,
+                beam=refinement_beam,
+                crystal=refinement_crystal,
+                refinement_inputs=refinement_inputs,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                config=config,
+                device=device_obj,
+            )
+        except Exception as exc:  # pragma: no cover - diagnostics only
+            print(f"[Stage A Baseline Probe] WARNING: Stage A HKL stats collection failed: {exc}")
+            stage_a_hkl_stats = {"error": str(exc)}
+
+        try:
+            mapping_hkl_stats = collect_mapping_hkl_stats(
+                refinement_inputs=refinement_inputs,
+                detector=refinement_detector,
+                beam=refinement_beam,
+                crystal=refinement_crystal,
+                experiment=refgeom_dataload.Expt,
+                mapping_context=mapping_context,
+                device=device_obj,
+                apply_n_cells=apply_n_cells,
+            )
+        except Exception as exc:  # pragma: no cover - diagnostics only
+            print(f"[Stage A Baseline Probe] WARNING: simulate_forward_once HKL stats collection failed: {exc}")
+            mapping_hkl_stats = {"error": str(exc)}
+
     mapping_diagnostics = mapping_context.diagnostics if mapping_context.diagnostics else {}
     mapping_target_mean_masked = mapping_diagnostics.get("target_mean_masked")
     mapping_bragg_mean_masked = mapping_diagnostics.get("bragg_mean_masked")
@@ -845,6 +1017,11 @@ def main():
                 "failfast_enabled": True,
                 "failfast_reason": "ROI/HKL mismatch indicates asset divergence between reflection table and HKL source",
             },
+        },
+        "hkl_query_stats": {
+            "enabled": args.collect_hkl_stats,
+            "stage_a": stage_a_hkl_stats,
+            "simulate_forward_once": mapping_hkl_stats,
         },
         "mapping_diagnostics": {
             "target_mean_masked": mapping_target_mean_masked,

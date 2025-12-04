@@ -206,6 +206,63 @@ def aggregate_hkl_stats(per_panel_stats):
     }
 
 
+def _serialize_partiality_stats_to_json(partiality_stats):
+    """
+    Convert torch tensors in Simulator.partiality_stats to JSON-safe per-panel aggregates.
+
+    Args:
+        partiality_stats: dict with keys like 'f_latt', 'lorentz_factor', 'polarization_factor'
+                          (each holding a torch tensor)
+
+    Returns:
+        dict with min/median/max/has_nan/has_inf summaries for each tensor field
+    """
+    import torch
+    import math
+
+    if not partiality_stats:
+        return None
+
+    summary = {}
+    for field, tensor in partiality_stats.items():
+        if not isinstance(tensor, torch.Tensor):
+            summary[field] = {"error": "not_a_tensor"}
+            continue
+
+        # Flatten to 1D for aggregate computation
+        flat = tensor.flatten()
+        if flat.numel() == 0:
+            summary[field] = {"error": "empty_tensor"}
+            continue
+
+        # Check for NaN/inf
+        has_nan = torch.isnan(flat).any().item()
+        has_inf = torch.isinf(flat).any().item()
+
+        # Compute min/median/max only if finite values exist
+        finite_mask = torch.isfinite(flat)
+        if finite_mask.any():
+            finite_vals = flat[finite_mask]
+            min_val = float(finite_vals.min().item())
+            max_val = float(finite_vals.max().item())
+            median_val = float(finite_vals.median().item())
+        else:
+            min_val = math.nan
+            max_val = math.nan
+            median_val = math.nan
+
+        summary[field] = {
+            "min": min_val,
+            "median": median_val,
+            "max": max_val,
+            "has_nan": has_nan,
+            "has_inf": has_inf,
+            "count": int(flat.numel()),
+        }
+
+    return summary
+
+
 def collect_stage_a_hkl_stats(
     detector,
     beam,
@@ -215,6 +272,7 @@ def collect_stage_a_hkl_stats(
     hkl_metadata,
     config,
     device,
+    collect_simulator_partiality_stats=False,
 ):
     """
     Build a diagnostic Stage A context with HKL stats enabled and aggregate results.
@@ -242,7 +300,7 @@ def collect_stage_a_hkl_stats(
         config=config,
         debug_config={
             "collect_hkl_stats": True,
-            "collect_partiality_stats": args.collect_simulator_partiality_stats,
+            "collect_partiality_stats": collect_simulator_partiality_stats,
         },
     )
 
@@ -258,10 +316,11 @@ def collect_stage_a_hkl_stats(
         if stats:
             per_panel_stats.append({"panel_id": panel_id, "hkl_stats": stats})
 
-        # ARCH-SIM-CONSTRUCTION-001: Collect partiality stats from simulator
+        # ARCH-SIM-CONSTRUCTION-001: Collect partiality stats from simulator and serialize to JSON-safe aggregates
         partiality_stats = getattr(simulator, "partiality_stats", None)
         if partiality_stats:
-            per_panel_partiality_stats.append({"panel_id": panel_id, "partiality_stats": partiality_stats})
+            serialized = _serialize_partiality_stats_to_json(partiality_stats)
+            per_panel_partiality_stats.append({"panel_id": panel_id, "partiality_stats": serialized})
 
     aggregated = aggregate_hkl_stats(per_panel_stats)
     return {
@@ -282,6 +341,7 @@ def collect_mapping_hkl_stats(
     device,
     apply_n_cells,
     config=None,
+    collect_simulator_partiality_stats=False,
 ):
     """
     Run simulate_forward_once with HKL stats enabled and aggregate diagnostics.
@@ -305,7 +365,7 @@ def collect_mapping_hkl_stats(
         mosaic_domains=mosaic_domains,
         debug_config={
             "collect_hkl_stats": True,
-            "collect_partiality_stats": args.collect_simulator_partiality_stats,
+            "collect_partiality_stats": collect_simulator_partiality_stats,
         },
     )
 
@@ -1881,6 +1941,7 @@ def main():
                 hkl_metadata=hkl_metadata,
                 config=config,
                 device=device_obj,
+                collect_simulator_partiality_stats=args.collect_simulator_partiality_stats,
             )
         except Exception as exc:  # pragma: no cover - diagnostics only
             print(f"[Stage A Baseline Probe] WARNING: Stage A HKL stats collection failed: {exc}")
@@ -1897,6 +1958,7 @@ def main():
                 device=device_obj,
                 apply_n_cells=apply_n_cells,
                 config=config,
+                collect_simulator_partiality_stats=args.collect_simulator_partiality_stats,
             )
         except Exception as exc:  # pragma: no cover - diagnostics only
             print(f"[Stage A Baseline Probe] WARNING: simulate_forward_once HKL stats collection failed: {exc}")

@@ -110,9 +110,9 @@ tests/dbex/test_stage_a_smoke_parity.py:398: AssertionError
   bragg_full mean (final output): 1.442717e+01
   bragg_full max: 7.059909e+05
 [END DEBUG]
-[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/mask_coverage.json
 [ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
-[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/baseline_stats.json
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/baseline_stats.json
   Reconstructed bragg mean (masked): 3.902979e-01
   Telemetry model mean (masked): 1.157299e+01
   Ratio (bragg/telem): 0.033725
@@ -128,9 +128,9 @@ tests/dbex/test_stage_a_smoke_parity.py:398: AssertionError
   bragg_full mean (final output): 1.874993e+01
   bragg_full max: 9.166658e+05
 [END DEBUG]
-[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/mask_coverage.json
 [ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
-[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/baseline_stats.json
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/baseline_stats.json
   Reconstructed bragg mean (masked): 1.243596e+00
   Telemetry model mean (masked): 1.157299e+01
   Ratio (bragg/telem): 0.107457
@@ -269,9 +269,9 @@ tests/dbex/test_stage_a_smoke_parity.py:514: AssertionError
   bragg_full mean (final output): 1.442717e+01
   bragg_full max: 7.059909e+05
 [END DEBUG]
-[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/mask_coverage.json
 [ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
-[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/baseline_stats.json
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/baseline_stats.json
   Reconstructed bragg mean (masked): 3.902979e-01
   Telemetry model mean (masked): 1.157299e+01
   Ratio (bragg/telem): 0.033725
@@ -287,9 +287,9 @@ tests/dbex/test_stage_a_smoke_parity.py:514: AssertionError
   bragg_full mean (final output): 1.874993e+01
   bragg_full max: 9.166658e+05
 [END DEBUG]
-[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/mask_coverage.json
 [ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
-[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/baseline_stats.json
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T200000Z/db_at_028/baseline_stats.json
   Reconstructed bragg mean (masked): 1.243596e+00
   Telemetry model mean (masked): 1.157299e+01
   Ratio (bragg/telem): 0.107457
@@ -318,4 +318,4 @@ FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
 assert 209714.75169082126 <= 100.0
 FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - AssertionError: median ROI correlation before refinement -0.054 below 0.2 floor
 assert -0.05385308538440642 >= 0.2
-======================== 2 failed, 5 warnings in 16.81s ========================
+======================== 2 failed, 5 warnings in 16.69s ========================

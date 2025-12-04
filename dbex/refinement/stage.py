@@ -156,6 +156,9 @@ class RefinementTelemetry:
     target_mean_masked: Optional[float] = None
     model_mean_masked: Optional[float] = None
 
+    # ARCH-SIM-CONSTRUCTION-001 C.10: Mask provenance metadata
+    mask_metadata: Optional[Dict[str, Any]] = None
+
     # PHYSICS-LOSS-003: Canonical Stage A metadata
     canonical_stage_label: Optional[str] = None
     canonical_chi_squared: Optional[float] = None
@@ -253,6 +256,8 @@ class RefinementTelemetry:
             result["target_mean_masked"] = self.target_mean_masked
         if self.model_mean_masked is not None:
             result["model_mean_masked"] = self.model_mean_masked
+        if self.mask_metadata is not None:
+            result["mask_metadata"] = self.mask_metadata
 
         # Phase A4 extensions
         if self.stage_type is not None:

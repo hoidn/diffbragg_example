@@ -336,6 +336,31 @@ def main():
     log_scale_init = log_scale_entry.get("initial", 0.0) if isinstance(log_scale_entry, dict) else 0.0
     log_scale_effective_init = log_scale_baseline + log_scale_init if log_scale_baseline is not None else log_scale_init
 
+    # Extract mask metadata from telemetry (ARCH-SIM-CONSTRUCTION-001 C.10)
+    telemetry_mask_metadata = None
+    if hasattr(telemetry, 'mask_metadata') and telemetry.mask_metadata is not None:
+        telemetry_mask_metadata = telemetry.mask_metadata
+
+    # Compute reconstruction mask metadata
+    reconstruction_mask_metadata = None
+    mask_checksum_match = None
+    if refinement_inputs.loss_mask is not None:
+        import hashlib
+        loss_mask_pixel_count = int(np.count_nonzero(refinement_inputs.loss_mask))
+        mask_array = np.ascontiguousarray(refinement_inputs.loss_mask, dtype=np.uint8)
+        mask_checksum = hashlib.sha1(mask_array).hexdigest()
+
+        reconstruction_mask_metadata = {
+            'loss_mask_pixel_count': loss_mask_pixel_count,
+            'mask_checksum': mask_checksum,
+        }
+
+        # Check if checksums match
+        if telemetry_mask_metadata is not None:
+            telem_checksum = telemetry_mask_metadata.get('mask_checksum')
+            if telem_checksum is not None:
+                mask_checksum_match = (telem_checksum == mask_checksum)
+
     # Build output payload
     output = {
         "probe_metadata": {
@@ -379,6 +404,11 @@ def main():
             "DB_AT_028_chi_squared_per_pixel_actual": chi_squared_per_pixel_initial,
             "DB_AT_028_pass": chi_squared_per_pixel_initial <= 1e2 if np.isfinite(chi_squared_per_pixel_initial) else False,
         },
+        "mask_metadata": {
+            "telemetry": telemetry_mask_metadata,
+            "reconstruction": reconstruction_mask_metadata,
+            "checksum_match": mask_checksum_match,
+        },
     }
 
     # Write JSON output
@@ -413,6 +443,30 @@ def main():
         print(f"  model_mean_masked delta: {output['comparison']['model_mean_masked_vs_reconstructed_delta']:.6e}")
         if np.isfinite(output["comparison"]["model_mean_masked_vs_reconstructed_ratio"]):
             print(f"  model_mean_masked ratio: {output['comparison']['model_mean_masked_vs_reconstructed_ratio']:.6f}")
+    print("=" * 80)
+
+    # Print mask parity table (ARCH-SIM-CONSTRUCTION-001 C.10)
+    print("\nMask Provenance Comparison:")
+    print("-" * 80)
+    if telemetry_mask_metadata and reconstruction_mask_metadata:
+        telem_checksum = telemetry_mask_metadata.get('mask_checksum', 'N/A')
+        telem_pixel_count = telemetry_mask_metadata.get('loss_mask_pixel_count', 'N/A')
+        recon_checksum = reconstruction_mask_metadata.get('mask_checksum', 'N/A')
+        recon_pixel_count = reconstruction_mask_metadata.get('loss_mask_pixel_count', 'N/A')
+
+        print(f"  {'Source':<20} {'Pixel Count':<15} {'Checksum (SHA1)':<50}")
+        print(f"  {'-'*20} {'-'*15} {'-'*50}")
+        print(f"  {'Telemetry':<20} {telem_pixel_count:<15} {telem_checksum:<50}")
+        print(f"  {'Reconstruction':<20} {recon_pixel_count:<15} {recon_checksum:<50}")
+        print(f"  {'-'*20} {'-'*15} {'-'*50}")
+
+        if mask_checksum_match is not None:
+            status_str = "PASS" if mask_checksum_match else "FAIL"
+            print(f"  Mask Checksum Match: {status_str}")
+        else:
+            print(f"  Mask Checksum Match: UNKNOWN (telemetry missing checksum)")
+    else:
+        print(f"  Mask metadata not available (telemetry or reconstruction missing)")
     print("=" * 80)
 
     return 0

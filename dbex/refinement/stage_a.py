@@ -22,6 +22,7 @@ Dependencies (ARCH-REFINE-001 eager import refactoring):
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+import hashlib
 import json
 import os
 import sys
@@ -507,6 +508,35 @@ class StageA:
         u_matrix_lifecycle_log = []  # Track U checksum per closure call
         a_star_lifecycle_log = []    # Track A* reconstruction per closure call
 
+        # Compute mask provenance metadata (ARCH-SIM-CONSTRUCTION-001 Phase C.10)
+        # Capture mask pixel counts and checksum so reconstruction helpers can verify mask parity
+        mask_metadata = None
+        if inputs.loss_mask is not None:
+            try:
+                # Total true pixels in the mask
+                loss_mask_pixel_count = int(np.count_nonzero(inputs.loss_mask))
+
+                # Per-panel true pixel counts
+                panel_true_pixels = []
+                if hasattr(inputs, 'panel_slices') and inputs.panel_slices is not None:
+                    for pid, slc in enumerate(inputs.panel_slices):
+                        panel_mask = inputs.loss_mask[slc]
+                        panel_true_pixels.append(int(np.count_nonzero(panel_mask)))
+
+                # Compute SHA1 checksum of the mask (convert to contiguous uint8 for reproducibility)
+                mask_array = np.ascontiguousarray(inputs.loss_mask, dtype=np.uint8)
+                mask_checksum = hashlib.sha1(mask_array).hexdigest()
+
+                mask_metadata = {
+                    'loss_mask_pixel_count': loss_mask_pixel_count,
+                    'panel_true_pixels': panel_true_pixels,
+                    'mask_checksum': mask_checksum,
+                }
+            except Exception as e:
+                # Fallback: skip mask metadata if computation fails
+                print(f"[ARCH-SIM-CONSTRUCTION-001 C.10 WARNING] Mask metadata computation failed: {e}")
+                mask_metadata = None
+
         # Build param_values dict for return
         param_values = {
             'initial_log_scale': initial_log_scale,  # Store initial value for telemetry
@@ -515,6 +545,7 @@ class StageA:
             'spot_scale_override_adjustment_factor': spot_scale_override_adjustment_factor,  # N_cells adjustment factor (TOOLING-VIS-001 Phase E)
             'target_mean_masked': target_mean_masked,  # Masked mean of target data (TOOLING-VIS-001 Phase D.E)
             'model_mean_masked': model_mean_masked,  # Masked mean of Stage A zero-iteration model (TOOLING-VIS-001 Phase D.E)
+            'mask_metadata': mask_metadata,  # Mask provenance (pixel counts, checksum) for reconstruction verification (ARCH-SIM-CONSTRUCTION-001 C.10)
             'log_scale': log_scale,
             'log_cell_a_delta': log_cell_a_delta,
             'log_cell_b_delta': log_cell_b_delta,
@@ -1748,6 +1779,7 @@ class StageA:
         spot_scale_override_adjustment_factor = param_values.get('spot_scale_override_adjustment_factor')  # TOOLING-VIS-001 Phase E
         target_mean_masked = param_values.get('target_mean_masked')  # TOOLING-VIS-001 Phase D.E
         model_mean_masked = param_values.get('model_mean_masked')  # TOOLING-VIS-001 Phase D.E
+        mask_metadata = param_values.get('mask_metadata')  # ARCH-SIM-CONSTRUCTION-001 C.10
         angle_alpha_raw = param_values['angle_alpha_raw']
         angle_beta_raw = param_values['angle_beta_raw']
         angle_gamma_raw = param_values['angle_gamma_raw']
@@ -2033,6 +2065,8 @@ class StageA:
             # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
             target_mean_masked=target_mean_masked,
             model_mean_masked=model_mean_masked,
+            # ARCH-SIM-CONSTRUCTION-001 C.10: Mask provenance metadata
+            mask_metadata=mask_metadata,
             # PHYSICS-LOSS-003: Canonical Stage A metadata
             canonical_stage_label=canonical_baseline["stage_label"],
             canonical_chi_squared=canonical_baseline["chi_squared"],

@@ -20,6 +20,7 @@ References:
 - ARCH-ENGINE-ARTIFACTS-001 (final Bragg unification)
 """
 
+import hashlib
 import numpy as np
 import torch
 from typing import Any, Dict, Optional
@@ -522,6 +523,40 @@ def build_final_bragg_from_stage_a_telemetry(
         bragg_vs_telem_ratio = bragg_mean_masked / model_mean_masked_telem if np.isfinite(model_mean_masked_telem) and model_mean_masked_telem != 0 else float("nan")
         bragg_vs_target_ratio = bragg_mean_masked / target_mean_masked if target_mean_masked != 0 else float("nan")
 
+        # Compute reconstruction mask metadata (ARCH-SIM-CONSTRUCTION-001 C.10)
+        reconstruction_mask_metadata = None
+        telemetry_mask_metadata = None
+        mask_checksum_mismatch = False
+
+        if inputs.loss_mask is not None:
+            try:
+                # Compute reconstruction mask metadata
+                loss_mask_pixel_count = int(np.count_nonzero(inputs.loss_mask))
+                mask_array = np.ascontiguousarray(inputs.loss_mask, dtype=np.uint8)
+                mask_checksum = hashlib.sha1(mask_array).hexdigest()
+
+                reconstruction_mask_metadata = {
+                    'loss_mask_pixel_count': loss_mask_pixel_count,
+                    'mask_checksum': mask_checksum,
+                }
+
+                # Extract telemetry mask metadata if available
+                if hasattr(telemetry_a, 'mask_metadata') and telemetry_a.mask_metadata is not None:
+                    telemetry_mask_metadata = telemetry_a.mask_metadata
+
+                    # Check for checksum mismatch
+                    telem_checksum = telemetry_mask_metadata.get('mask_checksum')
+                    if telem_checksum is not None and telem_checksum != mask_checksum:
+                        mask_checksum_mismatch = True
+                        print(f"[ARCH-SIM-CONSTRUCTION-001 C.10 WARNING] Mask checksum mismatch:")
+                        print(f"  Telemetry checksum: {telem_checksum}")
+                        print(f"  Reconstruction checksum: {mask_checksum}")
+                        print(f"  This suggests Stage A and reconstruction are using different masks")
+
+            except Exception as e:
+                print(f"[ARCH-SIM-CONSTRUCTION-001 C.10 WARNING] Mask metadata computation failed: {e}")
+                reconstruction_mask_metadata = None
+
         baseline_stats = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "param_state": param_state,
@@ -546,6 +581,11 @@ def build_final_bragg_from_stage_a_telemetry(
                 "n_masked_pixels": n_masked_pixels,
             },
             "scale_factor_used": float(scale_factor.item()) if isinstance(scale_factor, torch.Tensor) else float(scale_factor),
+            "mask_metadata": {
+                "telemetry": telemetry_mask_metadata,
+                "reconstruction": reconstruction_mask_metadata,
+                "checksum_mismatch": mask_checksum_mismatch,
+            },
         }
 
         # Write baseline stats to artifacts directory

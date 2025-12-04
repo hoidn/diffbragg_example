@@ -1,42 +1,42 @@
-Summary: Parameterize the Stage A baseline probe with a zero-perturbation geometry mode so mapping-parity diagnostics stop flagging expected differences from the smoke perturbation and rerun the evidence bundle for DB-AT-028/029.
+Summary: Scale the mapping zero-iteration stack by the same masked-intensity ratio that Stage A now applies so Stage A and mapping baselines land on identical magnitudes before re-running the Stage A probe + DB-AT-028/029 evidence.
 Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
 Branch: integration
-Mapped tests: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --device cuda:0 --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/stage_a_baseline_probe_baseline.json
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/pytest_db_at_028_029.log
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/
+Mapped tests: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --device cuda:0 --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/stage_a_baseline_probe_baseline.json
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/pytest_db_at_028_029.log
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/
 
 Do Now:
-- Implement: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py::main` — add a `--geometry-mode {perturbed,baseline}` flag (default `perturbed`) that skips `create_perturbed_geometry` and uses the mapping baseline crystal/detector/beam when `baseline` is selected. Record the chosen mode in `probe_metadata` so evidence consumers know which geometry was used.
-- Implement: thread the geometry mode through the console summary/JSON payload (e.g., `"geometry_mode": "baseline"`) and guard the mapping-parity warnings so they only fire when the mode is `baseline`. When the mode is `perturbed`, still emit the comparison block but tag it as non-normative so we can distinguish deliberate perturbations from true DB-AT-027 violations.
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --device cuda:0 --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/stage_a_baseline_probe_baseline.json` (expect Stage A vs mapping metrics to drop to numerical-noise levels when geometry is unperturbed).
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/pytest_db_at_028_029.log` (collect the failure signature with the updated parity evidence).
+- Implement: `dbex/vis/mapping.py::build_mapping_stage_a_context` — after `simulate_forward_once` returns, compute the masked means of `inputs.target` and `bragg_zero_iter`, multiply the Bragg stack by `mean_target/mean_bragg` when both values are finite/positive, and persist the masked means, ratio, and a `log_scale_baseline_source` hint in `diagnostics` + `calibration` so Stage A can see that mapping already applied the adjustment. When the adjustment fires, reset `inputs.global_scale_hint` to 1.0 to avoid double-scaling at Stage A warm-starts.
+- Implement: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py::main` — surface the new diagnostic fields (masked means, ratio, log_scale_baseline_source) in the JSON/console output and fail the parity summary when `geometry_mode="baseline"` still shows |Δ| > 1 ADU so the evidence immediately calls out regressions.
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --device cuda:0 --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/stage_a_baseline_probe_baseline.json` (expect Stage A vs mapping max|Δ| < 1 ADU and RMSE ≈ numerical noise).
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/pytest_db_at_028_029.log` (collect the updated failure signature once mapping baseline parity is restored).
 
 How-To Map:
-1. Extend the argparse definition with `--geometry-mode` (choices `perturbed`/`baseline`) and plumb the setting into the geometry preparation section before calling `build_refinement_context`.
-2. When `geometry_mode == "baseline"`, pass `baseline_crystal`, `baseline_detector`, and `baseline_beam` directly to the refinement context; otherwise keep using the existing `create_perturbed_geometry` path for the Stage A smoke scenario.
-3. Attach the geometry mode and resolved HKL/calibration paths to the JSON metadata so downstream reports can cite exactly which configuration was probed. Update the console summary to print a clear header (e.g., "[Stage A Baseline Probe] Geometry mode: baseline").
-4. Re-run the probe with `--geometry-mode baseline` and stash the JSON + stdout logs under the new report directory so we can prove Stage A vs mapping parity with zero deltas.
-5. After regenerating evidence, rerun DB-AT-028/029 with artifact dirs rooted at the same timestamp to keep the chi²/ROI metrics aligned with the corrected probe data.
+1. In `build_mapping_stage_a_context`, reuse the existing masked-mean computation that currently seeds `global_scale_hint`, but instead of only storing the ratio, multiply `bragg_zero_iter` in place (CPU float32) and update diagnostics/calibration to note the adjustment source.
+2. When scaling occurs, set `diagnostics["target_mean_masked"]`, `diagnostics["bragg_mean_masked"]`, and `diagnostics["masked_mean_ratio"]` so downstream probes/tests can assert parity without recomputing statistics.
+3. After the scale is applied, set `inputs.global_scale_hint = 1.0` (or None) so Stage A’s warm-start doesn’t reapply the ratio; retain the previous value in diagnostics if needed for forensic comparison.
+4. Extend the baseline probe to print the new diagnostic block and to flag baseline-mode runs as failures whenever `max_abs_diff` or `chi²` relative differences exceed the DB-AT-027 tolerances, making parity regressions obvious.
+5. Re-run the probe + DB-AT selectors with the new artifact root so we have synchronized evidence showing Stage A vs mapping parity is fixed before addressing the remaining Stage A vs target shape mismatch.
 
 Pitfalls To Avoid:
-- Do not mutate the `RefinementConfig` when switching geometry modes—only swap the detector/beam/crystal objects you pass into `build_refinement_context`.
-- Keep the default `perturbed` behavior intact so Stage A smoke tests still exercise the intended perturbation when desired.
-- When geometry mode is `baseline`, ensure the cached Stage A tensors are detached copies so reusing mapping artifacts does not trample the warm cache state.
-- Always honour `DBEX_SMOKE_CALIB_PATH`/`DBEX_SMOKE_HKL_PATH` so the mapping and Stage A paths stay on the same refined assets.
-- Capture stdout via `tee` when running pytest so the artifact directory contains both the logs and metrics JSON for later analysis.
+- Do not scale `bragg_zero_iter` when the masked means are zero/negative/non-finite; fall back to the previous behavior and emit a warning in diagnostics instead.
+- Keep the adjustment confined to mapping; Stage A already applies the ratio, so ensure we don’t double-scale by checking the diagnostics flag before modifying `inputs.global_scale_hint`.
+- Preserve canonical diagnostics (HKL source/path, calibration_path, N_cells flags) when injecting the new fields so existing consumers remain unaffected.
+- When updating the probe, avoid forcing baseline mode in the default execution path—engineers still need perturbed mode for Stage A smoke evidence.
+- Capture both stdout and JSON artifacts for the probe/test commands (use `tee`) so parity deltas are reviewable even if pytest fails early.
 
 If Blocked:
-- If the baseline geometry mode still reports large Stage A vs mapping deltas, capture the JSON + console logs, mark the block in docs/fix_plan.md, and pause before attempting additional fixes so Galph can reassess whether Stage A zero-point code diverged.
-- If CUDA is unavailable, rerun the probe and tests on CPU with `--device cpu`, record the variance in the artifacts, and note the device change in the report so we can compare apples-to-apples later.
+- If the masked means are zero or NaN for this dataset, log the values in diagnostics, leave `bragg_zero_iter` untouched, and stop after capturing the baseline probe/pytest artifacts; flag the situation in docs/fix_plan.md before attempting alternative fixes.
+- If CUDA is unavailable, run the probe/tests on CPU, note the device change in the artifact filenames, and highlight potential perf differences in the report.
 
 Findings Applied (Mandatory):
-- SCALE-008 — Warm-cache artifacts are considered authoritative; ensuring the probe can run with zero perturbation verifies we are comparing the same baseline geometry before interpreting chi² metrics.
-- SCALE-009 — Reconstruction relies on Stage A telemetry for calibrated intensity, so correcting the probe avoids false positives when evaluating the simulator construction path.
+- SCALE-008 — Mapping and Stage A must reuse the warmed Stage A baseline; scaling `bragg_zero_iter` at mapping time enforces the warm-cache authority before tests read the data.
+- SCALE-009 — Reconstruction/mapping consumers rely on consistent calibration threading; documenting the masked-mean ratio in diagnostics proves the simulator construction contract is being honored.
 
 Pointers:
-- plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py:35-220 (geometry prep + telemetry capture to update)
-- docs/spec-db-conformance.md:319-389 (DB-AT-027/028/029 parity gates driving this evidence collection)
-- plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-16T200000Z/stage_a_baseline_probe.json (shows the false positive caused by perturbed geometry)
-- docs/data_dependency_manifest.md:88-133 (canonical Stage A smoke assets referenced in the probe)
+- dbex/vis/mapping.py:193-308 (simulate_forward_once + global_scale_hint logic to extend with masked-mean scaling)
+- plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py:360-520 (mapping comparison block that will consume the new diagnostics)
+- docs/spec-db-conformance.md:265-389 (DB-AT-027/028/029 tolerances driving the parity assertions)
+- docs/data_dependency_manifest.md:82-140 (Stage A smoke calibration/HKL provenance that the probe must continue to honor)

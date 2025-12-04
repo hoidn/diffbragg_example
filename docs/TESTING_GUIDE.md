@@ -247,3 +247,49 @@ spec-aligned ROI visuals and mapping diagnostics:
 
 - Stage A (geometry + scale): Canonical runs set `crystal.interpolate=False` (nearest‑neighbor |F|) to mirror DiffBragg geometry refinement. Haloed tricubic may be exercised as a tagged, non‑canonical mode; tests SHALL record when the non‑canonical mode is used.
 - Stage B (Fhkl modifiers): When interpolation is enabled, the dense |F| grid MUST include a ±1 halo. Tests SHOULD assert zero usage of `default_F` (via telemetry once exposed). Any default_F fallback with interpolate=True is a failure condition.
+
+## 5. Architecture Enforcement Tests
+
+### 5.1 Probe Contract Enforcement
+
+The `tests/architecture/test_probe_contracts.py` module enforces the diagnostic script policy per `prompts/supervisor.md:272-309` and ARCH-PROBE-FREEZE-001. It validates that plan-local probe scripts remain thin wrappers and do not re-implement production semantics (mapping, physics, refinement).
+
+**Run command:**
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/architecture/test_probe_contracts.py
+```
+
+**Purpose:**
+- Enforce 400 LOC growth cap on plan-local scripts under `plans/active/**/bin/*.py`
+- Ensure Phase B shim scripts delegate to canonical owner modules (`dbex.tools.*`) without re-implementing business logic
+
+**Test cases:**
+
+1. **`test_plan_bin_growth_cap`**: Walks `plans/active/**/bin/*.py` and fails when a script exceeds 400 LOC unless it appears in the `GROWTH_CAP_EXCEPTIONS` allowlist. The allowlist is explicitly documented with plan IDs to maintain traceability for cleanup work.
+
+   - **Rationale**: Prevents plan-local probes from growing into shadow pipelines that re-implement production semantics outside owner modules.
+   - **Allowlist maintenance**: When adding entries to `GROWTH_CAP_EXCEPTIONS`, document with plan ID and cleanup intent. Remove entries once scripts are refactored to thin wrappers or retired.
+   - **Failure action**: If a new script exceeds 400 LOC, either (a) refactor to thin wrapper delegating to owner module, or (b) promote to `scripts/tools/` under a harness initiative with pytest coverage.
+
+2. **`test_probe_shims_delegate_to_owner_clis`**: Parses shim scripts (Phase B deliverables: `embed_sigma_external_lookup.py`, `compare_mapping_dataset_metrics.py`, `capture_smoke_calibration.py`) and asserts they contain only import statements plus an `if __name__ == "__main__":` block calling canonical owner CLIs. Fails if function/class definitions creep in.
+
+   - **Rationale**: Shims must remain minimal compatibility layers; all business logic belongs in `dbex.tools.*` or `dbex.calibration.*`.
+   - **Acceptable structure**: imports, optional `sys.path` manipulation (legacy compatibility), `if __name__` block calling `tool.main()`.
+   - **Forbidden**: function definitions, class definitions, inline business logic.
+   - **Failure action**: Remove function/class definitions and migrate business logic to owner modules per ARCH-PROBE-FREEZE-001 Phase B.
+
+**Artifacts policy:**
+- Store pytest logs under `plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/`.
+- Capture pytest execution log: `pytest -vv tests/architecture/test_probe_contracts.py | tee plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/pytest_probe_contracts.log`
+- Include `pytest --collect-only` output for test registry updates.
+
+**Maintenance workflow:**
+- Run this test before accepting new plan-local scripts to ensure compliance with growth cap and shim delegation policies.
+- When refactoring a shadow pipeline (migrating logic to owner modules), update the allowlist to remove retired entries.
+- When a test fails, review the specific violation (LOC count or AST structure) and apply the appropriate refactoring strategy documented in `prompts/supervisor.md:282-287`.
+
+**References:**
+- `prompts/supervisor.md:254-309` — scriptization_policy + diagnostic_script_policy
+- `plans/active/ARCH-PROBE-FREEZE-001/implementation.md:80-150` — Phase C guardrails
+- `docs/architecture/data_telemetry_flow.md:42-118` — telemetry ownership
+- `docs/architecture/module_map.md:30-95` — module ownership boundaries

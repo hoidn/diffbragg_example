@@ -334,13 +334,25 @@ def main():
         action="store_true",
         help="When set, capture nanobrag_torch HKL query stats for Stage A and simulate_forward_once paths.",
     )
+    parser.add_argument(
+        "--stage-a-mosaic-domains",
+        type=int,
+        default=16,
+        help="Number of mosaic domain samples for Stage A/mapping/reconstruction (default: 16). Clamped to ≥1.",
+    )
     args = parser.parse_args()
 
     # Ensure output directory exists
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
+    # Clamp stage_a_mosaic_domains to ≥1
+    stage_a_mosaic_domains = max(1, args.stage_a_mosaic_domains)
+    if stage_a_mosaic_domains != args.stage_a_mosaic_domains:
+        print(f"[Stage A Baseline Probe] WARNING: --stage-a-mosaic-domains clamped from {args.stage_a_mosaic_domains} to {stage_a_mosaic_domains}")
+
     print(f"[Stage A Baseline Probe] Starting probe (device={args.device})")
     print(f"[Stage A Baseline Probe] Geometry mode: {args.geometry_mode}")
+    print(f"[Stage A Baseline Probe] Stage A mosaic domains: {stage_a_mosaic_domains}")
     print(f"[Stage A Baseline Probe] Output will be saved to: {args.output}")
 
     # Build fixture data (replicating stage_a_smoke_result fixture logic)
@@ -419,6 +431,7 @@ def main():
             "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
         ),
         apply_calibration_n_cells=apply_n_cells,
+        stage_a_mosaic_domains=stage_a_mosaic_domains,
     )
 
     # Build refinement context and run Stage A
@@ -1002,10 +1015,10 @@ def main():
     # Build output payload
     output = {
         "probe_metadata": {
-            "timestamp": "2025-12-20T210000Z",
+            "timestamp": "2025-12-22T010000Z",
             "initiative": "ARCH-SIM-CONSTRUCTION-001",
-            "phase": "C.17",
-            "purpose": "Add HKL-amplitude ledger to Stage A baseline probe for parity crisis diagnosis (chi²/pixel 9.8e5)",
+            "phase": "C.18",
+            "purpose": "Stage A mosaic-domain sweep to isolate Stage A↔reflection divergence boundary",
             "geometry_mode": args.geometry_mode,
             "device": device,
             "apply_calibration_n_cells": apply_n_cells,
@@ -1016,6 +1029,7 @@ def main():
             "mtz_file": resolved_mtz_file,
             "mtz_col": resolved_mtz_col,
             "calibration_config_path": resolved_calibration_config_path if resolved_calibration_config_path else None,
+            "stage_a_mosaic_domains": stage_a_mosaic_domains,
             "hkl_ledger": {
                 "n_hkl_entries": len(hkl_lookup),
                 "description": "HKL amplitude lookup built from mapping_context.hkl_indices/hkl_amplitudes",

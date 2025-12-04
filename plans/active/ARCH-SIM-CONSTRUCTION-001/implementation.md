@@ -432,10 +432,15 @@ Result: Deterministic evidence now isolates the remaining divergence to the sinc
 
 **Evidence artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-03T010000Z/` containing `square_lattice_scaling.{json,md}`, `square_lattice_probe.log`, `pytest_partiality.log`.
 
-#### C.32 — sincg reference comparison (Planned — 2026-01-03 loop)
-- [ ] Build a high-precision reference evaluator (NumPy/Decimal) for the 1D lattice response `sin(NπΔh)/sin(πΔh)` and integrate it into `probe_square_lattice_scaling.py` so the single-pixel runs emit both the production `sincg` outputs and the analytic reference for every sampled fractional offset.
-- [ ] Extend the probe report to summarize per-axis error statistics (max/median absolute percentage error, locations of the worst Δh/Δk/Δl samples) and compute the compounded `F_latt` ratio between production vs reference to determine whether the deficit originates inside `sincg` or downstream multiplication/summing.
-- [ ] Add a JSON/Markdown section documenting the per-axis deviation tables and, if the mismatch is confined to the sincg kernel, promote the initiative to `implementation_ready` (Phase C.33) with a concrete `nanobrag_torch.utils.physics.sincg` patch proposal; otherwise, describe the remaining hypothesis (e.g., post-kernel normalization) in summary.md.
+-#### C.32 — sincg reference comparison (Complete — 2026-01-04T010000Z)
+- [x] Build a high-precision reference evaluator (NumPy float64) for the 1D lattice response `sin(NπΔ)/sin(πΔ)` and integrate it into `probe_square_lattice_scaling.py` so the single-pixel runs emit both production and analytic sincg values for every sampled fractional offset. **Result:** `sincg` matches the reference to <1e-6 absolute error for all axes (table logged in `square_lattice_scaling.md`).
+- [x] Extend the probe report to summarize per-axis error statistics (max/median absolute/relative error, worst-case Δ samples) and compute the compounded `F_latt` ratio between production vs reference to determine whether the deficit originates inside `sincg` or downstream aggregation. **Result:** compounded `F_latt` from both production and reference medians stay at ≈2.3 rather than 38,048 because the oversample grid never samples Δk/Δl≈0.
+- [x] Document the findings (Probe summary + fix_plan attempt + report summary) showing the kernel is correct and the remaining mismatch is due to mis-centered fractional HKL offsets. Promote the initiative to Phase C.33 with a concrete detector/offset remediation plan.
+
+#### C.33 — Subpixel centering fix (Planned — 2026-01-04T150000Z loop)
+- [ ] **Re-center oversample offsets:** Update the oversample block in `src/nanobrag-torch/src/nanobrag_torch/simulator.py::_compute_physics_for_position` so the `subpixel_offsets` grid spans `(-(N-1)/(2N), …, +(N-1)/(2N))` for both slow and fast axes (e.g., `(torch.arange(N) - (N-1)/2) / N`). This ensures at least one subpixel sample hits Δ=0 when the detector pixel is aligned with the reference HKL.
+- [ ] **Guard instrumentation:** When `debug_config['collect_partiality_stats']` is enabled, record `min_abs_delta_h/k/l` so downstream probes (Stage A baseline helper + single-pixel reproducer) can assert the oversample grid still straddles zero for all axes.
+- [ ] **Validation:** Rerun `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` (artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-04T150000Z/`) and `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`. Success criteria: `(Na·Nb·Nc)^2` ratio ≥0.99× expected, `delta_k`/`delta_l` medians |Δ|<1e-3, DB-AT selectors regain chi²/ROI gates.
 
 ---
 

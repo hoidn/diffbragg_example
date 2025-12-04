@@ -370,6 +370,109 @@ def main():
     n_masked_pixels = int(np.count_nonzero(loss_mask_np))
     chi_squared_per_pixel_initial = chi_squared_initial / n_masked_pixels if n_masked_pixels > 0 else float("nan")
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.11: Compute Stage A vs mapping parity metrics (DB-AT-027)
+    # mapping_context.bragg_zero_iter is the mapping forward model output
+    # bragg_before is the Stage A zero-iteration reconstruction
+    # These should match within numerical noise per DB-AT-027 (§265-285)
+    mapping_bragg = mapping_context.bragg_zero_iter
+
+    # Compute per-ROI Pearson correlations for Stage A vs mapping vs target
+    def _compute_pearson_cc(arr1, arr2, mask):
+        """Compute Pearson correlation between arr1 and arr2 over masked pixels."""
+        mask_flat = mask.astype(bool).flatten()
+        if not np.any(mask_flat):
+            return float("nan")
+        a1 = arr1.flatten()[mask_flat].astype(np.float64)
+        a2 = arr2.flatten()[mask_flat].astype(np.float64)
+        a1_centered = a1 - a1.mean()
+        a2_centered = a2 - a2.mean()
+        denom = np.linalg.norm(a1_centered) * np.linalg.norm(a2_centered)
+        if denom <= 0:
+            return float("nan")
+        return float(np.dot(a1_centered, a2_centered) / denom)
+
+    mapping_vs_target_roi_cc = []
+    stagea_vs_target_roi_cc = []
+    stagea_vs_mapping_roi_cc = []
+
+    for pid, bbox in refinement_inputs.panel_slices:
+        x0, x1, y0, y1 = bbox
+        roi_mask = loss_mask_np[int(pid), y0:y1, x0:x1]
+        if not np.any(roi_mask):
+            continue
+
+        target_roi = target_np[int(pid), y0:y1, x0:x1]
+        mapping_roi = mapping_bragg[int(pid), y0:y1, x0:x1]
+        stagea_roi = bragg_before[int(pid), y0:y1, x0:x1]
+
+        mapping_vs_target_roi_cc.append(_compute_pearson_cc(mapping_roi, target_roi, roi_mask))
+        stagea_vs_target_roi_cc.append(_compute_pearson_cc(stagea_roi, target_roi, roi_mask))
+        stagea_vs_mapping_roi_cc.append(_compute_pearson_cc(stagea_roi, mapping_roi, roi_mask))
+
+    # Filter out NaN values for percentile computation
+    valid_mapping_vs_target = [c for c in mapping_vs_target_roi_cc if np.isfinite(c)]
+    valid_stagea_vs_target = [c for c in stagea_vs_target_roi_cc if np.isfinite(c)]
+    valid_stagea_vs_mapping = [c for c in stagea_vs_mapping_roi_cc if np.isfinite(c)]
+
+    # Compute percentiles for ROI correlations
+    import statistics
+    roi_cc_stats = {
+        "mapping_vs_target": {
+            "median": float(statistics.median(valid_mapping_vs_target)) if valid_mapping_vs_target else float("nan"),
+            "p25": float(np.percentile(valid_mapping_vs_target, 25)) if valid_mapping_vs_target else float("nan"),
+            "p75": float(np.percentile(valid_mapping_vs_target, 75)) if valid_mapping_vs_target else float("nan"),
+            "min": float(min(valid_mapping_vs_target)) if valid_mapping_vs_target else float("nan"),
+            "max": float(max(valid_mapping_vs_target)) if valid_mapping_vs_target else float("nan"),
+        },
+        "stagea_vs_target": {
+            "median": float(statistics.median(valid_stagea_vs_target)) if valid_stagea_vs_target else float("nan"),
+            "p25": float(np.percentile(valid_stagea_vs_target, 25)) if valid_stagea_vs_target else float("nan"),
+            "p75": float(np.percentile(valid_stagea_vs_target, 75)) if valid_stagea_vs_target else float("nan"),
+            "min": float(min(valid_stagea_vs_target)) if valid_stagea_vs_target else float("nan"),
+            "max": float(max(valid_stagea_vs_target)) if valid_stagea_vs_target else float("nan"),
+        },
+        "stagea_vs_mapping": {
+            "median": float(statistics.median(valid_stagea_vs_mapping)) if valid_stagea_vs_mapping else float("nan"),
+            "p25": float(np.percentile(valid_stagea_vs_mapping, 25)) if valid_stagea_vs_mapping else float("nan"),
+            "p75": float(np.percentile(valid_stagea_vs_mapping, 75)) if valid_stagea_vs_mapping else float("nan"),
+            "min": float(min(valid_stagea_vs_mapping)) if valid_stagea_vs_mapping else float("nan"),
+            "max": float(max(valid_stagea_vs_mapping)) if valid_stagea_vs_mapping else float("nan"),
+        },
+    }
+
+    # Compute global masked/unmasked means for mapping vs Stage A
+    mapping_masked = mapping_bragg[loss_mask_np]
+    mapping_mean_masked = float(np.mean(mapping_masked)) if mapping_masked.size > 0 else float("nan")
+    mapping_mean_unmasked = float(np.mean(mapping_bragg))
+
+    # Compute max|Δ| and RMSE between Stage A and mapping
+    stagea_vs_mapping_diff = bragg_before - mapping_bragg
+    stagea_vs_mapping_diff_masked = stagea_vs_mapping_diff[loss_mask_np]
+
+    max_abs_diff_masked = float(np.max(np.abs(stagea_vs_mapping_diff_masked))) if stagea_vs_mapping_diff_masked.size > 0 else float("nan")
+    max_abs_diff_unmasked = float(np.max(np.abs(stagea_vs_mapping_diff)))
+    rmse_masked = float(np.sqrt(np.mean(stagea_vs_mapping_diff_masked ** 2))) if stagea_vs_mapping_diff_masked.size > 0 else float("nan")
+    rmse_unmasked = float(np.sqrt(np.mean(stagea_vs_mapping_diff ** 2)))
+
+    # Compute chi²/pixel for mapping vs target (DB-AT-027 requirement)
+    residual_mapping_masked = target_masked - mapping_masked
+    variance_mapping_masked = np.maximum(mapping_masked, variance_floor_value)
+    chi_squared_mapping = float(np.sum(residual_mapping_masked ** 2 / variance_mapping_masked))
+    chi_squared_per_pixel_mapping = chi_squared_mapping / n_masked_pixels if n_masked_pixels > 0 else float("nan")
+
+    # Check DB-AT-027 parity warnings
+    # Per spec §280: max_abs_diff should be O(1) ADU for float precision, not O(1e2)
+    # Per spec §279-281: ROI CC should be > 0.99 for zero-point equivalence
+    mapping_parity_warnings = []
+    if np.isfinite(roi_cc_stats["stagea_vs_mapping"]["median"]) and roi_cc_stats["stagea_vs_mapping"]["median"] < 0.99:
+        mapping_parity_warnings.append(f"Stage A vs mapping median ROI CC ({roi_cc_stats['stagea_vs_mapping']['median']:.4f}) < 0.99 (DB-AT-027 zero-point equivalence)")
+    if np.isfinite(max_abs_diff_masked) and max_abs_diff_masked > 1.0:
+        mapping_parity_warnings.append(f"Stage A vs mapping max|Δ| ({max_abs_diff_masked:.3e} ADU) > 1.0 ADU (DB-AT-027 forward-model equality)")
+    if np.isfinite(chi_squared_per_pixel_mapping) and np.isfinite(chi_squared_per_pixel_initial):
+        chi2_ratio = abs(chi_squared_per_pixel_initial - chi_squared_per_pixel_mapping) / chi_squared_per_pixel_mapping if chi_squared_per_pixel_mapping > 0 else float("inf")
+        if chi2_ratio > 1e-3:
+            mapping_parity_warnings.append(f"Stage A vs mapping chi²/pixel relative diff ({chi2_ratio:.3e}) > 1e-3 (DB-AT-027 variance-weighted loss equality)")
+
     # Compute log_scale_effective from telemetry
     log_scale_baseline = log_scale_baseline_entry.get("final", 0.0) if isinstance(log_scale_baseline_entry, dict) else 0.0
     log_scale_init = log_scale_entry.get("initial", 0.0) if isinstance(log_scale_entry, dict) else 0.0
@@ -405,8 +508,8 @@ def main():
         "probe_metadata": {
             "timestamp": "2025-12-15T010000Z",
             "initiative": "ARCH-SIM-CONSTRUCTION-001",
-            "phase": "C.9",
-            "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines with aligned HKL/calibration inputs",
+            "phase": "C.11",
+            "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines with mapping parity metrics (DB-AT-027)",
             "device": device,
             "apply_calibration_n_cells": apply_n_cells,
             "spot_scale_override": spot_scale_override_val,
@@ -441,7 +544,28 @@ def main():
             "model_mean_masked_vs_reconstructed_delta": float(model_mean_masked_telem - bragg_before_mean_masked) if np.isfinite(model_mean_masked_telem) and np.isfinite(bragg_before_mean_masked) else float("nan"),
             "model_mean_masked_vs_reconstructed_ratio": float(model_mean_masked_telem / bragg_before_mean_masked) if np.isfinite(model_mean_masked_telem) and np.isfinite(bragg_before_mean_masked) and bragg_before_mean_masked != 0 else float("nan"),
         },
+        "mapping_comparison": {
+            "mapping_mean_masked": mapping_mean_masked,
+            "mapping_mean_unmasked": mapping_mean_unmasked,
+            "stagea_vs_mapping_max_abs_diff_masked": max_abs_diff_masked,
+            "stagea_vs_mapping_max_abs_diff_unmasked": max_abs_diff_unmasked,
+            "stagea_vs_mapping_rmse_masked": rmse_masked,
+            "stagea_vs_mapping_rmse_unmasked": rmse_unmasked,
+            "chi_squared_per_pixel_mapping": chi_squared_per_pixel_mapping,
+            "chi_squared_per_pixel_stagea": chi_squared_per_pixel_initial,
+            "chi_squared_per_pixel_relative_diff": chi2_ratio if np.isfinite(chi_squared_per_pixel_mapping) and np.isfinite(chi_squared_per_pixel_initial) else float("nan"),
+            "roi_cc_stats": roi_cc_stats,
+            "n_rois_analyzed": len(valid_stagea_vs_mapping),
+            "warnings": mapping_parity_warnings,
+        },
         "db_at_thresholds": {
+            "DB_AT_027_stagea_vs_mapping_median_roi_cc_threshold": 0.99,
+            "DB_AT_027_stagea_vs_mapping_median_roi_cc_actual": roi_cc_stats["stagea_vs_mapping"]["median"],
+            "DB_AT_027_stagea_vs_mapping_max_abs_diff_threshold_adu": 1.0,
+            "DB_AT_027_stagea_vs_mapping_max_abs_diff_actual_adu": max_abs_diff_masked,
+            "DB_AT_027_chi2_relative_diff_threshold": 1e-3,
+            "DB_AT_027_chi2_relative_diff_actual": chi2_ratio if np.isfinite(chi_squared_per_pixel_mapping) and np.isfinite(chi_squared_per_pixel_initial) else float("nan"),
+            "DB_AT_027_pass": len(mapping_parity_warnings) == 0,
             "DB_AT_028_chi_squared_per_pixel_threshold": 1e2,
             "DB_AT_028_chi_squared_per_pixel_actual": chi_squared_per_pixel_initial,
             "DB_AT_028_pass": chi_squared_per_pixel_initial <= 1e2 if np.isfinite(chi_squared_per_pixel_initial) else False,
@@ -510,6 +634,37 @@ def main():
     else:
         print(f"  Mask metadata not available (telemetry or reconstruction missing)")
     print("=" * 80)
+
+    # Print mapping parity comparison (ARCH-SIM-CONSTRUCTION-001 C.11, DB-AT-027)
+    print("\nMapping Parity Comparison (DB-AT-027):")
+    print("=" * 80)
+    print(f"{'Metric':<50} {'Mapping':<15} {'Stage A':<15} {'Status':<10}")
+    print("-" * 80)
+    print(f"{'Mean (masked) [ADU]':<50} {mapping_mean_masked:<15.6e} {bragg_before_mean_masked:<15.6e} {'':<10}")
+    print(f"{'Mean (unmasked) [ADU]':<50} {mapping_mean_unmasked:<15.6e} {bragg_before_mean_unmasked:<15.6e} {'':<10}")
+    print(f"{'Chi²/pixel vs target':<50} {chi_squared_per_pixel_mapping:<15.6e} {chi_squared_per_pixel_initial:<15.6e} {'':<10}")
+    print("-" * 80)
+    print(f"{'Max|Δ| (masked) [ADU]':<50} {'':<15} {max_abs_diff_masked:<15.6e} {'PASS' if max_abs_diff_masked <= 1.0 else 'FAIL':<10}")
+    print(f"{'RMSE (masked) [ADU]':<50} {'':<15} {rmse_masked:<15.6e} {'':<10}")
+    print(f"{'Chi²/pixel relative diff':<50} {'':<15} {chi2_ratio if np.isfinite(chi2_ratio) else float('nan'):<15.6e} {'PASS' if np.isfinite(chi2_ratio) and chi2_ratio <= 1e-3 else 'FAIL':<10}")
+    print("-" * 80)
+    print(f"{'ROI Correlations (n={len(valid_stagea_vs_mapping)})':<50} {'':<15} {'':<15} {'':<10}")
+    print(f"  {'Mapping vs Target (median)':<48} {roi_cc_stats['mapping_vs_target']['median']:<15.4f} {'':<15} {'':<10}")
+    print(f"  {'Stage A vs Target (median)':<48} {roi_cc_stats['stagea_vs_target']['median']:<15.4f} {'':<15} {'':<10}")
+    print(f"  {'Stage A vs Mapping (median)':<48} {roi_cc_stats['stagea_vs_mapping']['median']:<15.4f} {'':<15} {'PASS' if roi_cc_stats['stagea_vs_mapping']['median'] >= 0.99 else 'FAIL':<10}")
+    print(f"  {'Stage A vs Mapping (min/max)':<48} {roi_cc_stats['stagea_vs_mapping']['min']:<7.4f} / {roi_cc_stats['stagea_vs_mapping']['max']:<7.4f} {'':<15} {'':<10}")
+    print("-" * 80)
+    db_at_027_status = "PASS" if len(mapping_parity_warnings) == 0 else "FAIL"
+    print(f"{'DB-AT-027 overall status':<50} {'':<15} {'':<15} {db_at_027_status:<10}")
+    print("=" * 80)
+
+    # Print warnings if any
+    if mapping_parity_warnings:
+        print("\nDB-AT-027 Parity Warnings:")
+        print("-" * 80)
+        for warning in mapping_parity_warnings:
+            print(f"  - {warning}")
+        print("=" * 80)
 
     return 0
 

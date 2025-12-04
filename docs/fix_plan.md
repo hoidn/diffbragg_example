@@ -17,7 +17,8 @@
 
 
 ### Tier 0: Refinement Architecture Finish
-**Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place.
+**Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place, and align ARCH docs/contracts with implementation via enforcement tests.
+- [ARCH-IMPL-CONFORMANCE-001] (Architecture / Implementation contract alignment) — **pending** (new architecture initiative to define explicit ARCH-CONTRACTs for critical simulator/scaling paths, centralize owner APIs, and add enforcement tests that prevent future drift between docs/findings and implementation; working plan in `plans/active/ARCH-IMPL-CONFORMANCE-001/implementation.md`)
 - [DIAG-NANOBRAGG-OVERSAMPLE-001] (nanobrag_torch oversample parameter investigation) — **done** (2025-12-09T153000Z: Phase F HKL stats + Stage-A instrumentation closed out diagnostics; artifacts under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/` now cover oversample, beam flux, and HKL evidence)
 - [ARCH-SIM-HKL-BOUNDS-001] (Stage-A / mapping HKL alignment) — **done** (2025-12-03T154217Z: incident-beam sign fix restored 100% HKL coverage; DB-AT-028/029 intensity failure delegated to ARCH-SIM-CONSTRUCTION-001; artifacts under `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/`)
 - [ARCH-SIM-CONSTRUCTION-001] (Simulator Construction Convention Alignment) — **in_progress** (HKL + oversample blockers cleared; 2025-12-09 loop collects intensity-scale evidence under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/`)

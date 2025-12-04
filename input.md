@@ -1,47 +1,43 @@
-Summary: Apply the refined mosaic spread from `refGeom_small.expt` to every CrystalConfig so Stage A/mapping simulators use the same blur as the DB-AT references instead of the hard-coded perfect-crystal kernel that creates the 200× ROI spikes in the transformation ledger.
+Summary: Sample multiple calibrated mosaic domains instead of a single perfect-crystal sinc so Stage A/mapping/reconstruction simulators stop redistributing intensity into a few ROIs and recover positive DB-AT-028/029 correlations.
 Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
 Mapped tests:
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/stage_a_baseline_probe_baseline.json
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode perturbed --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/stage_a_baseline_probe_perturbed.json
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/pytest_db_at_028_029.log
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/stage_a_baseline_probe_baseline.json
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode perturbed --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/stage_a_baseline_probe_perturbed.json
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/pytest_db_at_028_029.log
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/
 
 Do Now (hard validity contract):
 - Implement: `dbex/refinement/config_factories.py::create_crystal_config`
-  - Inspect `experiment.crystal.to_dict()` for `ML_half_mosaicity_deg` / `ML_domain_size_ang` whenever stills configs are built (Stage A, mapping, reconstruction). If a positive half-mosaic value exists, translate it to the simulator’s `mosaic_spread_deg` (use the same degrees that DiffBragg reports; no more hard-coded zero) and carry it through every `CrystalConfig` you instantiate.
-  - When calibration metadata omits explicit `N_cells`, fall back to `ML_domain_size_ang` by dividing by each unit-cell edge and rounding to the nearest positive integer so we do not drop the calibrated lattice width when only the experiment provides it.
-  - Thread the populated mosaic spread into Stage A/mapping/reconstruction contexts without changing CLI semantics, and extend the existing diagnostics (`baseline_stats.json`, mapping diagnostics) to echo the applied mosaic so the supervisor report can cite the value that went into nanobrag_torch.
-  - Re-run the baseline + perturbed probes and DB-AT-028/029 commands above so this loop’s artifact directory contains refreshed ROI diagnostics (expect ROI CC ≫0 once the blur matches the data) and the acceptance selectors exercising the same code path.
+  - Add a `mosaic_domains_override` gate (default None) so callers can request >1 mosaic samples; clamp overrides ≥1 and record the applied count in diagnostics alongside the existing mosaic spread metadata.
+  - Thread a new `stage_a_mosaic_domains` integer through `RefinementConfig` (default ≥16 so the sinc kernel averages) and have every Stage A/mapping/reconstruction entry point that calls `create_crystal_config` (Stage A warm cache, `simulate_forward_once`, reconstruction cold path, helper scripts) pass the shared value; fall back to 1 only when config explicitly disables the feature.
+  - Keep Stage A vs mapping lockstep by logging `mosaic_spread_deg` + `mosaic_domains` inside `stage_a_baseline_probe*.json`, DB-AT diagnostics (`baseline_stats.json`, `mapping_context_fixture.json`), and cold-path telemetry so the new ledger can cite the settings.
+  - Rebuild the Stage A baseline probes (baseline + perturbed) and rerun DB-AT-028/029 under the commands above so this artifact set shows the effect of multi-domain sampling on ROI-level chi²/correlation.
 
 Deterministic Parity Crisis:
-- Independent Reference: The DIALS reflection table (`sp.proc/refGeom_small/refGeom_small.refl`) is independent of nanobrag_torch yet matches the observed target pixels (median target/reference ratio ≈ 1.02), so it remains the authoritative ROI-level contract.
-- Transformation Ledger:
-
-  | Field | Units / Frame / Order | Producer (file:line) | Consumer (file:line) | Observed evidence | Hypothesis |
-  | --- | --- | --- | --- | --- | --- |
-  | Masked mean baseline (`telemetry.target_mean_masked`, `model_mean_masked`, `chi²/pixel`) | ADU/pixel under detector loss mask | `dbex/refinement/stage_a.py:403-520` | `tests/dbex/test_stage_a_smoke_parity.py:335-515` | `stage_a_baseline_probe_baseline.json` shows `target=model=87.118 ADU` while `chi²/pixel=9.8e5`. | Scalar calibration is correct; deterministic failure is spatial redistribution before DB-AT gates. |
-  | ROI 0 Panel 0 `[897:909,17:29]`, HKL (−10,2,0) | ADU/pixel | `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py:611-747` | `tests/dbex/test_stage_a_smoke_parity.py:398-515` | Reflection 8.69 ADU vs Stage A 0.0199 ADU (`stagea_vs_ref_ratio=2.3×10⁻³`). | Zero-mosaic simulator dumps almost no energy into this ROI even though reference + HKL amplitude agree. |
-  | ROI 2 Panel 0 `[257:269,37:49]`, HKL (−3,8,−9) | ADU/pixel | same | same | Reflection 83.10 ADU vs Stage A 0.244 ADU (`stagea_vs_amp_sq_ratio=4.8×10⁻⁴`). | Bright reflections still lose 99.95 % of intensity, matching a kernel that is far sharper than the measured crystal. |
-  | ROI 14 Panel 0 `[431:443,434:446]`, HKL (0,2,−2) | ADU/pixel | same | same | Stage A mean = 407.7 ADU vs target 2.48 ADU (`stagea_vs_ref_ratio=234`). | Perfect-crystal sinc spikes overfill a handful of ROIs while starving the rest. |
-  | ROI 21 Panel 0 `[787:799,694:706]`, HKL (−2,−6,5) | ADU/pixel | same | same | Stage A mean = 11.80 ADU vs target 192.9 ADU (≈0.061×). | Median deficit (~16×) echoes the reflection-table ratio and will drop once the calibrated mosaic blur is honored. |
-
-- Boundary Bisection Step: If the mosaic injection still leaves ROI correlations negative, next boundary is to tap nanobrag_torch’s `Simulator._hkl_stats` per ROI (adding ROI-ID tags to the existing HKL telemetry) so we can prove whether the sampled HKLs align with each ROI’s reflection before diving into Lorentz/polarization math.
+- Independent Reference: DIALS reflection table `sp.proc/refGeom_small/refGeom_small.refl` stays independent of nanobrag_torch yet matches the measured ROIs (median target/reference ≈ 1.02), so it remains the contract for ROI-scale intensity.
+- Transformation Ledger: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/transformation_ledger.md` captures five representative ROIs (panel 0, varying HKLs) showing Stage A/Ref ratios ranging from 7.1e-05 to 2.34e+02 while Target/Ref ≈ 1.0. Example: ROI 14 bbox [431,443,434,446] HKL (0,2,−2) has Stage A 4.08e+02 ADU vs target 2.48 ADU despite |F|² per pixel 3.91e+01. Conversely, ROI 0 HKL (−10,2,0) collapses to 1.99e-02 ADU vs reference 8.69 ADU (Stage A/Ref ≈ 2.3e-03). With Stage A vs mapping CC=0.999, the distortion is produced by the simulator’s single-domain sinc kernel, not reconstruction or telemetry.
+- Boundary Bisection Step: If multi-domain sampling still leaves ROI correlations negative, enable the existing HKL stats hook with ROI identifiers inside `compare_stage_a_baseline.py` so the next loop can compare per-ROI HKL coverage (producer: `nanobrag_torch.simulator.compute_physics_for_position`, consumer: DB-AT probes) before diving into Lorentz/polarization math.
 
 How-To Map:
-- Keep the smoke fixture settings identical to prior probes (env vars above) so the only delta is mosaic plumbing; this isolates the kernel change when comparing JSON artifacts.
-- Fetch experiment metadata once per call site (`crystal_dict = crystal.to_dict()`), guard missing keys, and log the applied mosaic spread/domain size inside the diagnostics block to keep ledger citations grounded.
-- When deriving fallback `N_cells` from `ML_domain_size_ang`, divide by each axis length separately (a,b,c) so anisotropic crystals remain supported; round to at least 1 to avoid zero-cell edge cases.
-- After updating `create_crystal_config`, run the two probe commands before DB-AT so the new ROI stats are captured even if pytest fails; stash stdout/stderr under the artifact directory for reuse in the ledger.
-- Use `python -m dbex.refine_one ...` only if you need manual spot checks; all validation for this loop must flow through the mapped probe + pytest commands to keep artifacts consistent.
+- Extend `RefinementConfig` with a `stage_a_mosaic_domains` field (default 32 recommended) and wire it through `_build_stage_a_context`, `simulate_forward_once`, reconstruction’s `build_final_bragg_from_stage_a_telemetry`, and any helper that instantiates a `CrystalConfig` so every forward path samples the same mosaic grid.
+- Update `create_crystal_config` to accept the override, clamp to ≥1, and keep existing stills default (1) when no override is provided—this keeps CLI/tests that expect the legacy behavior untouched.
+- Persist the applied `mosaic_spread_deg` and `mosaic_domains` in `baseline_stats.json`, the baseline probe outputs, and the DB-AT diagnostics so regression triage has exact parameter values without rerunning the probe.
+- Re-run the two probe commands first so you can diff ROI metrics before committing to the DB-AT run; both probes should reference the new artifact directory.
+- Use the existing DB-AT env vars verbatim so the only changing variable is mosaic sampling; capture pytest stdout in the mapped log for review.
 
 Pitfalls:
-- Forgetting to propagate the mosaic spread into mapping/reconstruction leaves Stage A fixed but DB-AT harness still cold-pathing with the zero-mosaic helper; double-check both code paths hit the updated factory.
-- Do not double-apply the half-mosaic value (no squaring or redundant conversions)—DiffBragg already reports degrees, so hand them straight to `CrystalConfig`.
-- `ML_domain_size_ang` can be missing; guard with sensible defaults and emit diagnostics instead of crashing.
-- Updating diagnostics must not spam production runs; only persist the mosaic value in the existing JSON blocks that are already behind plan tooling.
-- Mosaic spreads <1e-5 degrees can underflow; clamp to a minimum (e.g., `np.finfo(float).eps`) before handing to the simulator to avoid zero-rotation degeneracy.
+- Forgetting to pass the override into `simulate_forward_once` leaves mapping in zero-mosaic mode and instantly reintroduces the deterministic CC collapse.
+- Accidentally applying the override twice (e.g., setting both `crystal_kwargs['mosaic_domains']` and manually summing intensity) will break torch autograd and spike runtimes.
+- Values <1 must be clamped; letting 0 slip through will crash nanobrag_torch when it allocates rotation tensors.
+- Diagnostics need to live behind existing artifact guards—do not spam production stdout with mosaic metadata.
+- Keep CLI default behavior intact: only Stage A/mapping/reconstruction should request >1 domains until CLI flags exist; otherwise tests like `test_nanobrag_bridge_configs` will fail.
+- Ensure reconstruction cold path and warm cache share the same domain count or DB-AT-028/029 will diverge between cache-hit and cache-miss cases.
+- Do not change HKL ingestion or scale logic in this loop; the only allowed knob is the number of sampled mosaic orientations.
+- Watch GPU memory: `mosaic_domains` multiplies tensor sizes; start with 16–32 and monitor runtime before pushing higher.
+- Remember to update unit tests/mocks that assert on the `create_crystal_config` call signature.
+- After code changes, clear stale `.pyc` if you edit files imported inside tests to avoid latent behavior.
 
 If Blocked:
-- Record the exception/evidence in `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T010000Z/summary.md`, note the blocker + attempted command in `docs/fix_plan.md` Attempts History and `galph_memory.md`, and decide whether the next loop needs a nanobrag_torch source patch (harness initiative) before touching other focus items.
+- Capture the failure (stack trace or pytest output) plus the command/env used into `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-21T180000Z/summary.md`, note it under ARCH-SIM-CONSTRUCTION-001 Attempts History in docs/fix_plan.md, log the same state in galph_memory.md, and flag whether the block requires a nanobrag_torch source patch (harness initiative) before scheduling another implementation loop.

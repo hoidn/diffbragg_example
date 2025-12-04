@@ -1,0 +1,337 @@
+{
+  "probe_metadata": {
+    "timestamp": "2025-12-15T010000Z",
+    "initiative": "ARCH-SIM-CONSTRUCTION-001",
+    "phase": "C.11",
+    "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines with mapping parity metrics (DB-AT-027)",
+    "geometry_mode": "perturbed",
+    "device": "cuda:0",
+    "apply_calibration_n_cells": true,
+    "spot_scale_override": 4.786110784894759e+17,
+    "warm_cache_available": true,
+    "stage_a_ctx_used": true,
+    "bragg_full_cached_available": true,
+    "mtz_file": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz",
+    "mtz_col": "F(+),SIGF(+),F(-),SIGF(-)",
+    "calibration_config_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json"
+  },
+  "mapping_diagnostics": {
+    "target_mean_masked": 87.11841583251953,
+    "bragg_mean_masked": 64.37606811523438,
+    "masked_mean_ratio": 1.353273326301568,
+    "log_scale_baseline_source": "mapping_masked_mean_adjustment",
+    "scale_adjustment_skipped": false,
+    "scale_skip_reason": null
+  },
+  "telemetry_fields": {
+    "target_mean_masked": 87.11842346191406,
+    "model_mean_masked": 87.11842346191412,
+    "log_scale_baseline_value": NaN,
+    "log_scale_delta_clamped": -0.0007634966168552637,
+    "log_scale_clamped_value": NaN,
+    "scale_factor": 5203844096.0,
+    "log_scale_effective_initial": 22.373426605533158,
+    "variance_floor_value": 1.0
+  },
+  "reconstructed_bragg_before": {
+    "mean_masked": 87.11841583251953,
+    "mean_unmasked": 14.010913848876953,
+    "target_mean_masked": 87.11841583251953,
+    "target_mean_unmasked": 0.3439619839191437,
+    "chi_squared_per_pixel_initial": 1887335.3893719807,
+    "n_masked_pixels": 4140
+  },
+  "comparison": {
+    "target_mean_masked_match": false,
+    "target_mean_masked_delta": 7.62939453125e-06,
+    "model_mean_masked_vs_reconstructed_delta": 7.629394588093419e-06,
+    "model_mean_masked_vs_reconstructed_ratio": 1.0000000875749921
+  },
+  "mapping_comparison": {
+    "mapping_mean_masked": 87.118408203125,
+    "mapping_mean_unmasked": 2.4313080310821533,
+    "stagea_vs_mapping_max_abs_diff_masked": 110476.2890625,
+    "stagea_vs_mapping_max_abs_diff_unmasked": 1239737.625,
+    "stagea_vs_mapping_rmse_masked": 2729.42822265625,
+    "stagea_vs_mapping_rmse_unmasked": 2081.303955078125,
+    "chi_squared_per_pixel_mapping": 980366.3458937198,
+    "chi_squared_per_pixel_stagea": 1887335.3893719807,
+    "chi_squared_per_pixel_relative_diff": 0.9251327804928385,
+    "roi_cc_stats": {
+      "mapping_vs_target": {
+        "median": -0.03727350886156464,
+        "p25": -0.06827340249215068,
+        "p75": -0.010129270593798412,
+        "min": -0.20078477245965842,
+        "max": 0.6627663749055771
+      },
+      "stagea_vs_target": {
+        "median": -0.05335175303924372,
+        "p25": -0.07218450857996617,
+        "p75": -0.036032724728522744,
+        "min": -0.18232415279675318,
+        "max": 0.09018497252585499
+      },
+      "stagea_vs_mapping": {
+        "median": -0.04495017630186614,
+        "p25": -0.0688204039998877,
+        "p75": -0.017282756156532002,
+        "min": -0.12144846457747947,
+        "max": 0.1834858964452449
+      }
+    },
+    "n_rois_analyzed": 29,
+    "warnings": [
+      "[NON-NORMATIVE] Geometry mode is 'perturbed' \u2014 Stage A vs mapping differences are expected due to deliberate perturbation"
+    ]
+  },
+  "db_at_thresholds": {
+    "DB_AT_027_stagea_vs_mapping_median_roi_cc_threshold": 0.99,
+    "DB_AT_027_stagea_vs_mapping_median_roi_cc_actual": -0.04495017630186614,
+    "DB_AT_027_stagea_vs_mapping_max_abs_diff_threshold_adu": 1.0,
+    "DB_AT_027_stagea_vs_mapping_max_abs_diff_actual_adu": 110476.2890625,
+    "DB_AT_027_chi2_relative_diff_threshold": 0.001,
+    "DB_AT_027_chi2_relative_diff_actual": 0.9251327804928385,
+    "DB_AT_027_pass": true,
+    "DB_AT_027_normative": false,
+    "DB_AT_028_chi_squared_per_pixel_threshold": 100.0,
+    "DB_AT_028_chi_squared_per_pixel_actual": 1887335.3893719807,
+    "DB_AT_028_pass": false
+  },
+  "mask_metadata": {
+    "telemetry": {
+      "loss_mask_pixel_count": 4140,
+      "panel_true_pixels": [
+        24,
+        24,
+        24,
+        24,
+        12,
+        36,
+        12,
+        36,
+        36,
+        36,
+        36,
+        24,
+        48,
+        12,
+        24,
+        36,
+        12,
+        24,
+        48,
+        24,
+        48,
+        48,
+        36,
+        24,
+        48,
+        36,
+        12,
+        12,
+        12
+      ],
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "reconstruction": {
+      "loss_mask_pixel_count": 4140,
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "checksum_match": true
+  },
+  "baseline_alignment": {
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "unknown",
+    "description": "Phase C.14: Cold-path baseline alignment factor (telemetry / cold) when cache unavailable"
+  },
+  "roi_diagnostics": {
+    "description": "Phase C.15: Per-ROI diagnostics to identify which ROIs drive DB-AT-028/029 failures",
+    "n_total_rois": 29,
+    "n_valid_rois": 29,
+    "bottom_n_rois": [
+      {
+        "panel_id": 0,
+        "bbox": [
+          645,
+          657,
+          284,
+          296
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.08618220261119995,
+        "stagea_vs_target_cc": -0.18232415279675318,
+        "stagea_vs_mapping_cc": -0.12144846457747947,
+        "target_mean_masked": 3.0646846294403076,
+        "mapping_mean_masked": 5.59321403503418,
+        "stagea_mean_masked": 1.305420994758606,
+        "mapping_vs_target_delta": 2.528529405593872,
+        "stagea_vs_target_delta": -1.7592636346817017
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          419,
+          431,
+          794,
+          806
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.06594349645567062,
+        "stagea_vs_target_cc": -0.1428133358658881,
+        "stagea_vs_mapping_cc": -0.04390726377947569,
+        "target_mean_masked": 1.9627617597579956,
+        "mapping_mean_masked": 0.07167679071426392,
+        "stagea_mean_masked": 0.09950943291187286,
+        "mapping_vs_target_delta": -1.8910849690437317,
+        "stagea_vs_target_delta": -1.8632523268461227
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          939,
+          951,
+          65,
+          77
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.1184905973471441,
+        "stagea_vs_target_cc": -0.12055239640644276,
+        "stagea_vs_mapping_cc": 0.06115795063222322,
+        "target_mean_masked": 2.0178463459014893,
+        "mapping_mean_masked": 0.0021505658514797688,
+        "stagea_mean_masked": 2.923863803516724e-06,
+        "mapping_vs_target_delta": -2.0156957800500095,
+        "stagea_vs_target_delta": -2.0178434220376857
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          121,
+          133,
+          288,
+          300
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.03727350886156464,
+        "stagea_vs_target_cc": -0.11699829521698915,
+        "stagea_vs_mapping_cc": -0.036049709661413125,
+        "target_mean_masked": 13.414021492004395,
+        "mapping_mean_masked": 95.73394775390625,
+        "stagea_mean_masked": 2.6538479328155518,
+        "mapping_vs_target_delta": 82.31992626190186,
+        "stagea_vs_target_delta": -10.760173559188843
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          739,
+          751,
+          610,
+          622
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.6004516701128896,
+        "stagea_vs_target_cc": -0.11629065442599756,
+        "stagea_vs_mapping_cc": -0.03548170609271896,
+        "target_mean_masked": 1.0681490898132324,
+        "mapping_mean_masked": 1.8271307945251465,
+        "stagea_mean_masked": 8.135218620300293,
+        "mapping_vs_target_delta": 0.7589817047119141,
+        "stagea_vs_target_delta": 7.0670695304870605
+      }
+    ],
+    "top_n_rois": [
+      {
+        "panel_id": 0,
+        "bbox": [
+          431,
+          443,
+          434,
+          446
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.6627663749055771,
+        "stagea_vs_target_cc": 0.09018497252585499,
+        "stagea_vs_mapping_cc": -0.02103212262697777,
+        "target_mean_masked": 2.4828569889068604,
+        "mapping_mean_masked": 407.71551513671875,
+        "stagea_mean_masked": 2136.442626953125,
+        "mapping_vs_target_delta": 405.2326581478119,
+        "stagea_vs_target_delta": 2133.959769964218
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          976,
+          988,
+          202,
+          214
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.012206667835341486,
+        "stagea_vs_target_cc": 0.08911677039344808,
+        "stagea_vs_mapping_cc": -0.011018265745429029,
+        "target_mean_masked": 1.3980778455734253,
+        "mapping_mean_masked": 0.0044140019454061985,
+        "stagea_mean_masked": 4.9122932978207245e-05,
+        "mapping_vs_target_delta": -1.393663843628019,
+        "stagea_vs_target_delta": -1.398028722640447
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          535,
+          547,
+          842,
+          854
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.1365662741228841,
+        "stagea_vs_target_cc": 0.06156975911931516,
+        "stagea_vs_mapping_cc": 0.0633629266647103,
+        "target_mean_masked": 9.983099937438965,
+        "mapping_mean_masked": 0.2324696183204651,
+        "stagea_mean_masked": 2.9544646739959717,
+        "mapping_vs_target_delta": -9.7506303191185,
+        "stagea_vs_target_delta": -7.028635263442993
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          477,
+          489,
+          595,
+          607
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.0577750329330106,
+        "stagea_vs_target_cc": 0.026741249437983394,
+        "stagea_vs_mapping_cc": -0.0688204039998877,
+        "target_mean_masked": 0.319356232881546,
+        "mapping_mean_masked": 0.04675542563199997,
+        "stagea_mean_masked": 0.15324296057224274,
+        "mapping_vs_target_delta": -0.27260080724954605,
+        "stagea_vs_target_delta": -0.16611327230930328
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          347,
+          359,
+          266,
+          278
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.078934720342882,
+        "stagea_vs_target_cc": 0.021684480438082698,
+        "stagea_vs_mapping_cc": -0.08258284080124172,
+        "target_mean_masked": 28.363088607788086,
+        "mapping_mean_masked": 2.257072687149048,
+        "stagea_mean_masked": 5.6466264724731445,
+        "mapping_vs_target_delta": -26.106015920639038,
+        "stagea_vs_target_delta": -22.71646213531494
+      }
+    ]
+  }
+}

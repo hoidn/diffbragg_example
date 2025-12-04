@@ -338,6 +338,11 @@ raw outputs match Stage A/mapping before re-running the probe + selectors.
 - [ ] **Keep reconstruction/helper behavior stable:** No functional change is required in `build_final_bragg_from_stage_a_telemetry` once the cache contains the scaled tensor, but extend the parity test to assert the cached path matches the scaled telemetry output so regressions are caught immediately.
 - [ ] **Validation:** Run the Stage A baseline probe plus DB-AT-028/029 selectors with artifacts rooted at `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-16T010000Z/`. Expected evidence: `model_mean_masked` in telemetry equals the reconstructed `bragg_before` masked mean (≈87 ADU) and chi²/pixel initial drops toward the ≤1e2 spec when Stage A zero-iteration scale matches the target intensity.
 
+#### C.11 — Stage A vs mapping parity instrumentation (Planned)
+- [ ] **Extend the baseline probe with mapping comparison metrics:** Update `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py` so it reuses `mapping_context.bragg_zero_iter` from `build_mapping_stage_a_context` and computes Stage A vs mapping statistics (masked/unmasked means, ROI-level Pearson CC, RMSE, max|Δ|, chi² per pixel vs target). Persist a `mapping_comparison` block in the JSON output so DB-AT-027 parity claims are backed by concrete evidence.
+- [ ] **Capture ROI diagnostics and provenance:** Emit console warnings plus structured JSON when Stage A vs mapping ROI correlation drops below 0.99 or max|Δ| exceeds 1 ADU, and include the resolved HKL/calibration paths so downstream reports can cite the exact assets. Record per-ROI medians/percentiles to pinpoint panels that diverge first.
+- [ ] **Validation:** Rerun the enhanced probe and DB-AT-028/029 selectors with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<NEW_TIMESTAMP>/` (include `stage_a_baseline_probe.json`, `mapping_comparison.json`, and `pytest_db_at_028_029.log`). These artifacts become the decision point for escalating to a spec-change vs scheduling corrective implementation.
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

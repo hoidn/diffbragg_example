@@ -1,0 +1,93 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... ERROR: found no collectors for /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells
+
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_______ ERROR collecting tests/architecture/test_nanobrag_partiality.py ________
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/architecture/test_nanobrag_partiality.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/python.py:498: in importtestmodule
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/assertion/rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+tests/architecture/test_nanobrag_partiality.py:20: in <module>
+    from src.nanobrag_torch.simulator import Simulator
+E   ModuleNotFoundError: No module named 'src.nanobrag_torch'
+=========================== short test summary info ============================
+ERROR tests/architecture/test_nanobrag_partiality.py
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.81s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu] FAILED [ 50%]
+
+=================================== FAILURES ===================================
+___________________ test_square_lattice_applies_ncells[cpu] ____________________
+
+device = 'cpu'
+
+    @pytest.mark.parametrize("device", ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"])
+    def test_square_lattice_applies_ncells(device):
+        """
+        Test that SQUARE lattice applies (Na·Nb·Nc)² scaling as specified.
+    
+        ARCH-CONTRACT: docs/spec-db-core.md:60-140
+        Owner: nanobrag_torch.simulator.compute_physics_for_position (SQUARE branch)
+        Contract: lattice weights must be proportional to (Na·Nb·Nc)²
+    
+        This test:
+        1. Runs the simulator with N_cells=(1,1,1) to get base intensity I₁
+        2. Runs with N_cells=(Na,Nb,Nc) to get scaled intensity I₂
+        3. Verifies that I₂/I₁ ≈ (Na·Nb·Nc)² within 5% tolerance
+    
+        The fix in SIM-CONSTR-PARTIALITY-001 ensures fractional HKL deltas are
+        computed in float64 before sincg evaluation, preventing underflow.
+        """
+        # Test parameters
+        Na, Nb, Nc = 41, 29, 32
+        expected_ratio = (Na * Nb * Nc) ** 2
+        tolerance = 0.05  # 5% tolerance
+    
+        # Create configs
+        detector_config = DetectorConfig(
+            distance_mm=100.0,
+            pixel_size_mm=0.1,
+            spixels=10,
+            fpixels=10,
+        )
+    
+>       beam_config = BeamConfig(
+            wavelength_angstroms=1.0,
+        )
+E       TypeError: __init__() got an unexpected keyword argument 'wavelength_angstroms'
+
+tests/architecture/test_nanobrag_partiality.py:56: TypeError
+=========================== short test summary info ============================
+FAILED tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu] - TypeError: __init__() got an unexpected keyword argument 'wavelength_angstroms'
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+============================== 1 failed in 0.89s ===============================

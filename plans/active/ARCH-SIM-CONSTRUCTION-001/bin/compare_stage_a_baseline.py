@@ -608,6 +608,19 @@ def main():
     # Reverse top_n to show best first
     top_n_rois = list(reversed(top_n_rois))
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.17: Build HKL index→amplitude lookup dict
+    # Build dictionary from mapping_context.hkl_indices → mapping_context.hkl_amplitudes
+    # Convert indices to tuples for deterministic dict keys
+    hkl_lookup = {}
+    if mapping_context.hkl_indices is not None and mapping_context.hkl_amplitudes is not None:
+        # hkl_indices is shape (n_refl, 3) numpy array
+        # hkl_amplitudes is shape (n_refl,) numpy array
+        for idx, amp in zip(mapping_context.hkl_indices, mapping_context.hkl_amplitudes):
+            hkl_tuple = tuple(map(int, idx))
+            hkl_lookup[hkl_tuple] = float(amp)
+
+    print(f"[Stage A Baseline Probe] Built HKL lookup with {len(hkl_lookup)} entries")
+
     # ARCH-SIM-CONSTRUCTION-001 Phase C.16: Load reflection table and align with ROI ordering
     # Extract independent reference intensities from DIALS reflection table
     reflection_comparison = {
@@ -634,10 +647,15 @@ def main():
     intensity_sum_values = np.array(refs_table['intensity.sum.value'], dtype=np.float64)
     panel_ids_ref = np.array(refs_table['panel'], dtype=np.int32)
     bboxes_ref = []
+    miller_indices_ref = []
     for i in range(n_reflections_total):
         bbox = refs_table['bbox'][i]
         # bbox is (x0, x1, y0, y1, z0, z1) in DIALS convention
         bboxes_ref.append((int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])))
+
+        # Extract Miller index as tuple for HKL lookup
+        miller_idx = refs_table['miller_index'][i]
+        miller_indices_ref.append((int(miller_idx[0]), int(miller_idx[1]), int(miller_idx[2])))
 
     # Match reflections to ROIs by panel and bbox
     # refinement_inputs.panel_slices is a list of (panel_id, [x0, x1, y0, y1])
@@ -686,6 +704,26 @@ def main():
             mapping_vs_ref_ratio = mapping_mean / intensity_per_pixel_ref if np.isfinite(intensity_per_pixel_ref) and intensity_per_pixel_ref > 0 else float("nan")
             target_vs_ref_ratio = target_mean / intensity_per_pixel_ref if np.isfinite(intensity_per_pixel_ref) and intensity_per_pixel_ref > 0 else float("nan")
 
+            # ARCH-SIM-CONSTRUCTION-001 Phase C.17: HKL amplitude lookup and amp_sq_per_pixel
+            miller_idx_tuple = miller_indices_ref[matched_refl_idx]
+            hkl_amplitude = hkl_lookup.get(miller_idx_tuple)
+
+            # Fail fast if HKL is missing from lookup (per input.md requirement)
+            if hkl_amplitude is None:
+                raise ValueError(
+                    f"ROI {roi_idx} matched to reflection {matched_refl_idx} with Miller index {miller_idx_tuple}, "
+                    f"but this HKL is missing from the mapping_context HKL grid. "
+                    f"This indicates a mismatch between the reflection table and the HKL source. "
+                    f"HKL lookup has {len(hkl_lookup)} entries."
+                )
+
+            # Compute amp_sq_per_pixel = |F|^2 / n_masked_pixels
+            amp_sq_per_pixel = (hkl_amplitude ** 2) / n_pixels_roi if n_pixels_roi > 0 else float("nan")
+
+            # Compute ratios: amp^2 vs reflection, Stage A vs amp^2
+            amp_sq_vs_ref_ratio = amp_sq_per_pixel / intensity_per_pixel_ref if np.isfinite(intensity_per_pixel_ref) and intensity_per_pixel_ref > 0 else float("nan")
+            stagea_vs_amp_sq_ratio = stagea_mean / amp_sq_per_pixel if np.isfinite(amp_sq_per_pixel) and amp_sq_per_pixel > 0 else float("nan")
+
             reflection_roi_matches.append({
                 "roi_idx": roi_idx,
                 "refl_idx": matched_refl_idx,
@@ -700,6 +738,11 @@ def main():
                 "stagea_vs_ref_ratio": stagea_vs_ref_ratio,
                 "mapping_vs_ref_ratio": mapping_vs_ref_ratio,
                 "target_vs_ref_ratio": target_vs_ref_ratio,
+                "hkl_index": list(miller_idx_tuple),
+                "hkl_amplitude": hkl_amplitude,
+                "amp_sq_per_pixel": amp_sq_per_pixel,
+                "amp_sq_vs_ref_ratio": amp_sq_vs_ref_ratio,
+                "stagea_vs_amp_sq_ratio": stagea_vs_amp_sq_ratio,
             })
         else:
             n_roi_mismatches += 1
@@ -719,6 +762,8 @@ def main():
     valid_stagea_vs_ref = [m["stagea_vs_ref_ratio"] for m in reflection_roi_matches if np.isfinite(m["stagea_vs_ref_ratio"])]
     valid_mapping_vs_ref = [m["mapping_vs_ref_ratio"] for m in reflection_roi_matches if np.isfinite(m["mapping_vs_ref_ratio"])]
     valid_target_vs_ref = [m["target_vs_ref_ratio"] for m in reflection_roi_matches if np.isfinite(m["target_vs_ref_ratio"])]
+    valid_amp_sq_vs_ref = [m["amp_sq_vs_ref_ratio"] for m in reflection_roi_matches if np.isfinite(m["amp_sq_vs_ref_ratio"])]
+    valid_stagea_vs_amp_sq = [m["stagea_vs_amp_sq_ratio"] for m in reflection_roi_matches if np.isfinite(m["stagea_vs_amp_sq_ratio"])]
 
     if valid_stagea_vs_ref:
         reflection_comparison["reflection_stats"]["stagea_vs_ref"] = {
@@ -744,6 +789,22 @@ def main():
             "min": float(np.min(valid_target_vs_ref)),
             "max": float(np.max(valid_target_vs_ref)),
         }
+    if valid_amp_sq_vs_ref:
+        reflection_comparison["reflection_stats"]["amp_sq_vs_ref"] = {
+            "median": float(np.median(valid_amp_sq_vs_ref)),
+            "p25": float(np.percentile(valid_amp_sq_vs_ref, 25)),
+            "p75": float(np.percentile(valid_amp_sq_vs_ref, 75)),
+            "min": float(np.min(valid_amp_sq_vs_ref)),
+            "max": float(np.max(valid_amp_sq_vs_ref)),
+        }
+    if valid_stagea_vs_amp_sq:
+        reflection_comparison["reflection_stats"]["stagea_vs_amp_sq"] = {
+            "median": float(np.median(valid_stagea_vs_amp_sq)),
+            "p25": float(np.percentile(valid_stagea_vs_amp_sq, 25)),
+            "p75": float(np.percentile(valid_stagea_vs_amp_sq, 75)),
+            "min": float(np.min(valid_stagea_vs_amp_sq)),
+            "max": float(np.max(valid_stagea_vs_amp_sq)),
+        }
 
     # Sort by Stage A vs reference ratio (descending) to find worst mismatches
     reflection_matches_sorted = sorted(
@@ -764,10 +825,10 @@ def main():
     # Build output payload
     output = {
         "probe_metadata": {
-            "timestamp": "2025-12-15T010000Z",
+            "timestamp": "2025-12-20T210000Z",
             "initiative": "ARCH-SIM-CONSTRUCTION-001",
-            "phase": "C.11",
-            "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines with mapping parity metrics (DB-AT-027)",
+            "phase": "C.17",
+            "purpose": "Add HKL-amplitude ledger to Stage A baseline probe for parity crisis diagnosis (chi²/pixel 9.8e5)",
             "geometry_mode": args.geometry_mode,
             "device": device,
             "apply_calibration_n_cells": apply_n_cells,
@@ -778,6 +839,12 @@ def main():
             "mtz_file": resolved_mtz_file,
             "mtz_col": resolved_mtz_col,
             "calibration_config_path": resolved_calibration_config_path if resolved_calibration_config_path else None,
+            "hkl_ledger": {
+                "n_hkl_entries": len(hkl_lookup),
+                "description": "HKL amplitude lookup built from mapping_context.hkl_indices/hkl_amplitudes",
+                "failfast_enabled": True,
+                "failfast_reason": "ROI/HKL mismatch indicates asset divergence between reflection table and HKL source",
+            },
         },
         "mapping_diagnostics": {
             "target_mean_masked": mapping_target_mean_masked,
@@ -1022,26 +1089,47 @@ def main():
 
         print("")
 
+        # ARCH-SIM-CONSTRUCTION-001 Phase C.17: Print HKL ledger stats
+        print("HKL Amplitude Ledger (Phase C.17):")
+        print("-" * 80)
+        print(f"  {'Metric':<30} {'Median':<12} {'P25-P75':<20} {'Min-Max':<20}")
+        print(f"  {'-'*30} {'-'*12} {'-'*20} {'-'*20}")
+
+        if "amp_sq_vs_ref" in reflection_comparison["reflection_stats"]:
+            stats_amp2 = reflection_comparison["reflection_stats"]["amp_sq_vs_ref"]
+            print(f"  {'|F|^2/pix / Refl (intensity)':<30} {stats_amp2['median']:<12.4f} {stats_amp2['p25']:.4f} - {stats_amp2['p75']:<9.4f} {stats_amp2['min']:.4f} - {stats_amp2['max']:<9.4f}")
+
+        if "stagea_vs_amp_sq" in reflection_comparison["reflection_stats"]:
+            stats_sa_amp = reflection_comparison["reflection_stats"]["stagea_vs_amp_sq"]
+            print(f"  {'Stage A / |F|^2/pix':<30} {stats_sa_amp['median']:<12.4f} {stats_sa_amp['p25']:.4f} - {stats_sa_amp['p75']:<9.4f} {stats_sa_amp['min']:.4f} - {stats_sa_amp['max']:<9.4f}")
+
+        print(f"\n  HKL lookup entries: {len(hkl_lookup)}")
+        print(f"  HKL source: {resolved_mtz_file}")
+        print(f"  MTZ columns: {resolved_mtz_col}")
+        print("")
+
         # Print worst mismatches (bottom_n)
         if bottom_n_refl:
             print(f"Bottom {len(bottom_n_refl)} ROIs (worst Stage A vs reflection match):")
             print("-" * 80)
-            print(f"  {'Panel:BBox':<20} {'StgA/Refl':<12} {'Map/Refl':<12} {'Tgt/Refl':<12} {'Refl_Int':<12} {'N_pix':<10}")
+            print(f"  {'Panel:BBox':<20} {'HKL':<12} {'|F|^2/pix':<12} {'StgA/|F|^2':<12} {'StgA/Refl':<12} {'N_pix':<10}")
             print(f"  {'-'*20} {'-'*12} {'-'*12} {'-'*12} {'-'*12} {'-'*10}")
             for m in bottom_n_refl:
                 bbox_str = f"{m['panel_id']}:[{m['bbox'][0]},{m['bbox'][1]},{m['bbox'][2]},{m['bbox'][3]}]"
-                print(f"  {bbox_str:<20} {m['stagea_vs_ref_ratio']:<12.4f} {m['mapping_vs_ref_ratio']:<12.4f} {m['target_vs_ref_ratio']:<12.4f} {m['intensity_sum_ref']:<12.1f} {m['n_masked_pixels']:<10}")
+                hkl_str = f"{m['hkl_index'][0]},{m['hkl_index'][1]},{m['hkl_index'][2]}"
+                print(f"  {bbox_str:<20} {hkl_str:<12} {m['amp_sq_per_pixel']:<12.4e} {m['stagea_vs_amp_sq_ratio']:<12.4f} {m['stagea_vs_ref_ratio']:<12.4f} {m['n_masked_pixels']:<10}")
             print("")
 
         # Print best matches (top_n)
         if top_n_refl:
             print(f"Top {len(top_n_refl)} ROIs (best Stage A vs reflection match):")
             print("-" * 80)
-            print(f"  {'Panel:BBox':<20} {'StgA/Refl':<12} {'Map/Refl':<12} {'Tgt/Refl':<12} {'Refl_Int':<12} {'N_pix':<10}")
+            print(f"  {'Panel:BBox':<20} {'HKL':<12} {'|F|^2/pix':<12} {'StgA/|F|^2':<12} {'StgA/Refl':<12} {'N_pix':<10}")
             print(f"  {'-'*20} {'-'*12} {'-'*12} {'-'*12} {'-'*12} {'-'*10}")
             for m in top_n_refl:
                 bbox_str = f"{m['panel_id']}:[{m['bbox'][0]},{m['bbox'][1]},{m['bbox'][2]},{m['bbox'][3]}]"
-                print(f"  {bbox_str:<20} {m['stagea_vs_ref_ratio']:<12.4f} {m['mapping_vs_ref_ratio']:<12.4f} {m['target_vs_ref_ratio']:<12.4f} {m['intensity_sum_ref']:<12.1f} {m['n_masked_pixels']:<10}")
+                hkl_str = f"{m['hkl_index'][0]},{m['hkl_index'][1]},{m['hkl_index'][2]}"
+                print(f"  {bbox_str:<20} {hkl_str:<12} {m['amp_sq_per_pixel']:<12.4e} {m['stagea_vs_amp_sq_ratio']:<12.4f} {m['stagea_vs_ref_ratio']:<12.4f} {m['n_masked_pixels']:<10}")
     else:
         print("\n[WARNING] No reflections matched to ROIs - cannot perform reference comparison")
 

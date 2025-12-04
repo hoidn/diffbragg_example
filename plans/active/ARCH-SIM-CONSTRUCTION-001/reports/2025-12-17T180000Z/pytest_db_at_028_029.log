@@ -284,4 +284,4 @@ FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
 assert 209714.75169082126 <= 100.0
 FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - AssertionError: median ROI correlation before refinement -0.053 below 0.2 floor
 assert -0.05335175303924372 >= 0.2
-======================== 2 failed, 5 warnings in 16.56s ========================
+======================== 2 failed, 5 warnings in 16.84s ========================

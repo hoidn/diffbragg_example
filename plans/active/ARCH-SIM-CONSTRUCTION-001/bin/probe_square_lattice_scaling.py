@@ -33,6 +33,7 @@ import argparse
 import json
 from pathlib import Path
 
+import numpy as np
 import torch
 
 # Import nanobrag_torch owner APIs
@@ -40,6 +41,64 @@ from nanobrag_torch.simulator import Simulator
 from nanobrag_torch.config import BeamConfig, CrystalConfig, CrystalShape, DetectorConfig
 from nanobrag_torch.models.crystal import Crystal
 from nanobrag_torch.models.detector import Detector
+
+
+def sincg_reference(delta: np.ndarray, N: int) -> np.ndarray:
+    """
+    High-precision reference evaluator for 1D lattice response sin(NπΔ)/sin(πΔ).
+
+    Uses NumPy float64 for numerical stability and handles special cases:
+    - Δ ≈ 0: returns N (L'Hôpital's rule)
+    - Δ ≈ integer: returns N·(-1)^(n(N-1)) where n is the nearest integer
+
+    Args:
+        delta: Fractional Miller index offsets (float64 array)
+        N: Number of unit cells (integer)
+
+    Returns:
+        np.ndarray: Lattice response values (float64)
+    """
+    delta = np.asarray(delta, dtype=np.float64)
+    u = np.pi * delta  # Pre-multiply by π
+
+    eps = 1e-12  # Higher precision threshold for float64
+
+    # Special case 1: u ≈ 0
+    is_near_zero = np.abs(u) < eps
+
+    # Special case 2: u ≈ n·π (integer multiple of π)
+    u_over_pi = u / np.pi
+    nearest_int = np.round(u_over_pi)
+    is_near_int_pi = np.abs(u_over_pi - nearest_int) < eps / np.pi
+
+    # Compute sign factor for integer multiples: N·(-1)^(n(N-1))
+    sign_exponent = nearest_int * (N - 1)
+    is_odd = (np.abs(sign_exponent) % 2) >= 0.5
+    sign_factor = np.where(is_odd, -1.0, 1.0)
+
+    # Regular case: sin(N·u) / sin(u)
+    sin_u = np.sin(u)
+    sin_Nu = np.sin(N * u)
+
+    # Safe division
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ratio = sin_Nu / sin_u
+
+    # Apply special cases
+    result = np.where(
+        is_near_zero,
+        float(N),
+        np.where(
+            is_near_int_pi & ~is_near_zero,
+            N * sign_factor,
+            ratio
+        )
+    )
+
+    # Replace any remaining NaNs/Infs with N (conservative fallback)
+    result = np.where(np.isfinite(result), result, float(N))
+
+    return result
 
 
 def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_domains, device="cpu"):
@@ -113,6 +172,29 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
         if 'intensity_pre_polar' in pstats:
             I_pre_polar = pstats['intensity_pre_polar']
             payload['intensity_pre_polar'] = float(I_pre_polar.mean().item()) if isinstance(I_pre_polar, torch.Tensor) else I_pre_polar
+
+        # Phase C.32: Extract per-axis delta and F_latt components for reference comparison
+        per_axis_data = {}
+        if 'delta_h' in pstats and 'F_latt_a' in pstats:
+            delta_h = pstats['delta_h']
+            F_latt_a = pstats['F_latt_a']
+            if isinstance(delta_h, torch.Tensor) and isinstance(F_latt_a, torch.Tensor):
+                per_axis_data['delta_h'] = delta_h.cpu().numpy().astype(np.float64)
+                per_axis_data['F_latt_a'] = F_latt_a.cpu().numpy().astype(np.float64)
+        if 'delta_k' in pstats and 'F_latt_b' in pstats:
+            delta_k = pstats['delta_k']
+            F_latt_b = pstats['F_latt_b']
+            if isinstance(delta_k, torch.Tensor) and isinstance(F_latt_b, torch.Tensor):
+                per_axis_data['delta_k'] = delta_k.cpu().numpy().astype(np.float64)
+                per_axis_data['F_latt_b'] = F_latt_b.cpu().numpy().astype(np.float64)
+        if 'delta_l' in pstats and 'F_latt_c' in pstats:
+            delta_l = pstats['delta_l']
+            F_latt_c = pstats['F_latt_c']
+            if isinstance(delta_l, torch.Tensor) and isinstance(F_latt_c, torch.Tensor):
+                per_axis_data['delta_l'] = delta_l.cpu().numpy().astype(np.float64)
+                per_axis_data['F_latt_c'] = F_latt_c.cpu().numpy().astype(np.float64)
+
+        payload['per_axis_data'] = per_axis_data
 
         debug_stats['partiality_stats'] = {
             k: (v.tolist() if isinstance(v, torch.Tensor) else v)
@@ -204,6 +286,97 @@ def main():
     observed_ratio = intensity_scaled / intensity_base if intensity_base > 0 else 0.0
     relative_error = abs(observed_ratio - expected_ratio) / expected_ratio if expected_ratio > 0 else float('inf')
 
+    # Phase C.32: Compute reference comparison for sincg kernel validation
+    reference_analysis = {}
+    if payload_scaled and 'per_axis_data' in payload_scaled:
+        per_axis = payload_scaled['per_axis_data']
+
+        # Analyze each axis separately
+        for axis_name, delta_key, f_latt_key, N_val in [
+            ('h', 'delta_h', 'F_latt_a', na),
+            ('k', 'delta_k', 'F_latt_b', nb),
+            ('l', 'delta_l', 'F_latt_c', nc),
+        ]:
+            if delta_key in per_axis and f_latt_key in per_axis:
+                delta_vals = per_axis[delta_key]
+                f_latt_vals = per_axis[f_latt_key]
+
+                # Flatten if multi-dimensional
+                delta_flat = delta_vals.flatten()
+                f_latt_flat = f_latt_vals.flatten()
+
+                # Compute reference values
+                f_latt_ref = sincg_reference(delta_flat, N_val)
+
+                # Compute per-axis error statistics
+                abs_error = np.abs(f_latt_flat - f_latt_ref)
+                rel_error = np.abs((f_latt_flat - f_latt_ref) / (f_latt_ref + 1e-12))
+
+                # Find worst-case sample
+                worst_idx = np.argmax(abs_error)
+
+                axis_stats = {
+                    'N': N_val,
+                    'num_samples': len(delta_flat),
+                    'production_mean': float(np.mean(f_latt_flat)),
+                    'production_median': float(np.median(f_latt_flat)),
+                    'reference_mean': float(np.mean(f_latt_ref)),
+                    'reference_median': float(np.median(f_latt_ref)),
+                    'abs_error_max': float(np.max(abs_error)),
+                    'abs_error_median': float(np.median(abs_error)),
+                    'rel_error_max': float(np.max(rel_error)),
+                    'rel_error_median': float(np.median(rel_error)),
+                    'worst_case': {
+                        'delta': float(delta_flat[worst_idx]),
+                        'production': float(f_latt_flat[worst_idx]),
+                        'reference': float(f_latt_ref[worst_idx]),
+                        'abs_error': float(abs_error[worst_idx]),
+                        'rel_error': float(rel_error[worst_idx]),
+                    }
+                }
+
+                # Find a near-zero delta sample (if any)
+                near_zero_mask = np.abs(delta_flat) < 0.01
+                if np.any(near_zero_mask):
+                    near_zero_idx = np.argmin(np.abs(delta_flat))
+                    axis_stats['near_zero_sample'] = {
+                        'delta': float(delta_flat[near_zero_idx]),
+                        'production': float(f_latt_flat[near_zero_idx]),
+                        'reference': float(f_latt_ref[near_zero_idx]),
+                        'abs_error': float(abs_error[near_zero_idx]),
+                        'rel_error': float(rel_error[near_zero_idx]),
+                    }
+
+                reference_analysis[f'axis_{axis_name}'] = axis_stats
+
+        # Compute compounded F_latt using reference values
+        if all(f'axis_{ax}' in reference_analysis for ax in ['h', 'k', 'l']):
+            # Use median reference values for stability
+            f_latt_a_ref = reference_analysis['axis_h']['reference_median']
+            f_latt_b_ref = reference_analysis['axis_k']['reference_median']
+            f_latt_c_ref = reference_analysis['axis_l']['reference_median']
+            f_latt_product_ref = f_latt_a_ref * f_latt_b_ref * f_latt_c_ref
+
+            # Compare to production
+            f_latt_product_prod = payload_scaled.get('F_latt', 0.0)
+
+            reference_analysis['compounded'] = {
+                'f_latt_ref_median': f_latt_product_ref,
+                'f_latt_production': f_latt_product_prod,
+                'f_latt_expected': float(na * nb * nc),
+                'ref_vs_expected_ratio': f_latt_product_ref / (na * nb * nc) if (na * nb * nc) > 0 else 0.0,
+                'prod_vs_expected_ratio': f_latt_product_prod / (na * nb * nc) if (na * nb * nc) > 0 else 0.0,
+                'prod_vs_ref_ratio': f_latt_product_prod / f_latt_product_ref if abs(f_latt_product_ref) > 1e-12 else 0.0,
+            }
+
+            # Estimate what intensity SHOULD be using reference F_latt
+            if intensity_base > 0 and payload_base and 'F_latt' in payload_base:
+                # Scale base intensity by (F_latt_ref / F_latt_base)^2
+                f_latt_base = payload_base['F_latt']
+                expected_intensity_ref = intensity_base * (f_latt_product_ref / f_latt_base) ** 2 if f_latt_base != 0 else 0.0
+                reference_analysis['compounded']['expected_intensity_from_ref'] = expected_intensity_ref
+                reference_analysis['compounded']['expected_ratio_from_ref'] = expected_intensity_ref / intensity_base if intensity_base > 0 else 0.0
+
     # Phase C.31: Compute derived ratios from payload
     # These help bisect where the (Na·Nb·Nc)² scaling is lost
     derived_ratios = {}
@@ -254,6 +427,31 @@ def main():
         print("Phase C.31 Derived Ratios:")
         for k, v in derived_ratios.items():
             print(f"  {k}: {v:.6e}")
+    if reference_analysis:
+        print()
+        print("Phase C.32 Reference Analysis:")
+        for axis in ['h', 'k', 'l']:
+            key = f'axis_{axis}'
+            if key in reference_analysis:
+                stats = reference_analysis[key]
+                print(f"  Axis {axis} (N={stats['N']}):")
+                print(f"    Production median: {stats['production_median']:.6e}")
+                print(f"    Reference median: {stats['reference_median']:.6e}")
+                print(f"    Median abs error: {stats['abs_error_median']:.6e}")
+                print(f"    Max abs error: {stats['abs_error_max']:.6e} (Δ={stats['worst_case']['delta']:.6f})")
+                print(f"    Median rel error: {stats['rel_error_median']:.6%}")
+                print(f"    Max rel error: {stats['rel_error_max']:.6%}")
+        if 'compounded' in reference_analysis:
+            comp = reference_analysis['compounded']
+            print(f"  Compounded F_latt:")
+            print(f"    Reference median product: {comp['f_latt_ref_median']:.6e}")
+            print(f"    Production: {comp['f_latt_production']:.6e}")
+            print(f"    Expected (Na·Nb·Nc): {comp['f_latt_expected']:.6e}")
+            print(f"    Ref vs expected: {comp['ref_vs_expected_ratio']:.6f}x")
+            print(f"    Prod vs expected: {comp['prod_vs_expected_ratio']:.6f}x")
+            print(f"    Prod vs ref: {comp['prod_vs_ref_ratio']:.6f}x")
+            if 'expected_ratio_from_ref' in comp:
+                print(f"  Expected intensity ratio from ref F_latt: {comp['expected_ratio_from_ref']:.6e}")
     print()
 
     # Prepare JSON output
@@ -275,10 +473,11 @@ def main():
             "deviation_factor": observed_ratio / expected_ratio if expected_ratio > 0 else 0.0
         },
         "payload": {
-            "base": payload_base,
-            "scaled": payload_scaled
+            "base": {k: v for k, v in payload_base.items() if k != 'per_axis_data'} if payload_base else {},
+            "scaled": {k: v for k, v in payload_scaled.items() if k != 'per_axis_data'} if payload_scaled else {}
         },
         "derived_ratios": derived_ratios,
+        "reference_analysis": reference_analysis,
         "debug_stats": {
             "base": debug_base,
             "scaled": debug_scaled
@@ -318,12 +517,14 @@ def main():
         if payload_base:
             f.write("### Base Case (N_cells=1,1,1)\n")
             for k, v in payload_base.items():
-                f.write(f"- **{k}**: {v:.6e}\n")
+                if k != 'per_axis_data':
+                    f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
         if payload_scaled:
             f.write(f"### Scaled Case (N_cells={na},{nb},{nc})\n")
             for k, v in payload_scaled.items():
-                f.write(f"- **{k}**: {v:.6e}\n")
+                if k != 'per_axis_data':
+                    f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
 
         if derived_ratios:
@@ -332,6 +533,63 @@ def main():
             for k, v in derived_ratios.items():
                 f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
+
+        # Phase C.32: Add reference analysis to Markdown
+        if reference_analysis:
+            f.write("## Phase C.32 Reference Analysis\n\n")
+            f.write("High-precision NumPy float64 reference evaluator for `sin(NπΔ)/sin(πΔ)` compared against production `sincg` kernel.\n\n")
+
+            # Per-axis error table
+            f.write("### Per-Axis Error Statistics\n\n")
+            f.write("| Axis | N | Production Median | Reference Median | Median Abs Err | Max Abs Err | Median Rel Err | Max Rel Err |\n")
+            f.write("|------|---|-------------------|------------------|----------------|-------------|----------------|-------------|\n")
+            for axis in ['h', 'k', 'l']:
+                key = f'axis_{axis}'
+                if key in reference_analysis:
+                    stats = reference_analysis[key]
+                    f.write(f"| {axis} | {stats['N']} | {stats['production_median']:.6e} | {stats['reference_median']:.6e} | ")
+                    f.write(f"{stats['abs_error_median']:.6e} | {stats['abs_error_max']:.6e} | ")
+                    f.write(f"{stats['rel_error_median']:.4%} | {stats['rel_error_max']:.4%} |\n")
+            f.write("\n")
+
+            # Worst-case samples
+            f.write("### Worst-Case Samples (Max Absolute Error)\n\n")
+            f.write("| Axis | Δ | Production | Reference | Abs Error | Rel Error |\n")
+            f.write("|------|---|------------|-----------|-----------|------------|\n")
+            for axis in ['h', 'k', 'l']:
+                key = f'axis_{axis}'
+                if key in reference_analysis and 'worst_case' in reference_analysis[key]:
+                    wc = reference_analysis[key]['worst_case']
+                    f.write(f"| {axis} | {wc['delta']:.6f} | {wc['production']:.6e} | {wc['reference']:.6e} | ")
+                    f.write(f"{wc['abs_error']:.6e} | {wc['rel_error']:.4%} |\n")
+            f.write("\n")
+
+            # Near-zero samples
+            f.write("### Near-Zero Δ Samples\n\n")
+            f.write("| Axis | Δ | Production | Reference | Abs Error | Rel Error |\n")
+            f.write("|------|---|------------|-----------|-----------|------------|\n")
+            for axis in ['h', 'k', 'l']:
+                key = f'axis_{axis}'
+                if key in reference_analysis and 'near_zero_sample' in reference_analysis[key]:
+                    nz = reference_analysis[key]['near_zero_sample']
+                    f.write(f"| {axis} | {nz['delta']:.6f} | {nz['production']:.6e} | {nz['reference']:.6e} | ")
+                    f.write(f"{nz['abs_error']:.6e} | {nz['rel_error']:.4%} |\n")
+            f.write("\n")
+
+            # Compounded analysis
+            if 'compounded' in reference_analysis:
+                comp = reference_analysis['compounded']
+                f.write("### Compounded F_latt Analysis\n\n")
+                f.write(f"- **Reference median product** (F_latt_a × F_latt_b × F_latt_c): {comp['f_latt_ref_median']:.6e}\n")
+                f.write(f"- **Production F_latt**: {comp['f_latt_production']:.6e}\n")
+                f.write(f"- **Expected** (Na·Nb·Nc): {comp['f_latt_expected']:.6e}\n")
+                f.write(f"- **Reference vs expected ratio**: {comp['ref_vs_expected_ratio']:.6f}x\n")
+                f.write(f"- **Production vs expected ratio**: {comp['prod_vs_expected_ratio']:.6f}x\n")
+                f.write(f"- **Production vs reference ratio**: {comp['prod_vs_ref_ratio']:.6f}x\n")
+                if 'expected_ratio_from_ref' in comp:
+                    f.write(f"\n**Predicted intensity ratio using reference F_latt**: {comp['expected_ratio_from_ref']:.6e}\n")
+                    f.write(f"(Expected (Na·Nb·Nc)² = {expected_ratio:,.1f})\n")
+                f.write("\n")
 
         f.write("## Commentary\n\n")
         if relative_error < 0.05:

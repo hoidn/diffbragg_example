@@ -80,7 +80,13 @@ def create_perturbed_geometry(crystal, detector, beam):
 def get_refgeom_dataload():
     """
     Load refGeom dataset for refinement tests.
-    Replicates refgeom_dataload fixture logic.
+    Replicates refgeom_dataload fixture logic with detector-size aware HKL resolution.
+
+    Mirrors tests/conftest.py:177-309 logic for calibration + HKL path resolution:
+    - Honours DBEX_SMOKE_CALIB_PATH and DBEX_SMOKE_HKL_PATH env overrides
+    - Defaults to detector-size-specific calibration and refined MTZ when calibration metadata exists
+    - Falls back to scaled.mtz with I(+),SIGI(+),I(-),SIGI(-) columns when no calibration present
+    - Returns resolved mtz_file and mtz_col for telemetry capture
     """
     repo_root = Path(__file__).parent.parent.parent.parent.parent
 
@@ -98,41 +104,64 @@ def get_refgeom_dataload():
         refl_path = repo_root / "refGeom.refl"
         mask_path = repo_root / "747_mask.pkl"
 
-    # Calibration config path
-    calib_source_env = os.environ.get("DBEX_SMOKE_CALIB_PATH")
+    # Resolve calibration path: detector-size aware defaults, with override taking precedence
+    # (mirrors tests/conftest.py:210-226)
+    calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
     calibration_config_path = None
-    smoke_calib_default = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
-    if calib_source_env is not None:
-        if not Path(calib_source_env).is_absolute():
-            calibration_config_path = str(repo_root / calib_source_env)
+    if calib_path_override:
+        if not Path(calib_path_override).is_absolute():
+            calibration_config_path = str(repo_root / calib_path_override)
         else:
-            calibration_config_path = str(Path(calib_source_env))
-    elif smoke_calib_default.exists():
-        calibration_config_path = str(smoke_calib_default)
-
-    # HKL source path
-    hkl_source_env = os.environ.get("DBEX_SMOKE_HKL_PATH")
-    default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
-    if hkl_source_env is not None:
-        if not Path(hkl_source_env).is_absolute():
-            hkl_source_path = repo_root / hkl_source_env
-        else:
-            hkl_source_path = Path(hkl_source_env)
-    elif calibration_config_path and default_refined_mtz.exists():
-        hkl_source_path = default_refined_mtz
+            calibration_config_path = str(Path(calib_path_override))
+    elif detector_size == "small":
+        # Small-detector default
+        default_smoke_calib_small = repo_root / "sp.proc" / "calibration" / "config_torch_smoke_small.json"
+        if default_smoke_calib_small.exists():
+            calibration_config_path = str(default_smoke_calib_small)
     else:
-        hkl_source_path = repo_root / "scaled.mtz"
+        # Full-detector default
+        default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
+        if default_smoke_calib.exists():
+            calibration_config_path = str(default_smoke_calib)
+
+    # Resolve HKL path from env or default to detector-size-specific refined MTZ when calibration exists
+    # (mirrors tests/conftest.py:228-251)
+    hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
+    if hkl_path_override:
+        hkl_path = repo_root / hkl_path_override
+        # Infer MTZ column type from filename or default to intensities
+        mtz_col = "F(+),SIGF(+),F(-),SIGF(-)" if "refined" in str(hkl_path_override).lower() else "I(+),SIGI(+),I(-),SIGI(-)"
+    elif calibration_config_path:
+        # When calibration metadata is present, default to detector-size-specific refined MTZ
+        if detector_size == "small":
+            default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors_small.mtz"
+        else:
+            default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+
+        if default_refined_mtz.exists():
+            hkl_path = default_refined_mtz
+            mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"  # Refined MTZ uses F columns
+        else:
+            # Fallback to raw scaled MTZ if refined MTZ is missing
+            hkl_path = repo_root / "scaled.mtz"
+            mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"
+    else:
+        hkl_path = repo_root / "scaled.mtz"
+        mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"  # Raw MTZ uses I columns
 
     args = Namespace(
         exptName=str(expt_path),
         reflName=str(refl_path),
         exptIdx=0,
         maskFile=str(mask_path),
-        mtzFile=str(repo_root / "scaled.mtz"),
-        mtzCol="F,SIGF",
-        hkl_source_path=str(hkl_source_path),
+        mtzFile=str(hkl_path),
+        mtzCol=mtz_col,
         calibration_config_path=calibration_config_path,
     )
+
+    # Store resolved paths for telemetry metadata
+    args.resolved_mtz_file = str(hkl_path)
+    args.resolved_mtz_col = mtz_col
 
     return DataLoad(args)
 
@@ -168,6 +197,16 @@ def main():
     # Get data dependencies (same as fixture)
     refgeom_dataload = get_refgeom_dataload()
     smoke_sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "metadata")
+
+    # Extract resolved HKL/calibration paths from the dataload args for telemetry
+    resolved_mtz_file = getattr(refgeom_dataload.args, 'resolved_mtz_file', 'unknown')
+    resolved_mtz_col = getattr(refgeom_dataload.args, 'resolved_mtz_col', 'unknown')
+    resolved_calibration_config_path = refgeom_dataload.args.calibration_config_path
+
+    # Print console summary of chosen HKL/calibration paths
+    print(f"[Stage A Baseline Probe] HKL source: {resolved_mtz_file}")
+    print(f"[Stage A Baseline Probe] MTZ columns: {resolved_mtz_col}")
+    print(f"[Stage A Baseline Probe] Calibration config: {resolved_calibration_config_path if resolved_calibration_config_path else 'None'}")
 
     # Extract apply_calibration_n_cells from fixture (default True)
     apply_n_cells = getattr(refgeom_dataload, 'apply_calibration_n_cells', True)
@@ -364,16 +403,19 @@ def main():
     # Build output payload
     output = {
         "probe_metadata": {
-            "timestamp": "2025-12-13T190000Z",
+            "timestamp": "2025-12-15T010000Z",
             "initiative": "ARCH-SIM-CONSTRUCTION-001",
             "phase": "C.9",
-            "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines",
+            "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines with aligned HKL/calibration inputs",
             "device": device,
             "apply_calibration_n_cells": apply_n_cells,
             "spot_scale_override": spot_scale_override_val,
             "warm_cache_available": stage_a_artifacts is not None,
             "stage_a_ctx_used": stage_a_ctx_cached is not None,
             "bragg_full_cached_available": bragg_full_cached is not None,
+            "mtz_file": resolved_mtz_file,
+            "mtz_col": resolved_mtz_col,
+            "calibration_config_path": resolved_calibration_config_path if resolved_calibration_config_path else None,
         },
         "telemetry_fields": {
             "target_mean_masked": target_mean_masked_telem,

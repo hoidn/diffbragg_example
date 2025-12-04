@@ -396,6 +396,25 @@ raw outputs match Stage A/mapping before re-running the probe + selectors.
 - [ ] **Update docs/findings.md:** Add SIM-CONSTR-PARTIALITY-001 summarizing the fix, enforcement test, and rebuild tag per Environment Freeze policy.
 - [ ] **Validation:** Rerun the Stage A baseline probe with all collection flags and both DB-AT selectors under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/`, ensuring `median Stage A/(|F|²·F_latt²·LP) → 1` and DB-AT-028/029 cross their chi²/corr gates.
 
+#### C.28 — Float64 fractional-delta sincg attempt (2025-12-27T120000Z — **regression**)
+- [x] Implemented the float64 fractional-delta sincg patch in `src/nanobrag-torch/src/nanobrag_torch/simulator.py::compute_physics_for_position` (SQUARE branch) per SIM-CONSTR-PARTIALITY-001, captured the diff as `patches/partiality_fix.patch`, rebuilt/tagged the editable install (`nanobrag-partiality-2025-12-27`), and reran the Stage A baseline probe plus DB-AT-028/029 selectors under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T120000Z/`.
+- [x] Authored and executed `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`, plus documented SIM-CONSTR-PARTIALITY-001 in docs/findings.md and TESTING_GUIDE.md.
+- [x] Captured environment metadata + enforcement logs showing the test still FAILS with 0.25 % of the expected `(Na·Nb·Nc)^2` ratio and Stage A baseline metrics remain unchanged (`median StageA/(|F|²·F_latt²·LP)=0`), so the patch does not resolve the deterministic signature.
+
+Outcome: Patch rolled back per Environment Freeze guard; initiative re-entered parity-localization mode (Phase C.29) to gather decision-carrying sincg telemetry before attempting another simulator edit.
+
+#### C.29 — Sincg per-axis instrumentation (Complete — 2025-12-27T180000Z)
+- [x] Extended `compute_physics_for_position`'s optional `collect_partiality_stats` hook to capture `delta_h`, `delta_k`, `delta_l`, and the individual `F_latt_a/b/c` tensors (SQUARE branch only), preserving device/dtype neutrality.
+- [x] Updated `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py` to serialize the new stats (JSON percentiles + Markdown tables) and sample tensors to avoid >10 M element quantile OOMs.
+- [x] Reran the Stage A baseline probe with all collection flags and documented the new evidence under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T180000Z/`, proving per-axis sincg medians collapse (~0.06) even though fractional HKL deltas cluster near zero and maxima hit the expected Na/Nb/Nc values.
+
+Result: Deterministic evidence now isolates the remaining divergence to the sincg application rather than HKL alignment. Next loop must analyze a minimal lattice scenario to determine whether the intensity scaling bug reproduces outside the Stage A context.
+
+#### C.30 — Single-pixel square-lattice scaling probe (Planned — 2026-01-02 loop)
+- [ ] Author a thin `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` helper that instantiates `nanobrag_torch.Simulator` twice (N_cells=(1,1,1) vs `(Na,Nb,Nc)`) with a single-pixel detector (`spixels=fpixels=1`), single phi/mosaic sample, configurable oversample, and `debug_config` hooks (`collect_partiality_stats`, `trace_pixel=[0,0]`). The script shall log intensities, `(F_cell·F_latt)^2`, Lorentz/polarization factors, and the observed ratio into both JSON + Markdown files under the reserved report directory.
+- [ ] Execute the probe with Na=41, Nb=29, Nc=32 and compare the measured ratio against `(Na·Nb·Nc)^2`, noting whether the minimalist configuration still shows the 0.25 % shortfall. Capture stdout/logs under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/`.
+- [ ] Rerun `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1` to document the current enforcement failure alongside the probe evidence (log to the same artifacts directory).
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

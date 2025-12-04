@@ -131,7 +131,7 @@ def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDataset
                     f"Metadata sigma source requested with explicit override but pickle is missing: {sigma_map_path}. "
                     "Run plans/active/TOOLING-VIS-001/bin/crop_sigma_map_to_window.py "
                     "to generate the cropped sigma-map for small detector fixtures, "
-                    "or run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                    "or run `python -m dbex.tools.embed_sigma_external_lookup` "
                     "with --sigma-value/--sigma-map to regenerate the full-detector sigma-map."
                 )
 

@@ -483,6 +483,23 @@ def test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction(
         f"Found discrepancy: max_abs_diff={np.abs(reconstructed_bragg_initial - cached_bragg).max():.3e}"
     )
 
+    # Acceptance 4 (ARCH-SIM-CONSTRUCTION-001): Cached masked mean should match telemetry model_mean_masked
+    # This ensures the scale factor was applied to both bragg_zero_iter and the telemetry field
+    # so downstream probes/tests see the calibrated intensity
+    if hasattr(stage_a_artifacts, 'telemetry') and stage_a_artifacts.telemetry is not None:
+        telemetry_model_mean_masked = stage_a_artifacts.telemetry.get('model_mean_masked')
+        if telemetry_model_mean_masked is not None and refinement_inputs.loss_mask is not None:
+            # Compute masked mean from cached bragg using the same mask
+            cached_masked_mean = float(cached_bragg[refinement_inputs.loss_mask].mean())
+
+            # They should match within floating-point tolerance (both were scaled by the same factor)
+            rel_diff = abs(cached_masked_mean - telemetry_model_mean_masked) / (abs(telemetry_model_mean_masked) + 1e-10)
+            assert rel_diff < 1e-6, (
+                f"Cached masked mean ({cached_masked_mean:.6e}) should match telemetry model_mean_masked "
+                f"({telemetry_model_mean_masked:.6e}). Relative difference: {rel_diff:.3e}"
+            )
+            print(f"  Cached masked mean: {cached_masked_mean:.6e} matches telemetry: {telemetry_model_mean_masked:.6e}")
+
     print(f"[test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction] SUCCESS - cache path verified")
     print(f"  cached_bragg shape: {cached_bragg.shape}, mean: {cached_bragg.mean():.6e}")
     print(f"  reconstructed_bragg_initial shape: {reconstructed_bragg_initial.shape}, mean: {reconstructed_bragg_initial.mean():.6e}")

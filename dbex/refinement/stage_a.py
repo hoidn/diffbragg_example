@@ -489,6 +489,31 @@ class StageA:
                     # Fallback: keep the baseline from Priority 2 or None
                     pass
 
+            # ARCH-SIM-CONSTRUCTION-001: Scale cached bragg_zero_iter to match the iteration-0 model scale
+            # Apply this after log_scale_baseline is finalized but before LBFGS runs
+            # NOTE: bragg_zero_iter was cached as bragg_raw * sqrt(spot_scale_override), but compute_loss
+            # applies exp(log_scale_baseline) to the RAW simulator output. So we need to scale by
+            # exp(log_scale_baseline) / sqrt(spot_scale_override) to get the iteration-0 model.
+            if stage_a_ctx is not None and stage_a_ctx.bragg_zero_iter is not None and log_scale_baseline is not None:
+                try:
+                    # Compute the scale factor: exp(log_scale_baseline) / sqrt(spot_scale_override)
+                    # This converts from sqrt-scaled cache to the iteration-0 model scale
+                    scale_factor_baseline = float(np.exp(log_scale_baseline))
+                    if sqrt_spot_scale is not None and sqrt_spot_scale > 0:
+                        scale_factor_zero_iter = scale_factor_baseline / sqrt_spot_scale
+                    else:
+                        scale_factor_zero_iter = scale_factor_baseline
+
+                    # Multiply the cached tensor by the scale factor on CPU float32 to avoid device lifetime issues
+                    stage_a_ctx.bragg_zero_iter = stage_a_ctx.bragg_zero_iter * scale_factor_zero_iter
+
+                    # Update model_mean_masked to reflect the scaled intensity so telemetry/tests see the calibrated value
+                    if model_mean_masked is not None:
+                        model_mean_masked = model_mean_masked * scale_factor_zero_iter
+                except Exception:
+                    # If scaling fails, leave bragg_zero_iter and model_mean_masked as-is (fallback to pre-scale behavior)
+                    pass
+
         # Heuristic scale warm-start (ADU mode): estimate model mean at delta=0 and
         # initialize log_scale to match the observed target mean. Skip when no cache.
         if log_scale_baseline is None and stage_a_ctx is not None:

@@ -2428,3 +2428,23 @@ Action State: ready_for_implementation
 - implementation_ready — Ralph to (a) extend `RefinementConfig`/`StageAArtifacts`/`StageA.run` with the new metrics hook + optional JSON dump, (b) refactor `compare_stage_a_baseline.py` into a thin wrapper over the engine, and (c) add pytest coverage (`tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump`) plus rerun DB-AT-028/029 per the updated input.md.
 
 Action State: ready_for_implementation
+
+## Loop 2025-12-28T150000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase B.3 env plumbing)
+**State**: ready_for_implementation
+**Dwell**: 0 (new action after telemetry landing)
+**Action Type**: planning → implementation_ready hand-off
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Stage A already emits baseline metrics when `enable_stage_a_baseline_metrics=True` (`dbex/refinement/stage_a.py:2134-2199`), and the refactored probe plus pytest `test_stage_a_baseline_metrics_dump` prove the helper works.
+2. DB-AT-028/029 still ignore that telemetry: `stage_a_smoke_result` never toggles the flag, the promised `DBEX_STAGE_A_BASELINE_METRICS_PATH` knob is comment-only, and acceptance artifacts continue to rely on `compare_stage_a_baseline.py` for JSON evidence.
+3. Without wiring the env/config plumbing + assertions into the smoke fixture, probe growth remains the only way to capture masked means/ROI stats, violating the diagnostic_script_policy thin-wrapper rule.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/`
+
+**Next Actions**:
+- Ralph: update `tests/dbex/test_stage_a_smoke_parity.py` to resolve a baseline metrics path (env or per-test artifact dir), flip the config flag, expose the metrics/path on the fixture, and make DB-AT-028/029 assert that the JSON exists + matches schema v1. Document the workflow in `docs/TESTING_GUIDE.md` and drop the resulting files + pytest logs under the reserved artifacts directory.
+
+**Action State**: ready_for_implementation — Do Now issued (input.md) with precise files/tests, no new probes allowed.

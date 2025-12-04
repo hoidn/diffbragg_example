@@ -1,4 +1,4 @@
-Summary: Move Stage A baseline diagnostic metrics into owner telemetry and shrink compare_stage_a_baseline.py into a thin wrapper over RefinementEngine so DB-AT evidence no longer depends on a shadow pipeline.
+Summary: Wire the Stage A baseline metrics hook into the DB-AT-028/029 smoke fixture so the acceptance selectors consume the production telemetry (no more probe math) and assert that the JSON payload lands under the artifacts directory.
 Mode: Parity
 ActionType: implementation_ready
 DecisionStatus: localized
@@ -7,40 +7,41 @@ Focus: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation
 Branch: integration
 Mapped tests:
   - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T010000Z/
-Findings Applied (Mandatory): No relevant findings — telemetry gap tracked via probe inventory
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
+Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/
+Findings Applied (Mandatory): No relevant findings — closing the probe freeze gap documented in `probe_inventory.md`.
 Pointers:
-  - plans/active/ARCH-PROBE-FREEZE-001/implementation.md:55-97 — Phase B checklist describing Stage A telemetry migration + probe refactor scope.
-  - prompts/supervisor.md:252-309 — diagnostic_script_policy thin-wrapper rule that the existing probe violates.
-  - docs/architecture/data_telemetry_flow.md:1-120 — Stage A/mapping telemetry owner contract for parity metrics.
+  - plans/active/ARCH-PROBE-FREEZE-001/implementation.md:33-54 — Phase B.3 notes showing DB-AT selectors still rely on probe outputs.
+  - dbex/refinement/stage_a.py:2134-2199 — Existing baseline metrics hook that Stage A emits when `enable_stage_a_baseline_metrics` is True.
+  - dbex/refinement/telemetry_baseline.py:1-170 — Helper that computes the schema v1 payload we need the tests to consume.
+  - tests/dbex/test_stage_a_smoke_parity.py:70-520 — Stage A smoke fixture + DB-AT-028/029 selectors (currently oblivious to the new telemetry).
+  - docs/TESTING_GUIDE.md:1-140 — Canonical env-flag documentation that must mention the new `DBEX_STAGE_A_BASELINE_METRICS_PATH` workflow.
 ARCH Contracts (mandatory):
-  - prompts/supervisor.md:252-309 (diagnostic_script_policy) — Owner: supervisor policy / plan directory guard. Failure: architecture conformance (shadow pipeline re-implements simulator semantics).
-  - docs/architecture/data_telemetry_flow.md:40-120 (Stage A telemetry ownership) — Owner: dbex.refinement.stage_a / telemetry collectors. Failure: architecture conformance (parity metrics exist only in probe scripts, not in the owner API).
+  - prompts/supervisor.md:272-309 (diagnostic_script_policy) — Owner: supervisor policy; failure type: architecture conformance (DB-AT evidence still flows through a shadow pipeline instead of owner telemetry).
+  - docs/architecture/data_telemetry_flow.md:1-120 (Stage A telemetry ownership) — Owner: `dbex.refinement.stage_a`; failure type: architecture conformance (acceptance selectors ignore the owner telemetry and recompute ROI stats externally).
 Do Now (hard validity contract)
-1. Implement: `dbex/refinement/config.py::RefinementConfig`, `dbex/refinement/stage_a.py::StageA.run`, and `dbex/refinement/artifacts.py::StageAArtifacts` — add an opt-in Stage A baseline metrics hook controlled by a new config flag/env var. The hook should compute the masked/unmasked means, chi²-per-pixel, ROI Pearson stats, and ROI snippets currently emitted by `compare_stage_a_baseline.py`, stash the payload on StageAArtifacts (e.g., `baseline_metrics` dataclass), and optionally dump JSON when `config.stage_a_baseline_metrics_path` (or env `DBEX_STAGE_A_BASELINE_METRICS_PATH`) is set. Wire the collector to use canonical owner helpers only (`simulate_forward_once`, `build_mapping_stage_a_context`, `RefinementInputs`) so no new shadow pipelines appear.
-2. Implement: `dbex/refinement/telemetry_baseline.py::collect_stage_a_baseline_metrics` (new helper) — factor the ROI/mapping math out of the probe into a production helper that Stage A can call. The helper should accept `StageAContext`, `RefinementInputs`, telemetry deltas, and optional mapping config, return a serializable dict, and expose schema versioning. Document the JSON schema in a short module docstring so tooling/tests can lock onto it.
-3. Implement: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py::main` — refactor the probe into a thin wrapper that (a) loads the canonical refGeom dataset via `DataLoad`/`prepare_refinement_inputs`, (b) configures Stage A with the new metrics flag/path, (c) runs `RefinementEngine` with Stage A only, and (d) writes out the Stage A artifact bundle (baseline metrics + provenance) without duplicating simulator/ROI math. Preserve existing CLI flags (geometry mode, output path) but forward them into config/environment instead of recomputing physics.
-4. Implement: `tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump` (or adjacent test) — add pytest coverage that sets the new config/env flag, runs the Stage A smoke fixture, and asserts that the JSON payload exists, contains the ROI summary fields, and matches the telemetry structure. Extend the existing DB-AT-028/029 selector to assert that the metrics file is produced when the flag is set so parity evidence stays decision-carrying.
+1. Implement: `tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result` — accept `request`, resolve a baseline metrics path from `DBEX_STAGE_A_BASELINE_METRICS_PATH` or the calling test’s artifact dir (`DBAT028_ARTIFACT_DIR` / `DBAT029_ARTIFACT_DIR`), flip `config.enable_stage_a_baseline_metrics=True`, and stash both `stage_a_artifacts.baseline_metrics` and the resolved JSON path on the fixture result so downstream tests can assert against them.
+2. Implement: `tests/dbex/test_stage_a_smoke_parity.py::{test_db_at_028_loss_scale_sanity,test_db_at_029_structure_parity}` — after `_artifact_dir(...)` resolves, require that the Stage A baseline metrics file exists whenever the fixture surfaced a path, load the JSON (schema v1 from `collect_stage_a_baseline_metrics`), compare it to the in-memory `baseline_metrics`, and persist a copy under the artifact tree so parity evidence no longer depends on `compare_stage_a_baseline.py`.
+3. Implement: `docs/TESTING_GUIDE.md` (env var section) — document the new `DBEX_STAGE_A_BASELINE_METRICS_PATH` knob (dir vs file semantics, how the DB-AT selectors derive filenames, and the expectation that parity loops set it before running Stage A smokes).
 Mapped Validation (pytest):
   - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
 Artifacts deliverables:
-  - JSON + summary dumped by the new Stage A telemetry hook under `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T010000Z/`
-  - pytest logs for the new baseline metrics test and the DB-AT selectors
+  - Stage A baseline metrics JSON(s) emitted by the acceptance tests under `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/`
+  - pytest logs for `test_stage_a_baseline_metrics_dump` and the DB-AT-028/029 run that proves the selectors now read the owner telemetry
 Forbidden This Loop:
-  - No new plan-local probe scripts or extensions to existing probes; reuse Stage A / mapping owner APIs exclusively.
-  - Do not fork additional diagnostics outside the production telemetry hook (no duplicated ROI math in new helpers).
+  - no new plan-local probe scripts or extensions; the DB-AT selectors must consume Stage A’s telemetry hook
+  - do not bypass `collect_stage_a_baseline_metrics` or re-implement ROI stats in tests/scripts
 How-To Map:
-  1. Add the config/env plumbing + helper module under `dbex/refinement/telemetry_baseline.py`, update StageAArtifacts/StageA.run, and expose the JSON dump path.
-  2. Refactor the probe script to call `RefinementEngine` with the Stage A metrics flag, saving only the emitted artifact bundle; update docs/comments to describe the new usage.
-  3. Add the pytest coverage + rerun DB-AT-028/029 with the metrics flag enabled, capturing artifacts in the report directory.
+  1. Add a helper in `tests/dbex/test_stage_a_smoke_parity.py` to resolve the baseline metrics file given an env override or per-test artifact directory (append `<test_name>_stage_a_baseline_metrics.json` when a directory is provided). Use it inside `stage_a_smoke_result` to set the config flag and record both the resolved `Path` and the `StageAArtifacts.baseline_metrics` dict in the returned result.
+  2. Update `test_db_at_028_loss_scale_sanity` and `test_db_at_029_structure_parity` to check the returned `baseline_metrics`/`baseline_metrics_path`, assert the JSON exists + matches schema v1, and copy the file into each test’s artifact tree so DB-AT evidence includes the production metrics.
+  3. Refresh `docs/TESTING_GUIDE.md` to describe the new env var and how DB-AT runners should set it (include the exact pytest command from this Do Now) so future loops don’t fall back to the shadow pipeline.
 Pitfalls To Avoid:
-  - Do not compute ROI stats inside plan scripts once the helper exists — only Stage A/production code may perform that math.
-  - Keep the new telemetry hook disabled by default to avoid perf regressions; guard everything behind the debug flag/env var.
-  - Ensure Stage A writes CPU-friendly JSON (lists/floats) — no raw torch tensors in artifacts.
-  - Update StageAArtifacts + writer paths carefully to avoid breaking existing consumers; add default `None` for new fields.
-  - Remember Environment Freeze: no package installs; use only in-repo helpers (`simulate_forward_once`, etc.).
+  - Don’t hard-code baseline metrics filenames; make them unique per test so runs don’t clobber each other.
+  - Avoid importing torch/numpy-heavy modules into helper scripts outside the production path; keep logic inside Stage A/test modules.
+  - Ensure the fixture still works when the env knob is unset (baseline metrics optional outside parity runs).
+  - Don’t write torch tensors directly to JSON — use the serializable dict Stage A already emits.
+  - Preserve the existing DB-AT telemetry artifacts (metrics JSON, mapping diagnostics) while adding the new file so historical comparisons remain valid.
 If Blocked:
-  - Record the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T010000Z/blockers.md`, update docs/fix_plan.md Attempts History, and ping Galph before adding any new diagnostic probes. If Stage A lacks the necessary telemetry, switch focus or open a dedicated `ARCH-IMPL-CONFORMANCE` item.
-Doc Sync Plan (Conditional): After landing the new pytest, run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py` and add the node to `docs/development/TEST_SUITE_INDEX.md` under the DB-AT selector section.
+  - Capture the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/blockers.md`, update docs/fix_plan.md Attempts History, and ping Galph before reintroducing any plan-local probe logic. If Stage A fails to emit the metrics due to missing context, pause and document instead of adding new instrumentation.
+Doc Sync Plan (Conditional): Not required — test node names stay the same; only their behavior changes.

@@ -358,3 +358,131 @@ def test_stage_b_artifact_matches_helper_shell_mode(
     )
 
     print(f"[test_stage_b_artifact_matches_helper_shell_mode] SUCCESS - parity within tolerance")
+
+
+def test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+):
+    """
+    Validate that build_final_bragg_from_stage_a_telemetry(..., param_state="initial")
+    returns the cached zero-iteration Bragg array when Stage A artifacts provide one.
+
+    This test ensures ARCH-SIM-CONSTRUCTION-001 cache path guards the new fast-path:
+    when Stage A populates stage_a_ctx.bragg_zero_iter during warm-cache baseline derivation,
+    reconstruction helpers must reuse that array for param_state="initial" instead of rerunning
+    simulators. This keeps bragg_before aligned with Stage A telemetry.
+
+    Acceptance criteria:
+    1. After engine.run, stage_a_ctx.bragg_zero_iter is not None (cache populated)
+    2. build_final_bragg_from_stage_a_telemetry(..., param_state="initial") returns
+       an array that exactly matches stage_a_ctx.bragg_zero_iter (not just close - exact copy)
+    3. The cached array shape and dtype match expected [n_panels, slow, fast] float32
+
+    Environment:
+    - Requires: KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small
+    - Selector: pytest -vv tests/dbex/test_artifact_parity.py::test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction
+
+    References:
+    - ARCH-SIM-CONSTRUCTION-001 (cache implementation)
+    - dbex/refinement/stage_a.py:446-454 (cache population)
+    - dbex/refinement/reconstruction.py:80-86 (cache reuse fast-path)
+    """
+    print(f"\n[test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction] detector={smoke_detector_size}")
+
+    hkl_grid, hkl_metadata = hkl_data
+
+    # Configure refinement: Stage A only (B/C disabled)
+    config = RefinementConfig(
+        device='cuda:0',
+        dtype=torch.float32,
+        history_size=10,
+        max_iter=30,
+        roi_sample_fraction=0.15,
+        full_validation_interval=5,
+        enable_hkl_interpolation=True,
+        enable_stage_b=False,
+        enable_stage_c=False,
+        sigma_readout_provenance="external_lookup",
+    )
+
+    detector = refgeom_dataload.Expt.detector
+    beam = refgeom_dataload.Expt.beam
+    crystal = refgeom_dataload.Expt.crystal
+
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        baseline_crystal=None,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+    )
+
+    # Run engine to populate Stage A cache
+    engine = RefinementEngine([StageA()], config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+
+    # Extract Stage A artifacts
+    assert "stage_a" in engine._artifacts, "Stage A artifacts missing from engine"
+    stage_a_artifacts = engine._artifacts["stage_a"]
+    stage_a_ctx = stage_a_artifacts.stage_a_ctx
+
+    # Acceptance 1: Cache should be populated after Stage A warm-cache run
+    assert stage_a_ctx is not None, "Stage A context should be available in artifacts"
+    assert hasattr(stage_a_ctx, 'bragg_zero_iter'), "Stage A context missing bragg_zero_iter field"
+    assert stage_a_ctx.bragg_zero_iter is not None, (
+        "Stage A should populate bragg_zero_iter during warm-cache baseline derivation"
+    )
+
+    # Extract cached array for comparison
+    cached_bragg = stage_a_ctx.bragg_zero_iter
+
+    # Acceptance 3: Shape and dtype should match expected [n_panels, slow, fast] float32
+    n_panels = len(detector)
+    panel_shape = (detector[0].get_image_size()[1], detector[0].get_image_size()[0])
+    expected_shape = (n_panels, *panel_shape)
+    assert cached_bragg.shape == expected_shape, (
+        f"Cached bragg_zero_iter shape mismatch: got {cached_bragg.shape}, expected {expected_shape}"
+    )
+    assert cached_bragg.dtype == np.float32, (
+        f"Cached bragg_zero_iter dtype mismatch: got {cached_bragg.dtype}, expected float32"
+    )
+
+    # Call reconstruction helper with param_state="initial"
+    telemetry_a = engine._telemetry["stage_a"]
+    reconstructed_bragg_initial = build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry_a,
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        inputs=refinement_inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        device=config.device,
+        dtype=config.dtype,
+        stage_a_ctx=stage_a_ctx,
+        baseline_crystal=None,
+        param_state="initial",  # Request initial state → should hit cache path
+    )
+
+    # Acceptance 2: Reconstructed array should match cached array exactly
+    # (cache path returns a copy, so values should be identical)
+    assert reconstructed_bragg_initial.shape == cached_bragg.shape, (
+        f"Reconstructed bragg shape mismatch: got {reconstructed_bragg_initial.shape}, expected {cached_bragg.shape}"
+    )
+    assert reconstructed_bragg_initial.dtype == cached_bragg.dtype, (
+        f"Reconstructed bragg dtype mismatch: got {reconstructed_bragg_initial.dtype}, expected {cached_bragg.dtype}"
+    )
+    assert np.array_equal(reconstructed_bragg_initial, cached_bragg), (
+        "Reconstructed bragg for param_state='initial' should exactly match cached bragg_zero_iter. "
+        f"Found discrepancy: max_abs_diff={np.abs(reconstructed_bragg_initial - cached_bragg).max():.3e}"
+    )
+
+    print(f"[test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction] SUCCESS - cache path verified")
+    print(f"  cached_bragg shape: {cached_bragg.shape}, mean: {cached_bragg.mean():.6e}")
+    print(f"  reconstructed_bragg_initial shape: {reconstructed_bragg_initial.shape}, mean: {reconstructed_bragg_initial.mean():.6e}")

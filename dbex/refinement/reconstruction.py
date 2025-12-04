@@ -77,6 +77,14 @@ def build_final_bragg_from_stage_a_telemetry(
     # ARCH-REFACTOR-001 Phase C.7: Import shared Stage A helper from stage_a_utils
     from dbex.refinement.stage_a_utils import _clamp_log_cell_deltas
 
+    # ARCH-SIM-CONSTRUCTION-001: Fast-path for initial state reconstruction via cached zero-iteration Bragg stack
+    # When param_state="initial" and Stage A provided a cached bragg_zero_iter array, return that
+    # instead of rerunning simulators. This ensures bragg_before matches Stage A telemetry exactly.
+    if param_state == "initial" and stage_a_ctx is not None and hasattr(stage_a_ctx, 'bragg_zero_iter') and stage_a_ctx.bragg_zero_iter is not None:
+        print(f"[ARCH-SIM-CONSTRUCTION-001 CACHE HIT] Returning cached zero-iteration Bragg stack for param_state='initial' (shape={stage_a_ctx.bragg_zero_iter.shape})")
+        # Return a copy so downstream consumers can mutate safely
+        return np.array(stage_a_ctx.bragg_zero_iter, copy=True)
+
     # Extract param_deltas from telemetry
     param_deltas_a = telemetry_a.param_deltas if hasattr(telemetry_a, 'param_deltas') else telemetry_a['param_deltas']
 

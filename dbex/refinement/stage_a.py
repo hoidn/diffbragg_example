@@ -442,6 +442,17 @@ class StageA:
                         spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
                     sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override > 0 else 1.0
                     bragg_stack_scaled = bragg_stack * sqrt_spot_scale
+
+                    # Cache the zero-iteration Bragg stack for reconstruction helpers (ARCH-SIM-CONSTRUCTION-001)
+                    # When warm cache is active, stash a CPU float32 copy on stage_a_ctx so
+                    # build_final_bragg_from_stage_a_telemetry(..., param_state="initial") can reuse it
+                    # instead of rerunning simulators. Guard failures so cold-mode runs remain valid.
+                    try:
+                        stage_a_ctx.bragg_zero_iter = bragg_stack_scaled.detach().cpu().numpy().astype(np.float32)
+                    except Exception:
+                        # If cache stash fails, leave bragg_zero_iter=None (fallback to simulator path)
+                        pass
+
                     # Compute masked mean to match target_mean computation (use tensorized mask)
                     if loss_mask_t is not None:
                         model_mean_masked = float(bragg_stack_scaled[loss_mask_t].mean().item())

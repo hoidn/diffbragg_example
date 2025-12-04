@@ -930,6 +930,10 @@ class StageAContext:
         enable_hkl_interpolation: bool, tricubic interpolation flag
         q_params: Optional quaternion parameters for U-matrix path (TORCH-GEOMETRY-PARITY-002 Phase B4)
         B_ideal_reciprocal: Optional B_ideal matrix for U-matrix path (TORCH-GEOMETRY-PARITY-002 Phase B4)
+        bragg_zero_iter: Optional np.ndarray, zero-iteration Stage A Bragg stack (ARCH-SIM-CONSTRUCTION-001).
+                        When populated, carries the float32 CPU copy of the sqrt-scaled baseline Bragg array
+                        [n_panels, slow, fast] computed during warm-cache baseline telemetry derivation.
+                        Reconstruction helpers reuse this for param_state="initial" to avoid simulator reruns.
     """
     detector_configs: List
     detector_models: List
@@ -952,6 +956,7 @@ class StageAContext:
     log_scale_baseline: Optional[float] = None
     spot_scale_override: Optional[float] = None
     sqrt_spot_scale: Optional[float] = None
+    bragg_zero_iter: Optional[np.ndarray] = None
 
 
 @dataclass

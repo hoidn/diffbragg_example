@@ -240,10 +240,14 @@ def collect_stage_a_hkl_stats(
         log_scale_baseline=getattr(config, "log_scale_baseline", None),
         apply_calibration_n_cells=config.apply_calibration_n_cells,
         config=config,
-        debug_config={"collect_hkl_stats": True},
+        debug_config={
+            "collect_hkl_stats": True,
+            "collect_partiality_stats": args.collect_simulator_partiality_stats,
+        },
     )
 
     per_panel_stats = []
+    per_panel_partiality_stats = []
     for panel_id, simulator in enumerate(stage_a_ctx_diag.simulators):
         try:
             _ = simulator.run()
@@ -254,11 +258,17 @@ def collect_stage_a_hkl_stats(
         if stats:
             per_panel_stats.append({"panel_id": panel_id, "hkl_stats": stats})
 
+        # ARCH-SIM-CONSTRUCTION-001: Collect partiality stats from simulator
+        partiality_stats = getattr(simulator, "partiality_stats", None)
+        if partiality_stats:
+            per_panel_partiality_stats.append({"panel_id": panel_id, "partiality_stats": partiality_stats})
+
     aggregated = aggregate_hkl_stats(per_panel_stats)
     return {
         "n_panels": getattr(stage_a_ctx_diag, "n_panels", len(stage_a_ctx_diag.simulators)),
         "per_panel_stats": per_panel_stats,
         "aggregated": aggregated,
+        "per_panel_partiality_stats": per_panel_partiality_stats,
     }
 
 
@@ -293,7 +303,10 @@ def collect_mapping_hkl_stats(
         sigma_floor_value=1.0,
         apply_calibration_n_cells=apply_n_cells,
         mosaic_domains=mosaic_domains,
-        debug_config={"collect_hkl_stats": True},
+        debug_config={
+            "collect_hkl_stats": True,
+            "collect_partiality_stats": args.collect_simulator_partiality_stats,
+        },
     )
 
     per_panel_stats = diagnostics.get("per_panel_hkl_stats", [])
@@ -1444,6 +1457,11 @@ def main():
         action="store_true",
         help="When set, compute per-ROI lattice partiality factors (F_latt) and compare Stage A vs |F|²·F_latt²·LP expectations. Requires --collect-orientation-metrics.",
     )
+    parser.add_argument(
+        "--collect-simulator-partiality-stats",
+        action="store_true",
+        help="When set, enable nanobrag_torch simulator debug hook to capture per-ROI F_latt, lorentz_factor, and polarization_factor before intensity normalization. Enables comparison of expected vs applied partiality components.",
+    )
     args = parser.parse_args()
 
     # Ensure output directory exists
@@ -2357,6 +2375,11 @@ def main():
             "enabled": args.collect_hkl_stats,
             "stage_a": stage_a_hkl_stats,
             "simulate_forward_once": mapping_hkl_stats,
+        },
+        "simulator_partiality_stats": {
+            "enabled": args.collect_simulator_partiality_stats,
+            "stage_a": stage_a_hkl_stats.get("per_panel_partiality_stats", []) if stage_a_hkl_stats else [],
+            "description": "Per-panel F_latt, lorentz_factor, and polarization_factor tensors captured from nanobrag_torch simulator debug hook",
         },
         "mapping_diagnostics": {
             "target_mean_masked": mapping_target_mean_masked,

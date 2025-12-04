@@ -1,3 +1,10 @@
+2025-12-23T010000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=evidence_collection artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-23T010000Z/ next_action=physics_lorentz_ledger
+- Orientation ledger landed: `compare_stage_a_baseline.py` now accepts `--collect-orientation-metrics`, computes q-vectors/|Δhkl|/2θ per matched ROI, and emits the new orientation block in both JSON + `spot_profile_summary.md`.
+- Evidence shows geometry is not the culprit — 27 reflections analyzed, median |Δhkl|=0.095, Pearson corr(|Δhkl|, Stage A/ref)= -0.286, yet Stage A/ref ratios still range from 7.1e-05× to 3.10× even when |Δhkl|≤0.25 and resolution 2.5–4.1 Å.
+- DB-AT-028/029 remain unchanged (chi²/pixel≈2.1e5, ROI corr=-0.053), so deterministic parity crisis persists after clearing geometry.
+- Next action: Phase C.24 instrumentation — extend the baseline probe with a Lorentz/partiality physics ledger (new `--collect-physics-ledger` flag) that multiplies |F|²/pix by still-Lorentz × polarization factors derived from the measured 2θ, records Stage A vs |F|²·LP ratios/resolution bins, and reruns DB-AT-028/029 under a new report dir before touching nanobrag_torch.
+Action State: ready_for_implementation
+
 2025-12-22T150000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-22T150000Z/ next_action=instrument_spot_profile_partitioning
 - Mosaic-domain sweep (domain=1 vs 16) under 2025-12-22T010000Z kept Stage A/Ref median at 0.0612 and DB-AT-028/029 failures unchanged (chi²=2.097e5, ROI corr=-0.053), so the deterministic parity crisis persists regardless of mosaic sampling.
 - Planned Phase C.22 to extend `compare_stage_a_baseline.py` with an optional spot-profile mode that analyzes the full-panel Stage A baseline (ROI vs halo energy fractions, per-axis FWHM, halo bbox) and records the stats + console summary when `--collect-spot-profiles` is requested.

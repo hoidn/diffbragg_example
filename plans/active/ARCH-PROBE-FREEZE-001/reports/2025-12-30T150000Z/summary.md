@@ -1,3 +1,11 @@
+### Turn Summary — 2025-12-30T150000Z (Ralph Implementation — Phase B.6 Complete)
+
+Migrated smoke calibration capture from shadow pipeline (424 LOC) to canonical owner modules (`dbex.calibration.smoke_capture` + `dbex.tools.capture_smoke_calibration`). Both full and small detector captures validated with identical DiffBragg refinement results. Plan script reduced to 36-line shim. Docs updated with canonical CLI commands.
+
+**Artifacts:** `capture_full/`, `capture_small/`, `collect_db_at_028_029.log`
+
+---
+
 ### Turn Summary — 2025-12-30T150000Z (Supervisor Planning)
 
 - Locked Phase B.6 scope: migrate `capture_smoke_calibration.py` (DiffBragg smoke bundle capture) into owner modules so calibration provenance is produced by `dbex.calibration`/`dbex.tools` rather than a 330+ LOC plan script.

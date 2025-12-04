@@ -410,18 +410,18 @@ Outcome: Patch rolled back per Environment Freeze guard; initiative re-entered p
 
 Result: Deterministic evidence now isolates the remaining divergence to the sincg application rather than HKL alignment. Next loop must analyze a minimal lattice scenario to determine whether the intensity scaling bug reproduces outside the Stage A context.
 
-#### C.30 — Single-pixel square-lattice scaling probe (Planned — 2026-01-02 loop)
-- [ ] Author a thin `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` helper that instantiates `nanobrag_torch.Simulator` twice (N_cells=(1,1,1) vs `(Na,Nb,Nc)`) with a single-pixel detector (`spixels=fpixels=1`), single phi/mosaic sample, configurable oversample, and `debug_config` hooks (`collect_partiality_stats`, `trace_pixel=[0,0]`). The script shall log intensities, `(F_cell·F_latt)^2`, Lorentz/polarization factors, and the observed ratio into both JSON + Markdown files under the reserved report directory.
-- [ ] Execute the probe with Na=41, Nb=29, Nc=32 and compare the measured ratio against `(Na·Nb·Nc)^2`, noting whether the minimalist configuration still shows the 0.25 % shortfall. Capture stdout/logs under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/`.
-- [ ] Rerun `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1` to document the current enforcement failure alongside the probe evidence (log to the same artifacts directory).
+#### C.30 — Single-pixel square-lattice scaling probe (Complete — 2026-01-02T010000Z)
+- [x] Author a thin `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` helper that instantiates `nanobrag_torch.Simulator` twice (N_cells=(1,1,1) vs `(Na,Nb,Nc)`) with a single-pixel detector (`spixels=fpixels=1`), single phi/mosaic sample, configurable oversample, and `debug_config` hooks (`collect_partiality_stats`, `trace_pixel=[0,0]`). The script logs intensities, `(F_cell·F_latt)^2`, Lorentz/polarization factors, and the observed ratio into JSON + Markdown files under the report directory.
+- [x] Execute the probe with Na=41, Nb=29, Nc=32 and compare the measured ratio against `(Na·Nb·Nc)^2`, confirming the minimalist configuration reproduces the 0.000058× shortfall (artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/`).
+- [x] Rerun `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1` to document the enforcement failure alongside the probe evidence.
 
-#### C.31 — Lattice-scaling pipeline instrumentation (In Progress — 2026-01-03T010000Z)
+#### C.31 — Lattice-scaling pipeline instrumentation (Complete — 2026-01-03T010000Z)
 - [x] **Instrument `compute_physics_for_position` with opt-in debug payload:** Added Phase C.31 hooks to capture `F_cell`, `F_total²` (pre-Lorentz), and `intensity_pre_polar` (post-Lorentz, pre-polarization) when `partiality_stats` is enabled. Edits preserve opt-in semantics (production runs unaffected) and device/dtype neutrality. Files: `src/nanobrag-torch/src/nanobrag_torch/simulator.py:382-387, 456-458`.
 - [x] **Thread payload through probe script:** Extended `probe_square_lattice_scaling.py` to extract the new debug fields from `partiality_stats`, compute derived ratios (`F_latt_ratio`, `F_total_sq_ratio`, `I_pre_polar_ratio`, `{base,scaled}_I_pre_polar_over_F_total_sq`), and persist them in JSON + Markdown outputs alongside the existing metrics. Files: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py:96-131, 206-256, 276-285, 316-341`.
 - [x] **Document instrumentation scope and hypotheses:** Added this Phase C.31 entry to `implementation.md` listing the captured quantities and the bisection strategy: compare `(I_pre_polar) / (F_cell·F_latt)²` for base vs scaled runs; if the ratio deviates from 1, inspect normalization branch after `F_total = F_cell * F_latt`; if ratio is constant, the missing multiplier lies in Lorentz/polarization path.
-- [ ] **Execute probe and capture artifacts:** Run the updated probe under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-03T010000Z/` with full payload extraction and store JSON/Markdown/logs showing the derived ratios to determine the first divergence point in the intensity pipeline.
-- [ ] **Rerun enforcement test:** Execute `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` to archive current enforcement status alongside the new payload evidence.
-- [ ] **Update Attempts History:** Record the Phase C.31 loop in `docs/fix_plan.md` with timestamp, measured derived ratios, and decision: if derived evidence points to Lorentz or F_total computation, escalate to `patch_ready` with targeted fix; else continue bisection in C.32.
+- [x] **Execute probe and capture artifacts:** Ran the updated probe under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-03T010000Z/` with full payload extraction and stored JSON/Markdown/logs showing the derived ratios to determine the first divergence point in the intensity pipeline.
+- [x] **Rerun enforcement test:** Executed `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` to archive current enforcement status alongside the new payload evidence.
+- [x] **Update Attempts History:** Recorded the Phase C.31 loop in `docs/fix_plan.md` with timestamp, measured derived ratios, and next-step decision notes for C.32.
 
 **Hypotheses to confirm/refute:**
 1. If `F_latt_ratio ≠ Na·Nb·Nc`, then the sincg product is collapsing (contradicts C.30 trace evidence).
@@ -431,6 +431,11 @@ Result: Deterministic evidence now isolates the remaining divergence to the sinc
 5. If all ratios match expected but final intensity does not, then the polarization or post-polar normalization is wrong.
 
 **Evidence artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-03T010000Z/` containing `square_lattice_scaling.{json,md}`, `square_lattice_probe.log`, `pytest_partiality.log`.
+
+#### C.32 — sincg reference comparison (Planned — 2026-01-03 loop)
+- [ ] Build a high-precision reference evaluator (NumPy/Decimal) for the 1D lattice response `sin(NπΔh)/sin(πΔh)` and integrate it into `probe_square_lattice_scaling.py` so the single-pixel runs emit both the production `sincg` outputs and the analytic reference for every sampled fractional offset.
+- [ ] Extend the probe report to summarize per-axis error statistics (max/median absolute percentage error, locations of the worst Δh/Δk/Δl samples) and compute the compounded `F_latt` ratio between production vs reference to determine whether the deficit originates inside `sincg` or downstream multiplication/summing.
+- [ ] Add a JSON/Markdown section documenting the per-axis deviation tables and, if the mismatch is confined to the sincg kernel, promote the initiative to `implementation_ready` (Phase C.33) with a concrete `nanobrag_torch.utils.physics.sincg` patch proposal; otherwise, describe the remaining hypothesis (e.g., post-kernel normalization) in summary.md.
 
 ---
 

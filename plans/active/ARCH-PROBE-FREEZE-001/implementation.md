@@ -64,11 +64,13 @@ Stop the growth of shadow pipelines under `plans/active/**/bin`, migrate decisio
 **Artifacts:** Updated source diffs, telemetry docs, and script tombstones stored under `plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/`.
 
 ## Phase C — Enforcement & Guardrails
-- [ ] C1: Author `tests/architecture/test_probe_contracts.py::test_plan_scripts_only_wrap_owner_apis` that enforces diagnostic_script_policy mechanically.
-    - `test_plan_bin_growth_cap` — iterate over `plans/active/**/bin/*.py`, compute LOC, and fail when a script exceeds ~400 LOC **unless** it appears in a clearly documented allowlist (`GROWTH_CAP_EXCEPTIONS`) that cites the outstanding Phase B migration (e.g., Stage A legacy baseline, crystal parity probe, etc.). Keeps new shadow pipelines from forming and forces explicit debt tracking.
-    - `test_probe_shims_delegate_to_owner_clis` — enumerate the plan-local shims delivered in Phase B (sigma embedding, mapping dataset metrics, smoke calibration) and assert their AST contains only imports + an `if __name__ == "__main__": tool.main()` block that invokes the canonical `dbex.tools.*` module. Fail if additional helpers/classes reappear.
-- [ ] C2: Update docs/diagnostic_script_policy and docs/TESTING_GUIDE.md with the new enforcement expectations and collection command for the architecture test (`pytest --collect-only tests/architecture/test_probe_contracts.py`), including guidance on maintaining the allowlists.
+- [x] C1: Author `tests/architecture/test_probe_contracts.py::test_plan_scripts_only_wrap_owner_apis` that enforces diagnostic_script_policy mechanically. **Complete (2025-12-31T010000Z)** — tests/architecture module now contains `test_plan_bin_growth_cap` (400 LOC cap + explicit `GROWTH_CAP_EXCEPTIONS` allowlist) and `test_probe_shims_delegate_to_owner_clis` (AST guard for the new shims). Docs/TESTING_GUIDE.md gained execution guidance, and artifacts live under `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-31T010000Z/`.
+- [ ] C2: Finalize policy docs so the mechanical guard becomes canonical guidance.
+    - Expand `prompts/supervisor.md::diagnostic_script_policy` with an explicit reference to `tests/architecture/test_probe_contracts.py`, allowlist maintenance rules, shim roster, and artifact expectations so future supervisors interpret the guard correctly.
+    - Cross-check `docs/TESTING_GUIDE.md` section that describes the enforcement test (added 2025-12-31) once the prompt updates land to keep the two sources in sync.
 - [ ] C3: Add CI/docs hooks (galph_prompt excerpt + findings) reminding future loops to add telemetry instead of scripts.
+    - Introduce a new knowledge-base entry in `docs/findings.md` (e.g., PROBE-FREEZE-001) that cites the architecture test, diagnostic policy section, and the requirement to migrate probes into owner telemetry before extending plan scripts.
+    - Update `docs/fix_plan.md`/Problems Ledger references once the finding is live so CI + planning tooling cross-link to the enforcement test.
 
 **Exit Artifact:** Architecture test log + enforcement summary under `plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/`.
 

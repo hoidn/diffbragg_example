@@ -1,0 +1,135 @@
+{
+  "probe_metadata": {
+    "timestamp": "2025-12-15T010000Z",
+    "initiative": "ARCH-SIM-CONSTRUCTION-001",
+    "phase": "C.11",
+    "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines with mapping parity metrics (DB-AT-027)",
+    "device": "cuda:0",
+    "apply_calibration_n_cells": true,
+    "spot_scale_override": 4.786110784894759e+17,
+    "warm_cache_available": true,
+    "stage_a_ctx_used": true,
+    "bragg_full_cached_available": true,
+    "mtz_file": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz",
+    "mtz_col": "F(+),SIGF(+),F(-),SIGF(-)",
+    "calibration_config_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json"
+  },
+  "telemetry_fields": {
+    "target_mean_masked": 87.11842346191406,
+    "model_mean_masked": 87.11842346191412,
+    "log_scale_baseline_value": NaN,
+    "log_scale_delta_clamped": -0.0007634966168552637,
+    "log_scale_clamped_value": NaN,
+    "scale_factor": 5203844096.0,
+    "log_scale_effective_initial": 22.373426605533158,
+    "variance_floor_value": 1.0
+  },
+  "reconstructed_bragg_before": {
+    "mean_masked": 87.11841583251953,
+    "mean_unmasked": 14.010913848876953,
+    "target_mean_masked": 87.11841583251953,
+    "target_mean_unmasked": 0.3439619839191437,
+    "chi_squared_per_pixel_initial": 1887335.3893719807,
+    "n_masked_pixels": 4140
+  },
+  "comparison": {
+    "target_mean_masked_match": false,
+    "target_mean_masked_delta": 7.62939453125e-06,
+    "model_mean_masked_vs_reconstructed_delta": 7.629394588093419e-06,
+    "model_mean_masked_vs_reconstructed_ratio": 1.0000000875749921
+  },
+  "mapping_comparison": {
+    "mapping_mean_masked": 64.37606811523438,
+    "mapping_mean_unmasked": 1.7966129779815674,
+    "stagea_vs_mapping_max_abs_diff_masked": 110477.015625,
+    "stagea_vs_mapping_max_abs_diff_unmasked": 1239738.0,
+    "stagea_vs_mapping_rmse_masked": 2550.710693359375,
+    "stagea_vs_mapping_rmse_unmasked": 2071.536865234375,
+    "chi_squared_per_pixel_mapping": 1003642.9913043479,
+    "chi_squared_per_pixel_stagea": 1887335.3893719807,
+    "chi_squared_per_pixel_relative_diff": 0.8804847995990829,
+    "roi_cc_stats": {
+      "mapping_vs_target": {
+        "median": -0.03727350963099443,
+        "p25": -0.06827340199446286,
+        "p75": -0.010129272389770407,
+        "min": -0.200784772654935,
+        "max": 0.6627663723783186
+      },
+      "stagea_vs_target": {
+        "median": -0.05335175303924372,
+        "p25": -0.07218450857996617,
+        "p75": -0.036032724728522744,
+        "min": -0.18232415279675318,
+        "max": 0.09018497252585499
+      },
+      "stagea_vs_mapping": {
+        "median": -0.044950176557510525,
+        "p25": -0.06882040393978592,
+        "p75": -0.01728275589335348,
+        "min": -0.12144846596282009,
+        "max": 0.18348589770955723
+      }
+    },
+    "n_rois_analyzed": 29,
+    "warnings": [
+      "Stage A vs mapping median ROI CC (-0.0450) < 0.99 (DB-AT-027 zero-point equivalence)",
+      "Stage A vs mapping max|\u0394| (1.105e+05 ADU) > 1.0 ADU (DB-AT-027 forward-model equality)",
+      "Stage A vs mapping chi\u00b2/pixel relative diff (8.805e-01) > 1e-3 (DB-AT-027 variance-weighted loss equality)"
+    ]
+  },
+  "db_at_thresholds": {
+    "DB_AT_027_stagea_vs_mapping_median_roi_cc_threshold": 0.99,
+    "DB_AT_027_stagea_vs_mapping_median_roi_cc_actual": -0.044950176557510525,
+    "DB_AT_027_stagea_vs_mapping_max_abs_diff_threshold_adu": 1.0,
+    "DB_AT_027_stagea_vs_mapping_max_abs_diff_actual_adu": 110477.015625,
+    "DB_AT_027_chi2_relative_diff_threshold": 0.001,
+    "DB_AT_027_chi2_relative_diff_actual": 0.8804847995990829,
+    "DB_AT_027_pass": false,
+    "DB_AT_028_chi_squared_per_pixel_threshold": 100.0,
+    "DB_AT_028_chi_squared_per_pixel_actual": 1887335.3893719807,
+    "DB_AT_028_pass": false
+  },
+  "mask_metadata": {
+    "telemetry": {
+      "loss_mask_pixel_count": 4140,
+      "panel_true_pixels": [
+        24,
+        24,
+        24,
+        24,
+        12,
+        36,
+        12,
+        36,
+        36,
+        36,
+        36,
+        24,
+        48,
+        12,
+        24,
+        36,
+        12,
+        24,
+        48,
+        24,
+        48,
+        48,
+        36,
+        24,
+        48,
+        36,
+        12,
+        12,
+        12
+      ],
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "reconstruction": {
+      "loss_mask_pixel_count": 4140,
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "checksum_match": true
+  }
+}

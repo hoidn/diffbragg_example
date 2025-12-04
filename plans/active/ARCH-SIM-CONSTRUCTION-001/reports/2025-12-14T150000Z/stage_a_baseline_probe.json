@@ -1,0 +1,40 @@
+{
+  "probe_metadata": {
+    "timestamp": "2025-12-13T190000Z",
+    "initiative": "ARCH-SIM-CONSTRUCTION-001",
+    "phase": "C.9",
+    "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines",
+    "device": "cuda:0",
+    "apply_calibration_n_cells": true,
+    "spot_scale_override": 4.786110784894759e+17
+  },
+  "telemetry_fields": {
+    "target_mean_masked": 87.11842346191406,
+    "model_mean_masked": 3.770720958709717,
+    "log_scale_baseline_value": NaN,
+    "log_scale_delta_clamped": -0.00303287198767066,
+    "log_scale_clamped_value": NaN,
+    "scale_factor": 15935294464.0,
+    "log_scale_effective_initial": 23.49483452229385,
+    "variance_floor_value": 1.0
+  },
+  "reconstructed_bragg_before": {
+    "mean_masked": 3.8168137073516846,
+    "mean_unmasked": 57.54673385620117,
+    "target_mean_masked": 87.11841583251953,
+    "target_mean_unmasked": 0.3439619839191437,
+    "chi_squared_per_pixel_initial": 1870582.1062801932,
+    "n_masked_pixels": 4140
+  },
+  "comparison": {
+    "target_mean_masked_match": false,
+    "target_mean_masked_delta": 7.62939453125e-06,
+    "model_mean_masked_vs_reconstructed_delta": -0.04609274864196777,
+    "model_mean_masked_vs_reconstructed_ratio": 0.9879237625474916
+  },
+  "db_at_thresholds": {
+    "DB_AT_028_chi_squared_per_pixel_threshold": 100.0,
+    "DB_AT_028_chi_squared_per_pixel_actual": 1870582.1062801932,
+    "DB_AT_028_pass": false
+  }
+}

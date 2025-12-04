@@ -48,5 +48,55 @@
       "n_masked_pixels": 4140
     },
     "scale_factor_used": 24541319168.0
+  },
+  {
+    "timestamp": "2025-12-03T23:57:44.713908Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 15.792295455932617,
+      "mean_unmasked": 39.5907096862793
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 3.770720958709717
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 4.18813686530029,
+      "bragg_vs_target": 0.1812739052359774
+    },
+    "chi_squared": {
+      "per_pixel": 1230860.6144927535,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 15935294464.0
+  },
+  {
+    "timestamp": "2025-12-03T23:57:44.750576Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 3.8168137073516846,
+      "mean_unmasked": 57.54673385620117
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 3.770720958709717
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 1.0122238556357508,
+      "bragg_vs_target": 0.04381178962998252
+    },
+    "chi_squared": {
+      "per_pixel": 1870582.1062801932,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 15983693824.0
   }
 ]

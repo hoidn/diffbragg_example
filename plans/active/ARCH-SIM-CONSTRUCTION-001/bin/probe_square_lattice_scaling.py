@@ -197,6 +197,54 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
                     per_axis_data[f'delta_{axis_key}'] = delta_vals.cpu().numpy().astype(np.float64)
                     per_axis_data[f'F_latt_{axis_key}'] = f_latt_vals.cpu().numpy().astype(np.float64)
 
+        # C.37: Extract dual-basis HKL projection data and compute deltas vs production HKL
+        if 'trace_h_dual' in pstats and 'trace_k_dual' in pstats and 'trace_l_dual' in pstats:
+            h_dual = pstats['trace_h_dual']
+            k_dual = pstats['trace_k_dual']
+            l_dual = pstats['trace_l_dual']
+            if isinstance(h_dual, torch.Tensor) and isinstance(k_dual, torch.Tensor) and isinstance(l_dual, torch.Tensor):
+                h_dual_np = h_dual.cpu().numpy().astype(np.float64)
+                k_dual_np = k_dual.cpu().numpy().astype(np.float64)
+                l_dual_np = l_dual.cpu().numpy().astype(np.float64)
+                per_axis_data['h_dual'] = h_dual_np
+                per_axis_data['k_dual'] = k_dual_np
+                per_axis_data['l_dual'] = l_dual_np
+
+                # Compute deltas: production HKL - dual-basis HKL
+                if 'h' in per_axis_data and 'k' in per_axis_data and 'l' in per_axis_data:
+                    h_prod = per_axis_data['h']
+                    k_prod = per_axis_data['k']
+                    l_prod = per_axis_data['l']
+                    delta_h_dual = h_prod - h_dual_np
+                    delta_k_dual = k_prod - k_dual_np
+                    delta_l_dual = l_prod - l_dual_np
+                    per_axis_data['delta_h_dual'] = delta_h_dual
+                    per_axis_data['delta_k_dual'] = delta_k_dual
+                    per_axis_data['delta_l_dual'] = delta_l_dual
+
+                    # Compute summary stats for dual-basis deltas
+                    payload['dual_basis_delta_h_stats'] = {
+                        'min': float(np.min(delta_h_dual)),
+                        'median': float(np.median(delta_h_dual)),
+                        'max': float(np.max(delta_h_dual)),
+                    }
+                    payload['dual_basis_delta_k_stats'] = {
+                        'min': float(np.min(delta_k_dual)),
+                        'median': float(np.median(delta_k_dual)),
+                        'max': float(np.max(delta_k_dual)),
+                    }
+                    payload['dual_basis_delta_l_stats'] = {
+                        'min': float(np.min(delta_l_dual)),
+                        'median': float(np.median(delta_l_dual)),
+                        'max': float(np.max(delta_l_dual)),
+                    }
+
+        # C.37: Extract raw scattering vector (in Å⁻¹) when available
+        if 'trace_scattering_vector' in pstats:
+            scatter_vec = pstats['trace_scattering_vector']
+            if isinstance(scatter_vec, torch.Tensor):
+                per_axis_data['scattering_vector'] = scatter_vec.cpu().numpy().astype(np.float64)
+
         # Also extract trace_F_total_squared_pre_lorentz for per-subpixel intensity contribution
         if 'trace_F_total_squared_pre_lorentz' in pstats:
             f_total_sq_trace = pstats['trace_F_total_squared_pre_lorentz']
@@ -369,6 +417,19 @@ def main():
                     if ax in per_axis:
                         vals = per_axis[ax]
                         print(f"    {ax}: min={np.min(vals):.0f}, median={np.median(vals):.0f}, max={np.max(vals):.0f}")
+        # C.37: Display dual-basis HKL projection audit
+        if 'dual_basis_delta_h_stats' in payload_scaled or 'dual_basis_delta_k_stats' in payload_scaled or 'dual_basis_delta_l_stats' in payload_scaled:
+            print(f"  HKL projection audit (C.37 dual-basis solve):")
+            print(f"    Deltas: production_HKL - dual_basis_HKL (signed offsets)")
+            if 'dual_basis_delta_h_stats' in payload_scaled:
+                stats = payload_scaled['dual_basis_delta_h_stats']
+                print(f"    Δh: min={stats['min']:.6e}, median={stats['median']:.6e}, max={stats['max']:.6e}")
+            if 'dual_basis_delta_k_stats' in payload_scaled:
+                stats = payload_scaled['dual_basis_delta_k_stats']
+                print(f"    Δk: min={stats['min']:.6e}, median={stats['median']:.6e}, max={stats['max']:.6e}")
+            if 'dual_basis_delta_l_stats' in payload_scaled:
+                stats = payload_scaled['dual_basis_delta_l_stats']
+                print(f"    Δl: min={stats['min']:.6e}, median={stats['median']:.6e}, max={stats['max']:.6e}")
     print()
 
     # Compute observed ratio
@@ -666,13 +727,13 @@ def main():
         if payload_base:
             f.write("### Base Case (N_cells=1,1,1)\n")
             for k, v in payload_base.items():
-                if k not in ('per_axis_data', 'subpixel_offset_slow_stats', 'subpixel_offset_fast_stats'):
+                if k not in ('per_axis_data', 'subpixel_offset_slow_stats', 'subpixel_offset_fast_stats', 'dual_basis_delta_h_stats', 'dual_basis_delta_k_stats', 'dual_basis_delta_l_stats'):
                     f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
         if payload_scaled:
             f.write(f"### Scaled Case (N_cells={na},{nb},{nc})\n")
             for k, v in payload_scaled.items():
-                if k not in ('per_axis_data', 'subpixel_offset_slow_stats', 'subpixel_offset_fast_stats'):
+                if k not in ('per_axis_data', 'subpixel_offset_slow_stats', 'subpixel_offset_fast_stats', 'dual_basis_delta_h_stats', 'dual_basis_delta_k_stats', 'dual_basis_delta_l_stats'):
                     f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
             # C.36: Add subpixel offset summary before HKL stats
@@ -711,6 +772,27 @@ def main():
                             vals = per_axis[ax]
                             f.write(f"| {ax} | {np.min(vals):.0f} | {np.median(vals):.0f} | {np.max(vals):.0f} |\n")
                     f.write("\n")
+
+            # C.37: Add HKL projection audit via dual-basis solve
+            if 'dual_basis_delta_h_stats' in payload_scaled or 'dual_basis_delta_k_stats' in payload_scaled or 'dual_basis_delta_l_stats' in payload_scaled:
+                f.write("### HKL Projection Audit (Phase C.37)\n\n")
+                f.write("Alternate HKL projection via dual-basis matrix solve (`torch.linalg.solve`) compared to production dot-product approach.\n\n")
+                f.write("**Deltas**: production_HKL - dual_basis_HKL (signed offsets per subpixel)\n\n")
+                f.write("| Axis | Min | Median | Max |\n")
+                f.write("|------|-----|--------|-----|\n")
+                if 'dual_basis_delta_h_stats' in payload_scaled:
+                    stats = payload_scaled['dual_basis_delta_h_stats']
+                    f.write(f"| Δh | {stats['min']:.6e} | {stats['median']:.6e} | {stats['max']:.6e} |\n")
+                if 'dual_basis_delta_k_stats' in payload_scaled:
+                    stats = payload_scaled['dual_basis_delta_k_stats']
+                    f.write(f"| Δk | {stats['min']:.6e} | {stats['median']:.6e} | {stats['max']:.6e} |\n")
+                if 'dual_basis_delta_l_stats' in payload_scaled:
+                    stats = payload_scaled['dual_basis_delta_l_stats']
+                    f.write(f"| Δl | {stats['min']:.6e} | {stats['median']:.6e} | {stats['max']:.6e} |\n")
+                f.write("\n")
+                f.write("**Interpretation**: If the dual-basis solve produces HKL values that are closer to integers ")
+                f.write("than the production dot-product approach, this suggests a bug in the HKL projection logic. ")
+                f.write("If both approaches yield similar offsets from integers, the issue lies upstream (detector geometry or oversample grid construction).\n\n")
 
         if derived_ratios:
             f.write("### Derived Ratios\n\n")

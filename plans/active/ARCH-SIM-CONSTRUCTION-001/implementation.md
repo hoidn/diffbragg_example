@@ -469,6 +469,15 @@ Result: Deterministic evidence now isolates the remaining divergence to the sinc
   2. Thread these tensors through `_partiality_stats` (e.g., `trace_scattering_vec`, `trace_hkl_projection_reference`) and extend the square-lattice probe to compute delta between production HKL and the analytic solve.
 - [ ] **Validation:** Re-run the single-pixel probe plus the partiality architecture test, then summarize whether the alternate projection yields integer-aligned k/l. Evidence will decide whether the next implementation loop patches `_compute_physics_for_position` to use the proper dual basis or applies an explicit correction term.
 
+#### C.38 — Oversample accumulation sanity check (Complete — 2026-01-10T150000Z)
+- [x] **Objective:** Prove whether the remaining `(Na·Nb·Nc)^2` deficit is inherent to the oversample accumulation path or still tied to sincg/HKL math.
+- [x] **Method:** Reran the sanctioned single-pixel probe with oversample toggled between 1 (disabled) and {5, 13}, storing artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-10T150000Z/` and comparing against the `oversample=13` evidence captured at `.../2026-01-10T010000Z/`.
+- [x] **Key evidence:**
+  - `os1_square_lattice_scaling.{json,md}` — oversample disabled. Observed ratio **1,447,642,850.1** vs expected **1,447,650,304.0** (0.0005 % error). `F_latt` telemetry spikes at 38,047.9, confirming `(Na·Nb·Nc)` parity when there is a single sample per pixel.
+  - `os5_square_lattice_scaling.{json,md}` — oversample enabled (5×5). Observed ratio **137,151,105.6** (9.47 % of spec), matching the 13×13 probe (`reports/2026-01-10T010000Z/square_lattice_scaling.*`) which now has Δk=Δl=0 for 48 % of subpixels yet still delivers only 0.0939× the expected intensity. `partiality_stats['f_latt']` still contains ±38k spikes; the summary drops to ≈4.2k because we are effectively averaging per-subpixel samples.
+  - Oversample density no longer changes the deficit once Δk/Δl hit zero, so sincg, HKL projection, and beam geometry are exonerated; the remaining DMI lives in the oversample accumulation/normalization branch of `Simulator.run`.
+- [x] **Next action (Phase C.39 planning):** Instrument the oversample accumulation path to record (a) the raw sum of per-subpixel `F_total_squared_pre_lorentz`, (b) the per-subpixel and final `omega`/normalization factors, and (c) the final `normalized_intensity` that gets divided by `steps`. Compare those numbers against the oversample=1 baseline so we can identify the extra `≈0.094×` factor and patch the owner code, keeping evidence inside `nanobrag_torch`.
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

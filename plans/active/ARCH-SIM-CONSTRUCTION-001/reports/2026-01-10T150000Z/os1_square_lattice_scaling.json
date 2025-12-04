@@ -1,0 +1,196 @@
+{
+  "n_cells": {
+    "na": 41,
+    "nb": 29,
+    "nc": 32
+  },
+  "oversample": 1,
+  "detector": {
+    "spixels": 1,
+    "fpixels": 1
+  },
+  "phi_steps": 1,
+  "mosaic_domains": 1,
+  "device": "cpu",
+  "intensities": {
+    "base": 7.0248918533325195,
+    "scaled": 10169534464.0
+  },
+  "ratios": {
+    "expected": 1447650304,
+    "observed": 1447642850.0711653,
+    "relative_error": 5.148984401882695e-06,
+    "deviation_factor": 0.9999948510155982
+  },
+  "payload": {
+    "base": {
+      "F_cell": 100.0,
+      "F_latt": 1.0,
+      "intensity_pre_polar": 7024892.0,
+      "dual_basis_delta_h_stats": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "dual_basis_delta_k_stats": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "dual_basis_delta_l_stats": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "min_abs_delta_h": 3.0517578125e-05,
+      "min_abs_delta_k": 0.0,
+      "min_abs_delta_l": 0.0
+    },
+    "scaled": {
+      "F_cell": 100.0,
+      "F_latt": 38047.90234375,
+      "intensity_pre_polar": 1.0169534442897408e+16,
+      "dual_basis_delta_h_stats": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "dual_basis_delta_k_stats": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "dual_basis_delta_l_stats": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "min_abs_delta_h": 3.0517578125e-05,
+      "min_abs_delta_k": 0.0,
+      "min_abs_delta_l": 0.0
+    }
+  },
+  "derived_ratios": {
+    "F_latt_ratio": 38047.90234375,
+    "F_latt_ratio_expected": 38048,
+    "I_pre_polar_ratio": 1447642816.8429363,
+    "I_pre_polar_ratio_expected": 1447650304,
+    "base_I_pre_polar_over_F_total_sq": 702.4892,
+    "scaled_I_pre_polar_over_F_total_sq": 702.4891728656779
+  },
+  "reference_analysis": {},
+  "coverage_analysis": {
+    "n_subpixels": 1,
+    "n_central_lobe": 1,
+    "frac_central_lobe": 1.0,
+    "threshold_h": 0.024390243902439025,
+    "threshold_k": 0.034482758620689655,
+    "threshold_l": 0.03125,
+    "total_F_total_sq": 14476428443648.0,
+    "central_F_total_sq": 14476428443648.0,
+    "frac_intensity_from_central": 1.0,
+    "implied_ratio_from_coverage": 1447650304.0
+  },
+  "debug_stats": {
+    "base": {
+      "partiality_stats": {
+        "steps_scalar": 1,
+        "min_abs_delta_h": 3.0517578125e-05,
+        "min_abs_delta_k": 0.0,
+        "min_abs_delta_l": 0.0,
+        "F_cell": [
+          [
+            [
+              [
+                100.0
+              ]
+            ]
+          ]
+        ],
+        "f_latt": [
+          [
+            [
+              [
+                1.0
+              ]
+            ]
+          ]
+        ],
+        "f_latt_squared": [
+          [
+            [
+              [
+                1.0
+              ]
+            ]
+          ]
+        ],
+        "lorentz_factor": [
+          [
+            702.4891967773438
+          ]
+        ],
+        "intensity_pre_polar": [
+          [
+            7024892.0
+          ]
+        ],
+        "polarization_factor": [
+          [
+            1.0
+          ]
+        ]
+      }
+    },
+    "scaled": {
+      "partiality_stats": {
+        "steps_scalar": 1,
+        "min_abs_delta_h": 3.0517578125e-05,
+        "min_abs_delta_k": 0.0,
+        "min_abs_delta_l": 0.0,
+        "F_cell": [
+          [
+            [
+              [
+                100.0
+              ]
+            ]
+          ]
+        ],
+        "f_latt": [
+          [
+            [
+              [
+                38047.90234375
+              ]
+            ]
+          ]
+        ],
+        "f_latt_squared": [
+          [
+            [
+              [
+                1447642880.0
+              ]
+            ]
+          ]
+        ],
+        "lorentz_factor": [
+          [
+            702.4891967773438
+          ]
+        ],
+        "intensity_pre_polar": [
+          [
+            1.0169534442897408e+16
+          ]
+        ],
+        "polarization_factor": [
+          [
+            1.0
+          ]
+        ]
+      }
+    }
+  }
+}

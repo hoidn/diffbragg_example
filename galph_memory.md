@@ -2632,3 +2632,23 @@ Action State: planning
 
 **Next Actions**:
 - implementation_ready — Ralph to patch `nanobrag_torch/config.py::DetectorConfig.__post_init__` (MOSFLM/DENZO auto defaults := `(detsize - pixel)/2` so the +0.5 mapping recenters any detector), update the inline comments, and rerun the square-lattice probe plus `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1` while capturing artifacts under the new timestamp per input.md.
+
+## Loop 2026-01-10T150000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase C.38 oversample accumulation audit)
+**State**: planning
+**Dwell**: 0 (fresh planning loop after the beam-center implementation)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Running the sanctioned single-pixel probe with oversample disabled (`--oversample 1`) restored `(Na·Nb·Nc)^2` scaling within 0.0005 % (observed ratio 1,447,642,850.1 vs expected 1,447,650,304.0), proving the simulator is correct when only one sample per pixel is rendered.
+2. Re-running the probe with oversample=5 (and comparing against the existing oversample=13 evidence) kept the deficit frozen at ≈9.4 % of spec even though Δk/Δl now straddle zero for roughly half the subpixels, so sincg, HKL projection, and beam geometry are ruled out.
+3. Partiality payloads show per-subpixel `f_latt` tensors still contain ±38k spikes while the aggregated value collapses to ≈4.2k because we are averaging the contributions. `intensity_pre_polar_ratio` tracks the RMS rather than the sum, pinning the remaining DMI on the oversample accumulation/normalization branch of `Simulator.run`.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-10T150000Z/`
+
+**Next Actions**:
+- parity_localization — Instrument the oversample accumulation path (Phase C.39) so `_partiality_stats` records (a) the raw sum of per-subpixel `F_total_squared_pre_lorentz`, (b) the per-subpixel and final `omega`/normalization scalars, and (c) the final `normalized_intensity` before the `/ steps` division. Compare those values against the oversample=1 baseline, then patch `Simulator.run` so SQUARE lattices retain integral semantics whenever `oversample>1`. No new plan-local probes allowed.
+
+Action State: planning

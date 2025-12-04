@@ -239,10 +239,20 @@ def main():
     telemetry_dict = engine.run({"context": refinement_context})
 
     # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Extract artifacts for warm cache access
-    stage_a_artifacts = engine._artifacts["stage_a"]
+    # Use defensive lookup per input.md requirement (fallback when artifacts missing)
+    stage_a_artifacts = getattr(engine, "_artifacts", {}).get("stage_a")
+    bragg_full_cached = None
+    stage_a_ctx_cached = None
+    if stage_a_artifacts:
+        bragg_full_cached = stage_a_artifacts.bragg_full
+        stage_a_ctx_cached = stage_a_artifacts.stage_a_ctx
 
     telemetry = telemetry_dict["stage_a"]
     print("[Stage A Baseline Probe] Stage A complete, extracting telemetry and artifacts...")
+    if stage_a_artifacts:
+        print("[Stage A Baseline Probe] Warm cache path: stage_a_artifacts available, reusing cached Bragg stack")
+    else:
+        print("[Stage A Baseline Probe] Cold fallback path: stage_a_artifacts missing, will reconstruct from telemetry")
 
     # Extract telemetry fields of interest
     param_deltas = telemetry.param_deltas if hasattr(telemetry, 'param_deltas') else {}
@@ -272,8 +282,13 @@ def main():
     scale_factor_telem = log_scale_effective_entry.get("scale_factor", float("nan"))
 
     # Reconstruct bragg_before from initial telemetry parameters
-    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Use stage_a_ctx from artifacts (warm cache)
-    print("[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry with warm cache...")
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Use stage_a_ctx from artifacts when available (warm cache)
+    # Thread the cached context if available; otherwise fall back to cold reconstruction
+    if stage_a_ctx_cached:
+        print("[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry with warm cache...")
+    else:
+        print("[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry (cold path, no cached context)...")
+
     bragg_before = build_final_bragg_from_stage_a_telemetry(
         telemetry_a=telemetry,
         detector=perturbed_detector,
@@ -285,7 +300,7 @@ def main():
         config=config,
         device=device_obj,
         dtype=config.dtype,
-        stage_a_ctx=stage_a_artifacts.stage_a_ctx,
+        stage_a_ctx=stage_a_ctx_cached,  # Use cached context if available, else None triggers cold path
         baseline_crystal=baseline_crystal,
         param_state="initial",  # Use initial telemetry params for zero-iteration baseline
     )
@@ -331,6 +346,9 @@ def main():
             "device": device,
             "apply_calibration_n_cells": apply_n_cells,
             "spot_scale_override": spot_scale_override_val,
+            "warm_cache_available": stage_a_artifacts is not None,
+            "stage_a_ctx_used": stage_a_ctx_cached is not None,
+            "bragg_full_cached_available": bragg_full_cached is not None,
         },
         "telemetry_fields": {
             "target_mean_masked": target_mean_masked_telem,

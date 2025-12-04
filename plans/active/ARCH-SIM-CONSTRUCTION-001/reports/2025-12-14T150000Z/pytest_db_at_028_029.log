@@ -95,7 +95,7 @@ stage_a_smoke_result = {'bragg_after': array([[[1.12246365e-04, 5.89058618e-04, 
 E       AssertionError: chi²/pixel initial 2.097e+05 exceeds 1e2 bound
 E       assert 209714.75169082126 <= 100.0
 
-tests/dbex/test_stage_a_smoke_parity.py:391: AssertionError
+tests/dbex/test_stage_a_smoke_parity.py:379: AssertionError
 ---------------------------- Captured stdout setup -----------------------------
 [ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
   scale_factor (recorded): 5.203844e+09
@@ -135,26 +135,6 @@ tests/dbex/test_stage_a_smoke_parity.py:391: AssertionError
   Telemetry model mean (masked): 1.157299e+01
   Ratio (bragg/telem): 0.107457
   Chi²/pixel: 1.883887e+06
-[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
-  scale_factor (recorded): 5.203844e+09
-  log_scale_effective (recorded): 22.372663
-  log_scale_baseline: 22.373427
-  log_scale_delta_clamped (recorded): -0.0007634966168552637
-  sqrt_spot_scale: 691817229.1071362
-  spot_scale_override: 4.786110784894759e+17
-  bragg_panel[0] mean (raw sim output): 2.772406e-09
-  bragg_panel[0] max: 1.356672e-04
-  bragg_scaled[0] mean (after scale_factor): 1.442717e+01
-  bragg_full mean (final output): 1.442717e+01
-  bragg_full max: 7.059909e+05
-[END DEBUG]
-[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/mask_coverage.json
-[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
-[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/baseline_stats.json
-  Reconstructed bragg mean (masked): 3.902979e-01
-  Telemetry model mean (masked): 1.157299e+01
-  Ratio (bragg/telem): 0.033725
-  Chi²/pixel: 1.888489e+06
 _______________________ test_db_at_029_structure_parity ________________________
 
 stage_a_smoke_result = {'bragg_after': array([[[1.12246365e-04, 5.89058618e-04, 2.97166477e-03, ...,
@@ -274,7 +254,7 @@ stage_a_smoke_result = {'bragg_after': array([[[1.12246365e-04, 5.89058618e-04, 
 E       AssertionError: median ROI correlation before refinement -0.054 below 0.2 floor
 E       assert -0.05385308538440642 >= 0.2
 
-tests/dbex/test_stage_a_smoke_parity.py:507: AssertionError
+tests/dbex/test_stage_a_smoke_parity.py:495: AssertionError
 ---------------------------- Captured stdout setup -----------------------------
 [ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
   scale_factor (recorded): 5.203844e+09
@@ -314,26 +294,6 @@ tests/dbex/test_stage_a_smoke_parity.py:507: AssertionError
   Telemetry model mean (masked): 1.157299e+01
   Ratio (bragg/telem): 0.107457
   Chi²/pixel: 1.883887e+06
-[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
-  scale_factor (recorded): 5.203844e+09
-  log_scale_effective (recorded): 22.372663
-  log_scale_baseline: 22.373427
-  log_scale_delta_clamped (recorded): -0.0007634966168552637
-  sqrt_spot_scale: 691817229.1071362
-  spot_scale_override: 4.786110784894759e+17
-  bragg_panel[0] mean (raw sim output): 2.772406e-09
-  bragg_panel[0] max: 1.356672e-04
-  bragg_scaled[0] mean (after scale_factor): 1.442717e+01
-  bragg_full mean (final output): 1.442717e+01
-  bragg_full max: 7.059909e+05
-[END DEBUG]
-[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/mask_coverage.json
-[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
-[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-14T150000Z/db_at_028/baseline_stats.json
-  Reconstructed bragg mean (masked): 3.902979e-01
-  Telemetry model mean (masked): 1.157299e+01
-  Ratio (bragg/telem): 0.033725
-  Chi²/pixel: 1.888489e+06
 =============================== warnings summary ===============================
 <frozen importlib._bootstrap>:228
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
@@ -358,4 +318,4 @@ FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
 assert 209714.75169082126 <= 100.0
 FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - AssertionError: median ROI correlation before refinement -0.054 below 0.2 floor
 assert -0.05385308538440642 >= 0.2
-======================== 2 failed, 5 warnings in 16.94s ========================
+======================== 2 failed, 5 warnings in 16.68s ========================

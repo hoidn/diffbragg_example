@@ -6,7 +6,10 @@
     "purpose": "Capture Stage A telemetry vs reconstructed bragg_before baselines",
     "device": "cuda:0",
     "apply_calibration_n_cells": true,
-    "spot_scale_override": 4.786110784894759e+17
+    "spot_scale_override": 4.786110784894759e+17,
+    "warm_cache_available": true,
+    "stage_a_ctx_used": true,
+    "bragg_full_cached_available": true
   },
   "telemetry_fields": {
     "target_mean_masked": 87.11842346191406,

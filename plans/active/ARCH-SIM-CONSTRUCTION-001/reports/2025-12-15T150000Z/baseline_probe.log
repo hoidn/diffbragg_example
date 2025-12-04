@@ -1,0 +1,67 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[Stage A Baseline Probe] Starting probe (device=cuda:0)
+[Stage A Baseline Probe] Output will be saved to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-15T150000Z/stage_a_baseline_probe.json
+[Stage A Baseline Probe] HKL source: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+[Stage A Baseline Probe] MTZ columns: F(+),SIGF(+),F(-),SIGF(-)
+[Stage A Baseline Probe] Calibration config: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json
+[Stage A Baseline Probe] Running RefinementEngine with Stage A...
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 5.203844e+09
+  log_scale_effective (recorded): 22.372663
+  log_scale_baseline: 22.373427
+  log_scale_delta_clamped (recorded): -0.0007634966168552637
+  sqrt_spot_scale: 691817229.1071362
+  spot_scale_override: 4.786110784894759e+17
+  bragg_panel[0] mean (raw sim output): 2.772406e-09
+  bragg_panel[0] max: 1.356672e-04
+  bragg_scaled[0] mean (after scale_factor): 1.442717e+01
+  bragg_full mean (final output): 1.442717e+01
+  bragg_full max: 7.059909e+05
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/baseline_stats.json
+  Reconstructed bragg mean (masked): 3.902979e-01
+  Telemetry model mean (masked): 1.157299e+01
+  Ratio (bragg/telem): 0.033725
+  Chi²/pixel: 1.888489e+06
+[Stage A Baseline Probe] Stage A complete, extracting telemetry and artifacts...
+[Stage A Baseline Probe] Warm cache path: stage_a_artifacts available, reusing cached Bragg stack
+[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry with warm cache...
+[ARCH-SIM-CONSTRUCTION-001 CACHE HIT] Returning cached zero-iteration Bragg stack for param_state='initial' (shape=(1, 1024, 1024))
+[Stage A Baseline Probe] Results written to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-15T150000Z/stage_a_baseline_probe.json
+
+================================================================================
+Stage A Baseline Telemetry vs Reconstruction Comparison
+================================================================================
+Metric                                             Telemetry       Reconstructed  
+--------------------------------------------------------------------------------
+target_mean_masked                                 8.711842e+01    8.711842e+01   
+model_mean_masked                                  1.157299e+01    1.157299e+01   
+log_scale_baseline_value                           nan             N/A            
+log_scale_delta_clamped                            -0.000763       N/A            
+log_scale_effective_initial                        22.373427       N/A            
+scale_factor                                       5.203844e+09    N/A            
+chi²/pixel (initial)                               N/A             1.888482e+06   
+--------------------------------------------------------------------------------
+DB-AT-028 threshold (chi²/pixel ≤ 1e2)             Threshold: 1e2                
+DB-AT-028 status                                   FAIL                          
+================================================================================
+
+Divergence Analysis:
+--------------------------------------------------------------------------------
+  target_mean_masked delta: 7.629395e-06
+  model_mean_masked delta: 0.000000e+00
+  model_mean_masked ratio: 1.000000
+================================================================================
+
+Mask Provenance Comparison:
+--------------------------------------------------------------------------------
+  Source               Pixel Count     Checksum (SHA1)                                   
+  -------------------- --------------- --------------------------------------------------
+  Telemetry            4140            6305df21a223636fe1f82f9c00f9041e7def78a0          
+  Reconstruction       4140            6305df21a223636fe1f82f9c00f9041e7def78a0          
+  -------------------- --------------- --------------------------------------------------
+  Mask Checksum Match: PASS
+================================================================================

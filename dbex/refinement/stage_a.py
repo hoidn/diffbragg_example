@@ -2144,12 +2144,20 @@ class StageA:
             mapping_context = MappingContextStub(roi_slices=refinement_inputs.panel_slices)
 
             # Collect baseline metrics using the telemetry_baseline helper
+            # ARCH-PROBE-FREEZE-001: Pass additional reconstruction parameters
             baseline_metrics = collect_stage_a_baseline_metrics(
                 stage_a_ctx=stage_a_ctx,
                 refinement_inputs=refinement_inputs,
                 telemetry=telemetry_a,
                 loss_mask=refinement_inputs.loss_mask,
                 mapping_context=mapping_context,
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                config=self._config,
+                baseline_crystal=baseline_crystal,
             )
 
             # Optional: dump to JSON if path configured

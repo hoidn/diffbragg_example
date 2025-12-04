@@ -34,6 +34,54 @@ def _artifact_dir(env_var: str) -> Path:
     return out
 
 
+def _resolve_baseline_metrics_path(request) -> Path:
+    """
+    Resolve baseline metrics path from DBEX_STAGE_A_BASELINE_METRICS_PATH env var.
+
+    Per ARCH-PROBE-FREEZE-001 Phase B.3: DB-AT selectors consume Stage A baseline
+    metrics via owner telemetry instead of recomputing stats externally.
+
+    Resolution logic:
+    - If env var points to a directory, append <test_name>_stage_a_baseline_metrics.json
+    - If env var points to a file (*.json), use it directly
+    - Creates parent directories as needed
+
+    Returns:
+        Resolved Path for baseline metrics JSON file
+    """
+    env_path = os.environ.get("DBEX_STAGE_A_BASELINE_METRICS_PATH")
+    if not env_path:
+        # Fallback: use test's own artifact dir if available
+        test_name = request.node.name
+        if test_name.startswith("test_db_at_028"):
+            env_var = "DBAT028_ARTIFACT_DIR"
+        elif test_name.startswith("test_db_at_029"):
+            env_var = "DBAT029_ARTIFACT_DIR"
+        else:
+            # For stage_a_smoke_result itself, skip (baseline metrics optional)
+            pytest.skip("DBEX_STAGE_A_BASELINE_METRICS_PATH not set; baseline metrics path cannot be resolved")
+
+        fallback_dir = os.environ.get(env_var)
+        if not fallback_dir:
+            pytest.skip(f"Neither DBEX_STAGE_A_BASELINE_METRICS_PATH nor {env_var} set")
+
+        base_path = Path(fallback_dir)
+        base_path.mkdir(parents=True, exist_ok=True)
+        return base_path / f"{test_name}_stage_a_baseline_metrics.json"
+
+    # Env var is set: check if directory or file
+    base_path = Path(env_path)
+    if base_path.suffix == ".json":
+        # Direct file path
+        base_path.parent.mkdir(parents=True, exist_ok=True)
+        return base_path
+    else:
+        # Directory: append test-specific filename
+        base_path.mkdir(parents=True, exist_ok=True)
+        test_name = request.node.name
+        return base_path / f"{test_name}_stage_a_baseline_metrics.json"
+
+
 def _masked_roi_corr(data_roi: np.ndarray, model_roi: np.ndarray, mask_roi: np.ndarray) -> float:
     mask_flat = np.asarray(mask_roi, dtype=bool)
     if not np.any(mask_flat):
@@ -68,6 +116,7 @@ def _roi_correlations(
 
 @pytest.fixture
 def stage_a_smoke_result(
+    request,
     hkl_data,
     refgeom_dataload,
     smoke_sigma_source,
@@ -75,6 +124,10 @@ def stage_a_smoke_result(
     """
     Stage A-only refinement (nearest-neighbor HKL) for DB-AT-028/029 gates.
     Uses build_mapping_stage_a_context to align HKL/calibration/inputs with mapping forward stack.
+
+    ARCH-PROBE-FREEZE-001 Phase B.3: Enables Stage A baseline metrics collection when
+    DBEX_STAGE_A_BASELINE_METRICS_PATH is set, wiring owner telemetry into DB-AT selectors
+    so parity evidence no longer depends on plan-local probes.
 
     Data dependencies:
         - Reuses the same ``refgeom_dataload`` inputs (geometry, mask, HKL
@@ -128,6 +181,18 @@ def stage_a_smoke_result(
         baseline_crystal, baseline_detector, baseline_beam
     )
 
+    # ARCH-PROBE-FREEZE-001 Phase B.3: Resolve baseline metrics path when env var is set
+    baseline_metrics_path = None
+    enable_baseline_metrics = False
+    if os.environ.get("DBEX_STAGE_A_BASELINE_METRICS_PATH"):
+        try:
+            baseline_metrics_path = str(_resolve_baseline_metrics_path(request))
+            enable_baseline_metrics = True
+        except Exception:
+            # If resolution fails (e.g., test name doesn't match DB-AT patterns),
+            # proceed without baseline metrics (optional feature)
+            pass
+
     config = RefinementConfig(
         device=device,
         dtype=torch.float32,
@@ -143,6 +208,8 @@ def stage_a_smoke_result(
             "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
         ),
         apply_calibration_n_cells=apply_n_cells,  # TOOLING-VIS-001 Phase D.C gate
+        enable_stage_a_baseline_metrics=enable_baseline_metrics,  # ARCH-PROBE-FREEZE-001 Phase B.3
+        stage_a_baseline_metrics_path=baseline_metrics_path,  # ARCH-PROBE-FREEZE-001 Phase B.3
     )
 
     # ARCH-REFACTOR-001 Phase D.3 Batch 2: Direct RefinementEngine usage
@@ -164,6 +231,9 @@ def stage_a_smoke_result(
     stage_a_artifacts = getattr(engine, "_artifacts", {}).get("stage_a")
     bragg_final = stage_a_artifacts.bragg_full if stage_a_artifacts else None
     stage_a_ctx = stage_a_artifacts.stage_a_ctx if stage_a_artifacts else None
+
+    # ARCH-PROBE-FREEZE-001 Phase B.3: Extract baseline metrics from artifacts
+    baseline_metrics = stage_a_artifacts.baseline_metrics if stage_a_artifacts else None
 
     telemetry = telemetry_dict["stage_a"]
     chi_trace = telemetry.chi_squared_trace_full or []
@@ -316,6 +386,9 @@ def stage_a_smoke_result(
         # Context objects for emitting mapping_context diagnostics (TOOLING-VIS-001)
         "mapping_context": mapping_context,
         "refgeom_dataload": refgeom_dataload,
+        # ARCH-PROBE-FREEZE-001 Phase B.3: Baseline metrics telemetry
+        "baseline_metrics": baseline_metrics,  # schema v1 dict from StageAArtifacts
+        "baseline_metrics_path": baseline_metrics_path,  # resolved JSON path (may be None)
     }
 
 
@@ -338,6 +411,29 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
     log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
 
     artifact_dir = _artifact_dir("DBAT028_ARTIFACT_DIR")
+
+    # ARCH-PROBE-FREEZE-001 Phase B.3: Assert baseline metrics JSON exists and copy to artifact tree
+    baseline_metrics_path = stage_a_smoke_result.get("baseline_metrics_path")
+    baseline_metrics = stage_a_smoke_result.get("baseline_metrics")
+    if baseline_metrics_path:
+        # When DBEX_STAGE_A_BASELINE_METRICS_PATH was set, validate JSON was emitted
+        baseline_json_path = Path(baseline_metrics_path)
+        assert baseline_json_path.exists(), f"Stage A baseline metrics JSON not found at {baseline_json_path}"
+
+        # Load and validate schema v1
+        with open(baseline_json_path, 'r') as f:
+            loaded_metrics = json.load(f)
+        assert loaded_metrics.get("schema_version") == "v1", f"Unexpected baseline metrics schema: {loaded_metrics.get('schema_version')}"
+
+        # Compare loaded JSON with in-memory baseline_metrics from StageAArtifacts
+        if baseline_metrics:
+            assert loaded_metrics == baseline_metrics, "Loaded baseline metrics JSON does not match StageAArtifacts.baseline_metrics"
+
+        # Copy to DB-AT-028 artifact tree for parity evidence
+        import shutil
+        dest_path = artifact_dir / "stage_a_baseline_metrics.json"
+        shutil.copy2(baseline_json_path, dest_path)
+        print(f"[ARCH-PROBE-FREEZE-001] Copied Stage A baseline metrics to {dest_path}")
 
     # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
     emit_mapping_context_diagnostics(
@@ -430,6 +526,29 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
     log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
 
     artifact_dir = _artifact_dir("DBAT029_ARTIFACT_DIR")
+
+    # ARCH-PROBE-FREEZE-001 Phase B.3: Assert baseline metrics JSON exists and copy to artifact tree
+    baseline_metrics_path = stage_a_smoke_result.get("baseline_metrics_path")
+    baseline_metrics = stage_a_smoke_result.get("baseline_metrics")
+    if baseline_metrics_path:
+        # When DBEX_STAGE_A_BASELINE_METRICS_PATH was set, validate JSON was emitted
+        baseline_json_path = Path(baseline_metrics_path)
+        assert baseline_json_path.exists(), f"Stage A baseline metrics JSON not found at {baseline_json_path}"
+
+        # Load and validate schema v1
+        with open(baseline_json_path, 'r') as f:
+            loaded_metrics = json.load(f)
+        assert loaded_metrics.get("schema_version") == "v1", f"Unexpected baseline metrics schema: {loaded_metrics.get('schema_version')}"
+
+        # Compare loaded JSON with in-memory baseline_metrics from StageAArtifacts
+        if baseline_metrics:
+            assert loaded_metrics == baseline_metrics, "Loaded baseline metrics JSON does not match StageAArtifacts.baseline_metrics"
+
+        # Copy to DB-AT-029 artifact tree for parity evidence
+        import shutil
+        dest_path = artifact_dir / "stage_a_baseline_metrics.json"
+        shutil.copy2(baseline_json_path, dest_path)
+        print(f"[ARCH-PROBE-FREEZE-001] Copied Stage A baseline metrics to {dest_path}")
 
     # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
     emit_mapping_context_diagnostics(

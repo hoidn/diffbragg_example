@@ -85,6 +85,14 @@ def collect_stage_a_baseline_metrics(
     telemetry: Any,  # RefinementTelemetry with params_initial
     loss_mask: torch.Tensor,  # [panel, slow, fast]
     mapping_context: Optional[Any] = None,  # MappingContext (optional, for ROI slicing)
+    # ARCH-PROBE-FREEZE-001: Additional parameters for reconstruction
+    detector: Optional[Any] = None,
+    beam: Optional[Any] = None,
+    crystal: Optional[Any] = None,
+    hkl_grid: Optional[torch.Tensor] = None,
+    hkl_metadata: Optional[Dict] = None,
+    config: Optional[Any] = None,
+    baseline_crystal: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Collect Stage A baseline metrics for parity diagnostics.
@@ -135,10 +143,21 @@ def collect_stage_a_baseline_metrics(
     from dbex.refinement.stage import RefinementTelemetry
 
     # Reconstruct Bragg from initial params using the provided telemetry
+    # ARCH-PROBE-FREEZE-001: Pass all required parameters for reconstruction
+    device_obj = torch.device(device)
     bragg_initial_np = build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry,
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        inputs=refinement_inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        device=device_obj,
+        dtype=dtype,
         stage_a_ctx=stage_a_ctx,
-        telemetry=telemetry,
-        refinement_inputs=refinement_inputs,
+        baseline_crystal=baseline_crystal,
         param_state="initial",
     )
 
@@ -146,35 +165,36 @@ def collect_stage_a_baseline_metrics(
     bragg_initial = torch.from_numpy(bragg_initial_np).to(device=device, dtype=dtype)
 
     # 3. Compute masked/unmasked means
-    loss_mask_bool = loss_mask.bool()
+    # Handle loss_mask: convert numpy arrays to torch if needed
+    if isinstance(loss_mask, np.ndarray):
+        loss_mask = torch.from_numpy(loss_mask).to(device=device, dtype=torch.bool)
+        loss_mask_bool = loss_mask
+    else:
+        loss_mask_bool = loss_mask.bool()
     n_masked_pixels = int(loss_mask_bool.sum().item())
     n_total_pixels = int(loss_mask.numel())
 
     # Masked means
+    # Note: target in RefinementInputs is already background-subtracted, so it aligns with bragg_initial directly
     target_mean_masked = float(target[loss_mask_bool].mean().item()) if n_masked_pixels > 0 else float("nan")
     bragg_mean_masked = float(bragg_initial[loss_mask_bool].mean().item()) if n_masked_pixels > 0 else float("nan")
 
-    # For model_mean_masked, add background to match model definition
-    # model = bragg + background (per spec-db-core.md:67)
-    background = refinement_inputs.background  # [panel, slow, fast]
-    if isinstance(background, np.ndarray):
-        background = torch.from_numpy(background).to(device=device, dtype=dtype)
-    model_initial = bragg_initial + background
-    model_mean_masked = float(model_initial[loss_mask_bool].mean().item()) if n_masked_pixels > 0 else float("nan")
+    # For baseline metrics, "model" = bragg (refinement_inputs.target is background-subtracted, so bragg is the model)
+    model_mean_masked = bragg_mean_masked
 
     # Unmasked means
     target_mean_unmasked = float(target.mean().item())
     bragg_mean_unmasked = float(bragg_initial.mean().item())
-    model_mean_unmasked = float(model_initial.mean().item())
+    model_mean_unmasked = bragg_mean_unmasked
 
     # 4. Compute chi²-per-pixel (variance-weighted loss)
     # Chi² = Σ[(target - model)² / variance] / n_pixels
     # Variance = model + sigma_readout² (Poisson + readout noise)
-    sigma = refinement_inputs.sigma  # [panel, slow, fast]
-    if isinstance(sigma, np.ndarray):
-        sigma = torch.from_numpy(sigma).to(device=device, dtype=dtype)
-    sigma_readout_sq = sigma**2
-    variance = model_initial + sigma_readout_sq
+    sigma_readout = refinement_inputs.sigma_readout  # [panel, slow, fast]
+    if isinstance(sigma_readout, np.ndarray):
+        sigma_readout = torch.from_numpy(sigma_readout).to(device=device, dtype=dtype)
+    sigma_readout_sq = sigma_readout**2
+    variance = bragg_initial + sigma_readout_sq  # variance = bragg + sigma_readout²
 
     # Apply variance floor if present in refinement_inputs
     if hasattr(refinement_inputs, 'sigma_floor_sq') and refinement_inputs.sigma_floor_sq is not None:

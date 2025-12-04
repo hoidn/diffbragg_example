@@ -58,6 +58,27 @@ export DBEX_SMOKE_TELEMETRY_PATH=plans/active/<initiative>/reports/<timestamp>/t
      `python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_roi.py --telemetry .../telemetry_stage_c_small.json --telemetry .../telemetry_stage_c_full.json --out .../stage_c_roi_summary.json | tee .../summarize_stage_c_roi.log`.
      This summary captures cache/ROI counters (`cache_mode`, `roi_mode`, `roi_count_*`, `closure_evals`, `validation_runs`, `forward_time_ms`) and detector-offset telemetry (`detector_offset_reduction_min`, `detector_offset_final_abs_max`) for both detector sizes so exit-criterion #2 has a self-contained artifact.
 
+**Stage A baseline metrics telemetry (optional):**
+```bash
+export DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/<initiative>/reports/<timestamp>/db_at_metrics_dir
+```
+- **Rationale**: When set, Stage A baseline metrics collection is enabled (masked/unmasked means, chi²-per-pixel, ROI Pearson correlations, ROI snippets) via the owner telemetry hook (`dbex.refinement.telemetry_baseline.collect_stage_a_baseline_metrics`). Per ARCH-PROBE-FREEZE-001 Phase B, DB-AT-028/029 selectors consume the production telemetry instead of recomputing stats externally, eliminating reliance on plan-local probe scripts.
+- **Scope**: Required for DB-AT-028/029 parity runs when baseline metrics evidence is needed. Optional otherwise (fixture gracefully skips when unset).
+- **Path semantics**: If the env var points to a directory, the fixture appends `<test_name>_stage_a_baseline_metrics.json` (e.g., `test_db_at_028_loss_scale_sanity_stage_a_baseline_metrics.json`). If it points to a file (ending in `.json`), that path is used directly. This allows unique per-test metrics files to avoid clobbering during parallel runs.
+- **Schema**: Baseline metrics JSON conforms to schema v1 (defined in `dbex/refinement/telemetry_baseline.py:17-48`) with fields: `masked_means` (target/model/bragg mean intensities), `unmasked_means`, `chi_squared` (chi²-per-pixel initial + n_masked_pixels), `roi_correlations` (per-ROI Pearson stats), and `roi_snippets` (bbox + masked means + correlation for top ROIs).
+- **DB-AT workflow**: Set this knob before running Stage A smoke tests that feed DB-AT-028/029. The Stage A fixture (`tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result`) will enable `config.enable_stage_a_baseline_metrics=True` and write the JSON via `config.stage_a_baseline_metrics_path`. DB-AT selectors then assert the JSON exists, validate schema v1, compare with in-memory `StageAArtifacts.baseline_metrics`, and copy the file into the test's artifact tree (`$DBAT028_ARTIFACT_DIR`/`$DBAT029_ARTIFACT_DIR`) for parity evidence.
+- **Example command (DB-AT-028/029)**:
+  ```bash
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+    DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/db_at_metrics_dir \
+    DBEX_SMOKE_SIGMA_SOURCE=metadata \
+    DBEX_SMOKE_DETECTOR_SIZE=full \
+    KMP_DUPLICATE_LIB_OK=TRUE \
+    NANOBRAGG_DISABLE_COMPILE=1 \
+    pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
+  ```
+- **Finding references**: ARCH-PROBE-FREEZE-001 (probe freeze & logging consolidation), prompts/supervisor.md:272-309 (diagnostic script policy), docs/architecture/data_telemetry_flow.md:1-120 (Stage A telemetry ownership).
+
 ### 1.2 Environment Assumptions (Freeze)
 
 - The environment is pre-provisioned. Do not install or upgrade packages (pip/conda/apt/brew) during test loops.

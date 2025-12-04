@@ -160,9 +160,10 @@ def stage_a_smoke_result(
     engine = RefinementEngine(stages, config=config)
     telemetry_dict = engine.run({"context": refinement_context})
 
-    # Extract Bragg and artifacts from Stage A
-    stage_a_artifacts = engine._artifacts["stage_a"]
-    bragg_final = stage_a_artifacts.bragg_full
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Defensive artifact lookup with fallback
+    stage_a_artifacts = getattr(engine, "_artifacts", {}).get("stage_a")
+    bragg_final = stage_a_artifacts.bragg_full if stage_a_artifacts else None
+    stage_a_ctx = stage_a_artifacts.stage_a_ctx if stage_a_artifacts else None
 
     telemetry = telemetry_dict["stage_a"]
     chi_trace = telemetry.chi_squared_trace_full or []
@@ -190,7 +191,7 @@ def stage_a_smoke_result(
         config=config,
         device=device_obj,
         dtype=config.dtype,
-        stage_a_ctx=stage_a_artifacts.stage_a_ctx,
+        stage_a_ctx=stage_a_ctx,  # Use cached context if available, else None triggers cold path
         baseline_crystal=baseline_crystal,
         param_state="initial",  # Use initial telemetry params for zero-iteration baseline
     )
@@ -198,8 +199,26 @@ def stage_a_smoke_result(
     # Build bragg_after from final telemetry parameters (post-refinement)
     # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Reuse cached bragg_full when available (warm path)
     # The cached bragg_final from artifacts represents the exact Stage A output,
-    # avoiding cold reconstruction path that drops warmed context
-    bragg_after = bragg_final
+    # avoiding cold reconstruction path that drops warmed context.
+    # If artifacts are missing, fall back to cold reconstruction.
+    if bragg_final is not None:
+        bragg_after = bragg_final
+    else:
+        bragg_after = build_final_bragg_from_stage_a_telemetry(
+            telemetry_a=telemetry,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            device=device_obj,
+            dtype=config.dtype,
+            stage_a_ctx=stage_a_ctx,
+            baseline_crystal=baseline_crystal,
+            param_state="final",
+        )
 
     # Compute log_scale_effective from telemetry.param_deltas per STAGEA-001
     log_scale_entry = telemetry.param_deltas.get("log_scale", {})

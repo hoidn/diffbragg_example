@@ -1,0 +1,207 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[Stage A Baseline Probe] Starting probe (device=cuda:0)
+[Stage A Baseline Probe] Geometry mode: baseline
+[Stage A Baseline Probe] Stage A mosaic domains: 16
+[Stage A Baseline Probe] Output will be saved to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T010000Z/stage_a_baseline_probe_baseline.json
+[Stage A Baseline Probe] HKL source: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+[Stage A Baseline Probe] MTZ columns: F(+),SIGF(+),F(-),SIGF(-)
+[Stage A Baseline Probe] Calibration config: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json
+[Stage A Baseline Probe] Running RefinementEngine with Stage A...
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 1.734565e+08
+  log_scale_effective (recorded): 18.971437
+  log_scale_baseline: 18.971437
+  log_scale_delta_clamped (recorded): 0.0
+  sqrt_spot_scale: 691817229.1071362
+  spot_scale_override: 4.786110784894759e+17
+  bragg_panel[0] mean (raw sim output): 1.532115e-08
+  bragg_panel[0] max: 1.162666e-03
+  bragg_scaled[0] mean (after scale_factor × baseline_alignment): 2.657553e+00
+  bragg_full mean (final output): 2.657553e+00
+  bragg_full max: 2.016720e+05
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(41, 29, 32), status=applied (apply_calibration_n_cells=True)
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/baseline_stats.json
+  Reconstructed bragg mean (masked): 9.967403e+01
+  Telemetry model mean (masked): 8.711842e+01
+  Ratio (bragg/telem): 1.144121
+  Chi²/pixel: 1.866962e+06
+[Stage A Baseline Probe] Stage A complete, extracting telemetry and artifacts...
+[Stage A Baseline Probe] Warm cache path: stage_a_artifacts available, reusing cached Bragg stack
+[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry with warm cache...
+[ARCH-SIM-CONSTRUCTION-001 CACHE HIT] Returning cached zero-iteration Bragg stack for param_state='initial' (shape=(1, 1024, 1024))
+[Stage A Baseline Probe] baseline_stats.json not found at plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T010000Z/baseline_stats.json; using defaults
+[Stage A Baseline Probe] Collecting Stage A HKL stats (debug context)...
+[Stage A Baseline Probe] WARNING: Stage A HKL stats collection failed: name 'args' is not defined
+[Stage A Baseline Probe] Collecting simulate_forward_once HKL stats...
+[Stage A Baseline Probe] WARNING: simulate_forward_once HKL stats collection failed: name 'args' is not defined
+[Stage A Baseline Probe] Built HKL lookup with 69614 entries
+[WARNING] 2 ROIs could not be matched to reflection table entries
+[WARNING] Total ROIs: 29, Reflections: 29, Matched: 27
+[Stage A Baseline Probe] Computing spot profiles with halo=10 pixels...
+[Stage A Baseline Probe] Spot profiles computed: 27 reflections
+  Median ROI fraction of halo: 0.6694
+  Median ROI fraction of panel: 0.000046
+[Stage A Baseline Probe] Computing orientation metrics...
+[Stage A Baseline Probe] Orientation metrics computed: 27 reflections
+  Median |Δhkl|: 0.0950
+  Median resolution: 3.60 Å
+  Pearson corr (|Δhkl| vs Stage A/ref ratio): -0.2813
+[Stage A Baseline Probe] Computing physics ledger (Lorentz/polarization factors)...
+[Stage A Baseline Probe] Physics ledger computed: 27 ROIs
+  Median Stage A / |F|²·LP: 0.0176
+  Pearson corr (LP vs ref): 0.9606
+[Stage A Baseline Probe] Computing partiality ledger (F_latt lattice factors)...
+[Stage A Baseline Probe] Partiality ledger computed: 27 ROIs
+  Median Stage A / |F|²·F_latt²·LP: 0.0000
+  Pearson corr (partiality·LP vs ref): -0.0605
+[Stage A Baseline Probe] Results written to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T010000Z/stage_a_baseline_probe_baseline.json
+[Stage A Baseline Probe] Spot-profile summary written to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T010000Z/spot_profile_summary.md
+
+================================================================================
+Stage A Baseline Telemetry vs Reconstruction Comparison
+================================================================================
+Metric                                             Telemetry       Reconstructed  
+--------------------------------------------------------------------------------
+target_mean_masked                                 8.711842e+01    8.711842e+01   
+model_mean_masked                                  8.711842e+01    8.711842e+01   
+log_scale_baseline_value                           nan             N/A            
+log_scale_delta_clamped                            0.000000        N/A            
+log_scale_effective_initial                        18.971437       N/A            
+scale_factor                                       1.734565e+08    N/A            
+chi²/pixel (initial)                               N/A             1.004349e+06   
+--------------------------------------------------------------------------------
+DB-AT-028 threshold (chi²/pixel ≤ 1e2)             Threshold: 1e2                
+DB-AT-028 status                                   FAIL                          
+================================================================================
+
+Divergence Analysis:
+--------------------------------------------------------------------------------
+  target_mean_masked delta: 7.629395e-06
+  model_mean_masked delta: 0.000000e+00
+  model_mean_masked ratio: 1.000000
+================================================================================
+
+Mask Provenance Comparison:
+--------------------------------------------------------------------------------
+  Source               Pixel Count     Checksum (SHA1)                                   
+  -------------------- --------------- --------------------------------------------------
+  Telemetry            4140            6305df21a223636fe1f82f9c00f9041e7def78a0          
+  Reconstruction       4140            6305df21a223636fe1f82f9c00f9041e7def78a0          
+  -------------------- --------------- --------------------------------------------------
+  Mask Checksum Match: PASS
+================================================================================
+
+Mapping Baseline Diagnostics (ARCH-SIM-CONSTRUCTION-001):
+================================================================================
+Mapping masked-mean scaling applied                YES                           
+  Target mean (masked)                             8.711842e+01                  
+  Bragg mean before scaling (masked)               3.320780e+02                  
+  Masked mean ratio (target/bragg)                 2.623433e-01                  
+  Log-scale baseline source                        mapping_masked_mean_adjustment
+================================================================================
+
+Mapping Parity Comparison (DB-AT-027):
+================================================================================
+Metric                                             Mapping         Stage A         Status    
+--------------------------------------------------------------------------------
+Mean (masked) [ADU]                                8.711841e+01    8.711842e+01              
+Mean (unmasked) [ADU]                              2.043390e+00    1.954474e+00              
+Chi²/pixel vs target                               1.010705e+06    1.004349e+06              
+--------------------------------------------------------------------------------
+Max|Δ| (masked) [ADU]                                              3.249156e+03    FAIL      
+RMSE (masked) [ADU]                                                8.966399e+01              
+Chi²/pixel relative diff                                           6.288348e-03    FAIL      
+--------------------------------------------------------------------------------
+ROI Correlations (n={len(valid_stagea_vs_mapping)})                                           
+  Mapping vs Target (median)                       -0.0349                                   
+  Stage A vs Target (median)                       -0.0371                                   
+  Stage A vs Mapping (median)                      0.9984                          PASS      
+  Stage A vs Mapping (min/max)                     0.9846  / 1.0000                            
+--------------------------------------------------------------------------------
+DB-AT-027 overall status                                                           FAIL      
+================================================================================
+
+DB-AT-027 Parity Warnings:
+--------------------------------------------------------------------------------
+  - Stage A vs mapping max|Δ| (3.249e+03 ADU) > 1.0 ADU (DB-AT-027 forward-model equality)
+  - Stage A vs mapping chi²/pixel relative diff (6.288e-03) > 1e-3 (DB-AT-027 variance-weighted loss equality)
+================================================================================
+
+ROI-Level Diagnostics (Phase C.15):
+================================================================================
+Total ROIs analyzed: 29
+Valid ROIs (finite Stage A vs target CC): 29
+
+Bottom 5 ROIs (worst Stage A vs target correlation):
+--------------------------------------------------------------------------------
+  Panel:BBox           CC(StgA↔Tgt)    CC(Map↔Tgt)     Δ(StgA-Tgt)     N_pix     
+  -------------------- --------------- --------------- --------------- ----------
+  0:[897,909,17,29]    -0.2006         -0.2008         -7.800166e+00   144       
+  0:[350,362,877,889]  -0.1623         -0.1553         5.437110e+00    144       
+  0:[535,547,842,854]  -0.1367         -0.1337         -9.801235e+00   144       
+  0:[661,673,940,952]  -0.1288         -0.1203         -3.270081e+00   144       
+  0:[644,656,21,33]    -0.1228         -0.1213         -7.670145e+00   144       
+
+Top 5 ROIs (best Stage A vs target correlation):
+--------------------------------------------------------------------------------
+  Panel:BBox           CC(StgA↔Tgt)    CC(Map↔Tgt)     Δ(StgA-Tgt)     N_pix     
+  -------------------- --------------- --------------- --------------- ----------
+  0:[431,443,434,446]  0.6629          0.6643          8.942548e+02    144       
+  0:[739,751,610,622]  0.6004          0.6036          7.963978e-01    144       
+  0:[275,287,303,315]  0.3659          0.3709          1.287512e+03    144       
+  0:[645,657,284,296]  0.0858          0.0797          2.224049e+00    144       
+  0:[943,955,583,595]  0.0762          0.0830          -4.585798e+02   144       
+================================================================================
+
+Reflection-Table Reference Comparison (Phase C.16):
+================================================================================
+Total reflections in table: 29
+Reflections matched to ROIs: 27
+ROIs without reflection match: 2
+
+Reflection vs Stage A/Mapping/Target Ratios:
+--------------------------------------------------------------------------------
+  Metric                         Median       P25-P75              Min-Max             
+  ------------------------------ ------------ -------------------- --------------------
+  Stage A / Refl (intensity)     0.0500       0.0118 - 0.8006    0.0000 - 514.4630 
+  Mapping / Refl (intensity)     0.0515       0.0118 - 0.8171    0.0000 - 539.7784 
+  Target / Refl (intensity)      1.0196       0.9966 - 1.4382    0.7228 - 2.0608   
+
+HKL Amplitude Ledger (Phase C.17):
+--------------------------------------------------------------------------------
+  Metric                         Median       P25-P75              Min-Max             
+  ------------------------------ ------------ -------------------- --------------------
+  |F|^2/pix / Refl (intensity)   1.1447       0.5188 - 11.6163   0.2893 - 6872.3114
+  Stage A / |F|^2/pix            0.0714       0.0012 - 0.1877    0.0001 - 22.9360  
+
+  HKL lookup entries: 69614
+  HKL source: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+  MTZ columns: F(+),SIGF(+),F(-),SIGF(-)
+
+Bottom 5 ROIs (worst Stage A vs reflection match):
+--------------------------------------------------------------------------------
+  Panel:BBox           HKL          |F|^2/pix    StgA/|F|^2   StgA/Refl    N_pix     
+  -------------------- ------------ ------------ ------------ ------------ ----------
+  0:[431,443,434,446]  0,2,-2       3.9097e+01   22.9360      514.4630     144       
+  0:[121,133,288,300]  1,6,-9       6.1589e+02   0.0909       3.7583       144       
+  0:[739,751,610,622]  -2,-4,4      6.3761e-01   2.9243       2.7397       144       
+  0:[144,156,619,631]  4,1,-6       3.3753e+02   0.1703       2.2045       144       
+  0:[350,362,877,889]  4,-5,-1      3.7225e+04   0.0003       2.0387       144       
+
+Top 5 ROIs (best Stage A vs reflection match):
+--------------------------------------------------------------------------------
+  Panel:BBox           HKL          |F|^2/pix    StgA/|F|^2   StgA/Refl    N_pix     
+  -------------------- ------------ ------------ ------------ ------------ ----------
+  0:[605,617,156,168]  -5,4,-2      1.2115e+01   0.0444       0.9213       144       
+  0:[477,489,595,607]  1,-1,0       1.0470e-01   1.3528       0.6798       144       
+  0:[407,419,630,642]  2,-1,-1      3.6037e+00   0.3471       0.3959       144       
+  0:[943,955,583,595]  -5,-6,6      2.0337e+02   0.7105       0.2395       144       
+  0:[459,471,275,287]  -2,4,-3      1.5084e+00   0.1213       0.1550       144       
+================================================================================
+
+ERROR: Baseline mode parity check FAILED
+Stage A vs mapping outputs should be identical in baseline mode.
+See warnings above for details.

@@ -478,6 +478,15 @@ Result: Deterministic evidence now isolates the remaining divergence to the sinc
   - Oversample density no longer changes the deficit once Δk/Δl hit zero, so sincg, HKL projection, and beam geometry are exonerated; the remaining DMI lives in the oversample accumulation/normalization branch of `Simulator.run`.
 - [x] **Next action (Phase C.39 planning):** Instrument the oversample accumulation path to record (a) the raw sum of per-subpixel `F_total_squared_pre_lorentz`, (b) the per-subpixel and final `omega`/normalization factors, and (c) the final `normalized_intensity` that gets divided by `steps`. Compare those numbers against the oversample=1 baseline so we can identify the extra `≈0.094×` factor and patch the owner code, keeping evidence inside `nanobrag_torch`.
 
+#### C.39 — Oversample omega compensation (Planned — next loop)
+- [ ] **Diagnosis recap:** Latest instrumentation (`reports/2026-01-11T010000Z/`) proved the oversample>1 branch reduces the accumulated subpixel sum by ~1e-6 because `Simulator.run` multiplies by `last_omega` without compensating for the Riemann-sum semantics we adopted in Phase C.35. Oversample=1 remains correct, so only the oversample>1 + `CrystalShape.SQUARE` path requires surgery.
+- [ ] **Implementation scope:**
+  1. In `src/nanobrag-torch/src/nanobrag_torch/simulator.py::Simulator.run`, refactor the oversample>1 block so SQUARE lattices accumulate the raw `subpixel_physics_intensity_all` sum without immediately multiplying by `omega_all`/`last_omega`. Instead, apply the Lorentz `omega_scalar` exactly once after the sum (matching the oversample=1 branch) so integral semantics are preserved. Non-SQUARE shapes keep the existing averaging behaviour.
+  2. Preserve the new debug fields (`trace_subpixel_F_total_sq_sum`, `trace_subpixel_omega_*`, `trace_normalized_intensity`) and extend them if needed (e.g., record a boolean showing whether the single omega application fired) so the single-pixel probe can prove the fix recovered the missing 1e-6 factor.
+  3. Update `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` to assert the oversample>1 cpu/cuda legs now hit `(Na·Nb·Nc)^2` within ≤1 % tolerance and to guard the new telemetry field(s).
+  4. Because we are editing the vendored `nanobrag_torch` source, capture the diff under `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/omega_compensation.patch`, re-run `python -m pip install -e src/nanobrag-torch`, and log the rebuild/tag name in `patches/environment_tag.md` plus `docs/findings.md::SIM-CONSTR-PARTIALITY-001` per the Environment Freeze exception.
+- [ ] **Validation:** Re-run the single-pixel probe (oversample=13), the partiality architecture test, and DB-AT-028/029 under a fresh timestamp (`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<ISO8601>/`) with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and all ledger flags enabled. Artifact bundle must include square_lattice_scaling.{json,md}, pytest logs, and DB-AT metrics showing chi²/ROI trends improving toward spec.
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

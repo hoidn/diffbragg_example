@@ -1,0 +1,137 @@
+commit 9c0d6ed3b0834ae53ca8a1b6a864ad069da1aa3e
+Author: ollie <ohoidn>
+Date:   Thu Dec 4 01:34:02 2025 -0800
+
+    ARCH-SIM-CONSTRUCTION-001: Fix SQUARE lattice sincg precision (SIM-CONSTR-PARTIALITY-001)
+    
+    Upcast fractional HKL deltas (h-h0, k-k0, l-l0) to float64 before sincg
+    evaluation to preserve (Na·Nb·Nc)² lattice weight scaling near integer
+    Miller indices. Float32 underflows cause sincg to return incorrect values
+    when delta ≈ 0, collapsing the expected partiality boost.
+    
+    Changes:
+    - simulator.py lines 299-315: compute deltas in float64, evaluate sincg,
+      then downcast F_latt back to simulator dtype before combining with F_cell
+    - Use torch.as_tensor() instead of torch.tensor() to handle both scalar
+      and tensor N_cells inputs
+    
+    Contract: docs/spec-db-core.md:60-140 (lattice weights ∝ (Na·Nb·Nc)²)
+    Finding: SIM-CONSTR-PARTIALITY-001
+    Tag: nanobrag-partiality-2025-12-26
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+diff --git a/plans/active/ARCH-SIM-CONSTRUCTION-001/patches/partiality_fix.patch b/plans/active/ARCH-SIM-CONSTRUCTION-001/patches/partiality_fix.patch
+new file mode 100644
+index 00000000..4f6f56c3
+--- /dev/null
++++ b/plans/active/ARCH-SIM-CONSTRUCTION-001/patches/partiality_fix.patch
+@@ -0,0 +1,42 @@
++diff --git a/src/nanobrag_torch/simulator.py b/src/nanobrag_torch/simulator.py
++index c9b8f001..9bf8c4ae 100644
++--- a/src/nanobrag_torch/simulator.py
+++++ b/src/nanobrag_torch/simulator.py
++@@ -293,17 +293,26 @@ def compute_physics_for_position(
++ 
++     if shape == CrystalShape.SQUARE:
++         # Compute fractional offsets from reflection centers (h-h0, k-k0, l-l0)
++-        # to avoid sincg collapse at integer Miller indices. Keep in native dtype.
++-        delta_h = h - h0
++-        delta_k = k - k0
++-        delta_l = l - l0
++-
++-        # Evaluate sincg on fractional offsets. The sincg function internally handles
++-        # precision via special-case logic for small/integer arguments.
++-        F_latt_a = sincg(torch.pi * delta_h, Na)
++-        F_latt_b = sincg(torch.pi * delta_k, Nb)
++-        F_latt_c = sincg(torch.pi * delta_l, Nc)
++-        F_latt = F_latt_a * F_latt_b * F_latt_c
+++        # in float64 to avoid sincg collapse at integer Miller indices.
+++        # ARCH-SIM-CONSTRUCTION-001: Upcast deltas to float64 before sincg evaluation
+++        # to preserve the Na·Nb·Nc scaling near integer HKLs (SIM-CONSTR-PARTIALITY-001).
+++        delta_h = (h - h0).to(torch.float64)
+++        delta_k = (k - k0).to(torch.float64)
+++        delta_l = (l - l0).to(torch.float64)
+++
+++        # Evaluate sincg on fractional offsets in float64. The sincg function returns
+++        # values proportional to N when the fractional offset is tiny.
+++        # Convert Na, Nb, Nc to tensors on the correct device for sincg.
+++        Na_tensor = torch.tensor(Na, dtype=torch.float64, device=delta_h.device)
+++        Nb_tensor = torch.tensor(Nb, dtype=torch.float64, device=delta_k.device)
+++        Nc_tensor = torch.tensor(Nc, dtype=torch.float64, device=delta_l.device)
+++
+++        F_latt_a = sincg(torch.pi * delta_h, Na_tensor)
+++        F_latt_b = sincg(torch.pi * delta_k, Nb_tensor)
+++        F_latt_c = sincg(torch.pi * delta_l, Nc_tensor)
+++
+++        # Downcast final F_latt product back to simulator dtype before combining with F_cell
+++        F_latt = (F_latt_a * F_latt_b * F_latt_c).to(h.dtype)
++     elif shape == CrystalShape.ROUND:
++         h_frac = h - h0
++         k_frac = k - k0
+diff --git a/plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/git_status.txt b/plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/git_status.txt
+new file mode 100644
+index 00000000..06d10a50
+--- /dev/null
++++ b/plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/git_status.txt
+@@ -0,0 +1,4 @@
++## HEAD (no branch)
++ M src/nanobrag_torch/__pycache__/simulator.cpython-39.pyc
++ M src/nanobrag_torch/simulator.py
++?? plans/active/ARCH-SIM-CONSTRUCTION-001/
+diff --git a/src/nanobrag_torch/__pycache__/simulator.cpython-39.pyc b/src/nanobrag_torch/__pycache__/simulator.cpython-39.pyc
+index a50ca384..abb62f37 100644
+Binary files a/src/nanobrag_torch/__pycache__/simulator.cpython-39.pyc and b/src/nanobrag_torch/__pycache__/simulator.cpython-39.pyc differ
+diff --git a/src/nanobrag_torch/simulator.py b/src/nanobrag_torch/simulator.py
+index c9b8f001..5d5778bb 100644
+--- a/src/nanobrag_torch/simulator.py
++++ b/src/nanobrag_torch/simulator.py
+@@ -293,17 +293,27 @@ def compute_physics_for_position(
+ 
+     if shape == CrystalShape.SQUARE:
+         # Compute fractional offsets from reflection centers (h-h0, k-k0, l-l0)
+-        # to avoid sincg collapse at integer Miller indices. Keep in native dtype.
+-        delta_h = h - h0
+-        delta_k = k - k0
+-        delta_l = l - l0
+-
+-        # Evaluate sincg on fractional offsets. The sincg function internally handles
+-        # precision via special-case logic for small/integer arguments.
+-        F_latt_a = sincg(torch.pi * delta_h, Na)
+-        F_latt_b = sincg(torch.pi * delta_k, Nb)
+-        F_latt_c = sincg(torch.pi * delta_l, Nc)
+-        F_latt = F_latt_a * F_latt_b * F_latt_c
++        # in float64 to avoid sincg collapse at integer Miller indices.
++        # ARCH-SIM-CONSTRUCTION-001: Upcast deltas to float64 before sincg evaluation
++        # to preserve the Na·Nb·Nc scaling near integer HKLs (SIM-CONSTR-PARTIALITY-001).
++        delta_h = (h - h0).to(torch.float64)
++        delta_k = (k - k0).to(torch.float64)
++        delta_l = (l - l0).to(torch.float64)
++
++        # Evaluate sincg on fractional offsets in float64. The sincg function returns
++        # values proportional to N when the fractional offset is tiny.
++        # Convert Na, Nb, Nc to float64 tensors on the correct device for sincg.
++        # Use as_tensor to handle both scalar and tensor inputs correctly.
++        Na_tensor = torch.as_tensor(Na, dtype=torch.float64, device=delta_h.device)
++        Nb_tensor = torch.as_tensor(Nb, dtype=torch.float64, device=delta_k.device)
++        Nc_tensor = torch.as_tensor(Nc, dtype=torch.float64, device=delta_l.device)
++
++        F_latt_a = sincg(torch.pi * delta_h, Na_tensor)
++        F_latt_b = sincg(torch.pi * delta_k, Nb_tensor)
++        F_latt_c = sincg(torch.pi * delta_l, Nc_tensor)
++
++        # Downcast final F_latt product back to simulator dtype before combining with F_cell
++        F_latt = (F_latt_a * F_latt_b * F_latt_c).to(h.dtype)
+     elif shape == CrystalShape.ROUND:
+         h_frac = h - h0
+         k_frac = k - k0
+diff --git a/tests/__pycache__/__init__.cpython-39.pyc b/tests/__pycache__/__init__.cpython-39.pyc
+new file mode 100644
+index 00000000..991c19bf
+Binary files /dev/null and b/tests/__pycache__/__init__.cpython-39.pyc differ
+diff --git a/tests/__pycache__/conftest.cpython-39-pytest-8.4.2.pyc b/tests/__pycache__/conftest.cpython-39-pytest-8.4.2.pyc
+new file mode 100644
+index 00000000..42de49d5
+Binary files /dev/null and b/tests/__pycache__/conftest.cpython-39-pytest-8.4.2.pyc differ

@@ -1,0 +1,14 @@
+diff --git a/src/nanobrag_torch/simulator.py b/src/nanobrag_torch/simulator.py
+index 4ad958dd..c4c8d193 100644
+--- a/src/nanobrag_torch/simulator.py
++++ b/src/nanobrag_torch/simulator.py
+@@ -401,9 +401,6 @@ def compute_physics_for_position(
+ 
+     # Apply Lorentz scaling to both intensity and the pre-polar copy
+     intensity = intensity * lorentz
+-    # DEBUG: Print Lorentz factor stats to verify execution
+-    if torch.is_tensor(lorentz):
+-        print(f"[LORENTZ DEBUG] median={lorentz.median().item():.4f}, min={lorentz.min().item():.4f}, max={lorentz.max().item():.4f}")
+ 
+     # CLI-FLAGS-003 Phase M1: Capture pre-polarization intensity for trace parity
+     # This is the I_before_scaling value that C-code logs before multiplying by polar

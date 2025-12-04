@@ -211,17 +211,22 @@ def _serialize_partiality_stats_to_json(partiality_stats):
     Convert torch tensors in Simulator.partiality_stats to JSON-safe per-panel aggregates.
 
     Args:
-        partiality_stats: dict with keys like 'f_latt', 'lorentz_factor', 'polarization_factor'
+        partiality_stats: dict with keys like 'f_latt', 'lorentz_factor', 'polarization_factor',
+                          'delta_h', 'delta_k', 'delta_l', 'F_latt_a', 'F_latt_b', 'F_latt_c'
                           (each holding a torch tensor)
 
     Returns:
-        dict with min/median/max/has_nan/has_inf summaries for each tensor field
+        dict with min/median/max/has_nan/has_inf summaries plus percentiles (1e-4, 0.999)
+        for delta_h/k/l and F_latt_a/b/c fields (ARCH-SIM-CONSTRUCTION-001)
     """
     import torch
     import math
 
     if not partiality_stats:
         return None
+
+    # Fields that need extended percentiles (fractional HKL deltas + per-axis sincg factors)
+    extended_percentile_fields = {'delta_h', 'delta_k', 'delta_l', 'F_latt_a', 'F_latt_b', 'F_latt_c'}
 
     summary = {}
     for field, tensor in partiality_stats.items():
@@ -246,12 +251,34 @@ def _serialize_partiality_stats_to_json(partiality_stats):
             min_val = float(finite_vals.min().item())
             max_val = float(finite_vals.max().item())
             median_val = float(finite_vals.median().item())
+
+            # ARCH-SIM-CONSTRUCTION-001: For extended fields, compute additional percentiles
+            # (1e-4, 0.999) to capture tail behavior
+            # Use sampling if tensor is too large to avoid memory/performance issues
+            if field in extended_percentile_fields:
+                # torch.quantile requires float32/float64
+                if finite_vals.dtype not in (torch.float32, torch.float64):
+                    finite_vals = finite_vals.to(torch.float32)
+
+                # If tensor is very large (>10M elements), sample it for quantile computation
+                max_samples = 10_000_000
+                if finite_vals.numel() > max_samples:
+                    # Use random sampling to get representative percentiles
+                    indices = torch.randperm(finite_vals.numel(), device=finite_vals.device)[:max_samples]
+                    sampled_vals = finite_vals[indices]
+                    p_1e4 = float(torch.quantile(sampled_vals, 0.0001).item())
+                    p_999 = float(torch.quantile(sampled_vals, 0.999).item())
+                else:
+                    p_1e4 = float(torch.quantile(finite_vals, 0.0001).item())
+                    p_999 = float(torch.quantile(finite_vals, 0.999).item())
         else:
             min_val = math.nan
             max_val = math.nan
             median_val = math.nan
+            p_1e4 = math.nan
+            p_999 = math.nan
 
-        summary[field] = {
+        field_summary = {
             "min": min_val,
             "median": median_val,
             "max": max_val,
@@ -259,6 +286,13 @@ def _serialize_partiality_stats_to_json(partiality_stats):
             "has_inf": has_inf,
             "count": int(flat.numel()),
         }
+
+        # Add percentiles for extended fields
+        if field in extended_percentile_fields and finite_mask.any():
+            field_summary["p_0.0001"] = p_1e4
+            field_summary["p_0.999"] = p_999
+
+        summary[field] = field_summary
 
     return summary
 
@@ -1080,7 +1114,7 @@ def compute_partiality_ledger(reflection_roi_matches, calibration_metadata):
     }
 
 
-def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode, halo_pixels, orientation_alignment=None, physics_alignment=None, partiality_alignment=None):
+def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode, halo_pixels, orientation_alignment=None, physics_alignment=None, partiality_alignment=None, simulator_partiality_stats=None):
     """
     Generate a Markdown summary of spot-profile and orientation metrics.
 
@@ -1455,6 +1489,66 @@ def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode,
                     f.write("- Next step: Audit spot-scale or verify partiality factor computation in SQUARE crystal model.\n")
 
                 f.write("\n")
+
+        # ARCH-SIM-CONSTRUCTION-001: Add simulator partiality stats section if available
+        # This section renders the per-panel fractional HKL deltas and per-axis sincg factor distributions
+        if simulator_partiality_stats:
+            f.write("---\n\n")
+            f.write("## Simulator Partiality Statistics (Per-Panel Aggregates)\n\n")
+            f.write("**Purpose:** Diagnose sincg precision and fractional HKL distribution from the SQUARE crystal lattice weighting path.\n\n")
+
+            if not simulator_partiality_stats:
+                f.write("No simulator partiality statistics available.\n\n")
+            else:
+                # Render per-panel summaries
+                for panel_stats in simulator_partiality_stats:
+                    panel_id = panel_stats['panel_id']
+                    stats = panel_stats.get('partiality_stats')
+                    if not stats:
+                        continue
+
+                    f.write(f"### Panel {panel_id}\n\n")
+
+                    # Extended fields (delta_h/k/l, F_latt_a/b/c) with percentiles
+                    extended_fields = ['delta_h', 'delta_k', 'delta_l', 'F_latt_a', 'F_latt_b', 'F_latt_c']
+                    extended_available = [field for field in extended_fields if field in stats and 'error' not in stats[field]]
+
+                    if extended_available:
+                        f.write("**Fractional HKL Deltas (Δh, Δk, Δl):**\n\n")
+                        f.write("| Field | Min | p(0.0001) | Median | p(0.999) | Max | Count |\n")
+                        f.write("|-------|-----|-----------|--------|----------|-----|-------|\n")
+                        for field in ['delta_h', 'delta_k', 'delta_l']:
+                            if field in stats and 'error' not in stats[field]:
+                                s = stats[field]
+                                f.write(f"| {field} | {s['min']:.4e} | {s.get('p_0.0001', 'N/A'):.4e} | {s['median']:.4e} | {s.get('p_0.999', 'N/A'):.4e} | {s['max']:.4e} | {s['count']} |\n")
+                        f.write("\n")
+
+                        f.write("**Per-Axis Sincg Factors (F_latt_a, F_latt_b, F_latt_c):**\n\n")
+                        f.write("| Field | Min | p(0.0001) | Median | p(0.999) | Max | Count |\n")
+                        f.write("|-------|-----|-----------|--------|----------|-----|-------|\n")
+                        for field in ['F_latt_a', 'F_latt_b', 'F_latt_c']:
+                            if field in stats and 'error' not in stats[field]:
+                                s = stats[field]
+                                f.write(f"| {field} | {s['min']:.4e} | {s.get('p_0.0001', 'N/A'):.4e} | {s['median']:.4e} | {s.get('p_0.999', 'N/A'):.4e} | {s['max']:.4e} | {s['count']} |\n")
+                        f.write("\n")
+
+                    # Existing legacy fields (f_latt, lorentz_factor, etc.)
+                    legacy_fields = ['f_latt', 'f_latt_squared', 'lorentz_factor', 'polarization_factor']
+                    legacy_available = [field for field in legacy_fields if field in stats and 'error' not in stats[field]]
+
+                    if legacy_available:
+                        f.write("**Legacy Partiality Fields:**\n\n")
+                        f.write("| Field | Min | Median | Max | Has NaN | Has Inf | Count |\n")
+                        f.write("|-------|-----|--------|-----|---------|---------|-------|\n")
+                        for field in legacy_available:
+                            s = stats[field]
+                            f.write(f"| {field} | {s['min']:.4e} | {s['median']:.4e} | {s['max']:.4e} | {s['has_nan']} | {s['has_inf']} | {s['count']} |\n")
+                        f.write("\n")
+
+                f.write("**Interpretation:**\n\n")
+                f.write("- **Δh/Δk/Δl distributions:** If most values are near 0 (|median| ≪ 0.1), ROIs are near integer HKLs and sincg should boost the lattice factor.\n")
+                f.write("- **F_latt_a/b/c distributions:** If median ≪ Na/Nb/Nc (expected ~Na·Nb·Nc product ≈38k), the sincg path is collapsing the lattice weighting.\n")
+                f.write("- **Next step:** Compare tail behavior (p(0.999)) vs expected Na·Nb·Nc to identify whether sincg precision or argument range is the blocker.\n\n")
 
 
 def main():
@@ -2534,6 +2628,10 @@ def main():
     # ARCH-SIM-CONSTRUCTION-001 Phase C.18: Write spot-profile Markdown summary if enabled
     if args.collect_spot_profiles and spot_profile_stats and spot_profile_stats.get("enabled"):
         spot_profile_summary_path = args.output.parent / "spot_profile_summary.md"
+        # Extract simulator partiality stats from stage_a_hkl_stats if available
+        simulator_partiality_stats = None
+        if stage_a_hkl_stats and 'per_panel_partiality_stats' in stage_a_hkl_stats:
+            simulator_partiality_stats = stage_a_hkl_stats['per_panel_partiality_stats']
         _summarize_spot_profiles(
             reflection_roi_matches=reflection_roi_matches,
             output_path=spot_profile_summary_path,
@@ -2542,6 +2640,7 @@ def main():
             orientation_alignment=orientation_alignment,
             physics_alignment=physics_alignment,
             partiality_alignment=partiality_alignment,
+            simulator_partiality_stats=simulator_partiality_stats,
         )
         print(f"[Stage A Baseline Probe] Spot-profile summary written to {spot_profile_summary_path}")
 

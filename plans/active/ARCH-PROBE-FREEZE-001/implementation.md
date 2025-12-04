@@ -32,16 +32,18 @@ Stop the growth of shadow pipelines under `plans/active/**/bin`, migrate decisio
 ## Phase A — Catalog & Risk Assessment
 - [x] A1: Walk every `plans/active/**/bin/*.py` and `bin/*.sh` script, record purpose, owner initiative, touched modules, and whether it duplicates simulator/mapping physics.
 - [x] A2: Produce `probe_inventory.md` summarizing counts by initiative + classification, and highlight any scripts exceeding thin-wrapper limits (per diagnostic script policy growth caps).
-- [ ] A3: Cross-reference docs/fix_plan.md + galph_memory.md entries to see which probes are still decision-carrying vs obsolete.
+- [x] A3: Cross-reference docs/fix_plan.md + galph_memory.md entries to see which probes are still decision-carrying vs obsolete (2025-12-28 loop: ARCH-SIM-CONSTRUCTION-001 baseline probe picked as the first migration target for Phase B because it drives DB-AT-027/028/029 evidence).
 
 **Artifacts:**
 - `plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/probe_inventory.md`
 - `plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/probe_inventory.json`
 
 ## Phase B — Migration & Logging Hooks
-- [ ] B1: For each shadow pipeline script, plan the production logging needed (e.g., Stage A telemetry block, simulator hook) so the probe no longer computes physics itself.
-- [ ] B2: Patch production modules (Stage A, reconstruction helpers, simulator, mapping) to emit the required telemetry toggles guarded by configs/env vars. Document each change in docs/findings.md with environment-freeze tags when it touches nanobrag_torch.
-- [ ] B3: Delete or slim plan-local scripts once telemetry covers their measurements. For scripts that remain (thin wrappers), document the allowed scope in README + plan reports.
+- [ ] B1: Migrate the Stage A baseline probe metrics into owner code:
+    - Extend `RefinementConfig` / Stage A so an opt-in flag (or metrics path/env var) records the masked means, ROI Pearson stats, chi²/pixel, and ROI snippets currently computed inside `compare_stage_a_baseline.py`.
+    - Add a typed payload (e.g., `StageABaselineMetrics`) to `StageAArtifacts` and a JSON dump hook so plan tools/tests can consume the metrics without rebuilding Stage A manually.
+- [ ] B2: Refactor `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py` into a thin wrapper that simply loads the canonical dataset, flips the new Stage A debug flag, runs `RefinementEngine` (Stage A only), and persists the emitted telemetry/artifact bundle. No direct simulator/ROI math should remain.
+- [ ] B3: Add/refresh pytest coverage (e.g., `tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump`) plus rerun DB-AT-028/029 so the new telemetry path is proven decision-carrying. Once green, update `probe_inventory` to reclassify the script as thin wrapper and mark the Phase B tasks complete in docs/fix_plan.md.
 
 **Artifacts:** Updated source diffs, telemetry docs, and script tombstones stored under `plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/`.
 

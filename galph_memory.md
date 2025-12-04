@@ -2408,3 +2408,23 @@ Action State: ready_for_implementation
 - ready_for_implementation — Ralph to create the collector tooling, fill the inventory docs/json, and run the pytest collect-only guard from input.md so Phase A exits with a decision-carrying catalog.
 
 Action State: ready_for_implementation
+
+## Loop 2025-12-28T010000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase B hand-off)
+**State**: ready_for_implementation
+**Dwell**: 1 (second consecutive supervisor loop, now delegating implementation)
+**Action Type**: implementation_ready
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Phase A inventory artifacts (`plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-27T200000Z/probe_inventory.md`) highlight seven shadow pipelines; `compare_stage_a_baseline.py` is the most critical (2220 LOC, Stage A/mapping duplication, drives DB-AT-027/028/029 evidence).
+2. Stage A already owns the telemetry context, so we can migrate the probe’s masked-mean/ROI/chi² metrics into a new `StageABaselineMetrics` payload emitted by Stage A when a debug flag or metrics path is provided.
+3. Once the owner API exposes those metrics, the probe script can become a thin wrapper that simply loads the canonical dataset, flips the flag, runs `RefinementEngine` (Stage A only), and persists the JSON emitted by Stage A, keeping ARCH-SIM-CONSTRUCTION-001 evidence flowing without a parallel pipeline.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T010000Z/`
+
+**Next Actions**:
+- implementation_ready — Ralph to (a) extend `RefinementConfig`/`StageAArtifacts`/`StageA.run` with the new metrics hook + optional JSON dump, (b) refactor `compare_stage_a_baseline.py` into a thin wrapper over the engine, and (c) add pytest coverage (`tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump`) plus rerun DB-AT-028/029 per the updated input.md.
+
+Action State: ready_for_implementation

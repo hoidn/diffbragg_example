@@ -306,6 +306,191 @@ def collect_mapping_hkl_stats(
     }
 
 
+def compute_spot_profiles(
+    bragg_before,
+    reflection_roi_matches,
+    halo_pixels,
+):
+    """
+    Compute spot-profile metrics for each reflection ROI.
+
+    For each matched reflection:
+    - ROI energy: sum of pixel values inside the ROI bbox
+    - Halo energy: sum of pixel values in expanded bbox (ROI ± halo_pixels)
+    - ROI fraction of halo: ROI_energy / halo_energy
+    - ROI fraction of panel: ROI_energy / total_panel_energy
+    - Peak value: max pixel value in ROI
+    - FWHM fast/slow: width of contiguous pixels ≥ 0.5 × peak
+
+    Args:
+        bragg_before: Full-panel bragg tensor (n_panels, slow, fast)
+        reflection_roi_matches: List of reflection match dicts with panel_id, bbox, etc.
+        halo_pixels: Number of pixels to expand bbox for halo computation
+
+    Returns:
+        Updated reflection_roi_matches with spot_profile_metrics added to each entry
+    """
+    for match in reflection_roi_matches:
+        panel_id = match["panel_id"]
+        x0_roi, x1_roi, y0_roi, y1_roi = match["bbox"]
+
+        # Extract ROI region
+        roi_region = bragg_before[panel_id, y0_roi:y1_roi, x0_roi:x1_roi]
+        roi_energy = float(np.sum(roi_region))
+        peak_value = float(np.max(roi_region)) if roi_region.size > 0 else 0.0
+
+        # Compute halo bbox (expand by halo_pixels, clamp to detector bounds)
+        panel_shape = bragg_before[panel_id].shape  # (slow, fast)
+        x0_halo = max(0, x0_roi - halo_pixels)
+        x1_halo = min(panel_shape[1], x1_roi + halo_pixels)
+        y0_halo = max(0, y0_roi - halo_pixels)
+        y1_halo = min(panel_shape[0], y1_roi + halo_pixels)
+
+        # Extract halo region
+        halo_region = bragg_before[panel_id, y0_halo:y1_halo, x0_halo:x1_halo]
+        halo_energy = float(np.sum(halo_region))
+
+        # Compute panel total energy
+        panel_energy = float(np.sum(bragg_before[panel_id]))
+
+        # Compute fractions
+        roi_fraction_of_halo = roi_energy / halo_energy if halo_energy > 0 else float("nan")
+        roi_fraction_of_panel = roi_energy / panel_energy if panel_energy > 0 else float("nan")
+
+        # Compute FWHM on fast/slow axes
+        # FWHM is the width of contiguous pixels ≥ 0.5 × peak
+        fwhm_threshold = 0.5 * peak_value
+
+        # Fast-axis FWHM: sum along slow axis to get 1D profile
+        fast_profile = np.sum(roi_region, axis=0)  # Sum along slow (y) axis
+        fast_above_threshold = fast_profile >= (fwhm_threshold * roi_region.shape[0])
+        fwhm_fast = int(np.sum(fast_above_threshold))
+
+        # Slow-axis FWHM: sum along fast axis to get 1D profile
+        slow_profile = np.sum(roi_region, axis=1)  # Sum along fast (x) axis
+        slow_above_threshold = slow_profile >= (fwhm_threshold * roi_region.shape[1])
+        fwhm_slow = int(np.sum(slow_above_threshold))
+
+        # Store metrics in the match entry
+        match["spot_profile_metrics"] = {
+            "roi_energy": roi_energy,
+            "halo_energy": halo_energy,
+            "panel_energy": panel_energy,
+            "roi_fraction_of_halo": roi_fraction_of_halo,
+            "roi_fraction_of_panel": roi_fraction_of_panel,
+            "halo_bbox": [int(x0_halo), int(x1_halo), int(y0_halo), int(y1_halo)],
+            "peak_value": peak_value,
+            "fwhm_fast": fwhm_fast,
+            "fwhm_slow": fwhm_slow,
+            "halo_pixels": int(halo_pixels),
+        }
+
+    return reflection_roi_matches
+
+
+def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode, halo_pixels):
+    """
+    Generate a Markdown summary of spot-profile metrics.
+
+    Writes a report listing:
+    - Summary statistics (median ROI fractions)
+    - Top 5 ROIs with most off-ROI energy (lowest ROI fraction of halo)
+    - Top 5 ROIs with narrowest FWHM
+
+    Args:
+        reflection_roi_matches: List of reflection matches with spot_profile_metrics
+        output_path: Path object for the output Markdown file
+        geometry_mode: "baseline" or "perturbed"
+        halo_pixels: Halo expansion parameter used
+    """
+    # Extract metrics from matches that have spot profiles
+    matches_with_profiles = [m for m in reflection_roi_matches if "spot_profile_metrics" in m]
+
+    if not matches_with_profiles:
+        with open(output_path, 'w') as f:
+            f.write("# Spot Profile Summary\n\n")
+            f.write("No spot-profile metrics available.\n")
+        return
+
+    # Compute summary statistics
+    roi_fractions_halo = [m["spot_profile_metrics"]["roi_fraction_of_halo"] for m in matches_with_profiles if np.isfinite(m["spot_profile_metrics"]["roi_fraction_of_halo"])]
+    roi_fractions_panel = [m["spot_profile_metrics"]["roi_fraction_of_panel"] for m in matches_with_profiles if np.isfinite(m["spot_profile_metrics"]["roi_fraction_of_panel"])]
+
+    median_roi_fraction_halo = float(np.median(roi_fractions_halo)) if roi_fractions_halo else float("nan")
+    median_roi_fraction_panel = float(np.median(roi_fractions_panel)) if roi_fractions_panel else float("nan")
+
+    # Sort by ROI fraction of halo (ascending = most off-ROI energy)
+    sorted_by_off_roi = sorted(
+        [m for m in matches_with_profiles if np.isfinite(m["spot_profile_metrics"]["roi_fraction_of_halo"])],
+        key=lambda m: m["spot_profile_metrics"]["roi_fraction_of_halo"]
+    )
+    worst_5_by_off_roi = sorted_by_off_roi[:5] if len(sorted_by_off_roi) >= 5 else sorted_by_off_roi
+
+    # Sort by FWHM (ascending = narrowest)
+    # Use geometric mean of fast/slow FWHM
+    def fwhm_geomean(m):
+        fwhm_f = m["spot_profile_metrics"]["fwhm_fast"]
+        fwhm_s = m["spot_profile_metrics"]["fwhm_slow"]
+        if fwhm_f > 0 and fwhm_s > 0:
+            return np.sqrt(fwhm_f * fwhm_s)
+        return float("inf")
+
+    sorted_by_fwhm = sorted(
+        matches_with_profiles,
+        key=fwhm_geomean
+    )
+    narrowest_5_by_fwhm = sorted_by_fwhm[:5] if len(sorted_by_fwhm) >= 5 else sorted_by_fwhm
+
+    # Write Markdown report
+    with open(output_path, 'w') as f:
+        f.write("# Spot Profile Summary\n\n")
+        f.write(f"**Initiative:** ARCH-SIM-CONSTRUCTION-001\n\n")
+        f.write(f"**Geometry Mode:** {geometry_mode}\n\n")
+        f.write(f"**Halo Pixels:** {halo_pixels}\n\n")
+        f.write(f"**Total Reflections:** {len(matches_with_profiles)}\n\n")
+        f.write("---\n\n")
+
+        f.write("## Summary Statistics\n\n")
+        f.write(f"- **Median ROI fraction of halo:** {median_roi_fraction_halo:.4f}\n")
+        f.write(f"- **Median ROI fraction of panel:** {median_roi_fraction_panel:.6f}\n")
+        f.write("\n")
+
+        f.write("---\n\n")
+        f.write("## Top 5 ROIs with Most Off-ROI Energy\n\n")
+        f.write("(Lowest ROI fraction of halo — energy spilling outside ROI bbox)\n\n")
+        f.write("| Panel | BBox | HKL | ROI/Halo | ROI Energy | Halo Energy | FWHM (fast×slow) |\n")
+        f.write("|-------|------|-----|----------|------------|-------------|------------------|\n")
+
+        for m in worst_5_by_off_roi:
+            panel_id = m["panel_id"]
+            bbox = m["bbox"]
+            hkl = m["hkl_index"]
+            sp = m["spot_profile_metrics"]
+            bbox_str = f"[{bbox[0]}:{bbox[1]},{bbox[2]}:{bbox[3]}]"
+            hkl_str = f"({hkl[0]},{hkl[1]},{hkl[2]})"
+            fwhm_str = f"{sp['fwhm_fast']}×{sp['fwhm_slow']}"
+            f.write(f"| {panel_id} | {bbox_str} | {hkl_str} | {sp['roi_fraction_of_halo']:.4f} | {sp['roi_energy']:.2e} | {sp['halo_energy']:.2e} | {fwhm_str} |\n")
+
+        f.write("\n")
+        f.write("---\n\n")
+        f.write("## Top 5 ROIs with Narrowest FWHM\n\n")
+        f.write("(Smallest geometric mean of fast/slow FWHM — most concentrated spots)\n\n")
+        f.write("| Panel | BBox | HKL | FWHM (fast×slow) | ROI/Halo | Peak Value |\n")
+        f.write("|-------|------|-----|------------------|----------|------------|\n")
+
+        for m in narrowest_5_by_fwhm:
+            panel_id = m["panel_id"]
+            bbox = m["bbox"]
+            hkl = m["hkl_index"]
+            sp = m["spot_profile_metrics"]
+            bbox_str = f"[{bbox[0]}:{bbox[1]},{bbox[2]}:{bbox[3]}]"
+            hkl_str = f"({hkl[0]},{hkl[1]},{hkl[2]})"
+            fwhm_str = f"{sp['fwhm_fast']}×{sp['fwhm_slow']}"
+            f.write(f"| {panel_id} | {bbox_str} | {hkl_str} | {fwhm_str} | {sp['roi_fraction_of_halo']:.4f} | {sp['peak_value']:.2e} |\n")
+
+        f.write("\n")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Stage A baseline telemetry verification probe"
@@ -340,6 +525,17 @@ def main():
         default=16,
         help="Number of mosaic domain samples for Stage A/mapping/reconstruction (default: 16). Clamped to ≥1.",
     )
+    parser.add_argument(
+        "--collect-spot-profiles",
+        action="store_true",
+        help="When set, compute and store full-panel spot-profile energy partitions (ROI vs halo vs FWHM) for every matched reflection.",
+    )
+    parser.add_argument(
+        "--spot-profile-halo-pixels",
+        type=int,
+        default=10,
+        help="Number of pixels to expand ROI bbox for halo energy computation (default: 10). Clamped to ≥1.",
+    )
     args = parser.parse_args()
 
     # Ensure output directory exists
@@ -349,6 +545,11 @@ def main():
     stage_a_mosaic_domains = max(1, args.stage_a_mosaic_domains)
     if stage_a_mosaic_domains != args.stage_a_mosaic_domains:
         print(f"[Stage A Baseline Probe] WARNING: --stage-a-mosaic-domains clamped from {args.stage_a_mosaic_domains} to {stage_a_mosaic_domains}")
+
+    # Clamp spot_profile_halo_pixels to ≥1
+    halo_pixels = max(1, args.spot_profile_halo_pixels)
+    if halo_pixels != args.spot_profile_halo_pixels:
+        print(f"[Stage A Baseline Probe] WARNING: --spot-profile-halo-pixels clamped from {args.spot_profile_halo_pixels} to {halo_pixels}")
 
     print(f"[Stage A Baseline Probe] Starting probe (device={args.device})")
     print(f"[Stage A Baseline Probe] Geometry mode: {args.geometry_mode}")
@@ -1012,6 +1213,88 @@ def main():
     reflection_comparison["reflection_bottom_n"] = bottom_n_refl
     reflection_comparison["reflection_top_n"] = top_n_refl
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.18: Compute spot-profile metrics if requested
+    spot_profile_stats = None
+    if args.collect_spot_profiles:
+        print(f"[Stage A Baseline Probe] Computing spot profiles with halo={halo_pixels} pixels...")
+        reflection_roi_matches = compute_spot_profiles(
+            bragg_before=bragg_before,
+            reflection_roi_matches=reflection_roi_matches,
+            halo_pixels=halo_pixels,
+        )
+
+        # Update reflection_comparison with the enriched matches
+        reflection_comparison["reflection_metrics"] = reflection_roi_matches
+
+        # Compute summary statistics
+        matches_with_profiles = [m for m in reflection_roi_matches if "spot_profile_metrics" in m]
+        if matches_with_profiles:
+            roi_fractions_halo = [m["spot_profile_metrics"]["roi_fraction_of_halo"] for m in matches_with_profiles if np.isfinite(m["spot_profile_metrics"]["roi_fraction_of_halo"])]
+            roi_fractions_panel = [m["spot_profile_metrics"]["roi_fraction_of_panel"] for m in matches_with_profiles if np.isfinite(m["spot_profile_metrics"]["roi_fraction_of_panel"])]
+
+            # Sort by ROI fraction of halo to find worst off-ROI energy
+            sorted_by_off_roi = sorted(
+                [m for m in matches_with_profiles if np.isfinite(m["spot_profile_metrics"]["roi_fraction_of_halo"])],
+                key=lambda m: m["spot_profile_metrics"]["roi_fraction_of_halo"]
+            )
+            worst_5_off_roi = sorted_by_off_roi[:5] if len(sorted_by_off_roi) >= 5 else sorted_by_off_roi
+
+            # Sort by FWHM (narrowest)
+            def fwhm_geomean(m):
+                fwhm_f = m["spot_profile_metrics"]["fwhm_fast"]
+                fwhm_s = m["spot_profile_metrics"]["fwhm_slow"]
+                if fwhm_f > 0 and fwhm_s > 0:
+                    return np.sqrt(fwhm_f * fwhm_s)
+                return float("inf")
+
+            sorted_by_fwhm = sorted(matches_with_profiles, key=fwhm_geomean)
+            narrowest_5_fwhm = sorted_by_fwhm[:5] if len(sorted_by_fwhm) >= 5 else sorted_by_fwhm
+
+            spot_profile_stats = {
+                "enabled": True,
+                "halo_pixels": int(halo_pixels),
+                "n_reflections_with_profiles": len(matches_with_profiles),
+                "median_roi_fraction_of_halo": float(np.median(roi_fractions_halo)) if roi_fractions_halo else float("nan"),
+                "median_roi_fraction_of_panel": float(np.median(roi_fractions_panel)) if roi_fractions_panel else float("nan"),
+                "worst_5_off_roi_energy": [
+                    {
+                        "roi_idx": m["roi_idx"],
+                        "panel_id": m["panel_id"],
+                        "bbox": m["bbox"],
+                        "hkl_index": m["hkl_index"],
+                        "roi_fraction_of_halo": m["spot_profile_metrics"]["roi_fraction_of_halo"],
+                        "roi_energy": m["spot_profile_metrics"]["roi_energy"],
+                        "halo_energy": m["spot_profile_metrics"]["halo_energy"],
+                    }
+                    for m in worst_5_off_roi
+                ],
+                "narrowest_5_fwhm": [
+                    {
+                        "roi_idx": m["roi_idx"],
+                        "panel_id": m["panel_id"],
+                        "bbox": m["bbox"],
+                        "hkl_index": m["hkl_index"],
+                        "fwhm_fast": m["spot_profile_metrics"]["fwhm_fast"],
+                        "fwhm_slow": m["spot_profile_metrics"]["fwhm_slow"],
+                        "peak_value": m["spot_profile_metrics"]["peak_value"],
+                    }
+                    for m in narrowest_5_fwhm
+                ],
+            }
+
+            print(f"[Stage A Baseline Probe] Spot profiles computed: {len(matches_with_profiles)} reflections")
+            print(f"  Median ROI fraction of halo: {spot_profile_stats['median_roi_fraction_of_halo']:.4f}")
+            print(f"  Median ROI fraction of panel: {spot_profile_stats['median_roi_fraction_of_panel']:.6f}")
+        else:
+            spot_profile_stats = {
+                "enabled": True,
+                "halo_pixels": int(halo_pixels),
+                "n_reflections_with_profiles": 0,
+                "error": "No spot-profile metrics computed",
+            }
+    else:
+        spot_profile_stats = {"enabled": False}
+
     # Build output payload
     output = {
         "probe_metadata": {
@@ -1119,12 +1402,24 @@ def main():
             "top_n_rois": top_n_rois,
         },
         "reflection_comparison": reflection_comparison,
+        "spot_profile_stats": spot_profile_stats,
     }
 
     # Write JSON output
     with open(args.output, "w") as f:
         json.dump(output, f, indent=2)
     print(f"[Stage A Baseline Probe] Results written to {args.output}")
+
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.18: Write spot-profile Markdown summary if enabled
+    if args.collect_spot_profiles and spot_profile_stats and spot_profile_stats.get("enabled"):
+        spot_profile_summary_path = args.output.parent / "spot_profile_summary.md"
+        _summarize_spot_profiles(
+            reflection_roi_matches=reflection_roi_matches,
+            output_path=spot_profile_summary_path,
+            geometry_mode=args.geometry_mode,
+            halo_pixels=halo_pixels,
+        )
+        print(f"[Stage A Baseline Probe] Spot-profile summary written to {spot_profile_summary_path}")
 
     # Print summary table to stdout
     print("\n" + "=" * 80)

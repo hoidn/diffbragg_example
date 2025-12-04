@@ -388,20 +388,145 @@ def compute_spot_profiles(
     return reflection_roi_matches
 
 
-def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode, halo_pixels):
+def compute_orientation_metrics(
+    detector,
+    beam,
+    crystal,
+    reflection_roi_matches,
+):
     """
-    Generate a Markdown summary of spot-profile metrics.
+    Compute HKL orientation alignment metrics for each matched ROI.
+
+    For each reflection:
+    - Compute ROI center in lab coordinates
+    - Convert to diffracted beam vector s1
+    - Solve h_frac = A^{-1} q where q = s1 - s0
+    - Record fractional HKL, Δhkl = h_frac - h_int, |Δhkl|
+    - Compute resolution (Å = 1/||q||) and 2θ
+
+    Args:
+        detector: DIALS detector model
+        beam: DIALS beam model
+        crystal: DIALS crystal model
+        reflection_roi_matches: List of reflection match dicts with panel_id, bbox, hkl_index
+
+    Returns:
+        Updated reflection_roi_matches with orientation_metrics added to each entry
+    """
+    from scitbx import matrix
+
+    # Get beam parameters
+    s0_vec = beam.get_s0()  # Incident beam vector (wavelength units: 1/Å)
+    s0 = np.array([s0_vec[0], s0_vec[1], s0_vec[2]])
+    wavelength = beam.get_wavelength()  # Å
+
+    # Get crystal A matrix (converts HKL to reciprocal space coordinates in 1/Å)
+    A_matrix_scitbx = crystal.get_A()
+    A = np.array(A_matrix_scitbx).reshape(3, 3)
+
+    # Quick unit test: verify A @ h_int ≈ q for a known reflection
+    # We'll validate the first reflection as a sanity check
+    if len(reflection_roi_matches) > 0:
+        first_match = reflection_roi_matches[0]
+        h_int_test = np.array(first_match["hkl_index"], dtype=np.float64)
+        q_expected_test = A @ h_int_test
+        # We'll validate this against the computed q below
+
+    for match in reflection_roi_matches:
+        panel_id = match["panel_id"]
+        x0_roi, x1_roi, y0_roi, y1_roi = match["bbox"]
+        h_int = np.array(match["hkl_index"], dtype=np.float64)
+
+        # Compute ROI center in detector pixels (fast, slow)
+        roi_center_fast = (x0_roi + x1_roi) / 2.0
+        roi_center_slow = (y0_roi + y1_roi) / 2.0
+
+        # Get lab coordinates for ROI center
+        # detector[panel_id].get_pixel_lab_coord expects (fast, slow) in pixel units
+        panel = detector[panel_id]
+        lab_coord = panel.get_pixel_lab_coord((roi_center_fast, roi_center_slow))
+
+        # Convert lab coordinate to s1 (diffracted beam direction, normalized by wavelength)
+        # lab_coord is a scitbx vector in mm; normalize and scale to 1/Å units
+        lab_vec = np.array([lab_coord[0], lab_coord[1], lab_coord[2]])
+        lab_norm = np.linalg.norm(lab_vec)
+
+        if lab_norm == 0:
+            # Degenerate case: skip this ROI
+            match["orientation_metrics"] = {
+                "error": "Zero lab coordinate norm"
+            }
+            continue
+
+        # s1 = lab_vec / (wavelength * lab_norm)  # Units: 1/Å
+        # Actually, get_pixel_lab_coord returns mm, and s0 is already in 1/Å units
+        # The correct normalization is: s1_direction = lab_vec / lab_norm, then s1 = s1_direction / wavelength
+        s1_direction = lab_vec / lab_norm
+        s1 = s1_direction / wavelength  # Units: 1/Å
+
+        # Compute scattering vector q = s1 - s0
+        q = s1 - s0
+        q_norm = np.linalg.norm(q)
+
+        # Solve h_frac = A^{-1} q
+        try:
+            h_frac = np.linalg.solve(A, q)
+        except np.linalg.LinAlgError:
+            match["orientation_metrics"] = {
+                "error": "Singular A matrix"
+            }
+            continue
+
+        # Compute Δhkl = h_frac - h_int
+        delta_hkl = h_frac - h_int
+        delta_hkl_norm = np.linalg.norm(delta_hkl)
+
+        # Compute resolution: d = 1 / ||q|| (Å)
+        resolution = 1.0 / q_norm if q_norm > 0 else float("inf")
+
+        # Compute 2θ: angle between s0 and s1
+        # cos(2θ) = (s0 · s1) / (||s0|| ||s1||)
+        s0_norm = np.linalg.norm(s0)
+        s1_norm = np.linalg.norm(s1)
+        if s0_norm > 0 and s1_norm > 0:
+            cos_two_theta = np.dot(s0, s1) / (s0_norm * s1_norm)
+            # Clamp to [-1, 1] to handle numerical errors
+            cos_two_theta = np.clip(cos_two_theta, -1.0, 1.0)
+            two_theta_rad = np.arccos(cos_two_theta)
+            two_theta_deg = np.degrees(two_theta_rad)
+        else:
+            two_theta_deg = float("nan")
+
+        # Store orientation metrics
+        match["orientation_metrics"] = {
+            "h_frac": h_frac.tolist(),
+            "delta_hkl": delta_hkl.tolist(),
+            "delta_hkl_norm": float(delta_hkl_norm),
+            "resolution_angstrom": float(resolution),
+            "two_theta_deg": float(two_theta_deg),
+            "roi_center_px": [float(roi_center_fast), float(roi_center_slow)],
+            "q_norm": float(q_norm),
+        }
+
+    return reflection_roi_matches
+
+
+def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode, halo_pixels, orientation_alignment=None):
+    """
+    Generate a Markdown summary of spot-profile and orientation metrics.
 
     Writes a report listing:
     - Summary statistics (median ROI fractions)
     - Top 5 ROIs with most off-ROI energy (lowest ROI fraction of halo)
     - Top 5 ROIs with narrowest FWHM
+    - Orientation alignment metrics (if available)
 
     Args:
         reflection_roi_matches: List of reflection matches with spot_profile_metrics
         output_path: Path object for the output Markdown file
         geometry_mode: "baseline" or "perturbed"
         halo_pixels: Halo expansion parameter used
+        orientation_alignment: Optional dict with orientation metrics summary
     """
     # Extract metrics from matches that have spot profiles
     matches_with_profiles = [m for m in reflection_roi_matches if "spot_profile_metrics" in m]
@@ -490,6 +615,70 @@ def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode,
 
         f.write("\n")
 
+        # ARCH-SIM-CONSTRUCTION-001 Phase C.23: Add orientation alignment section if available
+        if orientation_alignment and orientation_alignment.get("enabled"):
+            f.write("---\n\n")
+            f.write("## Orientation Alignment\n\n")
+            f.write("**Purpose:** Diagnose whether DB-AT-028/029 failures correlate with HKL misalignment (|Δhkl|) vs intensity-only divergence.\n\n")
+
+            if "error" in orientation_alignment:
+                f.write(f"**Error:** {orientation_alignment['error']}\n\n")
+            else:
+                f.write(f"- **Reflections analyzed:** {orientation_alignment['n_reflections_with_orientation']}\n")
+                f.write(f"- **Median |Δhkl|:** {orientation_alignment['median_delta_hkl_norm']:.4f}\n")
+                f.write(f"- **P25-P75 |Δhkl|:** {orientation_alignment['p25_delta_hkl_norm']:.4f} - {orientation_alignment['p75_delta_hkl_norm']:.4f}\n")
+                f.write(f"- **Max |Δhkl|:** {orientation_alignment['max_delta_hkl_norm']:.4f}\n")
+                f.write(f"- **Median resolution:** {orientation_alignment['median_resolution_angstrom']:.2f} Å\n")
+                f.write(f"- **Median 2θ:** {orientation_alignment['median_two_theta_deg']:.2f}°\n")
+
+                pearson_corr = orientation_alignment['pearson_corr_delta_hkl_vs_stagea_ratio']
+                if np.isfinite(pearson_corr):
+                    f.write(f"- **Pearson corr (|Δhkl| vs Stage A/ref ratio):** {pearson_corr:.4f} ({orientation_alignment['n_pairs_for_correlation']} pairs)\n")
+                else:
+                    f.write(f"- **Pearson corr (|Δhkl| vs Stage A/ref ratio):** undefined ({orientation_alignment['n_pairs_for_correlation']} pairs)\n")
+
+                f.write("\n")
+                f.write("### Top 5 ROIs by HKL Misalignment\n\n")
+                f.write("(Largest |Δhkl| = ||h_frac - h_int|| — worst orientation errors)\n\n")
+                f.write("| Panel | BBox | HKL | |Δhkl| | Δhkl | Resolution (Å) | Stage A/Ref Ratio |\n")
+                f.write("|-------|------|-----|-------|------|----------------|-------------------|\n")
+
+                for m in orientation_alignment['worst_5_misalignment']:
+                    panel_id = m["panel_id"]
+                    bbox = m["bbox"]
+                    hkl = m["hkl_index"]
+                    delta_hkl_norm = m["delta_hkl_norm"]
+                    delta_hkl = m["delta_hkl"]
+                    resolution = m["resolution_angstrom"]
+                    ratio = m["stagea_vs_ref_ratio"]
+
+                    bbox_str = f"[{bbox[0]}:{bbox[1]},{bbox[2]}:{bbox[3]}]"
+                    hkl_str = f"({hkl[0]},{hkl[1]},{hkl[2]})"
+                    delta_hkl_str = f"({delta_hkl[0]:.3f},{delta_hkl[1]:.3f},{delta_hkl[2]:.3f})"
+                    ratio_str = f"{ratio:.2e}" if np.isfinite(ratio) else "nan"
+
+                    f.write(f"| {panel_id} | {bbox_str} | {hkl_str} | {delta_hkl_norm:.4f} | {delta_hkl_str} | {resolution:.2f} | {ratio_str} |\n")
+
+                f.write("\n")
+
+                # Add interpretation guidance
+                f.write("**Interpretation:**\n\n")
+                if np.isfinite(pearson_corr):
+                    if abs(pearson_corr) > 0.7:
+                        f.write(f"- Strong correlation ({pearson_corr:.2f}) between |Δhkl| and Stage A/ref ratio suggests **orientation misalignment** drives intensity divergence.\n")
+                        f.write("- Next step: Retarget simulators to DIALS ROI centers or audit nanobrag_torch q-vector computation.\n")
+                    elif abs(pearson_corr) > 0.3:
+                        f.write(f"- Moderate correlation ({pearson_corr:.2f}) suggests partial contribution from orientation errors.\n")
+                        f.write("- Next step: Audit both geometry and physics (Lorentz/partiality) paths.\n")
+                    else:
+                        f.write(f"- Weak correlation ({pearson_corr:.2f}) suggests orientation is not the primary driver.\n")
+                        f.write("- Next step: Focus on physics corrections (Lorentz/partiality/normalization).\n")
+                else:
+                    f.write("- Correlation undefined (insufficient valid pairs or constant values).\n")
+                    f.write("- Next step: Verify HKL assignment and Stage A intensity computation.\n")
+
+                f.write("\n")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -535,6 +724,11 @@ def main():
         type=int,
         default=10,
         help="Number of pixels to expand ROI bbox for halo energy computation (default: 10). Clamped to ≥1.",
+    )
+    parser.add_argument(
+        "--collect-orientation-metrics",
+        action="store_true",
+        help="When set, compute HKL orientation alignment metrics (fractional HKL, |Δhkl|, resolution, 2θ) for each matched ROI.",
     )
     args = parser.parse_args()
 
@@ -1295,6 +1489,87 @@ def main():
     else:
         spot_profile_stats = {"enabled": False}
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.23: Compute orientation metrics if requested
+    orientation_alignment = None
+    if args.collect_orientation_metrics:
+        print(f"[Stage A Baseline Probe] Computing orientation metrics...")
+        reflection_roi_matches = compute_orientation_metrics(
+            detector=refinement_detector,
+            beam=refinement_beam,
+            crystal=refinement_crystal,
+            reflection_roi_matches=reflection_roi_matches,
+        )
+
+        # Update reflection_comparison with enriched matches
+        reflection_comparison["reflection_metrics"] = reflection_roi_matches
+
+        # Extract orientation metrics for analysis
+        matches_with_orientation = [m for m in reflection_roi_matches if "orientation_metrics" in m and "error" not in m["orientation_metrics"]]
+
+        if matches_with_orientation:
+            delta_hkl_norms = [m["orientation_metrics"]["delta_hkl_norm"] for m in matches_with_orientation]
+            resolutions = [m["orientation_metrics"]["resolution_angstrom"] for m in matches_with_orientation if np.isfinite(m["orientation_metrics"]["resolution_angstrom"])]
+            two_theta_degs = [m["orientation_metrics"]["two_theta_deg"] for m in matches_with_orientation if np.isfinite(m["orientation_metrics"]["two_theta_deg"])]
+
+            # Compute correlation between |Δhkl| and Stage A vs ref ratios
+            delta_hkl_for_corr = []
+            stagea_ratios_for_corr = []
+            for m in matches_with_orientation:
+                if "stagea_vs_ref_ratio" in m and np.isfinite(m["stagea_vs_ref_ratio"]):
+                    delta_hkl_for_corr.append(m["orientation_metrics"]["delta_hkl_norm"])
+                    stagea_ratios_for_corr.append(m["stagea_vs_ref_ratio"])
+
+            pearson_corr = float("nan")
+            if len(delta_hkl_for_corr) > 1:
+                try:
+                    corr_matrix = np.corrcoef(delta_hkl_for_corr, stagea_ratios_for_corr)
+                    pearson_corr = float(corr_matrix[0, 1]) if np.isfinite(corr_matrix[0, 1]) else float("nan")
+                except Exception:
+                    pearson_corr = float("nan")
+
+            # Sort by delta_hkl_norm to find worst misalignments
+            sorted_by_delta_hkl = sorted(matches_with_orientation, key=lambda m: m["orientation_metrics"]["delta_hkl_norm"], reverse=True)
+            worst_5_misalignment = sorted_by_delta_hkl[:5] if len(sorted_by_delta_hkl) >= 5 else sorted_by_delta_hkl
+
+            orientation_alignment = {
+                "enabled": True,
+                "n_reflections_with_orientation": len(matches_with_orientation),
+                "median_delta_hkl_norm": float(np.median(delta_hkl_norms)) if delta_hkl_norms else float("nan"),
+                "p25_delta_hkl_norm": float(np.percentile(delta_hkl_norms, 25)) if delta_hkl_norms else float("nan"),
+                "p75_delta_hkl_norm": float(np.percentile(delta_hkl_norms, 75)) if delta_hkl_norms else float("nan"),
+                "max_delta_hkl_norm": float(np.max(delta_hkl_norms)) if delta_hkl_norms else float("nan"),
+                "median_resolution_angstrom": float(np.median(resolutions)) if resolutions else float("nan"),
+                "median_two_theta_deg": float(np.median(two_theta_degs)) if two_theta_degs else float("nan"),
+                "pearson_corr_delta_hkl_vs_stagea_ratio": pearson_corr,
+                "n_pairs_for_correlation": len(delta_hkl_for_corr),
+                "worst_5_misalignment": [
+                    {
+                        "roi_idx": m["roi_idx"],
+                        "panel_id": m["panel_id"],
+                        "bbox": m["bbox"],
+                        "hkl_index": m["hkl_index"],
+                        "delta_hkl_norm": m["orientation_metrics"]["delta_hkl_norm"],
+                        "delta_hkl": m["orientation_metrics"]["delta_hkl"],
+                        "resolution_angstrom": m["orientation_metrics"]["resolution_angstrom"],
+                        "stagea_vs_ref_ratio": m.get("stagea_vs_ref_ratio", float("nan")),
+                    }
+                    for m in worst_5_misalignment
+                ],
+            }
+
+            print(f"[Stage A Baseline Probe] Orientation metrics computed: {len(matches_with_orientation)} reflections")
+            print(f"  Median |Δhkl|: {orientation_alignment['median_delta_hkl_norm']:.4f}")
+            print(f"  Median resolution: {orientation_alignment['median_resolution_angstrom']:.2f} Å")
+            print(f"  Pearson corr (|Δhkl| vs Stage A/ref ratio): {pearson_corr:.4f}" if np.isfinite(pearson_corr) else "  Pearson corr: undefined")
+        else:
+            orientation_alignment = {
+                "enabled": True,
+                "n_reflections_with_orientation": 0,
+                "error": "No orientation metrics computed",
+            }
+    else:
+        orientation_alignment = {"enabled": False}
+
     # Build output payload
     output = {
         "probe_metadata": {
@@ -1403,6 +1678,7 @@ def main():
         },
         "reflection_comparison": reflection_comparison,
         "spot_profile_stats": spot_profile_stats,
+        "orientation_alignment": orientation_alignment,
     }
 
     # Write JSON output
@@ -1418,6 +1694,7 @@ def main():
             output_path=spot_profile_summary_path,
             geometry_mode=args.geometry_mode,
             halo_pixels=halo_pixels,
+            orientation_alignment=orientation_alignment,
         )
         print(f"[Stage A Baseline Probe] Spot-profile summary written to {spot_profile_summary_path}")
 

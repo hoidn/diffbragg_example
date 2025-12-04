@@ -2584,3 +2584,9 @@ Action State: planning
 - Logged Phase C.33 in the plan + fix_plan: patch `nanobrag_torch.simulator.compute_physics_for_position` so the subpixel offsets use `(torch.arange(N) - (N-1)/2)/N` for both axes (no +0.5 bias) and capture `min_abs_delta_{h,k,l}` in partiality stats. Evidence + next steps captured under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-04T150000Z/summary.md`.
 - Updated input.md with an implementation-ready Do Now (center offsets, add instrumentation, rerun probe + `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`).
 Action State: implementation_ready
+
+2026-01-06T010000Z focus=ARCH-SIM-CONSTRUCTION-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-06T010000Z/ next_action=implementation_ready
+- Coverage probe (`2026-01-05T150000Z`) recorded 0/169 subpixels in the central sincg lobe with Na=41, Nb=29, Nc=32, so the single subpixel carrying the lattice weight is being divided by `oversample²` before scaling; enforcement node still reports only 0.25% of the expected `(Na·Nb·Nc)^2` ratio.
+- Added Phase C.35 to the plan + docs/fix_plan.md: treat SQUARE lattices as a Riemann sum by removing the `oversample²` factor from `steps` whenever `crystal.shape == CrystalShape.SQUARE`, publish the scalar via `_partiality_stats['steps_scalar']`, and extend `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` to guard the new behavior.
+- Updated input.md with an implementation-ready Do Now directing Ralph to patch `src/nanobrag-torch/src/nanobrag_torch/simulator.py`, add the regression test, capture the Environment Freeze patch/tag, and rerun the single-pixel probe + architecture test + DB-AT-028/029 with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-06T010000Z/`.
+Action State: implementation_ready

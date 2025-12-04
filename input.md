@@ -1,46 +1,49 @@
-Summary: Extend the Stage A baseline probe with reflection-table cross-checks so we can tell whether DB-AT-028/029’s 9.8e5 chi²/pixel failure comes from the simulator or from ROI preparation before scheduling the next production fix.
+Summary: Add an HKL-amplitude ledger to the Stage A baseline probe so we can tell whether the 9.8e5 chi²/pixel crisis is born before nanobrag_torch squares |F| or inside the simulator before attempting code fixes.
 Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
 Mapped tests:
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T010000Z/stage_a_baseline_probe_baseline.json
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode perturbed --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T010000Z/stage_a_baseline_probe_perturbed.json
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T010000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T010000Z/pytest_db_at_028_029.log
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T010000Z/
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/stage_a_baseline_probe_baseline.json
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors_small.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode perturbed --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/stage_a_baseline_probe_perturbed.json
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/pytest_db_at_028_029.log
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/
 
-Do Now:
-- Implement: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py::main` — import `dials.array_family.flex`, load `refgeom_dataload.Refs`, and align each reflection with the corresponding ROI (`panel_slices`/`pids`). For every ROI compute and persist the independent DIALS intensities (`intensity.sum.value`, `background.sum.value`, pixel count) plus derived per-pixel means so we can compare Stage A/mapping/target against the reflection-table source of truth.
-- Extend the ROI diagnostics and console summary to include the new reflection metrics (top/bottom entries, percentile stats, median ratios) and emit a `reflection_comparison` block in the JSON. Guard for mismatched ROI counts or NaNs so the probe fails loudly if the reflection table diverges from the ROI ordering.
-- Re-run the baseline + perturbed probe commands and DB-AT-028/029 selector listed above so the new artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T010000Z/` capture reflection-aware evidence alongside the chi²/ROI traces.
+Do Now (hard validity contract):
+- Implement: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py::main`
+  - Build a dict from `mapping_context.hkl_indices` → `mapping_context.hkl_amplitudes` (torch/numpy neutral) and, for every ROI matched to a reflection, look up that Miller index so we can compute `amp_sq_per_pixel = (|F|^2 / n_masked_pixels)` beside the reflection-table mean.
+  - Extend the existing `reflection_comparison` block to persist the HKL index, HKL amplitude, `amp_sq_per_pixel`, and derived ratios (`amp^2` vs reflection, Stage A vs amp^2) plus percentile stats/top/bottom-N tables; emit the same information to the console summary for quick scanning.
+  - Thread the HKL ledger into `probe_metadata` (resolved MTZ path/column already recorded) and fail fast if a reflection lacks an HKL match, so downstream analyses know whether the mismatch originates before or after the simulator.
+  - Re-run the baseline + perturbed probes and DB-AT-028/029 commands above so the refreshed artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/` contain the new ledger plus the usual chi²/ROI telemetry.
 
 Deterministic Parity Crisis:
-- Independent Reference: DIALS reflection table intensities from `sp.proc/refGeom_small/refGeom_small.refl` (`intensity.sum.value`, `background.sum.value`) per docs/data_dependency_manifest.md — these per-ROI photon sums are independent of the nanobrag_torch simulator and let us decide whether the Stage A vs target mismatch comes from the simulator or from ROI preparation.
+- Independent Reference: DIALS refGeom reflection table (`sp.proc/refGeom_small/refGeom_small.refl`) — provides per-ROI `intensity.sum.value` independent of nanobrag_torch and matches the observed targets (median target/ref ratio 1.0196), making it the authoritative contract for ROI-level energy.
 - Transformation Ledger:
 
-  | Field | Units / Frame | Producer (file:line) | Consumer (file:line) | Evidence | Hypothesis |
+  | Field | Units / Frame / Order | Producer (file:line) | Consumer (file:line) | Observed evidence | Hypothesis |
   | --- | --- | --- | --- | --- | --- |
-  | `telemetry.target_mean_masked` | ADU over Stage A loss mask | `dbex/refinement/stage_a.py:410` | `tests/dbex/test_stage_a_smoke_parity.py:233` | `stage_a_baseline_probe_baseline.json` (2025-12-19T010000Z) shows 87.1184 ADU | Target masked mean equals telemetry, so global scale is correct |
-  | `telemetry.model_mean_masked` | ADU over Stage A loss mask | `dbex/refinement/stage_a.py:430` | `dbex/refinement/reconstruction.py:557` | Same JSON shows ratio 1.000000087 | Baseline alignment succeeded; mismatch is not scale |
-  | `mapping_context.bragg_zero_iter` | ADU per pixel, detector frame order `[panel, slow, fast]` | `dbex/vis/mapping.py:221-303` | `dbex/refinement/stage_a.py:334` & DB-AT fixtures | `stage_a_baseline_probe_baseline.json` reports `stagea_vs_mapping_max_abs_diff=3.9e-03 ADU` | Stage A warm cache matches mapping baseline (DB-AT-027 PASS) |
-  | `chi2_per_pixel_initial` | dimensionless per-masked pixel | `tests/dbex/test_stage_a_smoke_parity.py:269` | Spec gate `docs/spec-db-conformance.md:280-318` | `db_at_028/db_at_028_metrics.json` (2025-12-19T010000Z) = 2.097×10⁵ | Deterministic parity crisis signature (>10³ over spec) persists |
-  | `roi_diagnostics.stagea_vs_target_cc` | Pearson CC per ROI (panel frame) | `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py:429-604` | Galph parity localization + DB-AT interpretability | Probe shows median -0.0373, worst ROI Stage A mean 1.6×10³ ADU vs target 6.9 ADU | Stage A concentrates intensity into few ROIs; need reflection-table reference to see whether simulator or ROI prep drifts |
+  | `telemetry.target_mean_masked` | ADU/pixel, Stage A loss mask order `[panel, slow, fast]` | `dbex/refinement/stage_a.py:423-431` | `tests/dbex/test_stage_a_smoke_parity.py:233-255` | `stage_a_baseline_probe_baseline.json` (2025-12-20T010000Z) → 87.1184 ADU | Target ingestion correct; global energy budget conserved. |
+  | `telemetry.model_mean_masked` | same as above | `dbex/refinement/stage_a.py:456-518` | `dbex/refinement/reconstruction.py:497-572` | Same probe → 87.1184 ADU (ratio 1.0) | Baseline scaling now aligned; mismatch is not a scalar offset. |
+  | ROI #0 Panel0 `[897:909,17:29]` | ADU/pixel, detector ROI mask | `compare_stage_a_baseline.py:439-704` | `tests/dbex/test_stage_a_smoke_parity.py:244-252` | Reflection mean 8.69 ADU vs Stage A 0.0199 ADU (ratio 2.28e-3) | Simulator drops nearly all energy for this HKL despite target+reference agreement. |
+  | ROI #1 Panel0 `[644:656,21:33]` | same | same | Reflection 8.12 ADU vs Stage A 5.78e-4 ADU (ratio 7.1e-5) | Confirms majority of ROIs sit ≪1% of reference. |
+  | ROI #2 Panel0 `[257:269,37:49]` | same | same | Reflection 83.10 ADU vs Stage A 0.244 ADU (ratio 2.94e-3) | Even strong reflections collapse, pointing upstream of Stage A baseline logic. |
+  | ROI #14 Panel0 `[431:443,434:446]` | same | same | Reflection 1.74 ADU vs Stage A 407.7 ADU (ratio 2.34e2) | Minority of reflections explode, suggesting we may be feeding intensity-like magnitudes where amplitudes are expected. |
+  | ROI #19 Panel0 `[787:799,694:706]` | same | same | Reflection 192.88 ADU vs Stage A 11.80 ADU (ratio 6.12e-2, near 16× deficit) | Median behavior (0.061) matches deterministic parity crisis signature. |
 
-- Boundary Bisection Step: Compare each ROI’s Stage A/mapping/target means against the independent reflection-table intensities; whichever side matches the reflection data becomes the trusted producer for the next production fix (either simulator scaling or ROI prep).
+- Boundary Bisection Step: Augment the probe with HKL amplitude lookups so each reflection row now includes `(reflection mean, target mean, Stage A mean, |F|^2/n_pixels)`; whichever pair aligns with the reflection-table reference reveals whether HKL ingestion or simulator execution causes the crisis.
 
 How-To Map:
-- Use `flex.reflection_table` APIs to pull `intensity.sum.value` / `background.sum.value`; convert to numpy arrays once and cache so ROI iteration stays deterministic.
-- Assert the reflection-table row count equals `len(refinement_inputs.panel_slices)` before zipping to avoid silent misalignment; include panel/bbox IDs in any error.
-- Record the resolved MTZ/Calib paths (already in `probe_metadata`) and add reflection-table provenance (`refGeom_small.refl`) in the new block for traceability.
-- When computing ratios, use masked-pixel counts (`n_masked_pixels`) to turn sums into comparable means; persist both sum and per-pixel metrics so later loops can cite whichever matches the reference.
-- Rerun commands exactly as listed under Mapped tests (including `AUTHORITATIVE_CMDS_DOC`) so the harness captures context and the new reflection-aware JSON/summary share the same artifacts directory as the pytest logs.
+- Keep using the smoke fixture + refined MTZ resolved via `get_refgeom_dataload()` so HKL indices match DB-AT fixtures; reuse the `hkl_indices` / `hkl_amplitudes` already present on `mapping_context` rather than rebuilding grids.
+- Convert `mapping_context.hkl_indices` to tuples of ints once (e.g., `tuple(map(int, ...))`) so dictionary lookups stay deterministic; bail if a Miller index from the reflection table is missing to avoid silently mixing assets.
+- Recompute ratios with `np.isfinite` guards and store both sums and per-pixel means so downstream analyses can decide whether to compare energy or amplitude domains.
+- Use the existing `AUTHORITATIVE_CMDS_DOC` + env var boilerplate when rerunning commands to keep artifacts admissible per docs/TESTING_GUIDE.md.
+- Capture the new ledger in both JSON and console output; reference it from `summary.md` so the supervisor loop has decision-carrying evidence without re-running the probe.
 
 Pitfalls:
-- Do not mutate `refgeom_dataload.Refs`; copy data into numpy arrays so the DataLoad cache stays immutable for other probes.
-- Guard against NaNs/infinite ratios when a ROI has zero masked pixels; skip those entries instead of skewing statistics.
-- Keep the new JSON additions bounded (top/bottom-N lists + percentile stats) to avoid exploding artifact size; raw per-ROI tensors still live in existing diagnostics.
-- Ensure the reflection-table ordering matches ROI ordering — if counts diverge, fail fast and document it rather than guessing.
-- Respect Environment Freeze: all new logic lives in the plan-side probe, not in nanobrag_torch or external dependencies.
-- When rerunning pytest, tee output to the logged file even on failure so we retain exact traces for follow-up analysis.
+- The reflection table stores bounding boxes without ROI padding; ensure matching logic still tolerates the +3 pixel expansion and reports mismatches explicitly.
+- HKL lookup must respect Friedel mates — use the canonical index exactly as loaded from `mapping_context` to avoid reintroducing symmetry bugs.
+- Do not mutate `mapping_context.hkl_amplitudes`; clone data before casting to numpy to avoid side effects in future runs.
+- Guard for `n_masked_pixels == 0` before dividing; log and skip such ROIs rather than emitting NaNs into percentile stats.
+- Keep artifact paths per-command aligned with the timestamp at the top of this file; stale env vars will derail later loops.
 
 If Blocked:
-- Capture the failure signature (stack traces, mismatched counts, device unavailability) in `summary.md`, stash whatever artifacts exist, and update `docs/fix_plan.md` + `galph_memory.md` with the blocking detail before switching focus or requesting a harness/spec-change initiative.
+- Capture the exception (e.g., ROI/HKL mismatch, missing reflection table, tensor conversion failure) in `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-20T210000Z/summary.md`, update `docs/fix_plan.md` Attempts History + `galph_memory.md` with the blocking condition, and only switch initiatives after logging whether a harness/spec-change ticket is required.

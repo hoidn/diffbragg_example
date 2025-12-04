@@ -165,3 +165,65 @@ python -m dbex.tools.mapping_dataset_metrics \
 - `dbex/calibration/config_variants.py` (calibration variant materialization helpers)
 - `docs/data_dependency_manifest.md:40-140` (HKL/calibration/sigma asset resolution)
 - `docs/architecture/data_telemetry_flow.md:1-180` (Stage A telemetry ownership)
+
+### capture_smoke_calibration.py
+
+**Purpose:** Capture smoke calibration bundles from metadata smoke datasets using DiffBragg refinement.
+
+**Extracted From:** `plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py` (ARCH-PROBE-FREEZE-001 Phase B.6)
+
+**Key Components:**
+
+**Business Logic Owner:** `dbex.calibration.smoke_capture`
+- `capture_calibration_metadata()`: Execute DiffBragg macro-cycle refinement and emit calibration config JSON + manifest with SHA256 checksums
+- `compute_sha256()`: Compute file checksums for manifest generation
+- `to_native()`: Convert numpy/torch types to JSON-serializable native Python types
+
+**CLI Surface:**
+- `main()`: Command-line entry point exposing `--expt/--refl/--mask/--mtz/--out-config/--manifest/--refined-mtz-out/--num-macro` arguments
+
+**Usage:**
+```bash
+# Full-detector smoke calibration
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE \
+libtbx.python -m dbex.tools.capture_smoke_calibration \
+    --expt sp.proc/idx-0000_sigma_metadata.expt \
+    --refl refGeom.refl \
+    --mask 747_mask.pkl \
+    --mtz scaled.mtz \
+    --out-config sp.proc/calibration/config_torch_smoke.json \
+    --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors.mtz \
+    --manifest <artifacts-path>/smoke_calibration_manifest.json \
+    --num-macro 3
+
+# Small-detector smoke calibration
+libtbx.python -m dbex.tools.capture_smoke_calibration \
+    --expt sp.proc/refGeom_small/refGeom_small.expt \
+    --refl sp.proc/refGeom_small/refGeom_small.refl \
+    --mask sp.proc/refGeom_small/refGeom_small_mask.pkl \
+    --mtz scaled.mtz \
+    --out-config sp.proc/calibration/config_torch_smoke_small.json \
+    --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors_small.mtz \
+    --manifest <artifacts-path>/smoke_calibration_small_manifest.json \
+    --num-macro 3
+```
+
+**Outputs:**
+- Calibration config JSON (`config_torch_smoke*.json`) with `spot_scale_override`, `beam.flux`, `beam.exposure`, `beamsize_mm`, `crystal.N_cells`
+- Refined structure factors MTZ (optional, via `--refined-mtz-out`)
+- Manifest JSON with SHA256 checksums, generator command, git revision, input provenance
+
+**Ownership:** ARCH-PROBE-FREEZE-001 Phase B.6
+
+**Legacy alias:** `plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py` (compatibility shim)
+
+**Applied Findings:**
+- STAGEA-001 (Calibration provenance): Owner modules emit DiffBragg metadata bundles
+- SCALE-004 (HKL/calibration precedence): Canonical generation commands live in owner APIs
+- Diagnostic Script Policy (prompts/supervisor.md:272-309): Business logic resides in `dbex.calibration`, CLI delegates
+
+**See Also:**
+- `dbex/calibration/smoke_capture.py` (business logic and helper functions)
+- `docs/data_dependency_manifest.md:86-103` (refined structure factors bundle requirements)
+- `docs/architecture/calibration_scaling.md` (calibration layer ownership)

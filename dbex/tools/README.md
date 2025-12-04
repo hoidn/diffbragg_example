@@ -110,3 +110,58 @@ python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --help
 **See Also:**
 - `plans/active/ARCH-REFACTOR-001/reports/2025-11-24T092000Z/phase_d_d2_planning_analysis.md` (extraction strategy)
 - `plans/active/ARCH-REFACTOR-001/implementation.md` (Phase D D2 checklist)
+
+### mapping_dataset_metrics.py
+
+**Purpose:** Compare Stage A mapping contexts across different HKL/calibration configurations to quantify the effect of HKL source and calibration choice on ROI correlation and scale ratios.
+
+**Extracted From:** `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py` (ARCH-PROBE-FREEZE-001 Phase B.5)
+
+**Key Components:**
+
+**Available Cases:**
+- `metadata_raw`: No calibration, external sigma tiles
+- `metadata_calibrated`: Calibration + refined MTZ, external sigma tiles
+- `cli_raw`: No calibration, CLI sigma override
+- `cli_calibrated`: Calibration + refined MTZ, CLI sigma override
+- `metadata_calibrated_drop_ncells`: Calibration with N_cells suppressed
+- `metadata_calibrated_spot1`: Calibration with spot_scale=1.0 override
+- `metadata_calibrated_spot1_drop_ncells`: Both modifications
+
+**Public Functions:**
+- `define_cases(out_dir)`: Define preset dataset cases with explicit HKL/calibration paths
+- `build_dataload_for_case(case_spec, case_name)`: Build DataLoad instance for a specific case configuration
+- `compute_case_metrics(case_name, case_spec, default_sigma, device, ...)`: Build mapping context and compute metrics
+- `compute_diffs(base_metrics, other_metrics)`: Compute difference metrics between two cases
+- `run_mapping_dataset_metrics(cases, *, out_dir, default_sigma, device, ...)`: Importable runner for programmatic invocation
+
+**CLI Usage:**
+```bash
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+python -m dbex.tools.mapping_dataset_metrics \
+    --cases metadata_raw metadata_calibrated \
+    --emit-roi-artifacts --roi-count 16 \
+    --default-sigma 3.0 --device cuda:0 \
+    --out-dir plans/active/<initiative>/reports/<timestamp>/mapping_dataset_metrics
+```
+
+**Outputs:**
+- `mapping_dataset_metrics.json`: Per-case metrics + pairwise diffs
+- `<case_name>/roi_diagnostics/roi_*.{npz,png}`: Lowest-correlation ROI artifacts (when `--emit-roi-artifacts` is set)
+
+**Ownership:** ARCH-PROBE-FREEZE-001 Phase B.5
+
+**Legacy alias:** `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py` (compatibility shim)
+
+**Applied Findings:**
+- STAGEA-001 (Calibration/Data Dependency Manifest): Uses owner APIs via `dbex.calibration.config_variants`
+- SCALE-004/005 (HKL/calibration precedence): Routes dataset resolution through canonical helpers
+- Diagnostic Script Policy (prompts/supervisor.md:272-309): Thin wrapper over owner modules
+
+**See Also:**
+- `dbex/calibration/config_variants.py` (calibration variant materialization helpers)
+- `docs/data_dependency_manifest.md:40-140` (HKL/calibration/sigma asset resolution)
+- `docs/architecture/data_telemetry_flow.md:1-180` (Stage A telemetry ownership)

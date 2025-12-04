@@ -173,12 +173,23 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
             I_pre_polar = pstats['intensity_pre_polar']
             payload['intensity_pre_polar'] = float(I_pre_polar.mean().item()) if isinstance(I_pre_polar, torch.Tensor) else I_pre_polar
 
-        # Phase C.34: Extract per-subpixel trace data from trace_* keys
+        # Phase C.34/C.35: Extract per-subpixel trace data from trace_* keys
         # These are sliced to the single traced pixel but retain all subpixel samples
         per_axis_data = {}
-        for axis_key, delta_key, f_latt_key in [('h', 'trace_delta_h', 'trace_F_latt_a'),
-                                                   ('k', 'trace_delta_k', 'trace_F_latt_b'),
-                                                   ('l', 'trace_delta_l', 'trace_F_latt_c')]:
+        for axis_key, h_key, h0_key, delta_key, f_latt_key in [
+            ('h', 'trace_h', 'trace_h0', 'trace_delta_h', 'trace_F_latt_a'),
+            ('k', 'trace_k', 'trace_k0', 'trace_delta_k', 'trace_F_latt_b'),
+            ('l', 'trace_l', 'trace_l0', 'trace_delta_l', 'trace_F_latt_c')
+        ]:
+            # C.35: Capture full HKL tensors and rounded indices
+            if h_key in pstats:
+                h_vals = pstats[h_key]
+                if isinstance(h_vals, torch.Tensor):
+                    per_axis_data[axis_key] = h_vals.cpu().numpy().astype(np.float64)
+            if h0_key in pstats:
+                h0_vals = pstats[h0_key]
+                if isinstance(h0_vals, torch.Tensor):
+                    per_axis_data[f'{axis_key}0'] = h0_vals.cpu().numpy().astype(np.float64)
             if delta_key in pstats and f_latt_key in pstats:
                 delta_vals = pstats[delta_key]
                 f_latt_vals = pstats[f_latt_key]
@@ -311,6 +322,20 @@ def main():
                 print(f"    min_abs_delta_k: {payload_scaled['min_abs_delta_k']:.6e}")
             if 'min_abs_delta_l' in payload_scaled:
                 print(f"    min_abs_delta_l: {payload_scaled['min_abs_delta_l']:.6e}")
+        # C.35: Display HKL tensor stats for traced pixel
+        if 'per_axis_data' in payload_scaled:
+            per_axis = payload_scaled['per_axis_data']
+            hkl_stats_present = any(k in per_axis for k in ['h', 'k', 'l', 'h0', 'k0', 'l0'])
+            if hkl_stats_present:
+                print(f"  Traced pixel HKL tensor stats (C.35):")
+                for ax in ['h', 'k', 'l']:
+                    if ax in per_axis:
+                        vals = per_axis[ax]
+                        print(f"    {ax}: min={np.min(vals):.6f}, median={np.median(vals):.6f}, max={np.max(vals):.6f}")
+                for ax in ['h0', 'k0', 'l0']:
+                    if ax in per_axis:
+                        vals = per_axis[ax]
+                        print(f"    {ax}: min={np.min(vals):.0f}, median={np.median(vals):.0f}, max={np.max(vals):.0f}")
     print()
 
     # Compute observed ratio
@@ -617,6 +642,24 @@ def main():
                 if k != 'per_axis_data':
                     f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
+            # C.35: Add traced pixel HKL tensor summary
+            if 'per_axis_data' in payload_scaled:
+                per_axis = payload_scaled['per_axis_data']
+                hkl_stats_present = any(k in per_axis for k in ['h', 'k', 'l', 'h0', 'k0', 'l0'])
+                if hkl_stats_present:
+                    f.write("### Traced Pixel HKL Tensor Stats (Phase C.35)\n\n")
+                    f.write("Per-subpixel HKL values captured via `_partiality_stats` for the single traced pixel:\n\n")
+                    f.write("| Axis | Min | Median | Max |\n")
+                    f.write("|------|-----|--------|-----|\n")
+                    for ax in ['h', 'k', 'l']:
+                        if ax in per_axis:
+                            vals = per_axis[ax]
+                            f.write(f"| {ax} | {np.min(vals):.6f} | {np.median(vals):.6f} | {np.max(vals):.6f} |\n")
+                    for ax in ['h0', 'k0', 'l0']:
+                        if ax in per_axis:
+                            vals = per_axis[ax]
+                            f.write(f"| {ax} | {np.min(vals):.0f} | {np.median(vals):.0f} | {np.max(vals):.0f} |\n")
+                    f.write("\n")
 
         if derived_ratios:
             f.write("### Derived Ratios\n\n")

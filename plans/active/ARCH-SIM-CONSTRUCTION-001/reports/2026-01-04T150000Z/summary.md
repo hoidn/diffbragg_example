@@ -1,8 +1,18 @@
+## Ralph Implementation Turn — 2026-01-04T150000Z
+
+### Turn Summary
+
+Implemented Phase C.33 oversample grid centering fix in `simulator.py:1096-1098` using symmetric formula `(arange(N) - (N-1)/2) / N` to ensure Δ=0 is sampled on both detector axes. Added `min_abs_delta_{h,k,l}` instrumentation to `partiality_stats` (simulator.py:324-326) and updated `probe_square_lattice_scaling.py` to display these stats. Single-pixel probe confirms h-axis now hits Δ=0 exactly (`min_abs_delta_h: 0.000000e+00`), but k/l axes remain far from zero (~0.054), indicating the deficit originates from crystal-detector geometry alignment rather than oversample grid bias. Partiality enforcement test still FAILS (observed ratio 3.56M vs expected 1.45B = 0.25%), showing ~42× improvement from prior 85k but insufficient to meet 5% tolerance. Next step: bisect detector basis vs HKL projection to identify why k/l fractional offsets never sample near zero despite centered oversample grid.
+
+Artifacts: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-04T150000Z/` containing `square_lattice_probe.log`, `pytest_partiality.log`, `square_lattice_scaling.{json,md}`.
+
+---
+
 # ARCH-SIM-CONSTRUCTION-001 — Supervisor Loop (2026-01-04T150000Z)
 
-**Mode:** Parity  
-**Action Type:** planning  
-**DecisionStatus:** localized  
+**Mode:** Parity
+**Action Type:** planning
+**DecisionStatus:** localized
 **Focus:** Phase C.33 prep — center fractional HKL offsets for SQUARE lattice
 
 ## Observations

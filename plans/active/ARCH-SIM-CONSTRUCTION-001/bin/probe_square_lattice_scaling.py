@@ -196,6 +196,14 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
 
         payload['per_axis_data'] = per_axis_data
 
+        # C.33: Extract minimum absolute deltas to verify oversample centering
+        if 'min_abs_delta_h' in pstats:
+            payload['min_abs_delta_h'] = pstats['min_abs_delta_h']
+        if 'min_abs_delta_k' in pstats:
+            payload['min_abs_delta_k'] = pstats['min_abs_delta_k']
+        if 'min_abs_delta_l' in pstats:
+            payload['min_abs_delta_l'] = pstats['min_abs_delta_l']
+
         debug_stats['partiality_stats'] = {
             k: (v.tolist() if isinstance(v, torch.Tensor) else v)
             for k, v in pstats.items()
@@ -280,6 +288,15 @@ def main():
               f"F_latt={payload_scaled.get('F_latt', 'N/A'):.6e}, "
               f"F_total²={payload_scaled.get('F_total_squared_pre_lorentz', 'N/A'):.6e}, "
               f"I_pre_polar={payload_scaled.get('intensity_pre_polar', 'N/A'):.6e}")
+        # C.33: Display min_abs_delta stats to verify oversample centering
+        if 'min_abs_delta_h' in payload_scaled or 'min_abs_delta_k' in payload_scaled or 'min_abs_delta_l' in payload_scaled:
+            print(f"  Min |Δ| stats (C.33 oversample centering):")
+            if 'min_abs_delta_h' in payload_scaled:
+                print(f"    min_abs_delta_h: {payload_scaled['min_abs_delta_h']:.6e}")
+            if 'min_abs_delta_k' in payload_scaled:
+                print(f"    min_abs_delta_k: {payload_scaled['min_abs_delta_k']:.6e}")
+            if 'min_abs_delta_l' in payload_scaled:
+                print(f"    min_abs_delta_l: {payload_scaled['min_abs_delta_l']:.6e}")
     print()
 
     # Compute observed ratio

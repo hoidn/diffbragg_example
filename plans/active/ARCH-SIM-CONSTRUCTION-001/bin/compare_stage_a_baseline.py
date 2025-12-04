@@ -430,6 +430,10 @@ def main():
     stagea_vs_target_roi_cc = []
     stagea_vs_mapping_roi_cc = []
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.15: Collect detailed ROI diagnostics
+    # Store per-ROI metrics for top/bottom-N analysis
+    roi_diagnostics = []
+
     for pid, bbox in refinement_inputs.panel_slices:
         x0, x1, y0, y1 = bbox
         roi_mask = loss_mask_np[int(pid), y0:y1, x0:x1]
@@ -440,9 +444,40 @@ def main():
         mapping_roi = mapping_bragg[int(pid), y0:y1, x0:x1]
         stagea_roi = bragg_before[int(pid), y0:y1, x0:x1]
 
-        mapping_vs_target_roi_cc.append(_compute_pearson_cc(mapping_roi, target_roi, roi_mask))
-        stagea_vs_target_roi_cc.append(_compute_pearson_cc(stagea_roi, target_roi, roi_mask))
-        stagea_vs_mapping_roi_cc.append(_compute_pearson_cc(stagea_roi, mapping_roi, roi_mask))
+        mapping_vs_target_cc = _compute_pearson_cc(mapping_roi, target_roi, roi_mask)
+        stagea_vs_target_cc = _compute_pearson_cc(stagea_roi, target_roi, roi_mask)
+        stagea_vs_mapping_cc = _compute_pearson_cc(stagea_roi, mapping_roi, roi_mask)
+
+        mapping_vs_target_roi_cc.append(mapping_vs_target_cc)
+        stagea_vs_target_roi_cc.append(stagea_vs_target_cc)
+        stagea_vs_mapping_roi_cc.append(stagea_vs_mapping_cc)
+
+        # Compute masked mean deltas for this ROI
+        target_roi_masked = target_roi[roi_mask]
+        mapping_roi_masked = mapping_roi[roi_mask]
+        stagea_roi_masked = stagea_roi[roi_mask]
+
+        target_roi_mean = float(np.mean(target_roi_masked)) if target_roi_masked.size > 0 else float("nan")
+        mapping_roi_mean = float(np.mean(mapping_roi_masked)) if mapping_roi_masked.size > 0 else float("nan")
+        stagea_roi_mean = float(np.mean(stagea_roi_masked)) if stagea_roi_masked.size > 0 else float("nan")
+
+        mapping_vs_target_delta = mapping_roi_mean - target_roi_mean
+        stagea_vs_target_delta = stagea_roi_mean - target_roi_mean
+
+        # Store diagnostic entry
+        roi_diagnostics.append({
+            "panel_id": int(pid),
+            "bbox": [int(x0), int(x1), int(y0), int(y1)],
+            "n_masked_pixels": int(np.count_nonzero(roi_mask)),
+            "mapping_vs_target_cc": mapping_vs_target_cc,
+            "stagea_vs_target_cc": stagea_vs_target_cc,
+            "stagea_vs_mapping_cc": stagea_vs_mapping_cc,
+            "target_mean_masked": target_roi_mean,
+            "mapping_mean_masked": mapping_roi_mean,
+            "stagea_mean_masked": stagea_roi_mean,
+            "mapping_vs_target_delta": mapping_vs_target_delta,
+            "stagea_vs_target_delta": stagea_vs_target_delta,
+        })
 
     # Filter out NaN values for percentile computation
     valid_mapping_vs_target = [c for c in mapping_vs_target_roi_cc if np.isfinite(c)]
@@ -495,6 +530,11 @@ def main():
     chi_squared_mapping = float(np.sum(residual_mapping_masked ** 2 / variance_mapping_masked))
     chi_squared_per_pixel_mapping = chi_squared_mapping / n_masked_pixels if n_masked_pixels > 0 else float("nan")
 
+    # Compute chi2_ratio unconditionally (used in output dict)
+    chi2_ratio = float("nan")
+    if np.isfinite(chi_squared_per_pixel_mapping) and np.isfinite(chi_squared_per_pixel_initial):
+        chi2_ratio = abs(chi_squared_per_pixel_initial - chi_squared_per_pixel_mapping) / chi_squared_per_pixel_mapping if chi_squared_per_pixel_mapping > 0 else float("inf")
+
     # Check DB-AT-027 parity warnings (only normative when geometry_mode is baseline)
     # Per spec §280: max_abs_diff should be O(1) ADU for float precision, not O(1e2)
     # Per spec §279-281: ROI CC should be > 0.99 for zero-point equivalence
@@ -506,10 +546,8 @@ def main():
             mapping_parity_warnings.append(f"Stage A vs mapping median ROI CC ({roi_cc_stats['stagea_vs_mapping']['median']:.4f}) < 0.99 (DB-AT-027 zero-point equivalence)")
         if np.isfinite(max_abs_diff_masked) and max_abs_diff_masked > 1.0:
             mapping_parity_warnings.append(f"Stage A vs mapping max|Δ| ({max_abs_diff_masked:.3e} ADU) > 1.0 ADU (DB-AT-027 forward-model equality)")
-        if np.isfinite(chi_squared_per_pixel_mapping) and np.isfinite(chi_squared_per_pixel_initial):
-            chi2_ratio = abs(chi_squared_per_pixel_initial - chi_squared_per_pixel_mapping) / chi_squared_per_pixel_mapping if chi_squared_per_pixel_mapping > 0 else float("inf")
-            if chi2_ratio > 1e-3:
-                mapping_parity_warnings.append(f"Stage A vs mapping chi²/pixel relative diff ({chi2_ratio:.3e}) > 1e-3 (DB-AT-027 variance-weighted loss equality)")
+        if np.isfinite(chi2_ratio) and chi2_ratio > 1e-3:
+            mapping_parity_warnings.append(f"Stage A vs mapping chi²/pixel relative diff ({chi2_ratio:.3e}) > 1e-3 (DB-AT-027 variance-weighted loss equality)")
     else:
         # Perturbed mode: differences are expected and non-normative
         mapping_parity_warnings.append(f"[NON-NORMATIVE] Geometry mode is '{args.geometry_mode}' — Stage A vs mapping differences are expected due to deliberate perturbation")
@@ -552,6 +590,21 @@ def main():
     mapping_log_scale_baseline_source = mapping_diagnostics.get("log_scale_baseline_source")
     mapping_scale_adjustment_skipped = mapping_diagnostics.get("mapping_scale_adjustment_skipped", False)
     mapping_scale_skip_reason = mapping_diagnostics.get("mapping_scale_skip_reason")
+
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.15: Sort ROIs and extract top/bottom-N for detailed analysis
+    # Sort by Stage A vs target correlation (ascending) to find worst/best ROIs
+    roi_diagnostics_sorted = sorted(
+        [r for r in roi_diagnostics if np.isfinite(r["stagea_vs_target_cc"])],
+        key=lambda r: r["stagea_vs_target_cc"]
+    )
+
+    # Extract bottom 5 (worst correlations) and top 5 (best correlations)
+    n_top_bottom = 5
+    bottom_n_rois = roi_diagnostics_sorted[:n_top_bottom] if len(roi_diagnostics_sorted) >= n_top_bottom else roi_diagnostics_sorted
+    top_n_rois = roi_diagnostics_sorted[-n_top_bottom:] if len(roi_diagnostics_sorted) >= n_top_bottom else []
+
+    # Reverse top_n to show best first
+    top_n_rois = list(reversed(top_n_rois))
 
     # Build output payload
     output = {
@@ -639,6 +692,13 @@ def main():
             "baseline_alignment_factor": baseline_alignment_factor,
             "cache_status": cache_status,
             "description": "Phase C.14: Cold-path baseline alignment factor (telemetry / cold) when cache unavailable",
+        },
+        "roi_diagnostics": {
+            "description": "Phase C.15: Per-ROI diagnostics to identify which ROIs drive DB-AT-028/029 failures",
+            "n_total_rois": len(roi_diagnostics),
+            "n_valid_rois": len(roi_diagnostics_sorted),
+            "bottom_n_rois": bottom_n_rois,
+            "top_n_rois": top_n_rois,
         },
     }
 
@@ -749,6 +809,35 @@ def main():
         for warning in mapping_parity_warnings:
             print(f"  - {warning}")
         print("=" * 80)
+
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.15: Print ROI diagnostics
+    print("\nROI-Level Diagnostics (Phase C.15):")
+    print("=" * 80)
+    print(f"Total ROIs analyzed: {len(roi_diagnostics)}")
+    print(f"Valid ROIs (finite Stage A vs target CC): {len(roi_diagnostics_sorted)}")
+    print("")
+
+    # Print bottom-N (worst) ROIs
+    if bottom_n_rois:
+        print(f"Bottom {len(bottom_n_rois)} ROIs (worst Stage A vs target correlation):")
+        print("-" * 80)
+        print(f"  {'Panel:BBox':<20} {'CC(StgA↔Tgt)':<15} {'CC(Map↔Tgt)':<15} {'Δ(StgA-Tgt)':<15} {'N_pix':<10}")
+        print(f"  {'-'*20} {'-'*15} {'-'*15} {'-'*15} {'-'*10}")
+        for roi in bottom_n_rois:
+            bbox_str = f"{roi['panel_id']}:[{roi['bbox'][0]},{roi['bbox'][1]},{roi['bbox'][2]},{roi['bbox'][3]}]"
+            print(f"  {bbox_str:<20} {roi['stagea_vs_target_cc']:<15.4f} {roi['mapping_vs_target_cc']:<15.4f} {roi['stagea_vs_target_delta']:<15.6e} {roi['n_masked_pixels']:<10}")
+        print("")
+
+    # Print top-N (best) ROIs
+    if top_n_rois:
+        print(f"Top {len(top_n_rois)} ROIs (best Stage A vs target correlation):")
+        print("-" * 80)
+        print(f"  {'Panel:BBox':<20} {'CC(StgA↔Tgt)':<15} {'CC(Map↔Tgt)':<15} {'Δ(StgA-Tgt)':<15} {'N_pix':<10}")
+        print(f"  {'-'*20} {'-'*15} {'-'*15} {'-'*15} {'-'*10}")
+        for roi in top_n_rois:
+            bbox_str = f"{roi['panel_id']}:[{roi['bbox'][0]},{roi['bbox'][1]},{roi['bbox'][2]},{roi['bbox'][3]}]"
+            print(f"  {bbox_str:<20} {roi['stagea_vs_target_cc']:<15.4f} {roi['mapping_vs_target_cc']:<15.4f} {roi['stagea_vs_target_delta']:<15.6e} {roi['n_masked_pixels']:<10}")
+    print("=" * 80)
 
     # Fail when baseline mode has parity violations (ARCH-SIM-CONSTRUCTION-001 Phase C.13)
     # In baseline mode, Stage A and mapping should produce identical outputs (max|Δ| < 1 ADU)

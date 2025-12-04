@@ -2267,3 +2267,9 @@ Action State: ready_for_implementation
 - Rebuilt input.md with a Parity-mode Do Now directing Ralph to (a) rescale the cold-path reconstruction via telemetry masked means, (b) add a regression test that reproduces the cache-miss scenario, and (c) rerun the Stage A baseline probe + DB-AT-028/029 under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-18T010000Z/`.
 - Problems ledger item “DB-AT-028/029 scale mismatch” remains serviced by this initiative; focus stays on ARCH-SIM-CONSTRUCTION-001.
 Action State: ready_for_implementation
+
+2025-12-18T150000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=0 action=parity_localization artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-19T010000Z/ next_action=ready_for_implementation
+- Phase C.14 implementation wrapped (cold-path baseline alignment + artifact-parity test landed; summary + probe evidence captured under 2025-12-18T010000Z). Marked the phase complete in `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` and added a new Phase C.15 section for ROI localization diagnostics so the plan points to the next evidence step.
+- Updated input.md with a Parity-mode Do Now that (1) enriches `compare_stage_a_baseline.py` with ROI-level StageA↔target stats, (2) reruns the probe in both baseline and perturbed geometry modes, and (3) reruns DB-AT-028/029 with artifacts rooted at `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-19T010000Z/` to see whether chi²/ROI regressions persist after the C.14 fix.
+- No code edits scheduled outside plan scripts/tests; this loop focuses on instrumentation + parity evidence so we can decide whether the remaining DB-AT failures require implementation vs spec-change escalation.
+Action State: ready_for_implementation

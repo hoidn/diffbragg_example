@@ -242,12 +242,10 @@
       (b) seed a new fix-plan item (with initiative type + exit criteria), or
       (c) be explicitly deferred with rationale and links.
 
-    <problems_md_trigger>
-      <strong>Fresh backlog guard:</strong>
-      If <code>problems.md</code> has unchecked entries and neither of the last two <code>galph_memory.md</code> entries mention it,
-      you MUST dedicate this loop to incorporating at least one concrete problems.md entry into <code>docs/fix_plan.md</code>
-      (new/retargeted item), then delegate a Do Now for it (or mark blocked and switch focus).
-    </problems_md_trigger>
+    
+       <problems_md_trigger> 
+     - <strong>Fresh backlog guard:</strong> If <code>problems.md</code> has unchecked entries and neither of the last two <code>galph_memory.md</code> entries mention that ledger, you must dedicate this loop to at least one planning pass that incorporates a concrete item from the ledger.
+     <problems_md_trigger>
   </problems_md_rules>
 
   <!-- ========================= -->

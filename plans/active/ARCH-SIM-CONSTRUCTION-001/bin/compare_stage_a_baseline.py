@@ -271,11 +271,14 @@ def collect_mapping_hkl_stats(
     mapping_context,
     device,
     apply_n_cells,
+    config=None,
 ):
     """
     Run simulate_forward_once with HKL stats enabled and aggregate diagnostics.
     """
     print("[Stage A Baseline Probe] Collecting simulate_forward_once HKL stats...")
+    # ARCH-SIM-CONSTRUCTION-001: Extract mosaic_domains from config if available
+    mosaic_domains = config.stage_a_mosaic_domains if config is not None else None
     bragg_unused, diagnostics = simulate_forward_once(
         inputs=refinement_inputs,
         detector=detector,
@@ -289,6 +292,7 @@ def collect_mapping_hkl_stats(
         device=device,
         sigma_floor_value=1.0,
         apply_calibration_n_cells=apply_n_cells,
+        mosaic_domains=mosaic_domains,
         debug_config={"collect_hkl_stats": True},
     )
 
@@ -752,6 +756,7 @@ def main():
                 mapping_context=mapping_context,
                 device=device_obj,
                 apply_n_cells=apply_n_cells,
+                config=config,
             )
         except Exception as exc:  # pragma: no cover - diagnostics only
             print(f"[Stage A Baseline Probe] WARNING: simulate_forward_once HKL stats collection failed: {exc}")

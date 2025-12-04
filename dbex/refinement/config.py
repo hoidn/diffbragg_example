@@ -89,6 +89,14 @@ class RefinementConfig:
     # -1 triggers auto-selection based on detector size (not recommended for reproducibility).
     oversample: int = 3
 
+    # Multi-domain mosaic sampling (ARCH-SIM-CONSTRUCTION-001)
+    # Number of mosaic domain samples for Stage A/mapping/reconstruction.
+    # Default 16 averages the mosaic spread sinc kernel to recover ROI-level correlations.
+    # Set to 1 to revert to single-domain perfect-crystal behavior (legacy stills default).
+    # Used by _build_stage_a_context, simulate_forward_once, and reconstruction cold path.
+    # Note: GPU memory scales with mosaic_domains; 16 fits on 24GB GPUs for small detectors.
+    stage_a_mosaic_domains: int = 16
+
     # Stage B structure factor modifiers (TORCH-REFINE-004)
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers
     stage_b_mode: str = "per_reflection"  # "per_reflection" (default per spec:59) or "shell" (fallback per spec:60)

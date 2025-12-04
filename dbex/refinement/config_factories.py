@@ -284,7 +284,7 @@ def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> Beam
     return BeamConfig(**beam_kwargs)
 
 
-def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True, crystal_overrides=None, misset_deg_override=None, diagnostics=None) -> Tuple[CrystalConfig, bool]:
+def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True, crystal_overrides=None, misset_deg_override=None, mosaic_domains_override=None, diagnostics=None) -> Tuple[CrystalConfig, bool]:
     """
     Create CrystalConfig from dxtbx crystal and experiment with optional calibration overrides.
 
@@ -295,6 +295,7 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     - Stills defaults: phi_steps=1, osc_range_deg=0, mosaic extracted from experiment metadata
     - Optional N_cells from DiffBragg calibration metadata (gated by apply_n_cells per SCALE-005)
     - ARCH-SIM-CONSTRUCTION-001: Extracts ML_half_mosaicity_deg and ML_domain_size_ang from experiment.crystal.to_dict()
+    - ARCH-SIM-CONSTRUCTION-001 multi-domain: Optional mosaic_domains_override for Stage A/mapping/reconstruction multi-domain sampling
 
     Args:
         crystal: dxtbx Crystal object
@@ -309,6 +310,10 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
                             for orientation refinement (TORCH-REFINE-002). When provided,
                             overrides the default zero misset. Can be torch.Tensor to preserve
                             gradient flow for differentiable orientation refinement.
+        mosaic_domains_override: Optional int for number of mosaic domain samples (ARCH-SIM-CONSTRUCTION-001).
+                                When provided and >=1, overrides the default mosaic_domains=1 for
+                                Stage A/mapping/reconstruction multi-domain averaging. Clamped to >=1.
+                                Default None preserves existing stills behavior (mosaic_domains=1).
         diagnostics: Optional dict to populate with applied mosaic/N_cells values for logging
 
     Returns:
@@ -371,6 +376,7 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     # For stills (no scan), use phi_steps=1, osc_range_deg=0
     phi_steps = 1
     osc_range_deg = 0.0
+    # ARCH-SIM-CONSTRUCTION-001: mosaic_domains default 1 unless overridden for multi-domain sampling
     mosaic_domains = 1
     mosaic_spread_deg = 0.0
 
@@ -421,6 +427,18 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     # Use fallback N_cells if no explicit N_cells was provided
     if N_cells is None and fallback_n_cells is not None:
         N_cells = fallback_n_cells
+
+    # ARCH-SIM-CONSTRUCTION-001 multi-domain: Apply mosaic_domains_override if provided
+    # Clamp to >=1 to prevent nanobrag_torch allocation crashes
+    if mosaic_domains_override is not None:
+        mosaic_domains = max(1, int(mosaic_domains_override))
+        if diagnostics is not None:
+            diagnostics['mosaic_domains'] = mosaic_domains
+            diagnostics['mosaic_domains_source'] = 'override'
+    else:
+        if diagnostics is not None:
+            diagnostics['mosaic_domains'] = mosaic_domains
+            diagnostics['mosaic_domains_source'] = 'default_stills'
 
     # Build kwargs for CrystalConfig, only including N_cells if provided AND apply_n_cells=True
     crystal_kwargs = {

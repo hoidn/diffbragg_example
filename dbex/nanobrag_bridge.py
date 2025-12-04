@@ -1242,6 +1242,7 @@ def simulate_forward_once(
     device=None,
     sigma_floor_value: float = 1.0,
     apply_calibration_n_cells: bool = True,
+    mosaic_domains: Optional[int] = None,
     debug_config: Optional[dict] = None,
 ) -> Tuple[np.ndarray, dict]:
     """
@@ -1277,6 +1278,9 @@ def simulate_forward_once(
         apply_calibration_n_cells: Whether to apply N_cells from calibration dict when
                                    present (default True). Set to False to suppress N_cells
                                    for small-detector metadata fixtures (TOOLING-VIS-001).
+        mosaic_domains: Optional int for number of mosaic domain samples (ARCH-SIM-CONSTRUCTION-001).
+                       When provided and >=1, overrides the default mosaic_domains=1 for
+                       multi-domain averaging. Default None preserves existing stills behavior.
         debug_config: Optional dict passed to create_unified_simulator for debug flags.
                      When 'collect_hkl_stats' is True, each panel's Simulator will record
                      min/max h,k,l values and in-bounds/out-of-bounds query counts.
@@ -1397,7 +1401,8 @@ def simulate_forward_once(
         crystal,
         experiment,
         N_cells=N_cells,
-        apply_n_cells=apply_n_cells
+        apply_n_cells=apply_n_cells,
+        mosaic_domains_override=mosaic_domains
     )
 
     # Run simulator per panel

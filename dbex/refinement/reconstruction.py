@@ -180,6 +180,8 @@ def build_final_bragg_from_stage_a_telemetry(
     apply_n_cells = (N_cells is not None) and config.apply_calibration_n_cells
 
     # Build crystal config with refined parameters using override API
+    # ARCH-SIM-CONSTRUCTION-001: Extract mosaic_domains from config if available
+    mosaic_domains_override = config.stage_a_mosaic_domains if config is not None else None
     crystal_config, n_cells_applied = create_crystal_config(
         crystal=crystal,
         experiment=None,
@@ -187,6 +189,7 @@ def build_final_bragg_from_stage_a_telemetry(
         apply_n_cells=apply_n_cells,
         crystal_overrides=crystal_overrides,
         misset_deg_override=final_misset,
+        mosaic_domains_override=mosaic_domains_override,
     )
 
     # Extract panel counts and full panel shape
@@ -883,12 +886,15 @@ def build_final_bragg_from_stage_b_telemetry(
 
     if stage_b_use_warm_cache:
         # Warm cache path: retarget Stage A simulators with modified crystal
+        # ARCH-SIM-CONSTRUCTION-001: Extract mosaic_domains from config if available
+        mosaic_domains_override = config.stage_a_mosaic_domains if config is not None else None
         warm_crystal_config, _ = create_crystal_config(
             crystal,
             None,
             crystal_overrides=crystal_overrides,
             misset_deg_override=final_misset,
             apply_n_cells=False,
+            mosaic_domains_override=mosaic_domains_override,
         )
         warm_crystal_model = Crystal(
             warm_crystal_config,
@@ -914,6 +920,8 @@ def build_final_bragg_from_stage_b_telemetry(
         # Transfer shell-modified HKL grid to final_device before factory invocation (CPU fallback determinism)
         hkl_grid_final = hkl_grid_modified.to(device=final_device, dtype=dtype)
         beam_config = create_beam_config(beam)
+        # ARCH-SIM-CONSTRUCTION-001: Extract mosaic_domains from config if available
+        mosaic_domains_override = config.stage_a_mosaic_domains if config is not None else None
         for pid in range(n_panels):
             detector_config = create_detector_config(
                 panel=detector[pid],
@@ -924,7 +932,8 @@ def build_final_bragg_from_stage_b_telemetry(
                 crystal, None,
                 crystal_overrides=crystal_overrides,
                 misset_deg_override=final_misset,
-                apply_n_cells=False
+                apply_n_cells=False,
+                mosaic_domains_override=mosaic_domains_override,
             )
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
             simulator, normalized_mask, sqrt_scale, metadata = create_unified_simulator(

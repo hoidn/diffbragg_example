@@ -288,7 +288,9 @@ def _build_stage_a_context(
     # Gate N_cells application per TOOLING-VIS-001 Phase D.C and SCALE-008
     # Apply only when N_cells is present AND apply_calibration_n_cells is True
     apply_n_cells = (N_cells is not None) and apply_calibration_n_cells
-    crystal_config, _ = create_crystal_config(crystal, None, N_cells=N_cells, apply_n_cells=apply_n_cells)
+    # ARCH-SIM-CONSTRUCTION-001: Extract mosaic_domains from config if available
+    mosaic_domains_override = config.stage_a_mosaic_domains if config is not None else None
+    crystal_config, _ = create_crystal_config(crystal, None, N_cells=N_cells, apply_n_cells=apply_n_cells, mosaic_domains_override=mosaic_domains_override)
 
     base_crystal_model = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
     base_crystal_model.interpolate = enable_hkl_interpolation
@@ -521,7 +523,8 @@ def _compute_panel_loss(
                     crystal,
                     None,
                     crystal_overrides=crystal_overrides,
-                    misset_deg_override=misset_deg_for_crystal
+                    misset_deg_override=misset_deg_for_crystal,
+                    mosaic_domains_override=mosaic_domains_override
                 )
                 crystal_model = Crystal(
                     crystal_config,
@@ -614,7 +617,8 @@ def _compute_panel_loss(
                     crystal,
                     None,
                     crystal_overrides=crystal_overrides,
-                    misset_deg_override=misset_deg_for_crystal
+                    misset_deg_override=misset_deg_for_crystal,
+                    mosaic_domains_override=mosaic_domains_override
                 )
                 crystal_model = Crystal(
                     crystal_config,

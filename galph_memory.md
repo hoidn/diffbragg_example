@@ -2488,3 +2488,24 @@ Action State: ready_for_implementation
 - implementation_ready — Ralph to follow the three-step Do Now (owner CLI, shim, docs/tests updates) and rerun the mapped tests while capturing CLI help + pytest logs + Stage A baseline metrics JSON under the reserved artifacts directory.
 
 Action State: implementation_ready
+
+## Loop 2025-12-30T010000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase B.5 mapping diagnostics migration)
+**State**: planning
+**Dwell**: 0 (new planning loop after B.4 closure)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Phase B.3/B.4 deliverables are validated: DB-AT-028/029 now enable `enable_stage_a_baseline_metrics` via `DBEX_STAGE_A_BASELINE_METRICS_PATH`, `docs/TESTING_GUIDE.md` documents the workflow, and sigma metadata embedding runs through `dbex.tools.embed_sigma_external_lookup` with the plan script reduced to a shim.
+2. Probe inventory highlights `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py` (≈671 LOC) as the next shadow pipeline — it reimplements config variant materialization, HKL/sigma env resolution, and ROI metrics that belong in owner modules. Keeping it in `plans/active/**/bin` violates diagnostic_script_policy once other telemetry hooks exist.
+3. Planned Phase B.5 scope: (a) introduce a reusable calibration variant helper (`dbex/calibration/config_variants.py`) that mirrors the `tests/conftest.py::smoke_dataset_paths` logic and exposes `materialize_calibration_variant`, (b) author `dbex/tools/mapping_dataset_metrics.py` (CLI + importable runner) so case definitions, ROI computations, and artifact emission happen inside production code, (c) convert the plan script into a compatibility shim, and (d) update docs/plan notes/tests to reference the canonical CLI. Validation will rerun the metadata cases (`metadata_raw`, `metadata_calibrated`) under `DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small`, capture `mapping_dataset_metrics.json` + ROI artifacts, and log commands in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/`.
+4. Findings cited: diagnostic_script_policy (prompts/supervisor.md §10) forbids extending shadow pipelines, STAGEA-001 + SCALE-004/005 require calibration/HKL provenance to flow through owner APIs, DATA_DEPENDENCY_MANIFEST mandates env-driven dataset resolution be centralized. Problems ledger “Freeze plan-local probe scripts…” remains open; this loop services it by targeting the largest remaining shadow pipeline.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/`
+
+**Next Actions**:
+- implementation_ready — Ralph to build `dbex/calibration/config_variants.py` + `dbex/tools/mapping_dataset_metrics.py`, collapse the plan script into a shim, refresh docs/tests referencing the legacy path, and run the new CLI for the metadata cases while capturing metrics JSON/ROI artifacts/logs under the reserved report directory. No new plan-local probes allowed.
+
+Action State: ready_for_implementation

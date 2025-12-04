@@ -2509,3 +2509,23 @@ Action State: implementation_ready
 - implementation_ready — Ralph to build `dbex/calibration/config_variants.py` + `dbex/tools/mapping_dataset_metrics.py`, collapse the plan script into a shim, refresh docs/tests referencing the legacy path, and run the new CLI for the metadata cases while capturing metrics JSON/ROI artifacts/logs under the reserved report directory. No new plan-local probes allowed.
 
 Action State: ready_for_implementation
+
+## Loop 2025-12-30T150000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase B.6 smoke-calibration migration)
+**State**: planning
+**Dwell**: 1 (second consecutive planning loop; next loop must delegate implementation)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Next highest-risk shadow pipeline is `plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py` (≈330 LOC, DiffBragg hopper + manifest), and it still owns the canonical commands referenced by docs/data_dependency_manifest.md.
+2. Planned Phase B.6 to promote the capture workflow into owner modules: add `dbex/calibration/smoke_capture.py` helpers + `python -m dbex.tools.capture_smoke_calibration`, reduce the plan script to a shim, and update docs/README so all guidance points at the owner CLI.
+3. Validation for the upcoming implementation loop requires running the new CLI twice (full + refGeom_small datasets) with outputs/manifest/logs stored under `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_{full,small}/`, leaving the tracked `sp.proc/calibration/*.json/.mtz` files untouched.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/`
+
+**Next Actions**:
+- implementation_ready — build the new helper + CLI modules, convert the plan script to a shim, update docs, and run the mapped capture commands + pytest collect-only guard per input.md.
+
+Action State: ready_for_implementation

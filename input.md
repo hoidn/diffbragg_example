@@ -1,4 +1,4 @@
-Summary: Promote the mapping dataset metrics probe into `dbex.calibration`/`dbex.tools` so calibration/HKL comparisons rely on owner APIs instead of a 670+ LOC plan script.
+Summary: Promote the smoke calibration capture probe into `dbex.calibration`/`dbex.tools` so DiffBragg metadata bundles are emitted by owner modules with canonical CLIs.
 Mode: none
 ActionType: implementation_ready
 DecisionStatus: localized
@@ -6,48 +6,43 @@ InitiativeType: architecture
 Focus: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation
 Branch: integration
 Mapped tests:
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python -m dbex.tools.mapping_dataset_metrics --cases metadata_raw metadata_calibrated --emit-roi-artifacts --roi-count 16 --default-sigma 3.0 --device cuda:0 --out-dir plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/mapping_dataset_metrics | tee plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/mapping_dataset_metrics/probe.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE libtbx.python -m dbex.tools.capture_smoke_calibration --expt sp.proc/idx-0000_sigma_metadata.expt --refl refGeom.refl --mask 747_mask.pkl --mtz scaled.mtz --out-config plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_full/config_torch_smoke.json --refined-mtz-out plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_full/smoke_refined_structure_factors.mtz --manifest plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_full/smoke_calibration_manifest.json --num-macro 3 | tee plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_full/capture_full.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE libtbx.python -m dbex.tools.capture_smoke_calibration --expt sp.proc/refGeom_small/refGeom_small.expt --refl sp.proc/refGeom_small/refGeom_small.refl --mask sp.proc/refGeom_small/refGeom_small_mask.pkl --mtz scaled.mtz --out-config plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/config_torch_smoke_small.json --refined-mtz-out plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_refined_structure_factors_small.mtz --manifest plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_calibration_small_manifest.json --num-macro 3 | tee plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/capture_small.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" > plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/collect_db_at_028_029.log
+Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/
 Findings Applied (Mandatory):
-  - STAGEA-001 — Calibration flows must be owned by Stage A/mapping modules; migrating the dataset metrics probe prevents duplicate calibration handling.
-  - SCALE-004 — HKL/refined MTZ precedence belongs in production helpers; moving case resolution into `dbex.calibration` keeps SCALE-004 enforced.
-  - SCALE-005 — Sigma/calibration provenance must remain auditable via owner APIs, not plan scripts.
+  - STAGEA-001 — Calibration provenance must flow through owner modules; replacing the plan script keeps Stage A telemetry authoritative.
+  - SCALE-004 — HKL/calibration precedence lives in production helpers; canonical capture tooling enforces this contract.
 Pointers:
-  - plans/active/ARCH-PROBE-FREEZE-001/implementation.md:41-65 — Phase B.5 now targets the mapping dataset metrics migration; follow these goals/exit criteria.
-  - plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py:1-920 — Current shadow pipeline whose logic must move into the new owner modules.
-  - docs/diagnostic_script_policy (prompts/supervisor.md:272-309) — Thin-wrapper rule prohibiting further expansion of plan-local probes.
-  - docs/data_dependency_manifest.md:40-140 — Canonical env knobs for HKL/calibration/sigma assets that the new CLI must honor.
-  - docs/TESTING_GUIDE.md:90-220 — Stage A smoke + dataset diagnostics workflow; update the references from the plan script to the new CLI.
+  - plans/active/ARCH-PROBE-FREEZE-001/implementation.md:Phase B — B6 checklist and guardrails for the capture migration.
+  - plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py:1-360 — Existing 330+ LOC shadow pipeline that must become a shim.
+  - docs/data_dependency_manifest.md:40-110 — Canonical smoke calibration bundle requirements and existing generation commands to update.
 ARCH Contracts (mandatory):
-  - Diagnostic Script Policy (prompts/supervisor.md:272-309) — Owner module: `dbex.tools`; failure type: architecture conformance (shadow pipeline duplicating simulator/mapping semantics).
-  - Calibration/Data Dependency Manifest (docs/data_dependency_manifest.md:40-140) — Owner: `dbex.vis.mapping` + forthcoming `dbex.calibration.config_variants`; failure type: implementation bug (dataset/env resolution duplicated outside owner modules).
-  - Stage A Telemetry Ownership (docs/architecture/data_telemetry_flow.md:1-180) — Owner: `dbex.vis.mapping` / `dbex.refinement.stage_a`; failure type: implementation bug when probes bypass owner telemetry paths.
+  - Diagnostic Script Policy (prompts/supervisor.md:272-309) — Owner: `dbex.tools.capture_smoke_calibration`; failure type: architecture conformance violation (shadow pipeline outside owner APIs).
+  - Calibration/Data Dependency Manifest (docs/data_dependency_manifest.md:40-140) — Owner: `dbex.calibration.*`; failure type: implementation bug (canonical generation commands drifted into plan scripts).
+  - Calibration & Scaling Architecture (docs/architecture/calibration_scaling.md:1-160) — Owner: `dbex.calibration`; failure type: architecture conformance (calibration bundle emission must live in the calibration layer).
 Do Now (hard validity contract)
-1. Implement: `dbex/calibration/config_variants.py::materialize_calibration_variant` and helper utilities — lift the case/variant materialization logic from `compare_mapping_dataset_metrics.py`, expose reusable functions (base config loading, spot_scale override, N_cells removal, dataset path resolution mirroring `tests/conftest.py::smoke_dataset_paths`), and add minimal unit docstrings so tooling/tests can import the helpers.
-2. Implement: `dbex/tools/mapping_dataset_metrics.py::main` (+ supporting functions) — move the CLI/parser, case definition, DataLoad construction, ROI correlation/scale metric computation, ROI artifact emission, and diff generation into this owner module. Provide an importable runner (e.g., `run_mapping_dataset_metrics(cases, *, default_sigma, device, emit_roi_artifacts, out_dir)`) so tests or scripts can reuse the logic without spawning a subprocess.
-3. Implement: `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py` — reduce to a compatibility shim (`from dbex.tools import mapping_dataset_metrics as tool; tool.main()`), update the module docstring to note the canonical entry point, and ensure no residual business logic remains.
-4. Implement: Documentation/tests updates (at minimum `docs/TESTING_GUIDE.md` dataset diagnostics section, `plans/active/TOOLING-VIS-001/implementation.md` notes, and any docstrings or skip/help text referencing the legacy script) so operators know to run `python -m dbex.tools.mapping_dataset_metrics`. Add a short README note under `dbex/tools/` if needed to describe available tooling.
-Mapped Validation (pytest):
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python -m dbex.tools.mapping_dataset_metrics --cases metadata_raw metadata_calibrated --emit-roi-artifacts --roi-count 16 --default-sigma 3.0 --device cuda:0 --out-dir plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/mapping_dataset_metrics | tee plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/mapping_dataset_metrics/probe.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts deliverables:
-  - `mapping_dataset_metrics.json`, ROI PNG/NPZ bundles, and `probe.log` under `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/mapping_dataset_metrics/`.
-  - Updated documentation excerpts (Testing Guide diff, plan notes) and any helper README snippets placed under the same report directory.
-  - Command transcripts for the mapped validation commands plus any failure logs.
+1. Implement: `dbex/calibration/smoke_capture.py` — lift the capture logic out of the plan script into reusable helpers (DataLoad ingestion, hopper macro-cycles, manifest writer) with docstrings referencing docs/data_dependency_manifest.md. Ensure helpers accept explicit paths/kwargs so callers can control output directories without touching repo-tracked configs.
+2. Implement: `dbex/tools/capture_smoke_calibration.py::main` — expose the existing CLI surface (`--expt/--refl/--mask/--mtz/--out-config/--refined-mtz-out/--manifest/--num-macro`) and call the new helpers. Add a README entry under `dbex/tools/README.md` summarizing usage + sample command (`libtbx.python -m dbex.tools.capture_smoke_calibration ...`).
+3. Implement: `plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py` — reduce to a compatibility shim (`from dbex.tools import capture_smoke_calibration as tool; tool.main()`) with a docstring pointing at the canonical owner CLI. No residual business logic may remain.
+4. Implement: Documentation updates — refresh `docs/data_dependency_manifest.md` generation commands to reference `python -m dbex.tools.capture_smoke_calibration`, update any TOOLING-VIS-001 plan notes referencing the legacy script, and ensure new helper modules/docstrings cite diagnostic_script_policy.
+5. Implement: Validation + artifacts — run the two mapped capture commands (full + small datasets) directing outputs into `capture_full/` and `capture_small/` under this loop’s report directory. Each run must leave behind config JSON, refined MTZ (if requested), manifest JSON, SHA256 notes, and the tee’d log showing macro cycles completed. Append the pytest collect-only log for DB-AT-028/029 to the root artifacts directory.
 Forbidden This Loop:
-  - no new plan-local diagnostic scripts or telemetry forks (all logic must live under `dbex.calibration`/`dbex.tools`).
-  - do not regenerate mapping/calibration fixtures in-place; write outputs under the reserved artifacts directory.
+  - no new plan-local probe scripts or telemetry forks; all capture logic must live under `dbex.calibration`/`dbex.tools`.
+  - do not overwrite the tracked `sp.proc/calibration/config_torch_smoke*.json` or `smoke_refined_structure_factors*.mtz`; validation outputs belong under the artifacts directory only.
 How-To Map:
-  1. Start by extracting the calibration variant helpers and dataset resolver into `dbex/calibration/config_variants.py`, adding targeted unit tests if practical.
-  2. Port the CLI + computation logic into `dbex/tools/mapping_dataset_metrics.py`, ensuring it honors `DBEX_SMOKE_*` env vars, logs metrics, and can emit ROI artifacts.
-  3. Replace the plan script with the shim, update docs/tests, and then run the mapped CLI command followed by the pytest collect-only run, teeing output into the reserved artifacts directory.
+  1. Author the new helper + CLI modules and run `python -m compileall dbex/calibration` if needed to catch import errors.
+  2. Replace the plan script with a shim, then update docs (Data Dependency Manifest + any README/plan notes) to point at the new CLI.
+  3. Create `capture_full/` and `capture_small/` under the artifacts path, run the mapped commands, and ensure manifests/logs/configs reside there. Finally, run the pytest collect-only guard and store the output per above.
 Pitfalls To Avoid:
-  - Do not leave residual business logic inside the plan script; the shim must only delegate.
-  - Keep dataset resolution identical to `tests/conftest.py::smoke_dataset_paths` so DB-AT fixtures and the new CLI stay in sync.
-  - Ensure ROI artifact emission gates large tensor serialization (sampling where necessary) to avoid OOM.
-  - Preserve backwards-compatible CLI flags so existing automation can switch with minimal changes.
-  - Avoid touching Stage A telemetry codepaths beyond wiring in the new owner module.
+  - Do not leave residual DiffBragg logic inside `plans/active/**/bin`; the shim must only call the owner CLI.
+  - Avoid hard-coding repo-relative paths inside the helper; accept explicit `Path` args so future initiatives can re-use it.
+  - Keep manifests self-consistent (generator command, file SHA256, manifest SHA256) to satisfy docs/data_dependency_manifest.md requirements.
+  - Ensure logging matches previous behavior (INFO-level banner + macro-cycle messages) so existing automation can parse the output.
+  - Do not clobber existing calibration bundles in `sp.proc/calibration/`; store validation outputs under this loop’s report tree.
+  - Preserve libtbx imports (phil_scope/hopper_utils) and validate they work under the standard interpreter invoked by the CLI.
+  - Capture command output via `tee` so artifact directories contain the full log even if the run fails mid-cycle.
+  - Update `dbex/tools/__init__.py` if needed to expose the new CLI for discoverability.
 If Blocked:
-  - Document the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T010000Z/blockers.md`, update `docs/fix_plan.md` Attempts History, and notify Galph. If CLI runs fail due to resource constraints, rerun on CPU with smaller ROI counts but capture evidence explaining the limitation.
-Doc Sync Plan (Conditional): Not required — no pytest selectors renamed; only documentation references move from the plan script to the new owner CLI.
+  - Document the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/blockers.md`, update docs/fix_plan.md Attempts History with the evidence, and ping Galph. If DiffBragg capture crashes, attach the log + traceback and stop before editing the environment.
+Doc Sync Plan (Conditional): Not required — no pytest selectors added or renamed.

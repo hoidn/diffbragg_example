@@ -2658,3 +2658,20 @@ Action State: planning
 - Overwrote `input.md` with an implementation-ready Do Now: patch `src/nanobrag-torch/src/nanobrag_torch/simulator.py::Simulator.run`, refresh `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`, keep `probe_square_lattice_scaling.py` telemetry in sync, capture the vendor diff as `patches/omega_compensation.patch` + env tag, update `docs/findings.md::SIM-CONSTR-PARTIALITY-001`, and rerun the single-pixel probe + architecture partiality test + DB-AT-028/029 with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-11T180000Z/`.
 - Mapped tests quote the sanctioned commands (probe oversample=13, `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`, `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"`) with AUTHORITATIVE_CMDS_DOC envs set, so there are no hidden knobs.
 - Findings cited: SIM-CONSTR-PARTIALITY-001 (owner-path constraint), PROBE-FREEZE-001 (no new plan scripts), SCALE-009 (DB-AT gate). DecisionStatus is patch_ready; Forbidden list reiterates “no new probes / no plan-bin extensions / no Stage A edits.”
+## Loop 2026-01-12T010000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase C.39 omega compensation)
+**State**: ready_for_implementation
+**Dwell**: 0 (fresh implementation handoff after instrumentation loop)
+**Action Type**: implementation_ready
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Phase C.38 telemetry (reports/2026-01-11T010000Z/) still shows normalized/raw = 1e-6 whenever `oversample>1` for SQUARE lattices, proving omega is applied inside the accumulation loop and never compensated.
+2. Problems ledger row “DB-AT-028/029 scale mismatch (SCALE-009…)” remains open; no new probes were added, so we can proceed straight to the production patch.
+3. Authored `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-12T010000Z/summary.md` and refreshed `input.md` with the same omega-compensation Do Now plus a fresh artifact directory and Environment-Freeze bookkeeping instructions.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-12T010000Z/`
+
+**Next Actions**:
+- implementation_ready — Ralph to edit `nanobrag_torch.simulator.Simulator.run` so SQUARE lattices apply omega once post-sum, update the partiality architecture test + probe telemetry, capture the vendor patch/tag, rerun the mapped probe/partiality/DB-AT selectors, and drop the results under the new timestamp.

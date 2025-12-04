@@ -35,6 +35,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from dials.array_family import flex
+
 from dbex.data_load import DataLoad
 from dbex.nanobrag_bridge import build_structure_factor_grid
 from dbex.refinement.config import RefinementConfig
@@ -606,6 +608,159 @@ def main():
     # Reverse top_n to show best first
     top_n_rois = list(reversed(top_n_rois))
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.16: Load reflection table and align with ROI ordering
+    # Extract independent reference intensities from DIALS reflection table
+    reflection_comparison = {
+        "description": "Independent reference comparison using DIALS reflection table intensities",
+        "n_reflections_total": 0,
+        "n_reflections_matched": 0,
+        "n_roi_mismatches": 0,
+        "reflection_metrics": [],
+        "reflection_top_n": [],
+        "reflection_bottom_n": [],
+        "reflection_stats": {},
+        "provenance": {
+            "refl_path": str(refl_path) if 'refl_path' in locals() else "unknown",
+            "expt_path": str(expt_path) if 'expt_path' in locals() else "unknown",
+        }
+    }
+
+    # Load reflection table from refgeom_dataload
+    refs_table = refgeom_dataload.Refs
+    n_reflections_total = len(refs_table)
+    reflection_comparison["n_reflections_total"] = n_reflections_total
+
+    # Convert DIALS flex arrays to numpy for deterministic iteration
+    intensity_sum_values = np.array(refs_table['intensity.sum.value'], dtype=np.float64)
+    panel_ids_ref = np.array(refs_table['panel'], dtype=np.int32)
+    bboxes_ref = []
+    for i in range(n_reflections_total):
+        bbox = refs_table['bbox'][i]
+        # bbox is (x0, x1, y0, y1, z0, z1) in DIALS convention
+        bboxes_ref.append((int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])))
+
+    # Match reflections to ROIs by panel and bbox
+    # refinement_inputs.panel_slices is a list of (panel_id, [x0, x1, y0, y1])
+    # Note: ROI bboxes are expanded from reflection bboxes by pad_for_background_estimation (typically 3 pixels)
+    # So ROI bbox should contain the reflection bbox with some padding
+    reflection_roi_matches = []
+    n_roi_mismatches = 0
+
+    for roi_idx, (pid, bbox_roi) in enumerate(refinement_inputs.panel_slices):
+        x0_roi, x1_roi, y0_roi, y1_roi = bbox_roi
+        pid = int(pid)
+
+        # Find matching reflection: same panel and reflection bbox is contained within ROI bbox
+        matched_refl_idx = None
+        best_overlap = 0
+        for refl_idx in range(n_reflections_total):
+            if panel_ids_ref[refl_idx] != pid:
+                continue
+            x0_ref, x1_ref, y0_ref, y1_ref = bboxes_ref[refl_idx]
+
+            # Check if reflection bbox is contained within ROI bbox (allowing for padding)
+            # ROI should contain the reflection with some margin
+            if (x0_ref >= x0_roi and x1_ref <= x1_roi and
+                y0_ref >= y0_roi and y1_ref <= y1_roi):
+                # Compute overlap area to find best match if multiple reflections overlap
+                overlap_area = (x1_ref - x0_ref) * (y1_ref - y0_ref)
+                if overlap_area > best_overlap:
+                    matched_refl_idx = refl_idx
+                    best_overlap = overlap_area
+
+        if matched_refl_idx is not None:
+            # Extract reflection intensity and compute per-pixel mean
+            intensity_sum_ref = float(intensity_sum_values[matched_refl_idx])
+            n_pixels_roi = roi_diagnostics[roi_idx]["n_masked_pixels"]
+
+            # Compute per-pixel mean from reflection intensity sum
+            intensity_per_pixel_ref = intensity_sum_ref / n_pixels_roi if n_pixels_roi > 0 else float("nan")
+
+            # Extract Stage A / mapping / target means from roi_diagnostics
+            stagea_mean = roi_diagnostics[roi_idx]["stagea_mean_masked"]
+            mapping_mean = roi_diagnostics[roi_idx]["mapping_mean_masked"]
+            target_mean = roi_diagnostics[roi_idx]["target_mean_masked"]
+
+            # Compute ratios to reflection reference
+            stagea_vs_ref_ratio = stagea_mean / intensity_per_pixel_ref if np.isfinite(intensity_per_pixel_ref) and intensity_per_pixel_ref > 0 else float("nan")
+            mapping_vs_ref_ratio = mapping_mean / intensity_per_pixel_ref if np.isfinite(intensity_per_pixel_ref) and intensity_per_pixel_ref > 0 else float("nan")
+            target_vs_ref_ratio = target_mean / intensity_per_pixel_ref if np.isfinite(intensity_per_pixel_ref) and intensity_per_pixel_ref > 0 else float("nan")
+
+            reflection_roi_matches.append({
+                "roi_idx": roi_idx,
+                "refl_idx": matched_refl_idx,
+                "panel_id": pid,
+                "bbox": [x0_roi, x1_roi, y0_roi, y1_roi],
+                "n_masked_pixels": n_pixels_roi,
+                "intensity_sum_ref": intensity_sum_ref,
+                "intensity_per_pixel_ref": intensity_per_pixel_ref,
+                "stagea_mean_masked": stagea_mean,
+                "mapping_mean_masked": mapping_mean,
+                "target_mean_masked": target_mean,
+                "stagea_vs_ref_ratio": stagea_vs_ref_ratio,
+                "mapping_vs_ref_ratio": mapping_vs_ref_ratio,
+                "target_vs_ref_ratio": target_vs_ref_ratio,
+            })
+        else:
+            n_roi_mismatches += 1
+
+    n_reflections_matched = len(reflection_roi_matches)
+    reflection_comparison["n_reflections_matched"] = n_reflections_matched
+    reflection_comparison["n_roi_mismatches"] = n_roi_mismatches
+    reflection_comparison["reflection_metrics"] = reflection_roi_matches
+
+    # Guard: fail loudly if reflection table diverges from ROI ordering
+    if n_roi_mismatches > 0:
+        print(f"[WARNING] {n_roi_mismatches} ROIs could not be matched to reflection table entries")
+        print(f"[WARNING] Total ROIs: {len(refinement_inputs.panel_slices)}, Reflections: {n_reflections_total}, Matched: {n_reflections_matched}")
+        reflection_comparison["mismatch_warning"] = f"{n_roi_mismatches} ROIs unmatched"
+
+    # Compute percentile stats for reflection ratios
+    valid_stagea_vs_ref = [m["stagea_vs_ref_ratio"] for m in reflection_roi_matches if np.isfinite(m["stagea_vs_ref_ratio"])]
+    valid_mapping_vs_ref = [m["mapping_vs_ref_ratio"] for m in reflection_roi_matches if np.isfinite(m["mapping_vs_ref_ratio"])]
+    valid_target_vs_ref = [m["target_vs_ref_ratio"] for m in reflection_roi_matches if np.isfinite(m["target_vs_ref_ratio"])]
+
+    if valid_stagea_vs_ref:
+        reflection_comparison["reflection_stats"]["stagea_vs_ref"] = {
+            "median": float(np.median(valid_stagea_vs_ref)),
+            "p25": float(np.percentile(valid_stagea_vs_ref, 25)),
+            "p75": float(np.percentile(valid_stagea_vs_ref, 75)),
+            "min": float(np.min(valid_stagea_vs_ref)),
+            "max": float(np.max(valid_stagea_vs_ref)),
+        }
+    if valid_mapping_vs_ref:
+        reflection_comparison["reflection_stats"]["mapping_vs_ref"] = {
+            "median": float(np.median(valid_mapping_vs_ref)),
+            "p25": float(np.percentile(valid_mapping_vs_ref, 25)),
+            "p75": float(np.percentile(valid_mapping_vs_ref, 75)),
+            "min": float(np.min(valid_mapping_vs_ref)),
+            "max": float(np.max(valid_mapping_vs_ref)),
+        }
+    if valid_target_vs_ref:
+        reflection_comparison["reflection_stats"]["target_vs_ref"] = {
+            "median": float(np.median(valid_target_vs_ref)),
+            "p25": float(np.percentile(valid_target_vs_ref, 25)),
+            "p75": float(np.percentile(valid_target_vs_ref, 75)),
+            "min": float(np.min(valid_target_vs_ref)),
+            "max": float(np.max(valid_target_vs_ref)),
+        }
+
+    # Sort by Stage A vs reference ratio (descending) to find worst mismatches
+    reflection_matches_sorted = sorted(
+        [m for m in reflection_roi_matches if np.isfinite(m["stagea_vs_ref_ratio"])],
+        key=lambda m: abs(m["stagea_vs_ref_ratio"] - 1.0),
+        reverse=True
+    )
+
+    # Extract bottom 5 (worst mismatches relative to reference) and top 5 (best matches)
+    n_top_bottom_refl = 5
+    bottom_n_refl = reflection_matches_sorted[:n_top_bottom_refl] if len(reflection_matches_sorted) >= n_top_bottom_refl else reflection_matches_sorted
+    top_n_refl = reflection_matches_sorted[-n_top_bottom_refl:] if len(reflection_matches_sorted) >= n_top_bottom_refl else []
+    top_n_refl = list(reversed(top_n_refl))
+
+    reflection_comparison["reflection_bottom_n"] = bottom_n_refl
+    reflection_comparison["reflection_top_n"] = top_n_refl
+
     # Build output payload
     output = {
         "probe_metadata": {
@@ -700,6 +855,7 @@ def main():
             "bottom_n_rois": bottom_n_rois,
             "top_n_rois": top_n_rois,
         },
+        "reflection_comparison": reflection_comparison,
     }
 
     # Write JSON output
@@ -837,6 +993,58 @@ def main():
         for roi in top_n_rois:
             bbox_str = f"{roi['panel_id']}:[{roi['bbox'][0]},{roi['bbox'][1]},{roi['bbox'][2]},{roi['bbox'][3]}]"
             print(f"  {bbox_str:<20} {roi['stagea_vs_target_cc']:<15.4f} {roi['mapping_vs_target_cc']:<15.4f} {roi['stagea_vs_target_delta']:<15.6e} {roi['n_masked_pixels']:<10}")
+    print("=" * 80)
+
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.16: Print reflection-table comparison
+    print("\nReflection-Table Reference Comparison (Phase C.16):")
+    print("=" * 80)
+    print(f"Total reflections in table: {n_reflections_total}")
+    print(f"Reflections matched to ROIs: {n_reflections_matched}")
+    print(f"ROIs without reflection match: {n_roi_mismatches}")
+
+    if n_reflections_matched > 0:
+        print("\nReflection vs Stage A/Mapping/Target Ratios:")
+        print("-" * 80)
+        print(f"  {'Metric':<30} {'Median':<12} {'P25-P75':<20} {'Min-Max':<20}")
+        print(f"  {'-'*30} {'-'*12} {'-'*20} {'-'*20}")
+
+        if "stagea_vs_ref" in reflection_comparison["reflection_stats"]:
+            stats_sa = reflection_comparison["reflection_stats"]["stagea_vs_ref"]
+            print(f"  {'Stage A / Refl (intensity)':<30} {stats_sa['median']:<12.4f} {stats_sa['p25']:.4f} - {stats_sa['p75']:<9.4f} {stats_sa['min']:.4f} - {stats_sa['max']:<9.4f}")
+
+        if "mapping_vs_ref" in reflection_comparison["reflection_stats"]:
+            stats_map = reflection_comparison["reflection_stats"]["mapping_vs_ref"]
+            print(f"  {'Mapping / Refl (intensity)':<30} {stats_map['median']:<12.4f} {stats_map['p25']:.4f} - {stats_map['p75']:<9.4f} {stats_map['min']:.4f} - {stats_map['max']:<9.4f}")
+
+        if "target_vs_ref" in reflection_comparison["reflection_stats"]:
+            stats_tgt = reflection_comparison["reflection_stats"]["target_vs_ref"]
+            print(f"  {'Target / Refl (intensity)':<30} {stats_tgt['median']:<12.4f} {stats_tgt['p25']:.4f} - {stats_tgt['p75']:<9.4f} {stats_tgt['min']:.4f} - {stats_tgt['max']:<9.4f}")
+
+        print("")
+
+        # Print worst mismatches (bottom_n)
+        if bottom_n_refl:
+            print(f"Bottom {len(bottom_n_refl)} ROIs (worst Stage A vs reflection match):")
+            print("-" * 80)
+            print(f"  {'Panel:BBox':<20} {'StgA/Refl':<12} {'Map/Refl':<12} {'Tgt/Refl':<12} {'Refl_Int':<12} {'N_pix':<10}")
+            print(f"  {'-'*20} {'-'*12} {'-'*12} {'-'*12} {'-'*12} {'-'*10}")
+            for m in bottom_n_refl:
+                bbox_str = f"{m['panel_id']}:[{m['bbox'][0]},{m['bbox'][1]},{m['bbox'][2]},{m['bbox'][3]}]"
+                print(f"  {bbox_str:<20} {m['stagea_vs_ref_ratio']:<12.4f} {m['mapping_vs_ref_ratio']:<12.4f} {m['target_vs_ref_ratio']:<12.4f} {m['intensity_sum_ref']:<12.1f} {m['n_masked_pixels']:<10}")
+            print("")
+
+        # Print best matches (top_n)
+        if top_n_refl:
+            print(f"Top {len(top_n_refl)} ROIs (best Stage A vs reflection match):")
+            print("-" * 80)
+            print(f"  {'Panel:BBox':<20} {'StgA/Refl':<12} {'Map/Refl':<12} {'Tgt/Refl':<12} {'Refl_Int':<12} {'N_pix':<10}")
+            print(f"  {'-'*20} {'-'*12} {'-'*12} {'-'*12} {'-'*12} {'-'*10}")
+            for m in top_n_refl:
+                bbox_str = f"{m['panel_id']}:[{m['bbox'][0]},{m['bbox'][1]},{m['bbox'][2]},{m['bbox'][3]}]"
+                print(f"  {bbox_str:<20} {m['stagea_vs_ref_ratio']:<12.4f} {m['mapping_vs_ref_ratio']:<12.4f} {m['target_vs_ref_ratio']:<12.4f} {m['intensity_sum_ref']:<12.1f} {m['n_masked_pixels']:<10}")
+    else:
+        print("\n[WARNING] No reflections matched to ROIs - cannot perform reference comparison")
+
     print("=" * 80)
 
     # Fail when baseline mode has parity violations (ARCH-SIM-CONSTRUCTION-001 Phase C.13)

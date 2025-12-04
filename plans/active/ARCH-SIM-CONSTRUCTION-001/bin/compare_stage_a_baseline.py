@@ -360,6 +360,25 @@ def main():
         param_state="initial",  # Use initial telemetry params for zero-iteration baseline
     )
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.14: Extract baseline_alignment_factor and cache_status
+    # from baseline_stats.json written by reconstruction helper
+    baseline_alignment_factor = 1.0
+    cache_status = "unknown"
+    baseline_stats_path = Path("plans/active/ARCH-SIM-CONSTRUCTION-001/reports") / Path(args.output).parent.name / "baseline_stats.json"
+    if baseline_stats_path.exists():
+        with open(baseline_stats_path, 'r') as f:
+            baseline_stats_records = json.load(f)
+            if isinstance(baseline_stats_records, list) and len(baseline_stats_records) > 0:
+                # Get the most recent record (last one in list)
+                latest_record = baseline_stats_records[-1]
+                baseline_alignment_factor = latest_record.get('baseline_alignment_factor', 1.0)
+                cache_status = latest_record.get('cache_status', 'unknown')
+                print(f"[Stage A Baseline Probe] Extracted from baseline_stats.json:")
+                print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
+                print(f"  cache_status: {cache_status}")
+    else:
+        print(f"[Stage A Baseline Probe] baseline_stats.json not found at {baseline_stats_path}; using defaults")
+
     # Compute masked/unmasked means from reconstructed bragg_before
     loss_mask_np = refinement_inputs.loss_mask.astype(bool)
     target_np = refinement_inputs.target
@@ -615,6 +634,11 @@ def main():
             "telemetry": telemetry_mask_metadata,
             "reconstruction": reconstruction_mask_metadata,
             "checksum_match": mask_checksum_match,
+        },
+        "baseline_alignment": {
+            "baseline_alignment_factor": baseline_alignment_factor,
+            "cache_status": cache_status,
+            "description": "Phase C.14: Cold-path baseline alignment factor (telemetry / cold) when cache unavailable",
         },
     }
 

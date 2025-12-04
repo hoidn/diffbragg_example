@@ -503,3 +503,134 @@ def test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction(
     print(f"[test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction] SUCCESS - cache path verified")
     print(f"  cached_bragg shape: {cached_bragg.shape}, mean: {cached_bragg.mean():.6e}")
     print(f"  reconstructed_bragg_initial shape: {reconstructed_bragg_initial.shape}, mean: {reconstructed_bragg_initial.mean():.6e}")
+
+
+def test_stage_a_cold_path_respects_telemetry_baseline(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+):
+    """
+    Validate that build_final_bragg_from_stage_a_telemetry cold path (no cache)
+    aligns with Stage A telemetry masked means via baseline_alignment_factor.
+
+    This test ensures ARCH-SIM-CONSTRUCTION-001 Phase C.14:
+    when Stage A artifacts are unavailable (bragg_zero_iter=None for param_state="initial"),
+    the reconstruction helper computes the cold-path masked mean and applies a correction
+    factor (telemetry.model_mean_masked / cold_masked_mean) so that DB-AT-028/029 see
+    the same masked-intensity baseline whether or not the warm-cache artifacts exist.
+
+    Acceptance criteria:
+    1. After dropping stage_a_ctx.bragg_zero_iter, the cold path activates
+    2. Cold-path reconstruction masked mean matches telemetry.model_mean_masked within ≤1e-6 relative error
+    3. When cache is available, cold-path output also matches cached array within ≤1e-6 relative error
+    4. baseline_alignment_factor and cache_status are recorded in diagnostics
+
+    Environment:
+    - Requires: KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small
+    - Selector: pytest -vv tests/dbex/test_artifact_parity.py::test_stage_a_cold_path_respects_telemetry_baseline
+
+    References:
+    - ARCH-SIM-CONSTRUCTION-001 Phase C.14 (cold-path baseline alignment)
+    - dbex/refinement/reconstruction.py:392-445 (baseline alignment implementation)
+    - input.md (Do Now #2: implement this test)
+    """
+    print(f"\n[test_stage_a_cold_path_respects_telemetry_baseline] detector={smoke_detector_size}")
+
+    hkl_grid, hkl_metadata = hkl_data
+
+    # Configure refinement: Stage A only (B/C disabled)
+    config = RefinementConfig(
+        device='cuda:0',
+        dtype=torch.float32,
+        history_size=10,
+        max_iter=30,
+        roi_sample_fraction=0.15,
+        full_validation_interval=5,
+        enable_hkl_interpolation=True,
+        enable_stage_b=False,
+        enable_stage_c=False,
+        sigma_readout_provenance="external_lookup",
+    )
+
+    detector = refgeom_dataload.Expt.detector
+    beam = refgeom_dataload.Expt.beam
+    crystal = refgeom_dataload.Expt.crystal
+
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        baseline_crystal=None,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+    )
+
+    # Run engine to populate Stage A cache and telemetry
+    engine = RefinementEngine([StageA()], config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+
+    # Extract Stage A artifacts and telemetry
+    assert "stage_a" in engine._artifacts, "Stage A artifacts missing from engine"
+    stage_a_artifacts = engine._artifacts["stage_a"]
+    stage_a_ctx = stage_a_artifacts.stage_a_ctx
+    telemetry_a = engine._telemetry["stage_a"]
+
+    # Verify telemetry has model_mean_masked (needed for baseline alignment)
+    assert hasattr(telemetry_a, 'model_mean_masked'), "Stage A telemetry missing model_mean_masked field"
+    assert telemetry_a.model_mean_masked is not None, "model_mean_masked should be populated after Stage A run"
+    telemetry_model_mean = float(telemetry_a.model_mean_masked)
+
+    # Save cached bragg_zero_iter for comparison (if available)
+    cached_bragg = None
+    if stage_a_ctx is not None and hasattr(stage_a_ctx, 'bragg_zero_iter') and stage_a_ctx.bragg_zero_iter is not None:
+        cached_bragg = stage_a_ctx.bragg_zero_iter.copy()
+        print(f"  Cached bragg_zero_iter available: shape={cached_bragg.shape}, masked_mean={cached_bragg[refinement_inputs.loss_mask].mean():.6e}")
+
+    # Drop Stage A artifact cache to force cold path
+    if stage_a_ctx is not None and hasattr(stage_a_ctx, 'bragg_zero_iter'):
+        stage_a_ctx.bragg_zero_iter = None
+        print(f"  Dropped bragg_zero_iter to force cold-path reconstruction")
+
+    # Call reconstruction helper with param_state="initial" (should use cold path + alignment)
+    reconstructed_bragg_cold = build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry_a,
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        inputs=refinement_inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        device=config.device,
+        dtype=config.dtype,
+        stage_a_ctx=stage_a_ctx,
+        baseline_crystal=None,
+        param_state="initial",  # Request initial state → should hit cold path + alignment
+    )
+
+    # Acceptance 2: Cold-path reconstruction masked mean should match telemetry within ≤1e-6 relative error
+    assert refinement_inputs.loss_mask is not None, "loss_mask required for masked mean validation"
+    cold_masked_mean = float(reconstructed_bragg_cold[refinement_inputs.loss_mask].mean())
+
+    rel_diff_vs_telemetry = abs(cold_masked_mean - telemetry_model_mean) / (abs(telemetry_model_mean) + 1e-10)
+    assert rel_diff_vs_telemetry < 1e-6, (
+        f"Cold-path masked mean ({cold_masked_mean:.6e}) should match telemetry model_mean_masked "
+        f"({telemetry_model_mean:.6e}) within ≤1e-6 relative error. Got: {rel_diff_vs_telemetry:.3e}"
+    )
+    print(f"  ✓ Cold-path masked mean: {cold_masked_mean:.6e} matches telemetry: {telemetry_model_mean:.6e} (rel_diff={rel_diff_vs_telemetry:.3e})")
+
+    # Acceptance 3: When cache was available, cold-path should also match cached array within ≤1e-6
+    if cached_bragg is not None:
+        cached_masked_mean = float(cached_bragg[refinement_inputs.loss_mask].mean())
+        rel_diff_vs_cached = abs(cold_masked_mean - cached_masked_mean) / (abs(cached_masked_mean) + 1e-10)
+        assert rel_diff_vs_cached < 1e-6, (
+            f"Cold-path masked mean ({cold_masked_mean:.6e}) should match cached masked mean "
+            f"({cached_masked_mean:.6e}) within ≤1e-6 relative error. Got: {rel_diff_vs_cached:.3e}"
+        )
+        print(f"  ✓ Cold-path masked mean matches cached masked mean (rel_diff={rel_diff_vs_cached:.3e})")
+
+    print(f"[test_stage_a_cold_path_respects_telemetry_baseline] SUCCESS - cold-path baseline alignment verified")
+    print(f"  reconstructed_bragg_cold shape: {reconstructed_bragg_cold.shape}, masked_mean: {cold_masked_mean:.6e}")

@@ -2675,3 +2675,24 @@ Action State: planning
 
 **Next Actions**:
 - implementation_ready — Ralph to edit `nanobrag_torch.simulator.Simulator.run` so SQUARE lattices apply omega once post-sum, update the partiality architecture test + probe telemetry, capture the vendor patch/tag, rerun the mapped probe/partiality/DB-AT selectors, and drop the results under the new timestamp.
+
+## Loop 2026-01-12T150000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase C.39 omega compensation)
+**State**: ready_for_implementation
+**Dwell**: 0 (still patch-ready after two prior implementation handoffs)
+**Action Type**: implementation_ready
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Evidence under `reports/2026-01-11T010000Z/` remains decisive: `_partiality_stats['trace_normalized_intensity']` is 1e-6 of `_trace_subpixel_F_total_sq_sum` whenever `oversample>1` for SQUARE lattices, so `(N_a·N_b·N_c)^2` parity fails despite sincg/HKL/beam fixes and oversample=1 staying perfect.
+2. SCALE-009 (docs/spec-db-core.md:60-140) and calibration-scaling ADRs (docs/architecture/calibration_scaling.md:80-145) require the simulator owner path (`nanobrag_torch.simulator.Simulator.run`) to preserve calibrated intensity, so omega must mirror the oversample==1 semantics (apply once post-sum) instead of multiplying each subpixel accumulation.
+3. Problems ledger entry “DB-AT-028/029 scale mismatch (SCALE-009…)” plus findings SIM-CONSTR-PARTIALITY-001 and PROBE-FREEZE-001 still gate closure: no new probes are permitted, and every simulator patch needs a captured diff/tag + findings update.
+4. Authored `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-12T150000Z/summary.md` + refreshed `input.md` with the same Phase C.39 Do Now, tightened DB-AT commands to `DBEX_SMOKE_DETECTOR_SIZE=full` per docs/TESTING_GUIDE.md §1.1, and reiterated Environment-Freeze bookkeeping (patch file + editable reinstall + findings note).
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-12T150000Z/`
+
+**Next Actions**:
+- implementation_ready — Ralph to patch `src/nanobrag-torch/src/nanobrag_torch/simulator.py::Simulator.run` so SQUARE+oversample>1 applies omega once after the Riemann-sum accumulation, keep `_partiality_stats` telemetry intact (add a marker if needed), update `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` plus the sanctioned probe, capture the vendor diff/tag (`patches/omega_compensation.patch`, `environment_tag.md`, findings update), and rerun the mapped probe/partiality/DB-AT selectors with artifacts stored under this timestamp.
+
+Action State: ready_for_implementation

@@ -518,3 +518,124 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
     assert 1e-2 <= scale_ratio_before <= 1e2, (
         f"scale_ratio_before={scale_ratio_before:.3e} outside [1e-2, 1e2]"
     )
+
+
+def test_stage_a_baseline_metrics_dump(
+    hkl_data,
+    refgeom_dataload,
+    smoke_sigma_source,
+):
+    """
+    Test Stage A baseline metrics collection via config.enable_stage_a_baseline_metrics=True.
+
+    Per ARCH-PROBE-FREEZE-001 Phase B: validates that RefinementEngine with Stage A only
+    can emit baseline metrics (masked/unmasked means, chi²-per-pixel, ROI Pearson correlations)
+    via the new telemetry hook, and that StageAArtifacts.baseline_metrics is populated with
+    the expected schema v1 fields.
+
+    This test ensures the production telemetry path works without relying on plan-local probes.
+    """
+    # Build config with baseline metrics enabled
+    device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = str(device_obj)
+    apply_n_cells = getattr(refgeom_dataload, 'apply_calibration_n_cells', True)
+
+    # Build HKL grid from fixture
+    hkl_grid, hkl_metadata = hkl_data
+
+    # Build mapping context for unified inputs (same as stage_a_smoke_result fixture)
+    from dbex.vis.mapping import build_mapping_stage_a_context
+    mapping_context = build_mapping_stage_a_context(
+        refgeom_dataload,
+        default_sigma_readout=3.0,
+        device=device,
+        apply_calibration_n_cells=apply_n_cells,
+    )
+    refinement_inputs = mapping_context.inputs
+
+    # Configure with baseline metrics enabled
+    from dbex.refinement.config import RefinementConfig
+    config = RefinementConfig(
+        device=device,
+        dtype=torch.float32,
+        enable_hkl_interpolation=False,  # Nearest-neighbor per DB-AT-028/029
+        enable_stage_a_warm_cache=True,
+        enable_stage_a_baseline_metrics=True,  # Enable baseline metrics collection
+        stage_a_baseline_metrics_path=None,  # No JSON dump for test (only StageAArtifacts)
+        enable_stage_b=False,
+        enable_stage_c=False,
+        calibration_metadata=refgeom_dataload.calibration_metadata if hasattr(refgeom_dataload, 'calibration_metadata') else None,
+        sigma_readout_reference_value=3.0,
+    )
+
+    # Build refinement context
+    from dbex.refinement.context import build_refinement_context
+    context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
+        detector=refgeom_dataload.detector,
+        beam=refgeom_dataload.beam,
+        crystal=refgeom_dataload.crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        baseline_crystal=None,
+        baseline_detector=None,
+    )
+
+    # Run RefinementEngine with Stage A only
+    stage_a = StageA()
+    engine = RefinementEngine(stages=[stage_a], config=config)
+    result = engine.run({'context': context})
+
+    # Extract Stage A artifacts
+    stage_a_artifacts = result.artifacts.get("stage_a")
+    assert stage_a_artifacts is not None, "Stage A artifacts missing from result"
+    assert stage_a_artifacts.baseline_metrics is not None, "baseline_metrics not populated in StageAArtifacts"
+
+    # Validate baseline_metrics schema v1 fields
+    metrics = stage_a_artifacts.baseline_metrics
+    assert metrics["schema_version"] == "v1", f"Unexpected schema version: {metrics.get('schema_version')}"
+
+    # Validate masked_means
+    assert "masked_means" in metrics, "masked_means missing from baseline_metrics"
+    assert "target_mean_masked" in metrics["masked_means"], "target_mean_masked missing"
+    assert "model_mean_masked" in metrics["masked_means"], "model_mean_masked missing"
+    assert "bragg_mean_masked" in metrics["masked_means"], "bragg_mean_masked missing"
+    assert np.isfinite(metrics["masked_means"]["target_mean_masked"]), "target_mean_masked is NaN/Inf"
+    assert np.isfinite(metrics["masked_means"]["model_mean_masked"]), "model_mean_masked is NaN/Inf"
+    assert np.isfinite(metrics["masked_means"]["bragg_mean_masked"]), "bragg_mean_masked is NaN/Inf"
+
+    # Validate unmasked_means
+    assert "unmasked_means" in metrics, "unmasked_means missing from baseline_metrics"
+    assert "target_mean_unmasked" in metrics["unmasked_means"], "target_mean_unmasked missing"
+    assert "model_mean_unmasked" in metrics["unmasked_means"], "model_mean_unmasked missing"
+    assert "bragg_mean_unmasked" in metrics["unmasked_means"], "bragg_mean_unmasked missing"
+
+    # Validate chi_squared
+    assert "chi_squared" in metrics, "chi_squared missing from baseline_metrics"
+    assert "chi_squared_per_pixel_initial" in metrics["chi_squared"], "chi_squared_per_pixel_initial missing"
+    assert "n_masked_pixels" in metrics["chi_squared"], "n_masked_pixels missing"
+    chi_squared_per_pixel = metrics["chi_squared"]["chi_squared_per_pixel_initial"]
+    assert np.isfinite(chi_squared_per_pixel), "chi_squared_per_pixel_initial is NaN/Inf"
+    assert chi_squared_per_pixel > 0, f"chi_squared_per_pixel_initial={chi_squared_per_pixel:.2e} must be positive"
+
+    # Validate roi_correlations
+    assert "roi_correlations" in metrics, "roi_correlations missing from baseline_metrics"
+    assert "median_roi_pearson" in metrics["roi_correlations"], "median_roi_pearson missing"
+    assert "n_rois_with_correlations" in metrics["roi_correlations"], "n_rois_with_correlations missing"
+    n_rois = metrics["roi_correlations"]["n_rois_with_correlations"]
+    assert n_rois > 0, f"No ROIs with correlations: n_rois_with_correlations={n_rois}"
+
+    # Validate roi_snippets
+    assert "roi_snippets" in metrics, "roi_snippets missing from baseline_metrics"
+    assert isinstance(metrics["roi_snippets"], list), "roi_snippets must be a list"
+    if metrics["roi_snippets"]:
+        snippet = metrics["roi_snippets"][0]
+        assert "panel_id" in snippet, "roi_snippet missing panel_id"
+        assert "bbox" in snippet, "roi_snippet missing bbox"
+        assert "pearson_corr" in snippet, "roi_snippet missing pearson_corr"
+
+    print(f"[test_stage_a_baseline_metrics_dump] PASS")
+    print(f"  Masked chi²/px: {chi_squared_per_pixel:.2e}")
+    print(f"  N masked pixels: {metrics['chi_squared']['n_masked_pixels']}")
+    print(f"  Median ROI Pearson: {metrics['roi_correlations']['median_roi_pearson']:.4f}")
+    print(f"  N ROIs with correlations: {n_rois}")

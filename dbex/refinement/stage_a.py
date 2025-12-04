@@ -2130,6 +2130,39 @@ class StageA:
         # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract stage_a_ctx into artifacts
         stage_a_ctx = stage_a_context.get('stage_a_ctx', None)
 
+        # ARCH-PROBE-FREEZE-001 Phase B: Collect Stage A baseline metrics if requested
+        baseline_metrics = None
+        if self._config.enable_stage_a_baseline_metrics and stage_a_ctx is not None:
+            from dbex.refinement.telemetry_baseline import collect_stage_a_baseline_metrics
+
+            # Build minimal mapping context for ROI slices
+            # Create a simple namespace with roi_slices from refinement_inputs.panel_slices
+            class MappingContextStub:
+                def __init__(self, roi_slices):
+                    self.roi_slices = roi_slices
+
+            mapping_context = MappingContextStub(roi_slices=refinement_inputs.panel_slices)
+
+            # Collect baseline metrics using the telemetry_baseline helper
+            baseline_metrics = collect_stage_a_baseline_metrics(
+                stage_a_ctx=stage_a_ctx,
+                refinement_inputs=refinement_inputs,
+                telemetry=telemetry_a,
+                loss_mask=refinement_inputs.loss_mask,
+                mapping_context=mapping_context,
+            )
+
+            # Optional: dump to JSON if path configured
+            metrics_path = self._config.stage_a_baseline_metrics_path
+            if metrics_path:
+                import json
+                from pathlib import Path
+                output_path = Path(metrics_path)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, 'w') as f:
+                    json.dump(baseline_metrics, f, indent=2)
+                print(f"[ARCH-PROBE-FREEZE-001] Stage A baseline metrics written to {output_path}")
+
         # ARCH-STAGE-CONTEXT-001 Phase D: Compute final Bragg when Stage A is terminal
         # Stage A is terminal when both Stage B and Stage C are disabled
         bragg_full_artifact = None
@@ -2153,13 +2186,15 @@ class StageA:
                 baseline_crystal=baseline_crystal,
             )
 
-        # Create StageAArtifacts with warm context payload + optional final Bragg
+        # Create StageAArtifacts with warm context payload + optional final Bragg + baseline metrics
         # ARCH-REFACTOR-001 Phase D.3: Always create artifacts (even if stage_a_ctx is None in cold mode)
         # This ensures Engine can store Stage A artifacts for all runs, not just warm cache mode
+        # ARCH-PROBE-FREEZE-001 Phase B: Include baseline_metrics when collected
         artifacts = StageAArtifacts(
             stage_a_ctx=stage_a_ctx,  # May be None in cold mode (enable_stage_a_warm_cache=False)
             context_schema_version="v1",
-            bragg_full=bragg_full_artifact  # May be None when Stage B/C follow
+            bragg_full=bragg_full_artifact,  # May be None when Stage B/C follow
+            baseline_metrics=baseline_metrics  # May be None when enable_stage_a_baseline_metrics=False
         )
 
         # Return StageResult with telemetry object (not dict) and artifacts

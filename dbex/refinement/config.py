@@ -144,6 +144,15 @@ class RefinementConfig:
     # When False, N_cells is suppressed even when present (for small-detector metadata fixtures).
     apply_calibration_n_cells: bool = True
 
+    # Stage A baseline metrics telemetry (ARCH-PROBE-FREEZE-001 Phase B)
+    # Enable opt-in baseline metrics collection (masked/unmasked means, chi²-per-pixel,
+    # ROI Pearson correlations) for parity diagnostics. Disabled by default to avoid perf overhead.
+    # When enabled, metrics are computed from Stage A initial forward simulation and stashed
+    # on StageAArtifacts.baseline_metrics for downstream consumers (tests, probes).
+    enable_stage_a_baseline_metrics: bool = False
+    # Optional JSON output path for baseline metrics dump (env: DBEX_STAGE_A_BASELINE_METRICS_PATH)
+    stage_a_baseline_metrics_path: Optional[str] = None
+
     # Device and dtype for PyTorch operations
     device: str = "cpu"
     dtype: Any = torch.float32  # Actual dtype at runtime

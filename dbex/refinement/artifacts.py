@@ -26,11 +26,12 @@ class StageAArtifacts:
     """
     Stage A artifacts: warm context payload for downstream stage reuse.
 
-    Per ARCH-STAGE-CONTEXT-001 Phase B.1 + Phase D:
+    Per ARCH-STAGE-CONTEXT-001 Phase B.1 + Phase D + ARCH-PROBE-FREEZE-001 Phase B:
     - Carries StageAContext (simulator+cache snapshot) for Stage B/C warm starts
     - Includes schema version for future compatibility
     - Replaces engine._stage_a_ctx_cache private attribute
     - Optional bragg_full tensor when Stage A is terminal (Stage B/C disabled)
+    - Optional baseline_metrics dict for parity diagnostics (ARCH-PROBE-FREEZE-001)
 
     Attributes:
         stage_a_ctx: StageAContext instance (warm simulator cache)
@@ -38,15 +39,20 @@ class StageAArtifacts:
         bragg_full: Optional final Bragg tensor ([panel, slow, fast] numpy array).
                     Populated only when Stage B and Stage C are disabled so the engine
                     and writer can skip recomputing the final Bragg from telemetry.
+        baseline_metrics: Optional baseline metrics dict (schema v1) from
+                         dbex.refinement.telemetry_baseline.collect_stage_a_baseline_metrics.
+                         Populated only when config.enable_stage_a_baseline_metrics=True.
 
     Normative Requirements:
     - Device/dtype must remain consistent with RefinementSharedContext
     - Warm cache tensors must not be modified after creation
     - bragg_full must be CPU-resident numpy array when present (writer expects CPU floats)
+    - baseline_metrics must be serializable dict (no torch tensors)
     """
     stage_a_ctx: Any  # StageAContext (avoid circular import)
     context_schema_version: str = "v1"
     bragg_full: Optional[Any] = None  # numpy array [panel, slow, fast], populated when terminal
+    baseline_metrics: Optional[Dict[str, Any]] = None  # schema v1, populated when config.enable_stage_a_baseline_metrics=True
 
 
 @dataclass

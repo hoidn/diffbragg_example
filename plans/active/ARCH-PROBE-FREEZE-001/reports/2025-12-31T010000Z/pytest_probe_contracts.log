@@ -1,0 +1,12 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/architecture/test_probe_contracts.py::test_plan_bin_growth_cap PASSED [ 50%]
+tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis PASSED [100%]
+
+============================== 2 passed in 0.34s ===============================

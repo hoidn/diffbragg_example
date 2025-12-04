@@ -511,7 +511,202 @@ def compute_orientation_metrics(
     return reflection_roi_matches
 
 
-def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode, halo_pixels, orientation_alignment=None):
+def compute_physics_ledger(reflection_roi_matches):
+    """
+    Compute Lorentz and polarization factors for each ROI and compare Stage A vs |F|²·LP expectations.
+
+    Args:
+        reflection_roi_matches: List of reflection matches with orientation_metrics and amp_sq_per_pixel
+
+    Returns:
+        dict with physics_alignment summary including:
+            - global stats (median ratios, correlations)
+            - resolution-binned summaries
+            - top/bottom-5 ROI tables sorted by deviation from expected
+    """
+    # Filter matches that have all required fields
+    valid_matches = []
+    for m in reflection_roi_matches:
+        if "orientation_metrics" not in m or "error" in m["orientation_metrics"]:
+            continue
+        if "amp_sq_per_pixel" not in m or not np.isfinite(m["amp_sq_per_pixel"]):
+            continue
+        if "stagea_mean_masked" not in m or not np.isfinite(m["stagea_mean_masked"]):
+            continue
+        if m["amp_sq_per_pixel"] == 0:
+            continue
+        valid_matches.append(m)
+
+    if not valid_matches:
+        return {
+            "enabled": True,
+            "n_rois_analyzed": 0,
+            "error": "No ROIs with orientation metrics and valid amplitude data",
+        }
+
+    # Compute Lorentz and polarization factors for each ROI
+    for m in valid_matches:
+        two_theta_deg = m["orientation_metrics"]["two_theta_deg"]
+        two_theta_rad = np.deg2rad(two_theta_deg)
+
+        # Stills Lorentz approximation with epsilon clamp
+        lorentz_factor = 1.0 / max(np.sin(two_theta_rad), 1e-6)
+
+        # Unpolarized beam polarization factor
+        polarization_factor = 0.5 * (1.0 + np.cos(two_theta_rad) ** 2)
+
+        # Combined LP factor
+        lp_factor = lorentz_factor * polarization_factor
+
+        # LP-weighted expectation
+        amp_sq_per_pixel = float(m["amp_sq_per_pixel"])
+        lp_weighted_expectation = amp_sq_per_pixel * lp_factor
+
+        # Stage A vs LP-weighted ratio
+        stagea_mean = float(m["stagea_mean_masked"])
+        stagea_vs_lp_ratio = stagea_mean / lp_weighted_expectation if lp_weighted_expectation > 0 else float("nan")
+
+        # Also compute Stage A vs raw amp² ratio for comparison
+        stagea_vs_amp_sq_ratio = stagea_mean / amp_sq_per_pixel if amp_sq_per_pixel > 0 else float("nan")
+
+        # Store physics metrics in the match
+        m["physics_metrics"] = {
+            "lorentz_factor": float(lorentz_factor),
+            "polarization_factor": float(polarization_factor),
+            "lp_factor": float(lp_factor),
+            "lp_weighted_expectation": float(lp_weighted_expectation),
+            "stagea_vs_lp_ratio": float(stagea_vs_lp_ratio),
+            "stagea_vs_amp_sq_ratio": float(stagea_vs_amp_sq_ratio),
+        }
+
+    # Extract valid ratios for statistics
+    stagea_vs_lp_ratios = [m["physics_metrics"]["stagea_vs_lp_ratio"] for m in valid_matches if np.isfinite(m["physics_metrics"]["stagea_vs_lp_ratio"])]
+    stagea_vs_amp_sq_ratios = [m["physics_metrics"]["stagea_vs_amp_sq_ratio"] for m in valid_matches if np.isfinite(m["physics_metrics"]["stagea_vs_amp_sq_ratio"])]
+
+    if not stagea_vs_lp_ratios:
+        return {
+            "enabled": True,
+            "n_rois_analyzed": len(valid_matches),
+            "error": "No finite Stage A vs LP ratios computed",
+        }
+
+    # Global statistics
+    median_stagea_vs_lp = float(np.median(stagea_vs_lp_ratios))
+    p25_stagea_vs_lp = float(np.percentile(stagea_vs_lp_ratios, 25))
+    p75_stagea_vs_lp = float(np.percentile(stagea_vs_lp_ratios, 75))
+
+    median_stagea_vs_amp_sq = float(np.median(stagea_vs_amp_sq_ratios)) if stagea_vs_amp_sq_ratios else float("nan")
+
+    # Compute correlation between LP ratios and Stage A/ref ratios
+    lp_ratios_for_corr = []
+    stagea_ref_ratios_for_corr = []
+    for m in valid_matches:
+        if "stagea_vs_ref_ratio" in m and np.isfinite(m["stagea_vs_ref_ratio"]) and np.isfinite(m["physics_metrics"]["stagea_vs_lp_ratio"]):
+            lp_ratios_for_corr.append(m["physics_metrics"]["stagea_vs_lp_ratio"])
+            stagea_ref_ratios_for_corr.append(m["stagea_vs_ref_ratio"])
+
+    pearson_corr_lp_vs_ref = float("nan")
+    if len(lp_ratios_for_corr) > 1:
+        try:
+            corr_matrix = np.corrcoef(lp_ratios_for_corr, stagea_ref_ratios_for_corr)
+            pearson_corr_lp_vs_ref = float(corr_matrix[0, 1]) if np.isfinite(corr_matrix[0, 1]) else float("nan")
+        except Exception:
+            pass
+
+    # Resolution-binned analysis
+    resolutions = [m["orientation_metrics"]["resolution_angstrom"] for m in valid_matches if np.isfinite(m["orientation_metrics"]["resolution_angstrom"])]
+
+    resolution_bins = []
+    if resolutions:
+        min_res = np.min(resolutions)
+        max_res = np.max(resolutions)
+        n_bins = 4
+        bin_edges = np.linspace(min_res, max_res, n_bins + 1)
+
+        for i in range(n_bins):
+            bin_min = bin_edges[i]
+            bin_max = bin_edges[i + 1]
+
+            # Matches in this bin (inclusive on both ends for the last bin)
+            if i == n_bins - 1:
+                matches_in_bin = [m for m in valid_matches if bin_min <= m["orientation_metrics"]["resolution_angstrom"] <= bin_max]
+            else:
+                matches_in_bin = [m for m in valid_matches if bin_min <= m["orientation_metrics"]["resolution_angstrom"] < bin_max]
+
+            if matches_in_bin:
+                ratios_in_bin = [m["physics_metrics"]["stagea_vs_lp_ratio"] for m in matches_in_bin if np.isfinite(m["physics_metrics"]["stagea_vs_lp_ratio"])]
+                median_ratio = float(np.median(ratios_in_bin)) if ratios_in_bin else float("nan")
+            else:
+                median_ratio = float("nan")
+
+            resolution_bins.append({
+                "bin_index": i,
+                "resolution_min": float(bin_min),
+                "resolution_max": float(bin_max),
+                "n_rois": len(matches_in_bin),
+                "median_stagea_vs_lp": median_ratio,
+            })
+
+    # Top/bottom-5 ROIs sorted by deviation from expected (Stage A ÷ |F|²·LP should be ~1.0)
+    matches_with_finite_lp = [m for m in valid_matches if np.isfinite(m["physics_metrics"]["stagea_vs_lp_ratio"])]
+
+    # Sort by absolute deviation from 1.0
+    sorted_by_deviation = sorted(
+        matches_with_finite_lp,
+        key=lambda m: abs(m["physics_metrics"]["stagea_vs_lp_ratio"] - 1.0),
+        reverse=True
+    )
+
+    worst_5_deviation = sorted_by_deviation[:5] if len(sorted_by_deviation) >= 5 else sorted_by_deviation
+    best_5_deviation = sorted_by_deviation[-5:] if len(sorted_by_deviation) >= 5 else []
+
+    # Build tables
+    worst_5_table = []
+    for m in worst_5_deviation:
+        worst_5_table.append({
+            "roi_idx": m["roi_idx"],
+            "panel_id": m["panel_id"],
+            "bbox": m["bbox"],
+            "hkl_index": m["hkl_index"],
+            "resolution_angstrom": m["orientation_metrics"]["resolution_angstrom"],
+            "stagea_vs_ref_ratio": m.get("stagea_vs_ref_ratio", float("nan")),
+            "stagea_vs_lp_ratio": m["physics_metrics"]["stagea_vs_lp_ratio"],
+            "stagea_vs_amp_sq_ratio": m["physics_metrics"]["stagea_vs_amp_sq_ratio"],
+            "lp_factor": m["physics_metrics"]["lp_factor"],
+        })
+
+    best_5_table = []
+    for m in best_5_deviation:
+        best_5_table.append({
+            "roi_idx": m["roi_idx"],
+            "panel_id": m["panel_id"],
+            "bbox": m["bbox"],
+            "hkl_index": m["hkl_index"],
+            "resolution_angstrom": m["orientation_metrics"]["resolution_angstrom"],
+            "stagea_vs_ref_ratio": m.get("stagea_vs_ref_ratio", float("nan")),
+            "stagea_vs_lp_ratio": m["physics_metrics"]["stagea_vs_lp_ratio"],
+            "stagea_vs_amp_sq_ratio": m["physics_metrics"]["stagea_vs_amp_sq_ratio"],
+            "lp_factor": m["physics_metrics"]["lp_factor"],
+        })
+
+    return {
+        "enabled": True,
+        "n_rois_analyzed": len(valid_matches),
+        "global_stats": {
+            "median_stagea_vs_lp": median_stagea_vs_lp,
+            "p25_stagea_vs_lp": p25_stagea_vs_lp,
+            "p75_stagea_vs_lp": p75_stagea_vs_lp,
+            "median_stagea_vs_amp_sq": median_stagea_vs_amp_sq,
+            "pearson_corr_lp_vs_ref": pearson_corr_lp_vs_ref,
+            "n_pairs_for_correlation": len(lp_ratios_for_corr),
+        },
+        "resolution_bins": resolution_bins,
+        "worst_5_deviation": worst_5_table,
+        "best_5_deviation": best_5_table,
+    }
+
+
+def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode, halo_pixels, orientation_alignment=None, physics_alignment=None):
     """
     Generate a Markdown summary of spot-profile and orientation metrics.
 
@@ -520,6 +715,7 @@ def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode,
     - Top 5 ROIs with most off-ROI energy (lowest ROI fraction of halo)
     - Top 5 ROIs with narrowest FWHM
     - Orientation alignment metrics (if available)
+    - Physics alignment metrics (if available)
 
     Args:
         reflection_roi_matches: List of reflection matches with spot_profile_metrics
@@ -527,6 +723,7 @@ def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode,
         geometry_mode: "baseline" or "perturbed"
         halo_pixels: Halo expansion parameter used
         orientation_alignment: Optional dict with orientation metrics summary
+        physics_alignment: Optional dict with physics ledger (Lorentz/polarization) summary
     """
     # Extract metrics from matches that have spot profiles
     matches_with_profiles = [m for m in reflection_roi_matches if "spot_profile_metrics" in m]
@@ -679,6 +876,105 @@ def _summarize_spot_profiles(reflection_roi_matches, output_path, geometry_mode,
 
                 f.write("\n")
 
+        # ARCH-SIM-CONSTRUCTION-001 Phase C.24: Add physics alignment section if available
+        if physics_alignment and physics_alignment.get("enabled"):
+            f.write("---\n\n")
+            f.write("## Physics Alignment\n\n")
+            f.write("**Purpose:** Diagnose whether DB-AT-028/029 failures are due to missing Lorentz/partiality factors by comparing Stage A vs |F|²·LP expectations.\n\n")
+
+            if "error" in physics_alignment:
+                f.write(f"**Error:** {physics_alignment['error']}\n\n")
+            else:
+                stats = physics_alignment['global_stats']
+                f.write(f"- **ROIs analyzed:** {physics_alignment['n_rois_analyzed']}\n")
+                f.write(f"- **Median Stage A / |F|²·LP:** {stats['median_stagea_vs_lp']:.4f}\n")
+                f.write(f"- **P25-P75 Stage A / |F|²·LP:** {stats['p25_stagea_vs_lp']:.4f} - {stats['p75_stagea_vs_lp']:.4f}\n")
+                f.write(f"- **Median Stage A / |F|²:** {stats['median_stagea_vs_amp_sq']:.4f}\n")
+
+                pearson_corr = stats['pearson_corr_lp_vs_ref']
+                if np.isfinite(pearson_corr):
+                    f.write(f"- **Pearson corr (Stage A/|F|²·LP vs Stage A/ref):** {pearson_corr:.4f} ({stats['n_pairs_for_correlation']} pairs)\n")
+                else:
+                    f.write(f"- **Pearson corr (Stage A/|F|²·LP vs Stage A/ref):** undefined ({stats['n_pairs_for_correlation']} pairs)\n")
+
+                f.write("\n")
+
+                # Resolution-binned summary
+                if physics_alignment['resolution_bins']:
+                    f.write("### Resolution-Binned Analysis\n\n")
+                    f.write("| Bin | Resolution (Å) | N ROIs | Median Stage A / |F|²·LP |\n")
+                    f.write("|-----|----------------|--------|-------------------------|\n")
+                    for bin_data in physics_alignment['resolution_bins']:
+                        res_range = f"{bin_data['resolution_min']:.2f}-{bin_data['resolution_max']:.2f}"
+                        median_str = f"{bin_data['median_stagea_vs_lp']:.4f}" if np.isfinite(bin_data['median_stagea_vs_lp']) else "nan"
+                        f.write(f"| {bin_data['bin_index']} | {res_range} | {bin_data['n_rois']} | {median_str} |\n")
+                    f.write("\n")
+
+                # Worst 5 deviations
+                if physics_alignment['worst_5_deviation']:
+                    f.write("### Worst 5 ROIs (largest deviation from expected Stage A / |F|²·LP ~ 1.0)\n\n")
+                    f.write("| Panel | BBox | HKL | Resolution (Å) | Stage A/Ref | Stage A/|F|²·LP | Stage A/|F|² | LP Factor |\n")
+                    f.write("|-------|------|-----|----------------|-------------|-----------------|--------------|----------|\n")
+                    for m in physics_alignment['worst_5_deviation']:
+                        panel_id = m["panel_id"]
+                        bbox = m["bbox"]
+                        hkl = m["hkl_index"]
+                        resolution = m["resolution_angstrom"]
+                        stagea_ref = m["stagea_vs_ref_ratio"]
+                        stagea_lp = m["stagea_vs_lp_ratio"]
+                        stagea_amp = m["stagea_vs_amp_sq_ratio"]
+                        lp_factor = m["lp_factor"]
+
+                        bbox_str = f"[{bbox[0]}:{bbox[1]},{bbox[2]}:{bbox[3]}]"
+                        hkl_str = f"({hkl[0]},{hkl[1]},{hkl[2]})"
+                        stagea_ref_str = f"{stagea_ref:.2e}" if np.isfinite(stagea_ref) else "nan"
+                        stagea_lp_str = f"{stagea_lp:.4f}" if np.isfinite(stagea_lp) else "nan"
+                        stagea_amp_str = f"{stagea_amp:.4f}" if np.isfinite(stagea_amp) else "nan"
+                        lp_factor_str = f"{lp_factor:.2f}" if np.isfinite(lp_factor) else "nan"
+
+                        f.write(f"| {panel_id} | {bbox_str} | {hkl_str} | {resolution:.2f} | {stagea_ref_str} | {stagea_lp_str} | {stagea_amp_str} | {lp_factor_str} |\n")
+                    f.write("\n")
+
+                # Best 5 deviations
+                if physics_alignment['best_5_deviation']:
+                    f.write("### Best 5 ROIs (closest to expected Stage A / |F|²·LP ~ 1.0)\n\n")
+                    f.write("| Panel | BBox | HKL | Resolution (Å) | Stage A/Ref | Stage A/|F|²·LP | Stage A/|F|² | LP Factor |\n")
+                    f.write("|-------|------|-----|----------------|-------------|-----------------|--------------|----------|\n")
+                    for m in physics_alignment['best_5_deviation']:
+                        panel_id = m["panel_id"]
+                        bbox = m["bbox"]
+                        hkl = m["hkl_index"]
+                        resolution = m["resolution_angstrom"]
+                        stagea_ref = m["stagea_vs_ref_ratio"]
+                        stagea_lp = m["stagea_vs_lp_ratio"]
+                        stagea_amp = m["stagea_vs_amp_sq_ratio"]
+                        lp_factor = m["lp_factor"]
+
+                        bbox_str = f"[{bbox[0]}:{bbox[1]},{bbox[2]}:{bbox[3]}]"
+                        hkl_str = f"({hkl[0]},{hkl[1]},{hkl[2]})"
+                        stagea_ref_str = f"{stagea_ref:.2e}" if np.isfinite(stagea_ref) else "nan"
+                        stagea_lp_str = f"{stagea_lp:.4f}" if np.isfinite(stagea_lp) else "nan"
+                        stagea_amp_str = f"{stagea_amp:.4f}" if np.isfinite(stagea_amp) else "nan"
+                        lp_factor_str = f"{lp_factor:.2f}" if np.isfinite(lp_factor) else "nan"
+
+                        f.write(f"| {panel_id} | {bbox_str} | {hkl_str} | {resolution:.2f} | {stagea_ref_str} | {stagea_lp_str} | {stagea_amp_str} | {lp_factor_str} |\n")
+                    f.write("\n")
+
+                # Interpretation guidance
+                f.write("**Interpretation:**\n\n")
+                median_lp = stats['median_stagea_vs_lp']
+                if 0.8 <= median_lp <= 1.2:
+                    f.write(f"- Median Stage A / |F|²·LP = {median_lp:.4f} is close to 1.0, suggesting **Lorentz/polarization factors are correctly applied** or the deficit lies elsewhere.\n")
+                    f.write("- Next step: Audit HKL amplitude ingestion or verify DIALS reference intensity units.\n")
+                elif median_lp < 0.8:
+                    f.write(f"- Median Stage A / |F|²·LP = {median_lp:.4f} << 1.0 suggests **Stage A is systematically under-predicting** even after LP correction.\n")
+                    f.write("- Next step: Verify LP factors are being applied in nanobrag_torch forward model, or audit missing partiality/mosaicity terms.\n")
+                else:
+                    f.write(f"- Median Stage A / |F|²·LP = {median_lp:.4f} >> 1.0 suggests **Stage A is over-predicting** relative to LP-weighted expectation.\n")
+                    f.write("- Next step: Audit spot-scale or verify LP factor computation.\n")
+
+                f.write("\n")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -729,6 +1025,11 @@ def main():
         "--collect-orientation-metrics",
         action="store_true",
         help="When set, compute HKL orientation alignment metrics (fractional HKL, |Δhkl|, resolution, 2θ) for each matched ROI.",
+    )
+    parser.add_argument(
+        "--collect-physics-ledger",
+        action="store_true",
+        help="When set, compute per-ROI Lorentz and polarization factors and compare Stage A vs |F|²·LP expectations. Requires --collect-orientation-metrics.",
     )
     args = parser.parse_args()
 
@@ -1570,6 +1871,28 @@ def main():
     else:
         orientation_alignment = {"enabled": False}
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.24: Compute physics ledger if requested
+    physics_alignment = None
+    if args.collect_physics_ledger:
+        if not args.collect_orientation_metrics:
+            print(f"[Stage A Baseline Probe] WARNING: --collect-physics-ledger requires --collect-orientation-metrics; skipping physics ledger")
+            physics_alignment = {"enabled": False, "error": "Requires --collect-orientation-metrics"}
+        else:
+            print(f"[Stage A Baseline Probe] Computing physics ledger (Lorentz/polarization factors)...")
+            physics_alignment = compute_physics_ledger(reflection_roi_matches)
+
+            if "error" not in physics_alignment:
+                print(f"[Stage A Baseline Probe] Physics ledger computed: {physics_alignment['n_rois_analyzed']} ROIs")
+                print(f"  Median Stage A / |F|²·LP: {physics_alignment['global_stats']['median_stagea_vs_lp']:.4f}")
+                if np.isfinite(physics_alignment['global_stats']['pearson_corr_lp_vs_ref']):
+                    print(f"  Pearson corr (LP vs ref): {physics_alignment['global_stats']['pearson_corr_lp_vs_ref']:.4f}")
+                else:
+                    print(f"  Pearson corr (LP vs ref): undefined")
+            else:
+                print(f"[Stage A Baseline Probe] Physics ledger error: {physics_alignment['error']}")
+    else:
+        physics_alignment = {"enabled": False}
+
     # Build output payload
     output = {
         "probe_metadata": {
@@ -1679,6 +2002,7 @@ def main():
         "reflection_comparison": reflection_comparison,
         "spot_profile_stats": spot_profile_stats,
         "orientation_alignment": orientation_alignment,
+        "physics_alignment": physics_alignment,
     }
 
     # Write JSON output
@@ -1695,6 +2019,7 @@ def main():
             geometry_mode=args.geometry_mode,
             halo_pixels=halo_pixels,
             orientation_alignment=orientation_alignment,
+            physics_alignment=physics_alignment,
         )
         print(f"[Stage A Baseline Probe] Spot-profile summary written to {spot_profile_summary_path}")
 

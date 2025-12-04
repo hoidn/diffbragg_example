@@ -726,6 +726,15 @@ def main():
             print(f"  - {warning}")
         print("=" * 80)
 
+    # Fail when baseline mode has parity violations (ARCH-SIM-CONSTRUCTION-001 Phase C.13)
+    # In baseline mode, Stage A and mapping should produce identical outputs (max|Δ| < 1 ADU)
+    # In perturbed mode, differences are expected and we only report them
+    if args.geometry_mode == "baseline" and len(mapping_parity_warnings) > 0:
+        print("\nERROR: Baseline mode parity check FAILED")
+        print("Stage A vs mapping outputs should be identical in baseline mode.")
+        print("See warnings above for details.")
+        return 1
+
     return 0
 
 

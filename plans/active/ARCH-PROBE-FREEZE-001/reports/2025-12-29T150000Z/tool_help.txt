@@ -1,0 +1,32 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+usage: embed_sigma_external_lookup.py [-h] --expt EXPT --output OUTPUT
+                                      [--expt-idx EXPT_IDX]
+                                      (--sigma-map SIGMA_MAP | --sigma-value SIGMA_VALUE)
+                                      [--report REPORT] [--manifest MANIFEST]
+                                      [--lookup-key LOOKUP_KEY]
+
+Clone a DIALS ExperimentList and inject calibrated sigma_readout tiles into
+imageset.external_lookup so downstream runs can source variance metadata
+without CLI overrides.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --expt EXPT           Input ExperimentList (.expt) to read.
+  --output OUTPUT       Destination ExperimentList path (.expt) that will
+                        include the sigma tiles.
+  --expt-idx EXPT_IDX   Experiment index to modify (default: 0).
+  --sigma-map SIGMA_MAP
+                        Path to calibrated sigma tensor (.npy/.npz/pkl)
+                        aligned to detector panels.
+  --sigma-value SIGMA_VALUE
+                        Uniform sigma value (ADU) broadcast across all panels.
+  --report REPORT       Optional JSON path for provenance output. Defaults to
+                        <output>.sigma_metadata.json when omitted.
+  --manifest MANIFEST   Optional manifest JSON path recording generator
+                        command metadata and SHA256 hashes for the output
+                        .expt, .sigma_tiles.pkl, and provenance JSON.
+  --lookup-key LOOKUP_KEY
+                        External lookup attribute name to populate (default:
+                        pedestal). Most detectors expose pedestal/dark tiles;
+                        Stage A smokes look under this key.

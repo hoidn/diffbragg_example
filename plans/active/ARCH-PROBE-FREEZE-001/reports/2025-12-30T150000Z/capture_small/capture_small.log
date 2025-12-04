@@ -1,0 +1,61 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+<frozen importlib._bootstrap>:228: RuntimeWarning: to-Python converter for scitbx::af::shared<scitbx::af::shared<scitbx::vec3<double> > > already registered; second conversion method ignored.
+COMMANDLINE: libtbx.python /home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/tools/capture_smoke_calibration.py --expt /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt --refl /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl --mask /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl --mtz /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz --out-config plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/config_torch_smoke_small.json --refined-mtz-out plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_refined_structure_factors_small.mtz --manifest plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_calibration_small_manifest.json --num-macro 3
+INFO: === Smoke Calibration Capture ===
+INFO: Experiment: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+INFO: Reflections: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+INFO: MTZ: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+INFO: Mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+INFO: Loading data via DataLoad...
+INFO: Loaded 29 reflections from /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+INFO: Starting DiffBragg refinement to extract calibration metadata...
+INFO: Refinement macro cycle 1/3...
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+INFO: Refinement macro cycle 2/3...
+INFO:dbex.tools.capture_smoke_calibration:Refinement macro cycle 2/3...
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+INFO: Refinement macro cycle 3/3...
+INFO:dbex.tools.capture_smoke_calibration:Refinement macro cycle 3/3...
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+INFO: Refinement converged. Extracting calibration metadata...
+INFO:dbex.tools.capture_smoke_calibration:Refinement converged. Extracting calibration metadata...
+INFO: Extracted calibration:
+INFO:dbex.tools.capture_smoke_calibration:Extracted calibration:
+INFO:   spot_scale_override: 4.786111e+17
+INFO:dbex.tools.capture_smoke_calibration:  spot_scale_override: 4.786111e+17
+INFO:   beam_flux: 1.000000e+12
+INFO:dbex.tools.capture_smoke_calibration:  beam_flux: 1.000000e+12
+INFO:   beam_exposure: 1.0
+INFO:dbex.tools.capture_smoke_calibration:  beam_exposure: 1.0
+INFO:   beamsize_mm: 1.0
+INFO:dbex.tools.capture_smoke_calibration:  beamsize_mm: 1.0
+INFO:   N_cells: [41, 29, 32]
+INFO:dbex.tools.capture_smoke_calibration:  N_cells: [41, 29, 32]
+INFO: Calibration config written to: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/config_torch_smoke_small.json
+INFO:dbex.tools.capture_smoke_calibration:Calibration config written to: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/config_torch_smoke_small.json
+INFO: Config SHA256: 9fd4f29415eff12a...
+INFO:dbex.tools.capture_smoke_calibration:Config SHA256: 9fd4f29415eff12a...
+INFO: Manifest written to: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_calibration_small_manifest.json
+INFO:dbex.tools.capture_smoke_calibration:Manifest written to: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_calibration_small_manifest.json
+INFO: Persisting refined structure factors to: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_refined_structure_factors_small.mtz
+INFO:dbex.tools.capture_smoke_calibration:Persisting refined structure factors to: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-30T150000Z/capture_small/smoke_refined_structure_factors_small.mtz
+INFO: Refined MTZ SHA256: e38621ced9f4c912...
+INFO:dbex.tools.capture_smoke_calibration:Refined MTZ SHA256: e38621ced9f4c912...
+INFO: Manifest SHA256: 6827705ac380c3a5...
+INFO:dbex.tools.capture_smoke_calibration:Manifest SHA256: 6827705ac380c3a5...
+INFO: Cleaned up temporary _temp.mtz
+INFO:dbex.tools.capture_smoke_calibration:Cleaned up temporary _temp.mtz
+INFO: === Calibration Capture Complete ===
+INFO:dbex.tools.capture_smoke_calibration:=== Calibration Capture Complete ===
+INFO: Success!
+INFO:dbex.tools.capture_smoke_calibration:Success!

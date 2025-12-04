@@ -281,11 +281,50 @@ def build_mapping_stage_a_context(
 
     sigma_floor_value = float(diagnostics.get("sigma_floor_value", 1.0))
 
-    # Warm-start global_scale_hint from masked means in ADU mode.
-    num = float(inputs.target[inputs.loss_mask].mean())
-    den = float(bragg_zero_iter[inputs.loss_mask].mean())
-    if den > 1e-12:
-        inputs.global_scale_hint = num / den
+    # ARCH-SIM-CONSTRUCTION-001: Apply masked-intensity ratio scaling to bragg_zero_iter
+    # so mapping baseline and Stage A baseline land on identical magnitudes.
+    # Compute masked means for target and zero-iteration Bragg
+    target_mean_masked = float(inputs.target[inputs.loss_mask].mean())
+    bragg_mean_masked = float(bragg_zero_iter[inputs.loss_mask].mean())
+
+    # Apply scaling when both means are finite and positive
+    if (
+        bragg_mean_masked > 0
+        and target_mean_masked > 0
+        and np.isfinite(target_mean_masked)
+        and np.isfinite(bragg_mean_masked)
+    ):
+        masked_mean_ratio = target_mean_masked / bragg_mean_masked
+
+        # Scale the Bragg stack in place (CPU float32)
+        bragg_zero_iter = bragg_zero_iter * masked_mean_ratio
+
+        # Persist scaling metadata in diagnostics
+        diagnostics["target_mean_masked"] = target_mean_masked
+        diagnostics["bragg_mean_masked"] = bragg_mean_masked
+        diagnostics["masked_mean_ratio"] = masked_mean_ratio
+        diagnostics["log_scale_baseline_source"] = "mapping_masked_mean_adjustment"
+
+        # Also persist in calibration dict so Stage A can see the adjustment was applied
+        if calibration is not None:
+            calibration["target_mean_masked"] = target_mean_masked
+            calibration["bragg_mean_masked"] = bragg_mean_masked
+            calibration["masked_mean_ratio"] = masked_mean_ratio
+            calibration["log_scale_baseline_source"] = "mapping_masked_mean_adjustment"
+
+        # Reset global_scale_hint to 1.0 to avoid double-scaling at Stage A warm-starts
+        inputs.global_scale_hint = 1.0
+    else:
+        # Fallback: preserve previous behavior when scaling conditions not met
+        if bragg_mean_masked > 1e-12:
+            inputs.global_scale_hint = target_mean_masked / bragg_mean_masked
+
+        # Emit warning in diagnostics about why scaling was skipped
+        diagnostics["mapping_scale_adjustment_skipped"] = True
+        diagnostics["mapping_scale_skip_reason"] = (
+            f"masked means not valid for scaling: "
+            f"target_mean={target_mean_masked}, bragg_mean={bragg_mean_masked}"
+        )
 
     # Extract spot_scale_override used inside simulate_forward_once (if available)
     spot_scale_used = diagnostics.get("spot_scale_override")

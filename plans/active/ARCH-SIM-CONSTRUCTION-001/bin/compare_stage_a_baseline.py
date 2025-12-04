@@ -525,6 +525,15 @@ def main():
             if telem_checksum is not None:
                 mask_checksum_match = (telem_checksum == mask_checksum)
 
+    # Extract mapping diagnostic fields (ARCH-SIM-CONSTRUCTION-001 masked-mean scaling)
+    mapping_diagnostics = mapping_context.diagnostics if mapping_context.diagnostics else {}
+    mapping_target_mean_masked = mapping_diagnostics.get("target_mean_masked")
+    mapping_bragg_mean_masked = mapping_diagnostics.get("bragg_mean_masked")
+    mapping_masked_mean_ratio = mapping_diagnostics.get("masked_mean_ratio")
+    mapping_log_scale_baseline_source = mapping_diagnostics.get("log_scale_baseline_source")
+    mapping_scale_adjustment_skipped = mapping_diagnostics.get("mapping_scale_adjustment_skipped", False)
+    mapping_scale_skip_reason = mapping_diagnostics.get("mapping_scale_skip_reason")
+
     # Build output payload
     output = {
         "probe_metadata": {
@@ -542,6 +551,14 @@ def main():
             "mtz_file": resolved_mtz_file,
             "mtz_col": resolved_mtz_col,
             "calibration_config_path": resolved_calibration_config_path if resolved_calibration_config_path else None,
+        },
+        "mapping_diagnostics": {
+            "target_mean_masked": mapping_target_mean_masked,
+            "bragg_mean_masked": mapping_bragg_mean_masked,
+            "masked_mean_ratio": mapping_masked_mean_ratio,
+            "log_scale_baseline_source": mapping_log_scale_baseline_source,
+            "scale_adjustment_skipped": mapping_scale_adjustment_skipped,
+            "scale_skip_reason": mapping_scale_skip_reason,
         },
         "telemetry_fields": {
             "target_mean_masked": target_mean_masked_telem,
@@ -657,6 +674,25 @@ def main():
             print(f"  Mask Checksum Match: UNKNOWN (telemetry missing checksum)")
     else:
         print(f"  Mask metadata not available (telemetry or reconstruction missing)")
+    print("=" * 80)
+
+    # Print mapping diagnostics (ARCH-SIM-CONSTRUCTION-001 masked-mean scaling)
+    print("\nMapping Baseline Diagnostics (ARCH-SIM-CONSTRUCTION-001):")
+    print("=" * 80)
+    if not mapping_scale_adjustment_skipped:
+        print(f"{'Mapping masked-mean scaling applied':<50} {'YES':<30}")
+        if mapping_target_mean_masked is not None:
+            print(f"  {'Target mean (masked)':<48} {mapping_target_mean_masked:<30.6e}")
+        if mapping_bragg_mean_masked is not None:
+            print(f"  {'Bragg mean before scaling (masked)':<48} {mapping_bragg_mean_masked:<30.6e}")
+        if mapping_masked_mean_ratio is not None:
+            print(f"  {'Masked mean ratio (target/bragg)':<48} {mapping_masked_mean_ratio:<30.6e}")
+        if mapping_log_scale_baseline_source:
+            print(f"  {'Log-scale baseline source':<48} {mapping_log_scale_baseline_source:<30}")
+    else:
+        print(f"{'Mapping masked-mean scaling skipped':<50} {'YES':<30}")
+        if mapping_scale_skip_reason:
+            print(f"  {'Reason':<48} {mapping_scale_skip_reason:<30}")
     print("=" * 80)
 
     # Print mapping parity comparison (ARCH-SIM-CONSTRUCTION-001 C.11, DB-AT-027)

@@ -499,8 +499,13 @@ class StageA:
                     # Compute the scale factor: exp(log_scale_baseline) / sqrt(spot_scale_override)
                     # This converts from sqrt-scaled cache to the iteration-0 model scale
                     scale_factor_baseline = float(np.exp(log_scale_baseline))
-                    if sqrt_spot_scale is not None and sqrt_spot_scale > 0:
-                        scale_factor_zero_iter = scale_factor_baseline / sqrt_spot_scale
+                    try:
+                        sqrt_spot_scale_val = sqrt_spot_scale if 'sqrt_spot_scale' in locals() else None
+                    except:
+                        sqrt_spot_scale_val = None
+
+                    if sqrt_spot_scale_val is not None and sqrt_spot_scale_val > 0:
+                        scale_factor_zero_iter = scale_factor_baseline / sqrt_spot_scale_val
                     else:
                         scale_factor_zero_iter = scale_factor_baseline
 

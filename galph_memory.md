@@ -2529,3 +2529,20 @@ Action State: ready_for_implementation
 - implementation_ready — build the new helper + CLI modules, convert the plan script to a shim, update docs, and run the mapped capture commands + pytest collect-only guard per input.md.
 
 Action State: ready_for_implementation
+## Loop 2025-12-31T010000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase C enforcement kickoff)
+**State**: ready_for_implementation
+**Dwell**: 0 (fresh implementation loop after two planning passes)
+**Action Type**: implementation_ready
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Phase B.6 smoke-calibration migration is complete (docs/fix_plan.md + implementation.md updated); Problems ledger directive now hinges on landing the enforcement hooks described in plan Phase C.
+2. Diagnostic script policy (prompts/supervisor.md:254-309) still has no mechanical guard; plan scripts above 400 LOC and newly created shims could silently regress without a pytest gate.
+3. Scoped the architecture test deliverable: add `tests/architecture/test_probe_contracts.py` with two checks — (a) `test_plan_bin_growth_cap` that walks `plans/active/**/bin/*.py`, enforces a 400 LOC cap with an explicit 13-item allowlist referencing remaining migrations, and (b) `test_probe_shims_delegate_to_owner_clis` that ensures the new plan shims only import canonical `dbex.tools.*` modules and expose an `if __name__ == "__main__": tool.main()` entry point. Docs/TESTING_GUIDE.md needs instructions for the new enforcement workflow.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-31T010000Z/`
+
+**Next Actions**:
+- implementation_ready — Ralph to author `tests/architecture/test_probe_contracts.py` (growth-cap scanner + shim assertions), update docs/TESTING_GUIDE.md with the enforcement runbook, and capture pytest/log artifacts under the reserved report directory.

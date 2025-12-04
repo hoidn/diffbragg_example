@@ -283,6 +283,24 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
                     'straddles_zero': bool(np.min(offset_fast_np) < 0 and np.max(offset_fast_np) > 0)
                 }
 
+        # C.38: Extract oversample accumulation debug values
+        # These prove where the ~0.094× lattice deficit enters before patching Simulator.run
+        if 'trace_subpixel_F_total_sq_sum' in pstats:
+            raw_sum = pstats['trace_subpixel_F_total_sq_sum']
+            payload['trace_subpixel_F_total_sq_sum'] = float(raw_sum.item()) if isinstance(raw_sum, torch.Tensor) else raw_sum
+        if 'trace_subpixel_omega_last' in pstats:
+            omega_last = pstats['trace_subpixel_omega_last']
+            payload['trace_subpixel_omega_last'] = float(omega_last.item()) if isinstance(omega_last, torch.Tensor) else omega_last
+        if 'trace_subpixel_omega_mean' in pstats:
+            omega_mean = pstats['trace_subpixel_omega_mean']
+            payload['trace_subpixel_omega_mean'] = float(omega_mean.item()) if isinstance(omega_mean, torch.Tensor) else omega_mean
+        if 'trace_normalized_intensity' in pstats:
+            norm_int = pstats['trace_normalized_intensity']
+            payload['trace_normalized_intensity'] = float(norm_int.item()) if isinstance(norm_int, torch.Tensor) else norm_int
+        if 'steps_scalar' in pstats:
+            steps = pstats['steps_scalar']
+            payload['steps_scalar'] = float(steps) if not isinstance(steps, (int, float)) else steps
+
         debug_stats['partiality_stats'] = {
             k: (v.tolist() if isinstance(v, torch.Tensor) else v)
             for k, v in pstats.items()
@@ -430,6 +448,29 @@ def main():
             if 'dual_basis_delta_l_stats' in payload_scaled:
                 stats = payload_scaled['dual_basis_delta_l_stats']
                 print(f"    Δl: min={stats['min']:.6e}, median={stats['median']:.6e}, max={stats['max']:.6e}")
+        # C.38: Display oversample accumulation instrumentation
+        if args.oversample > 1:
+            raw_sum = payload_scaled.get('trace_subpixel_F_total_sq_sum')
+            norm_int = payload_scaled.get('trace_normalized_intensity')
+            omega_last = payload_scaled.get('trace_subpixel_omega_last')
+            omega_mean = payload_scaled.get('trace_subpixel_omega_mean')
+            steps = payload_scaled.get('steps_scalar')
+            if raw_sum is not None or norm_int is not None:
+                print(f"  Oversample accumulation breakdown (C.38):")
+                if raw_sum is not None:
+                    print(f"    Raw subpixel sum (before omega): {raw_sum:.6e}")
+                if omega_last is not None:
+                    print(f"    Omega (last-value semantics): {omega_last:.6e}")
+                if omega_mean is not None:
+                    print(f"    Omega (mean, per-subpixel mode): {omega_mean:.6e}")
+                if norm_int is not None:
+                    print(f"    Normalized intensity (after omega): {norm_int:.6e}")
+                if steps is not None:
+                    print(f"    Steps scalar (normalization divisor): {steps:.6e}")
+                # Compute and display ratio of normalized intensity to raw sum
+                if raw_sum is not None and norm_int is not None and raw_sum > 0:
+                    ratio = norm_int / raw_sum
+                    print(f"    Normalized / Raw sum ratio: {ratio:.6f} (explains accumulation loss)")
     print()
 
     # Compute observed ratio
@@ -793,6 +834,35 @@ def main():
                 f.write("**Interpretation**: If the dual-basis solve produces HKL values that are closer to integers ")
                 f.write("than the production dot-product approach, this suggests a bug in the HKL projection logic. ")
                 f.write("If both approaches yield similar offsets from integers, the issue lies upstream (detector geometry or oversample grid construction).\n\n")
+
+            # C.38: Add oversample accumulation breakdown to markdown
+            if args.oversample > 1:
+                raw_sum = payload_scaled.get('trace_subpixel_F_total_sq_sum')
+                norm_int = payload_scaled.get('trace_normalized_intensity')
+                omega_last = payload_scaled.get('trace_subpixel_omega_last')
+                omega_mean = payload_scaled.get('trace_subpixel_omega_mean')
+                steps = payload_scaled.get('steps_scalar')
+                if raw_sum is not None or norm_int is not None:
+                    f.write("### Oversample Accumulation Breakdown (Phase C.38)\n\n")
+                    f.write("Instrumentation added to isolate where the ~0.094× lattice deficit enters in the oversample>1 branch.\n\n")
+                    f.write("| Metric | Value |\n")
+                    f.write("|--------|-------|\n")
+                    if raw_sum is not None:
+                        f.write(f"| Raw subpixel sum (before omega) | {raw_sum:.6e} |\n")
+                    if omega_last is not None:
+                        f.write(f"| Omega (last-value semantics) | {omega_last:.6e} |\n")
+                    if omega_mean is not None:
+                        f.write(f"| Omega (mean, per-subpixel mode) | {omega_mean:.6e} |\n")
+                    if norm_int is not None:
+                        f.write(f"| Normalized intensity (after omega) | {norm_int:.6e} |\n")
+                    if steps is not None:
+                        f.write(f"| Steps scalar (normalization divisor) | {steps:.6e} |\n")
+                    if raw_sum is not None and norm_int is not None and raw_sum > 0:
+                        ratio = norm_int / raw_sum
+                        f.write(f"| **Normalized / Raw sum ratio** | **{ratio:.6f}** |\n")
+                    f.write("\n")
+                    f.write("**Purpose**: Compare this ratio for oversample=13 vs oversample=1 to pinpoint the exact normalization stage ")
+                    f.write("responsible for the discrepancy. The expected ratio should be close to `omega × 1/steps` if physics is correct.\n\n")
 
         if derived_ratios:
             f.write("### Derived Ratios\n\n")

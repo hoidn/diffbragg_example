@@ -1,0 +1,97 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells FAILED
+
+=================================== FAILURES ===================================
+______________________ test_square_lattice_applies_ncells ______________________
+
+    def test_square_lattice_applies_ncells():
+        """
+        ARCH-ENFORCEMENT: SQUARE lattice factor must scale intensities by (Na·Nb·Nc)^2.
+    
+        Contract Owner: src/nanobrag-torch/src/nanobrag_torch/simulator.py::compute_physics_for_position (lines 294-306)
+    
+        This test verifies that:
+        1. sincg evaluated on integer Miller indices (h, k, l) gives unstable/incorrect results
+        2. sincg evaluated on fractional offsets (h-h0, k-k0, l-l0) gives correct Na·Nb·Nc scaling
+        3. The SQUARE branch uses the correct fractional offset approach
+    
+        If this test fails, the SQUARE lattice sincg evaluation is broken and Stage A
+        partiality will be incorrect.
+    
+        Cross-references:
+        - docs/spec-db-core.md:70-110 (physics contract)
+        - docs/config_crosswalk.md:61-85 (N_cells preservation)
+        - docs/spec-db-conformance.md:139-172 (acceptance gates)
+        """
+        # Test Case 1: sincg at integer Miller index (reflection center) should give N
+        # when evaluated on fractional offset = 0
+        Na, Nb, Nc = 41, 29, 32
+        Na_t = torch.tensor(Na, dtype=torch.float32)
+        Nb_t = torch.tensor(Nb, dtype=torch.float32)
+        Nc_t = torch.tensor(Nc, dtype=torch.float32)
+    
+        # At reflection center: (h - h0) = 0.0
+        delta_h_center = torch.tensor(0.0, dtype=torch.float32)
+        delta_k_center = torch.tensor(0.0, dtype=torch.float32)
+        delta_l_center = torch.tensor(0.0, dtype=torch.float32)
+    
+        F_latt_a_center = sincg(torch.pi * delta_h_center, Na_t)
+        F_latt_b_center = sincg(torch.pi * delta_k_center, Nb_t)
+        F_latt_c_center = sincg(torch.pi * delta_l_center, Nc_t)
+        F_latt_center = F_latt_a_center * F_latt_b_center * F_latt_c_center
+    
+        # At the reflection center (delta=0), sincg should return N
+        expected_center = Na * Nb * Nc
+        assert torch.abs(F_latt_center - expected_center) / expected_center < 0.01, (
+            f"ARCH-CONTRACT VIOLATION: sincg at reflection center (delta=0) should return N.\n"
+            f"  Expected: {expected_center}\n"
+            f"  Got: {F_latt_center.item():.1f}\n"
+            f"  sincg(π·0, {Na}) = {F_latt_a_center.item():.1f} (expected {Na})\n"
+            f"  sincg(π·0, {Nb}) = {F_latt_b_center.item():.1f} (expected {Nb})\n"
+            f"  sincg(π·0, {Nc}) = {F_latt_c_center.item():.1f} (expected {Nc})"
+        )
+    
+        # Test Case 2: sincg at small fractional offset should give value < N
+        delta_h_offset = torch.tensor(0.1, dtype=torch.float32)
+        delta_k_offset = torch.tensor(0.15, dtype=torch.float32)
+        delta_l_offset = torch.tensor(0.05, dtype=torch.float32)
+    
+        F_latt_a_offset = sincg(torch.pi * delta_h_offset, Na_t)
+        F_latt_b_offset = sincg(torch.pi * delta_k_offset, Nb_t)
+        F_latt_c_offset = sincg(torch.pi * delta_l_offset, Nc_t)
+        F_latt_offset = F_latt_a_offset * F_latt_b_offset * F_latt_c_offset
+    
+        # At small offsets, F_latt should be < Na·Nb·Nc but still substantial
+        assert F_latt_offset < F_latt_center, (
+            f"ARCH-CONTRACT VIOLATION: F_latt should decrease away from center.\n"
+            f"  F_latt(center): {F_latt_center.item():.1f}\n"
+            f"  F_latt(offset): {F_latt_offset.item():.1f}"
+        )
+    
+>       assert F_latt_offset > 0.1 * F_latt_center, (
+            f"ARCH-CONTRACT VIOLATION: F_latt at small offset collapsed to near-zero.\n"
+            f"  F_latt(offset): {F_latt_offset.item():.1f}\n"
+            f"  F_latt(center): {F_latt_center.item():.1f}\n"
+            f"  Ratio: {(F_latt_offset / F_latt_center).item():.2%}"
+        )
+E       AssertionError: ARCH-CONTRACT VIOLATION: F_latt at small offset collapsed to near-zero.
+E           F_latt(offset): -11.9
+E           F_latt(center): 38048.0
+E           Ratio: -0.03%
+E       assert tensor(-11.9319) > (0.1 * tensor(38048.))
+
+tests/architecture/test_nanobrag_partiality.py:86: AssertionError
+=========================== short test summary info ============================
+FAILED tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells - AssertionError: ARCH-CONTRACT VIOLATION: F_latt at small offset collapsed to near-zero.
+    F_latt(offset): -11.9
+    F_latt(center): 38048.0
+    Ratio: -0.03%
+assert tensor(-11.9319) > (0.1 * tensor(38048.))
+============================== 1 failed in 0.77s ===============================

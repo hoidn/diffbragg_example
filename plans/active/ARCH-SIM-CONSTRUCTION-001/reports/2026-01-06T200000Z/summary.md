@@ -1,3 +1,9 @@
+### Turn Summary (Ralph Loop 2026-01-06T200000Z)
+
+Validated SQUARE lattice normalization fix (simulator.py:1086-1099) — confirmed steps_scalar==1 for both cpu/cuda paths and normalization logic correct per Do Now spec. Architecture enforcement test steps_scalar assertions PASS, but parity validation FAILS with 58% error (observed 601M vs expected 1.45B). Root cause identified as sampling density issue: oversample=13 (169 subpixels) insufficient to capture narrow sincg peaks (width ~1/N_cells) for N_cells=(41,29,32). BLOCKED per input.md line 40-41 escalation criteria; normalization fix correct but inadequate to restore (Na·Nb·Nc)² parity within 1% tolerance. Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-06T200000Z/ (BLOCKED.md, pytest_partiality.log, square_lattice_probe.log, square_lattice_scaling.{json,md}, fix_plan_entry.md).
+
+---
+
 # 2026-01-06T200000Z — Phase C.35 Implementation Hand-off
 
 ## Context

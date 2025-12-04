@@ -1,0 +1,37 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[Stage A Baseline Probe] Starting probe (device=cuda:0)
+[Stage A Baseline Probe] Geometry mode: baseline
+[Stage A Baseline Probe] Stage A mosaic domains: 16
+[Stage A Baseline Probe] Output will be saved to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T120000Z/stage_a_baseline_probe_baseline.json
+[Stage A Baseline Probe] HKL source: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+[Stage A Baseline Probe] MTZ columns: F(+),SIGF(+),F(-),SIGF(-)
+[Stage A Baseline Probe] Calibration config: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json
+[Stage A Baseline Probe] Running RefinementEngine with Stage A...
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 1.734668e+08
+  log_scale_effective (recorded): 18.971497
+  log_scale_baseline: 18.971497
+  log_scale_delta_clamped (recorded): 0.0
+  sqrt_spot_scale: 691817229.1071362
+  spot_scale_override: 4.786110784894759e+17
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py", line 2766, in <module>
+    sys.exit(main())
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py", line 1639, in main
+    telemetry_dict = engine.run({"context": refinement_context})
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refinement/engine.py", line 147, in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refinement/stage_a.py", line 2141, in run
+    bragg_full_artifact = build_final_bragg_from_stage_a_telemetry(
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refinement/reconstruction.py", line 479, in build_final_bragg_from_stage_a_telemetry
+    bragg_panel = sim.run()
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py", line 1152, in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py", line 832, in _compute_physics_for_position
+    return self._compiled_compute_physics(
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py", line 313, in compute_physics_for_position
+    F_latt_c = sincg(torch.pi * delta_l, Nc_tensor)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/utils/physics.py", line 104, in sincg
+    torch.where(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.12 GiB. GPU 0 has a total capacity of 23.56 GiB of which 1.06 GiB is free. Including non-PyTorch memory, this process has 22.43 GiB memory in use. Of the allocated memory 21.91 GiB is allocated by PyTorch, and 221.34 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

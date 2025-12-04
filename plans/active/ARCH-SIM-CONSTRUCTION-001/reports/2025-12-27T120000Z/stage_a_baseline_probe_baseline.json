@@ -1,0 +1,4355 @@
+{
+  "probe_metadata": {
+    "timestamp": "2025-12-22T010000Z",
+    "initiative": "ARCH-SIM-CONSTRUCTION-001",
+    "phase": "C.18",
+    "purpose": "Stage A mosaic-domain sweep to isolate Stage A\u2194reflection divergence boundary",
+    "geometry_mode": "baseline",
+    "device": "cuda:0",
+    "apply_calibration_n_cells": true,
+    "spot_scale_override": 4.786110784894759e+17,
+    "warm_cache_available": true,
+    "stage_a_ctx_used": true,
+    "bragg_full_cached_available": true,
+    "mtz_file": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz",
+    "mtz_col": "F(+),SIGF(+),F(-),SIGF(-)",
+    "calibration_config_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json",
+    "stage_a_mosaic_domains": 16,
+    "hkl_ledger": {
+      "n_hkl_entries": 69614,
+      "description": "HKL amplitude lookup built from mapping_context.hkl_indices/hkl_amplitudes",
+      "failfast_enabled": true,
+      "failfast_reason": "ROI/HKL mismatch indicates asset divergence between reflection table and HKL source"
+    }
+  },
+  "hkl_query_stats": {
+    "enabled": true,
+    "stage_a": {
+      "n_panels": 1,
+      "per_panel_stats": [
+        {
+          "panel_id": 0,
+          "hkl_stats": {
+            "h_min": -12.0,
+            "h_max": 7.0,
+            "k_min": -14.0,
+            "k_max": 9.0,
+            "l_min": -14.0,
+            "l_max": 8.0,
+            "in_bounds_count": 150994944,
+            "out_of_bounds_count": 0,
+            "total_queries": 150994944
+          }
+        }
+      ],
+      "aggregated": {
+        "h_min": -12.0,
+        "h_max": 7.0,
+        "k_min": -14.0,
+        "k_max": 9.0,
+        "l_min": -14.0,
+        "l_max": 8.0,
+        "total_queries": 150994944,
+        "in_bounds_count": 150994944,
+        "out_of_bounds_count": 0,
+        "in_bounds_fraction": 1.0
+      },
+      "per_panel_partiality_stats": [
+        {
+          "panel_id": 0,
+          "partiality_stats": {
+            "f_latt": {
+              "min": -8166.9697265625,
+              "median": 1.832280759117566e-05,
+              "max": 37523.1875,
+              "has_nan": false,
+              "has_inf": false,
+              "count": 150994944
+            },
+            "f_latt_squared": {
+              "min": 4.554414750530047e-34,
+              "median": 0.9994300007820129,
+              "max": 1407989632.0,
+              "has_nan": false,
+              "has_inf": false,
+              "count": 150994944
+            },
+            "lorentz_factor": {
+              "min": 2.081657886505127,
+              "median": 3.4400668144226074,
+              "max": 702.4583740234375,
+              "has_nan": false,
+              "has_inf": false,
+              "count": 9437184
+            },
+            "polarization_factor": {
+              "min": 0.8846144676208496,
+              "median": 0.9577491283416748,
+              "max": 1.0,
+              "has_nan": false,
+              "has_inf": false,
+              "count": 9437184
+            }
+          }
+        }
+      ]
+    },
+    "simulate_forward_once": {
+      "n_panels": 1,
+      "per_panel_stats": [
+        {
+          "panel_id": 0,
+          "hkl_stats": {
+            "h_min": -12.0,
+            "h_max": 7.0,
+            "k_min": -14.0,
+            "k_max": 9.0,
+            "l_min": -14.0,
+            "l_max": 8.0,
+            "in_bounds_count": 150994944,
+            "out_of_bounds_count": 0,
+            "total_queries": 150994944
+          }
+        }
+      ],
+      "aggregated": {
+        "h_min": -12.0,
+        "h_max": 7.0,
+        "k_min": -14.0,
+        "k_max": 9.0,
+        "l_min": -14.0,
+        "l_max": 8.0,
+        "total_queries": 150994944,
+        "in_bounds_count": 150994944,
+        "out_of_bounds_count": 0,
+        "in_bounds_fraction": 1.0
+      },
+      "hkl_grid_metadata": {
+        "h_min": -24,
+        "h_max": 24,
+        "k_min": -28,
+        "k_max": 28,
+        "l_min": -31,
+        "l_max": 31,
+        "h_range": 49,
+        "k_range": 57,
+        "l_range": 63,
+        "n_reflections": 69614,
+        "n_in_range": 69614,
+        "in_range_fraction": 1.0,
+        "grid_nonzero": 69614,
+        "grid_min": 0.0,
+        "grid_max": 2315.25439453125,
+        "grid_mean": 18.78402328491211,
+        "has_halo": false,
+        "n_unique_asu": 34807
+      }
+    }
+  },
+  "simulator_partiality_stats": {
+    "enabled": true,
+    "stage_a": [
+      {
+        "panel_id": 0,
+        "partiality_stats": {
+          "f_latt": {
+            "min": -8166.9697265625,
+            "median": 1.832280759117566e-05,
+            "max": 37523.1875,
+            "has_nan": false,
+            "has_inf": false,
+            "count": 150994944
+          },
+          "f_latt_squared": {
+            "min": 4.554414750530047e-34,
+            "median": 0.9994300007820129,
+            "max": 1407989632.0,
+            "has_nan": false,
+            "has_inf": false,
+            "count": 150994944
+          },
+          "lorentz_factor": {
+            "min": 2.081657886505127,
+            "median": 3.4400668144226074,
+            "max": 702.4583740234375,
+            "has_nan": false,
+            "has_inf": false,
+            "count": 9437184
+          },
+          "polarization_factor": {
+            "min": 0.8846144676208496,
+            "median": 0.9577491283416748,
+            "max": 1.0,
+            "has_nan": false,
+            "has_inf": false,
+            "count": 9437184
+          }
+        }
+      }
+    ],
+    "description": "Per-panel F_latt, lorentz_factor, and polarization_factor tensors captured from nanobrag_torch simulator debug hook"
+  },
+  "mapping_diagnostics": {
+    "target_mean_masked": 87.11841583251953,
+    "bragg_mean_masked": 346.5920715332031,
+    "masked_mean_ratio": 0.25135720920313576,
+    "log_scale_baseline_source": "mapping_masked_mean_adjustment",
+    "scale_adjustment_skipped": false,
+    "scale_skip_reason": null
+  },
+  "telemetry_fields": {
+    "target_mean_masked": 87.11842346191406,
+    "model_mean_masked": 87.11842346191406,
+    "log_scale_baseline_value": NaN,
+    "log_scale_delta_clamped": 0.0,
+    "log_scale_clamped_value": NaN,
+    "scale_factor": 173466768.0,
+    "log_scale_effective_initial": 18.971496624718938,
+    "variance_floor_value": 1.0
+  },
+  "reconstructed_bragg_before": {
+    "mean_masked": 87.1184310913086,
+    "mean_unmasked": 1.9546561241149902,
+    "target_mean_masked": 87.11841583251953,
+    "target_mean_unmasked": 0.3439619839191437,
+    "chi_squared_per_pixel_initial": 1004343.7140096618,
+    "n_masked_pixels": 4140
+  },
+  "comparison": {
+    "target_mean_masked_match": false,
+    "target_mean_masked_delta": 7.62939453125e-06,
+    "model_mean_masked_vs_reconstructed_delta": -7.62939453125e-06,
+    "model_mean_masked_vs_reconstructed_ratio": 0.9999999124250237
+  },
+  "mapping_comparison": {
+    "mapping_mean_masked": 87.11840057373047,
+    "mapping_mean_unmasked": 1.9589955806732178,
+    "stagea_vs_mapping_max_abs_diff_masked": 204.109375,
+    "stagea_vs_mapping_max_abs_diff_unmasked": 638.1875,
+    "stagea_vs_mapping_rmse_masked": 4.749118328094482,
+    "stagea_vs_mapping_rmse_unmasked": 0.940837562084198,
+    "chi_squared_per_pixel_mapping": 1004548.3903381643,
+    "chi_squared_per_pixel_stagea": 1004343.7140096618,
+    "chi_squared_per_pixel_relative_diff": 0.00020374959580949422,
+    "roi_cc_stats": {
+      "mapping_vs_target": {
+        "median": -0.037172031321274536,
+        "p25": -0.06809495031856996,
+        "p75": -0.009825498140013829,
+        "min": -0.20062646029383868,
+        "max": 0.662974115207988
+      },
+      "stagea_vs_target": {
+        "median": -0.03714571609904079,
+        "p25": -0.0681088159028096,
+        "p75": -0.009817553535217459,
+        "min": -0.20061382090912072,
+        "max": 0.6629944993850747
+      },
+      "stagea_vs_mapping": {
+        "median": 0.9999985559332536,
+        "p25": 0.9999969755869991,
+        "p75": 0.9999994758623694,
+        "min": 0.9999788661025752,
+        "max": 0.9999999935537061
+      }
+    },
+    "n_rois_analyzed": 29,
+    "warnings": [
+      "Stage A vs mapping max|\u0394| (2.041e+02 ADU) > 1.0 ADU (DB-AT-027 forward-model equality)"
+    ]
+  },
+  "db_at_thresholds": {
+    "DB_AT_027_stagea_vs_mapping_median_roi_cc_threshold": 0.99,
+    "DB_AT_027_stagea_vs_mapping_median_roi_cc_actual": 0.9999985559332536,
+    "DB_AT_027_stagea_vs_mapping_max_abs_diff_threshold_adu": 1.0,
+    "DB_AT_027_stagea_vs_mapping_max_abs_diff_actual_adu": 204.109375,
+    "DB_AT_027_chi2_relative_diff_threshold": 0.001,
+    "DB_AT_027_chi2_relative_diff_actual": 0.00020374959580949422,
+    "DB_AT_027_pass": false,
+    "DB_AT_027_normative": true,
+    "DB_AT_028_chi_squared_per_pixel_threshold": 100.0,
+    "DB_AT_028_chi_squared_per_pixel_actual": 1004343.7140096618,
+    "DB_AT_028_pass": false
+  },
+  "mask_metadata": {
+    "telemetry": {
+      "loss_mask_pixel_count": 4140,
+      "panel_true_pixels": [
+        24,
+        24,
+        24,
+        24,
+        12,
+        36,
+        12,
+        36,
+        36,
+        36,
+        36,
+        24,
+        48,
+        12,
+        24,
+        36,
+        12,
+        24,
+        48,
+        24,
+        48,
+        48,
+        36,
+        24,
+        48,
+        36,
+        12,
+        12,
+        12
+      ],
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "reconstruction": {
+      "loss_mask_pixel_count": 4140,
+      "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+    },
+    "checksum_match": true
+  },
+  "baseline_alignment": {
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "unknown",
+    "description": "Phase C.14: Cold-path baseline alignment factor (telemetry / cold) when cache unavailable"
+  },
+  "roi_diagnostics": {
+    "description": "Phase C.15: Per-ROI diagnostics to identify which ROIs drive DB-AT-028/029 failures",
+    "n_total_rois": 29,
+    "n_valid_rois": 29,
+    "bottom_n_rois": [
+      {
+        "panel_id": 0,
+        "bbox": [
+          897,
+          909,
+          17,
+          29
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.20062646029383868,
+        "stagea_vs_target_cc": -0.20061382090912072,
+        "stagea_vs_mapping_cc": 0.9999985559332536,
+        "target_mean_masked": 7.808829307556152,
+        "mapping_mean_masked": 0.008676484227180481,
+        "stagea_mean_masked": 0.008664371445775032,
+        "mapping_vs_target_delta": -7.800152823328972,
+        "stagea_vs_target_delta": -7.800164936110377
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          350,
+          362,
+          877,
+          889
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.16228587256636512,
+        "stagea_vs_target_cc": -0.16229667298922792,
+        "stagea_vs_mapping_cc": 0.9999981586937735,
+        "target_mean_masked": 5.605809211730957,
+        "mapping_mean_masked": 11.059858322143555,
+        "stagea_mean_masked": 11.043543815612793,
+        "mapping_vs_target_delta": 5.454049110412598,
+        "stagea_vs_target_delta": 5.437734603881836
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          535,
+          547,
+          842,
+          854
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.13669704402187677,
+        "stagea_vs_target_cc": -0.13669981786615135,
+        "stagea_vs_mapping_cc": 0.9999976965715816,
+        "target_mean_masked": 9.983099937438965,
+        "mapping_mean_masked": 0.18191933631896973,
+        "stagea_mean_masked": 0.18189896643161774,
+        "mapping_vs_target_delta": -9.801180601119995,
+        "stagea_vs_target_delta": -9.801200971007347
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          661,
+          673,
+          940,
+          952
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.12868377044172127,
+        "stagea_vs_target_cc": -0.12876577800018238,
+        "stagea_vs_mapping_cc": 0.9999891247168086,
+        "target_mean_masked": 3.532153606414795,
+        "mapping_mean_masked": 0.26257458329200745,
+        "stagea_mean_masked": 0.26206910610198975,
+        "mapping_vs_target_delta": -3.2695790231227875,
+        "stagea_vs_target_delta": -3.270084500312805
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          644,
+          656,
+          21,
+          33
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": -0.12262286901295362,
+        "stagea_vs_target_cc": -0.12284812327890889,
+        "stagea_vs_mapping_cc": 0.9999958486719502,
+        "target_mean_masked": 7.670445919036865,
+        "mapping_mean_masked": 0.000302133965305984,
+        "stagea_mean_masked": 0.0003013684181496501,
+        "mapping_vs_target_delta": -7.670143785071559,
+        "stagea_vs_target_delta": -7.670144550618716
+      }
+    ],
+    "top_n_rois": [
+      {
+        "panel_id": 0,
+        "bbox": [
+          431,
+          443,
+          434,
+          446
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.662974115207988,
+        "stagea_vs_target_cc": 0.6629944993850747,
+        "stagea_vs_mapping_cc": 0.9999999557887281,
+        "target_mean_masked": 2.4828569889068604,
+        "mapping_mean_masked": 899.004150390625,
+        "stagea_mean_masked": 896.6605834960938,
+        "mapping_vs_target_delta": 896.5212934017181,
+        "stagea_vs_target_delta": 894.1777265071869
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          739,
+          751,
+          610,
+          622
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.6002954812858831,
+        "stagea_vs_target_cc": 0.6003820240224661,
+        "stagea_vs_mapping_cc": 0.9999994758623694,
+        "target_mean_masked": 1.0681490898132324,
+        "mapping_mean_masked": 1.8637746572494507,
+        "stagea_mean_masked": 1.8648134469985962,
+        "mapping_vs_target_delta": 0.7956255674362183,
+        "stagea_vs_target_delta": 0.7966643571853638
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          275,
+          287,
+          303,
+          315
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.3663400976687363,
+        "stagea_vs_target_cc": 0.36591622990791406,
+        "stagea_vs_mapping_cc": 0.9999986896302602,
+        "target_mean_masked": 6.917283058166504,
+        "mapping_mean_masked": 1292.265869140625,
+        "stagea_mean_masked": 1294.49365234375,
+        "mapping_vs_target_delta": 1285.3485860824585,
+        "stagea_vs_target_delta": 1287.5763692855835
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          645,
+          657,
+          284,
+          296
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.08562624390595973,
+        "stagea_vs_target_cc": 0.08576344719269395,
+        "stagea_vs_mapping_cc": 0.9999996708294399,
+        "target_mean_masked": 3.0646846294403076,
+        "mapping_mean_masked": 5.301161766052246,
+        "stagea_mean_masked": 5.289440155029297,
+        "mapping_vs_target_delta": 2.2364771366119385,
+        "stagea_vs_target_delta": 2.2247555255889893
+      },
+      {
+        "panel_id": 0,
+        "bbox": [
+          943,
+          955,
+          583,
+          595
+        ],
+        "n_masked_pixels": 144,
+        "mapping_vs_target_cc": 0.07581870589844068,
+        "stagea_vs_target_cc": 0.07622033773633399,
+        "stagea_vs_mapping_cc": 0.9999945986110502,
+        "target_mean_masked": 603.079345703125,
+        "mapping_mean_masked": 144.16659545898438,
+        "stagea_mean_masked": 144.50062561035156,
+        "mapping_vs_target_delta": -458.9127502441406,
+        "stagea_vs_target_delta": -458.57872009277344
+      }
+    ]
+  },
+  "reflection_comparison": {
+    "description": "Independent reference comparison using DIALS reflection table intensities",
+    "n_reflections_total": 29,
+    "n_reflections_matched": 27,
+    "n_roi_mismatches": 2,
+    "reflection_metrics": [
+      {
+        "roi_idx": 0,
+        "refl_idx": 0,
+        "panel_id": 0,
+        "bbox": [
+          897,
+          909,
+          17,
+          29
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 1252.0,
+        "intensity_per_pixel_ref": 8.694444444444445,
+        "stagea_mean_masked": 0.008664371445775032,
+        "mapping_mean_masked": 0.008676484227180481,
+        "target_mean_masked": 7.808829307556152,
+        "stagea_vs_ref_ratio": 0.0009965411247536778,
+        "mapping_vs_ref_ratio": 0.000997934288110215,
+        "target_vs_ref_ratio": 0.8981401120511868,
+        "hkl_index": [
+          -10,
+          2,
+          0
+        ],
+        "hkl_amplitude": 37.857574462890625,
+        "amp_sq_per_pixel": 9.95274961259242,
+        "amp_sq_vs_ref_ratio": 1.144725195058553,
+        "stagea_vs_amp_sq_ratio": 0.0008705505295554401,
+        "spot_profile_metrics": {
+          "roi_energy": 1.2476694583892822,
+          "halo_energy": 26.052005767822266,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.04789149325040922,
+          "roi_fraction_of_panel": 6.087363926322808e-07,
+          "halo_bbox": [
+            887,
+            919,
+            7,
+            39
+          ],
+          "peak_value": 0.18987064063549042,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -10.080344684236891,
+            1.9073966507216955,
+            -0.12757421182487963
+          ],
+          "delta_hkl": [
+            -0.08034468423689134,
+            -0.09260334927830449,
+            -0.12757421182487963
+          ],
+          "delta_hkl_norm": 0.1769345305626482,
+          "resolution_angstrom": 2.233290172989712,
+          "two_theta_deg": 25.26429727156378,
+          "roi_center_px": [
+            903.0,
+            23.0
+          ],
+          "q_norm": 0.4477698474181244
+        },
+        "physics_metrics": {
+          "lorentz_factor": 2.343048443625964,
+          "polarization_factor": 0.9089232618069893,
+          "lp_factor": 2.129651233952301,
+          "lp_weighted_expectation": 21.195885493675735,
+          "stagea_vs_lp_ratio": 0.00040877610177504685,
+          "stagea_vs_amp_sq_ratio": 0.0008705505295554401
+        },
+        "partiality_metrics": {
+          "f_latt": -6.101419936787906,
+          "partiality_factor": 37.22732524503293,
+          "stagea_vs_partial": 2.33847187200642e-05,
+          "stagea_vs_partial_lp": 1.0980539135821692e-05
+        }
+      },
+      {
+        "roi_idx": 1,
+        "refl_idx": 1,
+        "panel_id": 0,
+        "bbox": [
+          644,
+          656,
+          21,
+          33
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 1169.0,
+        "intensity_per_pixel_ref": 8.118055555555555,
+        "stagea_mean_masked": 0.0003013684181496501,
+        "mapping_mean_masked": 0.000302133965305984,
+        "target_mean_masked": 7.670445919036865,
+        "stagea_vs_ref_ratio": 3.712322687215536e-05,
+        "mapping_vs_ref_ratio": 3.721752866044628e-05,
+        "target_vs_ref_ratio": 0.9448624570926507,
+        "hkl_index": [
+          -7,
+          5,
+          -3
+        ],
+        "hkl_amplitude": 25.011859893798828,
+        "amp_sq_per_pixel": 4.3443967732432105,
+        "amp_sq_vs_ref_ratio": 0.5351523826749549,
+        "stagea_vs_amp_sq_ratio": 6.936945078445732e-05,
+        "spot_profile_metrics": {
+          "roi_energy": 0.043397050350904465,
+          "halo_energy": 8.066655158996582,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.0053798073049527335,
+          "roi_fraction_of_panel": 2.1173367436272232e-08,
+          "halo_bbox": [
+            634,
+            666,
+            11,
+            43
+          ],
+          "peak_value": 0.016144346445798874,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -7.105570491501456,
+            4.864878128152268,
+            -3.1782451235619638
+          ],
+          "delta_hkl": [
+            -0.1055704915014557,
+            -0.1351218718477316,
+            -0.17824512356196376
+          ],
+          "delta_hkl_norm": 0.24733453661208227,
+          "resolution_angstrom": 2.6808524375815197,
+          "two_theta_deg": 20.993629034255374,
+          "roi_center_px": [
+            650.0,
+            27.0
+          ],
+          "q_norm": 0.37301568187099887
+        },
+        "physics_metrics": {
+          "lorentz_factor": 2.791236667558791,
+          "polarization_factor": 0.9358234035391728,
+          "lp_factor": 2.6121045983182065,
+          "lp_weighted_expectation": 11.34801878830737,
+          "stagea_vs_lp_ratio": 2.6556919209560205e-05,
+          "stagea_vs_amp_sq_ratio": 6.936945078445732e-05
+        },
+        "partiality_metrics": {
+          "f_latt": 2.4454323635786004,
+          "partiality_factor": 5.98013944483762,
+          "stagea_vs_partial": 1.1599972111744114e-05,
+          "stagea_vs_partial_lp": 4.440852835377539e-06
+        }
+      },
+      {
+        "roi_idx": 2,
+        "refl_idx": 2,
+        "panel_id": 0,
+        "bbox": [
+          257,
+          269,
+          37,
+          49
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 11967.0,
+        "intensity_per_pixel_ref": 83.10416666666667,
+        "stagea_mean_masked": 0.12124492228031158,
+        "mapping_mean_masked": 0.12110337615013123,
+        "target_mean_masked": 82.83668518066406,
+        "stagea_vs_ref_ratio": 0.0014589511831173115,
+        "mapping_vs_ref_ratio": 0.0014572479456521179,
+        "target_vs_ref_ratio": 0.9967813709380483,
+        "hkl_index": [
+          -3,
+          8,
+          -9
+        ],
+        "hkl_amplitude": 270.7184753417969,
+        "amp_sq_per_pixel": 508.9478673012992,
+        "amp_sq_vs_ref_ratio": 6.124216001620045,
+        "stagea_vs_amp_sq_ratio": 0.0002382266044717191,
+        "spot_profile_metrics": {
+          "roi_energy": 17.45926856994629,
+          "halo_energy": 1559.38525390625,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.011196250911191403,
+          "roi_fraction_of_panel": 8.518355639632256e-06,
+          "halo_bbox": [
+            247,
+            279,
+            27,
+            59
+          ],
+          "peak_value": 2.5377235412597656,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -3.084560062691905,
+            7.898270962401387,
+            -9.14435655096265
+          ],
+          "delta_hkl": [
+            -0.08456006269190519,
+            -0.10172903759861285,
+            -0.14435655096264988
+          ],
+          "delta_hkl_norm": 0.19580095786035126,
+          "resolution_angstrom": 2.556406428280778,
+          "two_theta_deg": 22.028068537346314,
+          "roi_center_px": [
+            263.0,
+            43.0
+          ],
+          "q_norm": 0.39117410633039096
+        },
+        "physics_metrics": {
+          "lorentz_factor": 2.6662346296151322,
+          "polarization_factor": 0.9296647112581209,
+          "lp_factor": 2.478704247087555,
+          "lp_weighted_expectation": 1261.5312402258837,
+          "stagea_vs_lp_ratio": 9.610933000644681e-05,
+          "stagea_vs_amp_sq_ratio": 0.0002382266044717191
+        },
+        "partiality_metrics": {
+          "f_latt": -3.9947762861800724,
+          "partiality_factor": 15.958237576626653,
+          "stagea_vs_partial": 1.4928127453161835e-05,
+          "stagea_vs_partial_lp": 6.0225529006545205e-06
+        }
+      },
+      {
+        "roi_idx": 3,
+        "refl_idx": 3,
+        "panel_id": 0,
+        "bbox": [
+          939,
+          951,
+          65,
+          77
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 141.0,
+        "intensity_per_pixel_ref": 0.9791666666666666,
+        "stagea_mean_masked": 0.0009482442983426154,
+        "mapping_mean_masked": 0.0009499508887529373,
+        "target_mean_masked": 2.0178463459014893,
+        "stagea_vs_ref_ratio": 0.0009684197089456498,
+        "mapping_vs_ref_ratio": 0.0009701626097902339,
+        "target_vs_ref_ratio": 2.0607792468781168,
+        "hkl_index": [
+          -10,
+          1,
+          1
+        ],
+        "hkl_amplitude": 9.229047775268555,
+        "amp_sq_per_pixel": 0.5914952974874268,
+        "amp_sq_vs_ref_ratio": 0.6040803038169466,
+        "stagea_vs_amp_sq_ratio": 0.0016031307473966382,
+        "spot_profile_metrics": {
+          "roi_energy": 0.13654717803001404,
+          "halo_energy": 1.7455098628997803,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.07822767486582458,
+          "roi_fraction_of_panel": 6.662120004557659e-08,
+          "halo_bbox": [
+            929,
+            961,
+            55,
+            87
+          ],
+          "peak_value": 0.018339483067393303,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -10.064124123961275,
+            0.9006804339668596,
+            0.9017782305579193
+          ],
+          "delta_hkl": [
+            -0.06412412396127465,
+            -0.0993195660331404,
+            -0.09822176944208072
+          ],
+          "delta_hkl_norm": 0.15370034308076713,
+          "resolution_angstrom": 2.261781129639586,
+          "two_theta_deg": 24.940893858275174,
+          "roi_center_px": [
+            945.0,
+            71.0
+          ],
+          "q_norm": 0.4421294292783093
+        },
+        "physics_metrics": {
+          "lorentz_factor": 2.371449121357571,
+          "polarization_factor": 0.9110916846076482,
+          "lp_factor": 2.1606075749389966,
+          "lp_weighted_expectation": 1.2779892202921295,
+          "stagea_vs_lp_ratio": 0.0007419814528058857,
+          "stagea_vs_amp_sq_ratio": 0.0016031307473966382
+        },
+        "partiality_metrics": {
+          "f_latt": -7.863167205860781,
+          "partiality_factor": 61.829398507324434,
+          "stagea_vs_partial": 2.592829278788355e-05,
+          "stagea_vs_partial_lp": 1.2000463706888385e-05
+        }
+      },
+      {
+        "roi_idx": 4,
+        "refl_idx": 4,
+        "panel_id": 0,
+        "bbox": [
+          338,
+          350,
+          92,
+          104
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 17861.0,
+        "intensity_per_pixel_ref": 124.03472222222223,
+        "stagea_mean_masked": 0.116348996758461,
+        "mapping_mean_masked": 0.1163887083530426,
+        "target_mean_masked": 124.08550262451172,
+        "stagea_vs_ref_ratio": 0.000938035694150293,
+        "mapping_vs_ref_ratio": 0.0009383558592933281,
+        "target_vs_ref_ratio": 1.0004094047326402,
+        "hkl_index": [
+          -3,
+          7,
+          -7
+        ],
+        "hkl_amplitude": 169.9747772216797,
+        "amp_sq_per_pixel": 200.63489508027527,
+        "amp_sq_vs_ref_ratio": 1.617570398721216,
+        "stagea_vs_amp_sq_ratio": 0.0005799040925154572,
+        "spot_profile_metrics": {
+          "roi_energy": 16.754255294799805,
+          "halo_energy": 626.2225952148438,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.026754472647304867,
+          "roi_fraction_of_panel": 8.174380530692275e-06,
+          "halo_bbox": [
+            328,
+            360,
+            82,
+            114
+          ],
+          "peak_value": 2.5923421382904053,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -3.0907837963031786,
+            6.919673557639846,
+            -7.140514707468706
+          ],
+          "delta_hkl": [
+            -0.09078379630317857,
+            -0.08032644236015418,
+            -0.1405147074687063
+          ],
+          "delta_hkl_norm": 0.1855759090735441,
+          "resolution_angstrom": 2.9775295841143445,
+          "two_theta_deg": 18.88161669408334,
+          "roi_center_px": [
+            344.0,
+            98.0
+          ],
+          "q_norm": 0.3358488880631715
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.0901025947228473,
+          "polarization_factor": 0.9476370377899451,
+          "lp_factor": 2.9282956693301823,
+          "lp_weighted_expectation": 587.5182943800855,
+          "stagea_vs_lp_ratio": 0.00019803467887110742,
+          "stagea_vs_amp_sq_ratio": 0.0005799040925154572
+        },
+        "partiality_metrics": {
+          "f_latt": -21.950833596155494,
+          "partiality_factor": 481.83909556610877,
+          "stagea_vs_partial": 1.2035222916773342e-06,
+          "stagea_vs_partial_lp": 4.109975315274866e-07
+        }
+      },
+      {
+        "roi_idx": 5,
+        "refl_idx": 5,
+        "panel_id": 0,
+        "bbox": [
+          605,
+          617,
+          156,
+          168
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 84.0,
+        "intensity_per_pixel_ref": 0.5833333333333334,
+        "stagea_mean_masked": 0.5374601483345032,
+        "mapping_mean_masked": 0.5382266044616699,
+        "target_mean_masked": 1.1198140382766724,
+        "stagea_vs_ref_ratio": 0.9213602542877196,
+        "mapping_vs_ref_ratio": 0.9226741790771483,
+        "target_vs_ref_ratio": 1.9196812084742954,
+        "hkl_index": [
+          -5,
+          4,
+          -2
+        ],
+        "hkl_amplitude": 41.768760681152344,
+        "amp_sq_per_pixel": 12.115481728051236,
+        "amp_sq_vs_ref_ratio": 20.76939724808783,
+        "stagea_vs_amp_sq_ratio": 0.044361434435587495,
+        "spot_profile_metrics": {
+          "roi_energy": 77.3942642211914,
+          "halo_energy": 109.56697845458984,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.7063648675250047,
+          "roi_fraction_of_panel": 3.776056622661844e-05,
+          "halo_bbox": [
+            595,
+            627,
+            146,
+            178
+          ],
+          "peak_value": 22.059999465942383,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -5.0511306984315825,
+            3.952836169633004,
+            -2.093096201143497
+          ],
+          "delta_hkl": [
+            -0.051130698431582466,
+            -0.047163830366995896,
+            -0.09309620114349704
+          ],
+          "delta_hkl_norm": 0.11621393154152669,
+          "resolution_angstrom": 3.6007608770141815,
+          "two_theta_deg": 15.591027766852244,
+          "roi_center_px": [
+            611.0,
+            162.0
+          ],
+          "q_norm": 0.27771908053756095
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.720667316469466,
+          "polarization_factor": 0.9638816147741187,
+          "lp_factor": 3.586282821035876,
+          "lp_weighted_expectation": 43.4495439898842,
+          "stagea_vs_lp_ratio": 0.012369753488313552,
+          "stagea_vs_amp_sq_ratio": 0.044361434435587495
+        },
+        "partiality_metrics": {
+          "f_latt": -2.6314834302703627,
+          "partiality_factor": 6.924705043787474,
+          "stagea_vs_partial": 0.0064062561733783194,
+          "stagea_vs_partial_lp": 0.001786322075827782
+        }
+      },
+      {
+        "roi_idx": 6,
+        "refl_idx": 6,
+        "panel_id": 0,
+        "bbox": [
+          976,
+          988,
+          202,
+          214
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 108.0,
+        "intensity_per_pixel_ref": 0.75,
+        "stagea_mean_masked": 0.002127263695001602,
+        "mapping_mean_masked": 0.0021322439424693584,
+        "target_mean_masked": 1.3980778455734253,
+        "stagea_vs_ref_ratio": 0.0028363515933354697,
+        "mapping_vs_ref_ratio": 0.002842991923292478,
+        "target_vs_ref_ratio": 1.8641037940979004,
+        "hkl_index": [
+          -9,
+          -1,
+          3
+        ],
+        "hkl_amplitude": 12.09005069732666,
+        "amp_sq_per_pixel": 1.0150647629439504,
+        "amp_sq_vs_ref_ratio": 1.3534196839252672,
+        "stagea_vs_amp_sq_ratio": 0.002095692583034788,
+        "spot_profile_metrics": {
+          "roi_energy": 0.3063259720802307,
+          "halo_energy": 2.922375440597534,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.10482088229484869,
+          "roi_fraction_of_panel": 1.4945606463303826e-07,
+          "halo_bbox": [
+            966,
+            998,
+            192,
+            224
+          ],
+          "peak_value": 0.07016324996948242,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -9.078462004354689,
+            -1.0880942560448523,
+            2.879424592800198
+          ],
+          "delta_hkl": [
+            -0.07846200435468909,
+            -0.08809425604485233,
+            -0.12057540719980198
+          ],
+          "delta_hkl_norm": 0.16868702646276418,
+          "resolution_angstrom": 2.475002711509617,
+          "two_theta_deg": 22.76210027498929,
+          "roi_center_px": [
+            982.0,
+            208.0
+          ],
+          "q_norm": 0.4040399613906097
+        },
+        "physics_metrics": {
+          "lorentz_factor": 2.5846090357540312,
+          "polarization_factor": 0.9251519848941306,
+          "lp_factor": 2.391156179603147,
+          "lp_weighted_expectation": 2.4271783806108305,
+          "stagea_vs_lp_ratio": 0.0008764348397278691,
+          "stagea_vs_amp_sq_ratio": 0.002095692583034788
+        },
+        "partiality_metrics": {
+          "f_latt": 10.832424591356926,
+          "partiality_factor": 117.34142252743426,
+          "stagea_vs_partial": 1.7859785043468498e-05,
+          "stagea_vs_partial_lp": 7.469100176648701e-06
+        }
+      },
+      {
+        "roi_idx": 7,
+        "refl_idx": 7,
+        "panel_id": 0,
+        "bbox": [
+          606,
+          618,
+          242,
+          254
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 51782.0,
+        "intensity_per_pixel_ref": 359.59722222222223,
+        "stagea_mean_masked": 3.7250819206237793,
+        "mapping_mean_masked": 3.732020854949951,
+        "target_mean_masked": 359.2863464355469,
+        "stagea_vs_ref_ratio": 0.010359039754544518,
+        "mapping_vs_ref_ratio": 0.010378336161461376,
+        "target_vs_ref_ratio": 0.9991354889096355,
+        "hkl_index": [
+          -4,
+          3,
+          -1
+        ],
+        "hkl_amplitude": 125.22843933105469,
+        "amp_sq_per_pixel": 108.90390289785864,
+        "amp_sq_vs_ref_ratio": 0.3028496778280415,
+        "stagea_vs_amp_sq_ratio": 0.03420521966157215,
+        "spot_profile_metrics": {
+          "roi_energy": 536.4118041992188,
+          "halo_energy": 1018.6261596679688,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.5266032087513514,
+          "roi_fraction_of_panel": 0.000261714658844943,
+          "halo_bbox": [
+            596,
+            628,
+            232,
+            264
+          ],
+          "peak_value": 89.66663360595703,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -4.053491085621682,
+            2.950332238174034,
+            -1.0956635644876989
+          ],
+          "delta_hkl": [
+            -0.053491085621682366,
+            -0.04966776182596622,
+            -0.09566356448769886
+          ],
+          "delta_hkl_norm": 0.12033162666680434,
+          "resolution_angstrom": 4.559879612084604,
+          "two_theta_deg": 12.297272680203914,
+          "roi_center_px": [
+            612.0,
+            248.0
+          ],
+          "q_norm": 0.2193040354288735
+        },
+        "physics_metrics": {
+          "lorentz_factor": 4.695191061076104,
+          "polarization_factor": 0.9773189338623425,
+          "lp_factor": 4.588699122090898,
+          "lp_weighted_expectation": 499.7272436196764,
+          "stagea_vs_lp_ratio": 0.0074542302189527995,
+          "stagea_vs_amp_sq_ratio": 0.03420521966157215
+        },
+        "partiality_metrics": {
+          "f_latt": 13.919925422909092,
+          "partiality_factor": 193.76432377935086,
+          "stagea_vs_partial": 0.00017653001850084308,
+          "stagea_vs_partial_lp": 3.847060219115106e-05
+        }
+      },
+      {
+        "roi_idx": 9,
+        "refl_idx": 9,
+        "panel_id": 0,
+        "bbox": [
+          459,
+          471,
+          275,
+          287
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 170.0,
+        "intensity_per_pixel_ref": 1.1805555555555556,
+        "stagea_mean_masked": 0.1830487996339798,
+        "mapping_mean_masked": 0.18323665857315063,
+        "target_mean_masked": 1.7142091989517212,
+        "stagea_vs_ref_ratio": 0.15505310086642995,
+        "mapping_vs_ref_ratio": 0.15521222843843346,
+        "target_vs_ref_ratio": 1.4520360273473403,
+        "hkl_index": [
+          -2,
+          4,
+          -3
+        ],
+        "hkl_amplitude": 14.737924575805664,
+        "amp_sq_per_pixel": 1.5083779222370595,
+        "amp_sq_vs_ref_ratio": 1.2776848282478621,
+        "stagea_vs_amp_sq_ratio": 0.12135473274661966,
+        "spot_profile_metrics": {
+          "roi_energy": 26.359027862548828,
+          "halo_energy": 34.94892501831055,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.7542156975855117,
+          "roi_fraction_of_panel": 1.2860537241214873e-05,
+          "halo_bbox": [
+            449,
+            481,
+            265,
+            297
+          ],
+          "peak_value": 3.89451265335083,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -2.045249939746083,
+            3.973117056314306,
+            -3.073942352840276
+          ],
+          "delta_hkl": [
+            -0.04524993974608282,
+            -0.026882943685694105,
+            -0.07394235284027584
+          ],
+          "delta_hkl_norm": 0.09076189316992113,
+          "resolution_angstrom": 5.349428328229166,
+          "two_theta_deg": 10.476738720191321,
+          "roi_center_px": [
+            465.0,
+            281.0
+          ],
+          "q_norm": 0.18693586279546107
+        },
+        "physics_metrics": {
+          "lorentz_factor": 5.499451288972532,
+          "polarization_factor": 0.9834677758488225,
+          "lp_factor": 5.4085331275547555,
+          "lp_weighted_expectation": 8.158111961291347,
+          "stagea_vs_lp_ratio": 0.022437642496512762,
+          "stagea_vs_amp_sq_ratio": 0.12135473274661966
+        },
+        "partiality_metrics": {
+          "f_latt": -93.03689615458389,
+          "partiality_factor": 8655.864046078827,
+          "stagea_vs_partial": 1.4019944410008876e-05,
+          "stagea_vs_partial_lp": 2.5921898007024713e-06
+        }
+      },
+      {
+        "roi_idx": 10,
+        "refl_idx": 10,
+        "panel_id": 0,
+        "bbox": [
+          645,
+          657,
+          284,
+          296
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 397.0,
+        "intensity_per_pixel_ref": 2.7569444444444446,
+        "stagea_mean_masked": 5.289440155029297,
+        "mapping_mean_masked": 5.301161766052246,
+        "target_mean_masked": 3.0646846294403076,
+        "stagea_vs_ref_ratio": 1.9185878647965207,
+        "mapping_vs_ref_ratio": 1.9228395322708398,
+        "target_vs_ref_ratio": 1.1116236439279705,
+        "hkl_index": [
+          -4,
+          2,
+          0
+        ],
+        "hkl_amplitude": 55.73005294799805,
+        "amp_sq_per_pixel": 21.568325011018512,
+        "amp_sq_vs_ref_ratio": 7.823271540520568,
+        "stagea_vs_amp_sq_ratio": 0.24524111873903534,
+        "spot_profile_metrics": {
+          "roi_energy": 761.6793823242188,
+          "halo_energy": 870.0220336914062,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.8754713706416126,
+          "roi_fraction_of_panel": 0.0003716224328653581,
+          "halo_bbox": [
+            635,
+            667,
+            274,
+            306
+          ],
+          "peak_value": 157.81861877441406,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -4.035744997284455,
+            1.9991043328060347,
+            -0.06895337299529074
+          ],
+          "delta_hkl": [
+            -0.03574499728445524,
+            -0.0008956671939652772,
+            -0.06895337299529074
+          ],
+          "delta_hkl_norm": 0.0776728697681227,
+          "resolution_angstrom": 4.917469874388617,
+          "two_theta_deg": 11.399956036083982,
+          "roi_center_px": [
+            651.0,
+            290.0
+          ],
+          "q_norm": 0.20335660930191846
+        },
+        "physics_metrics": {
+          "lorentz_factor": 5.059279880805083,
+          "polarization_factor": 0.9804659365701316,
+          "lp_factor": 4.96045158670398,
+          "lp_weighted_expectation": 106.9886320234539,
+          "stagea_vs_lp_ratio": 0.049439272705811894,
+          "stagea_vs_amp_sq_ratio": 0.24524111873903534
+        },
+        "partiality_metrics": {
+          "f_latt": -722.4267892931998,
+          "partiality_factor": 521900.46588848135,
+          "stagea_vs_partial": 4.699001720980222e-07,
+          "stagea_vs_partial_lp": 9.472931322574442e-08
+        }
+      },
+      {
+        "roi_idx": 11,
+        "refl_idx": 11,
+        "panel_id": 0,
+        "bbox": [
+          121,
+          133,
+          288,
+          300
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 2144.0,
+        "intensity_per_pixel_ref": 14.88888888888889,
+        "stagea_mean_masked": 55.960960388183594,
+        "mapping_mean_masked": 55.906654357910156,
+        "target_mean_masked": 13.414021492004395,
+        "stagea_vs_ref_ratio": 3.75857196637054,
+        "mapping_vs_ref_ratio": 3.7549245464268015,
+        "target_vs_ref_ratio": 0.9009417420002951,
+        "hkl_index": [
+          1,
+          6,
+          -9
+        ],
+        "hkl_amplitude": 297.8048400878906,
+        "amp_sq_per_pixel": 615.8869637484313,
+        "amp_sq_vs_ref_ratio": 41.36554234131255,
+        "stagea_vs_amp_sq_ratio": 0.09086238820122475,
+        "spot_profile_metrics": {
+          "roi_energy": 8058.37841796875,
+          "halo_energy": 10968.57421875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.7346787519743015,
+          "roi_fraction_of_panel": 0.003931672908746952,
+          "halo_bbox": [
+            111,
+            143,
+            278,
+            310
+          ],
+          "peak_value": 2183.76416015625,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            0.9690624259857824,
+            5.960350750812358,
+            -9.067593343716265
+          ],
+          "delta_hkl": [
+            -0.030937574014217595,
+            -0.0396492491876419,
+            -0.0675933437162648
+          ],
+          "delta_hkl_norm": 0.08424996475829546,
+          "resolution_angstrom": 3.0293435217293827,
+          "two_theta_deg": 18.5557869963344,
+          "roi_center_px": [
+            127.0,
+            294.0
+          ],
+          "q_norm": 0.33010452357978964
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.142402457092922,
+          "polarization_factor": 0.9493655154895009,
+          "lp_factor": 2.983288528553496,
+          "lp_weighted_expectation": 1837.368513836338,
+          "stagea_vs_lp_ratio": 0.03045712385227489,
+          "stagea_vs_amp_sq_ratio": 0.09086238820122475
+        },
+        "partiality_metrics": {
+          "f_latt": 65.31084968066996,
+          "partiality_factor": 4265.507086011067,
+          "stagea_vs_partial": 2.130166153028142e-05,
+          "stagea_vs_partial_lp": 7.140328978038853e-06
+        }
+      },
+      {
+        "roi_idx": 13,
+        "refl_idx": 13,
+        "panel_id": 0,
+        "bbox": [
+          202,
+          214,
+          338,
+          350
+        ],
+        "n_masked_pixels": 108,
+        "intensity_sum_ref": 97245.0,
+        "intensity_per_pixel_ref": 900.4166666666666,
+        "stagea_mean_masked": 18.614938735961914,
+        "mapping_mean_masked": 18.650503158569336,
+        "target_mean_masked": 901.5115966796875,
+        "stagea_vs_ref_ratio": 0.020673694107500508,
+        "mapping_vs_ref_ratio": 0.020713191846629526,
+        "target_vs_ref_ratio": 1.0012160259283898,
+        "hkl_index": [
+          1,
+          5,
+          -7
+        ],
+        "hkl_amplitude": 167.72161865234375,
+        "amp_sq_per_pixel": 260.46797558668726,
+        "amp_sq_vs_ref_ratio": 0.2892749381804949,
+        "stagea_vs_amp_sq_ratio": 0.07146728381496024,
+        "spot_profile_metrics": {
+          "roi_energy": 2010.4134521484375,
+          "halo_energy": 2176.895751953125,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9235230719453063,
+          "roi_fraction_of_panel": 0.0009808782481060074,
+          "halo_bbox": [
+            192,
+            224,
+            328,
+            360
+          ],
+          "peak_value": 229.80067443847656,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            0.9714940786964642,
+            4.959919363558034,
+            -7.081280960769165
+          ],
+          "delta_hkl": [
+            -0.028505921303535797,
+            -0.040080636441966355,
+            -0.08128096076916513
+          ],
+          "delta_hkl_norm": 0.095003365995711,
+          "resolution_angstrom": 3.7836455788238803,
+          "two_theta_deg": 14.83307922938465,
+          "roi_center_px": [
+            208.0,
+            344.0
+          ],
+          "q_norm": 0.26429536783168867
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.906190452490316,
+          "polarization_factor": 0.967231000935723,
+          "lp_factor": 3.778188501207773,
+          "lp_weighted_expectation": 984.0971102944887,
+          "stagea_vs_lp_ratio": 0.018915753883670523,
+          "stagea_vs_amp_sq_ratio": 0.07146728381496024
+        },
+        "partiality_metrics": {
+          "f_latt": 82.66726513098656,
+          "partiality_factor": 6833.876724236827,
+          "stagea_vs_partial": 1.045779528938479e-05,
+          "stagea_vs_partial_lp": 2.7679389967021884e-06
+        }
+      },
+      {
+        "roi_idx": 14,
+        "refl_idx": 14,
+        "panel_id": 0,
+        "bbox": [
+          431,
+          443,
+          434,
+          446
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 251.0,
+        "intensity_per_pixel_ref": 1.7430555555555556,
+        "stagea_mean_masked": 896.6605834960938,
+        "mapping_mean_masked": 899.004150390625,
+        "target_mean_masked": 2.4828569889068604,
+        "stagea_vs_ref_ratio": 514.418820810508,
+        "mapping_vs_ref_ratio": 515.7633372758964,
+        "target_vs_ref_ratio": 1.4244279139545335,
+        "hkl_index": [
+          0,
+          2,
+          -2
+        ],
+        "hkl_amplitude": 75.03345489501953,
+        "amp_sq_per_pixel": 39.09735662140924,
+        "amp_sq_vs_ref_ratio": 22.430355989971833,
+        "stagea_vs_amp_sq_ratio": 22.93404621132604,
+        "spot_profile_metrics": {
+          "roi_energy": 129119.125,
+          "halo_energy": 129191.4296875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9994403290707836,
+          "roi_fraction_of_panel": 0.0629970621175636,
+          "halo_bbox": [
+            421,
+            453,
+            424,
+            456
+          ],
+          "peak_value": 53478.6328125,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -0.0065308120176647355,
+            2.024873931481871,
+            -2.019832776927742
+          ],
+          "delta_hkl": [
+            -0.0065308120176647355,
+            0.024873931481871114,
+            -0.019832776927742213
+          ],
+          "delta_hkl_norm": 0.032476191489158285,
+          "resolution_angstrom": 11.455182856312376,
+          "two_theta_deg": 4.887175355501713,
+          "roi_center_px": [
+            437.0,
+            440.0
+          ],
+          "q_norm": 0.08729672957153628
+        },
+        "physics_metrics": {
+          "lorentz_factor": 11.737928661026517,
+          "polarization_factor": 0.9963709991247804,
+          "lp_factor": 11.695331707642387,
+          "lp_weighted_expectation": 457.2565545793695,
+          "stagea_vs_lp_ratio": 1.960957310542945,
+          "stagea_vs_amp_sq_ratio": 22.93404621132604
+        },
+        "partiality_metrics": {
+          "f_latt": 5233.689785023263,
+          "partiality_factor": 27391508.765856843,
+          "stagea_vs_partial": 8.372684545187606e-07,
+          "stagea_vs_partial_lp": 7.158997072068015e-08
+        }
+      },
+      {
+        "roi_idx": 15,
+        "refl_idx": 15,
+        "panel_id": 0,
+        "bbox": [
+          943,
+          955,
+          583,
+          595
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 86874.0,
+        "intensity_per_pixel_ref": 603.2916666666666,
+        "stagea_mean_masked": 144.50062561035156,
+        "mapping_mean_masked": 144.16659545898438,
+        "target_mean_masked": 603.079345703125,
+        "stagea_vs_ref_ratio": 0.23952034081417486,
+        "mapping_vs_ref_ratio": 0.23896666144178638,
+        "target_vs_ref_ratio": 0.9996480624956835,
+        "hkl_index": [
+          -5,
+          -6,
+          6
+        ],
+        "hkl_amplitude": 171.12925720214844,
+        "amp_sq_per_pixel": 203.36960187888246,
+        "amp_sq_vs_ref_ratio": 0.33709996858161334,
+        "stagea_vs_amp_sq_ratio": 0.7105320769443678,
+        "spot_profile_metrics": {
+          "roi_energy": 20808.08984375,
+          "halo_energy": 21501.943359375,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9677306602464621,
+          "roi_fraction_of_panel": 0.010152241416092023,
+          "halo_bbox": [
+            933,
+            965,
+            573,
+            605
+          ],
+          "peak_value": 5095.4853515625,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -4.974332720868107,
+            -5.983086785651756,
+            6.014595423604235
+          ],
+          "delta_hkl": [
+            0.02566727913189304,
+            0.016913214348243777,
+            0.014595423604235158
+          ],
+          "delta_hkl_norm": 0.034027818440376334,
+          "resolution_angstrom": 3.1138237226620533,
+          "two_theta_deg": 18.0480908206009,
+          "roi_center_px": [
+            949.0,
+            589.0
+          ],
+          "q_norm": 0.3211485585141234
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.227731135072642,
+          "polarization_factor": 0.9520072869692859,
+          "lp_factor": 3.0728235609667998,
+          "lp_weighted_expectation": 624.918904237868,
+          "stagea_vs_lp_ratio": 0.2312310039437519,
+          "stagea_vs_amp_sq_ratio": 0.7105320769443678
+        },
+        "partiality_metrics": {
+          "f_latt": -830.2460036975148,
+          "partiality_factor": 689308.4266556937,
+          "stagea_vs_partial": 1.0307897734424117e-06,
+          "stagea_vs_partial_lp": 3.3545361553987025e-07
+        }
+      },
+      {
+        "roi_idx": 16,
+        "refl_idx": 16,
+        "panel_id": 0,
+        "bbox": [
+          477,
+          489,
+          595,
+          607
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 30.0,
+        "intensity_per_pixel_ref": 0.20833333333333334,
+        "stagea_mean_masked": 0.1416388601064682,
+        "mapping_mean_masked": 0.14196623861789703,
+        "target_mean_masked": 0.319356232881546,
+        "stagea_vs_ref_ratio": 0.6798665285110473,
+        "mapping_vs_ref_ratio": 0.6814379453659057,
+        "target_vs_ref_ratio": 1.5329099178314207,
+        "hkl_index": [
+          1,
+          -1,
+          0
+        ],
+        "hkl_amplitude": 3.8828179836273193,
+        "amp_sq_per_pixel": 0.1046963575970814,
+        "amp_sq_vs_ref_ratio": 0.5025425164659907,
+        "stagea_vs_amp_sq_ratio": 1.352853751145366,
+        "spot_profile_metrics": {
+          "roi_energy": 20.39599609375,
+          "halo_energy": 20.7091064453125,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9848805474833332,
+          "roi_fraction_of_panel": 9.951181382831965e-06,
+          "halo_bbox": [
+            467,
+            499,
+            585,
+            617
+          ],
+          "peak_value": 2.8452606201171875,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            1.0314929451860735,
+            -0.957683870456516,
+            0.011456743201756289
+          ],
+          "delta_hkl": [
+            0.031492945186073484,
+            0.04231612954348396,
+            0.011456743201756289
+          ],
+          "delta_hkl_norm": 0.05397886049950419,
+          "resolution_angstrom": 15.902018758556649,
+          "two_theta_deg": 3.520013453819071,
+          "roi_center_px": [
+            483.0,
+            601.0
+          ],
+          "q_norm": 0.06288509749505322
+        },
+        "physics_metrics": {
+          "lorentz_factor": 16.28739169060373,
+          "polarization_factor": 0.9981151928400365,
+          "lp_factor": 16.25669309812815,
+          "lp_weighted_expectation": 1.70201655394763,
+          "stagea_vs_lp_ratio": 0.08321826234765654,
+          "stagea_vs_amp_sq_ratio": 1.352853751145366
+        },
+        "partiality_metrics": {
+          "f_latt": 1005.8286293497551,
+          "partiality_factor": 1011691.2316196071,
+          "stagea_vs_partial": 1.337220002371272e-06,
+          "stagea_vs_partial_lp": 8.225658159993461e-08
+        }
+      },
+      {
+        "roi_idx": 17,
+        "refl_idx": 17,
+        "panel_id": 0,
+        "bbox": [
+          739,
+          751,
+          610,
+          622
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 98.0,
+        "intensity_per_pixel_ref": 0.6805555555555556,
+        "stagea_mean_masked": 1.8648134469985962,
+        "mapping_mean_masked": 1.8637746572494507,
+        "target_mean_masked": 1.0681490898132324,
+        "stagea_vs_ref_ratio": 2.740134044569366,
+        "mapping_vs_ref_ratio": 2.7386076596318456,
+        "target_vs_ref_ratio": 1.5695251931949536,
+        "hkl_index": [
+          -2,
+          -4,
+          4
+        ],
+        "hkl_amplitude": 9.582091331481934,
+        "amp_sq_per_pixel": 0.6376144047559806,
+        "amp_sq_vs_ref_ratio": 0.9369027988251144,
+        "stagea_vs_amp_sq_ratio": 2.924672706715704,
+        "spot_profile_metrics": {
+          "roi_energy": 268.53314208984375,
+          "halo_energy": 269.2135009765625,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9974727906132094,
+          "roi_fraction_of_panel": 0.00013101698941081285,
+          "halo_bbox": [
+            729,
+            761,
+            600,
+            632
+          ],
+          "peak_value": 78.1769790649414,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -1.9868563878614196,
+            -3.963548812411299,
+            3.9963014242204773
+          ],
+          "delta_hkl": [
+            0.013143612138580396,
+            0.03645118758870103,
+            -0.003698575779522706
+          ],
+          "delta_hkl_norm": 0.03892458194345807,
+          "resolution_angstrom": 5.380749851329359,
+          "two_theta_deg": 10.415584277325618,
+          "roi_center_px": [
+            745.0,
+            616.0
+          ],
+          "q_norm": 0.1858477029466333
+        },
+        "physics_metrics": {
+          "lorentz_factor": 5.531381359782156,
+          "polarization_factor": 0.9836580905155854,
+          "lp_factor": 5.440988026276818,
+          "lp_weighted_expectation": 3.4692523416589114,
+          "stagea_vs_lp_ratio": 0.5375260325130712,
+          "stagea_vs_amp_sq_ratio": 2.924672706715704
+        },
+        "partiality_metrics": {
+          "f_latt": -1173.656970708376,
+          "partiality_factor": 1377470.684892362,
+          "stagea_vs_partial": 2.123219563793652e-06,
+          "stagea_vs_partial_lp": 3.9022683996725084e-07
+        }
+      },
+      {
+        "roi_idx": 18,
+        "refl_idx": 18,
+        "panel_id": 0,
+        "bbox": [
+          144,
+          156,
+          619,
+          631
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 3754.0,
+        "intensity_per_pixel_ref": 26.069444444444443,
+        "stagea_mean_masked": 57.47311782836914,
+        "mapping_mean_masked": 57.66323471069336,
+        "target_mean_masked": 25.58402442932129,
+        "stagea_vs_ref_ratio": 2.204616134066371,
+        "mapping_vs_ref_ratio": 2.2119088434576035,
+        "target_vs_ref_ratio": 0.9813797330373644,
+        "hkl_index": [
+          4,
+          1,
+          -6
+        ],
+        "hkl_amplitude": 220.46456909179688,
+        "amp_sq_per_pixel": 337.5321265613311,
+        "amp_sq_vs_ref_ratio": 12.947423075341417,
+        "stagea_vs_amp_sq_ratio": 0.17027451109287522,
+        "spot_profile_metrics": {
+          "roi_energy": 8276.12890625,
+          "halo_energy": 10339.388671875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.8004466384712436,
+          "roi_fraction_of_panel": 0.004037913103887553,
+          "halo_bbox": [
+            134,
+            166,
+            609,
+            641
+          ],
+          "peak_value": 1051.679443359375,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            4.042555932768405,
+            1.0384859453578665,
+            -5.995655320100042
+          ],
+          "delta_hkl": [
+            0.04255593276840486,
+            0.038485945357866536,
+            0.004344679899958237
+          ],
+          "delta_hkl_norm": 0.05754173830630062,
+          "resolution_angstrom": 3.5746903158903147,
+          "two_theta_deg": 15.705449342314141,
+          "roi_center_px": [
+            150.0,
+            625.0
+          ],
+          "q_norm": 0.27974451256792
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.694235441644959,
+          "polarization_factor": 0.9633629191149555,
+          "lp_factor": 3.558889438961015,
+          "lp_weighted_expectation": 1201.239520529174,
+          "stagea_vs_lp_ratio": 0.04784484430136872,
+          "stagea_vs_amp_sq_ratio": 0.17027451109287522
+        },
+        "partiality_metrics": {
+          "f_latt": 494.09875299672115,
+          "partiality_factor": 244133.57771291485,
+          "stagea_vs_partial": 6.974645302298685e-07,
+          "stagea_vs_partial_lp": 1.9597813930221078e-07
+        }
+      },
+      {
+        "roi_idx": 19,
+        "refl_idx": 19,
+        "panel_id": 0,
+        "bbox": [
+          407,
+          419,
+          630,
+          642
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 455.0,
+        "intensity_per_pixel_ref": 3.1597222222222223,
+        "stagea_mean_masked": 1.250986933708191,
+        "mapping_mean_masked": 1.253964900970459,
+        "target_mean_masked": 3.28469181060791,
+        "stagea_vs_ref_ratio": 0.39591674385489994,
+        "mapping_vs_ref_ratio": 0.39685922140603536,
+        "target_vs_ref_ratio": 1.0395508147858001,
+        "hkl_index": [
+          2,
+          -1,
+          -1
+        ],
+        "hkl_amplitude": 22.779966354370117,
+        "amp_sq_per_pixel": 3.6036587993488514,
+        "amp_sq_vs_ref_ratio": 1.1404986090246914,
+        "stagea_vs_amp_sq_ratio": 0.34714355696888755,
+        "spot_profile_metrics": {
+          "roi_energy": 180.14212036132812,
+          "halo_energy": 194.84771728515625,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9245277433642872,
+          "roi_fraction_of_panel": 8.789111873544842e-05,
+          "halo_bbox": [
+            397,
+            429,
+            620,
+            652
+          ],
+          "peak_value": 25.765195846557617,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            2.03522047275153,
+            -0.9351806398512789,
+            -0.9782090384633243
+          ],
+          "delta_hkl": [
+            0.035220472751530174,
+            0.06481936014872114,
+            0.0217909615366757
+          ],
+          "delta_hkl_norm": 0.07692123995115899,
+          "resolution_angstrom": 8.749766501209931,
+          "two_theta_deg": 6.399670312124857,
+          "roi_center_px": [
+            413.0,
+            636.0
+          ],
+          "q_norm": 0.11428876414721677
+        },
+        "physics_metrics": {
+          "lorentz_factor": 8.971569765300016,
+          "polarization_factor": 0.993787975970664,
+          "lp_factor": 8.915838158337108,
+          "lp_weighted_expectation": 32.12963863286178,
+          "stagea_vs_lp_ratio": 0.03893560547016852,
+          "stagea_vs_amp_sq_ratio": 0.34714355696888755
+        },
+        "partiality_metrics": {
+          "f_latt": 193.49734497338443,
+          "partiality_factor": 37441.22251174894,
+          "stagea_vs_partial": 9.271693969393091e-06,
+          "stagea_vs_partial_lp": 1.0399127714900507e-06
+        }
+      },
+      {
+        "roi_idx": 20,
+        "refl_idx": 20,
+        "panel_id": 0,
+        "bbox": [
+          708,
+          720,
+          688,
+          700
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 1123.0,
+        "intensity_per_pixel_ref": 7.798611111111111,
+        "stagea_mean_masked": 0.6909451484680176,
+        "mapping_mean_masked": 0.6914846301078796,
+        "target_mean_masked": 7.951812744140625,
+        "stagea_vs_ref_ratio": 0.08859848742599692,
+        "mapping_vs_ref_ratio": 0.08866766405657585,
+        "target_vs_ref_ratio": 1.0196447329975513,
+        "hkl_index": [
+          -1,
+          -5,
+          4
+        ],
+        "hkl_amplitude": 22.02058982849121,
+        "amp_sq_per_pixel": 3.367405391629518,
+        "amp_sq_vs_ref_ratio": 0.4317955266203478,
+        "stagea_vs_amp_sq_ratio": 0.20518620959196807,
+        "spot_profile_metrics": {
+          "roi_energy": 99.49610137939453,
+          "halo_energy": 120.32373046875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.8269033962941771,
+          "roi_fraction_of_panel": 4.8544025364585786e-05,
+          "halo_bbox": [
+            698,
+            730,
+            678,
+            710
+          ],
+          "peak_value": 23.934967041015625,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -0.9645676270710661,
+            -4.931228581441186,
+            4.026427979386378
+          ],
+          "delta_hkl": [
+            0.035432372928933864,
+            0.06877141855881419,
+            0.026427979386378198
+          ],
+          "delta_hkl_norm": 0.08175205903470253,
+          "resolution_angstrom": 5.104402737155398,
+          "two_theta_deg": 10.981160822141426,
+          "roi_center_px": [
+            714.0,
+            694.0
+          ],
+          "q_norm": 0.19590930643479829
+        },
+        "physics_metrics": {
+          "lorentz_factor": 5.249723562787249,
+          "polarization_factor": 0.981857499905079,
+          "lp_factor": 5.154480452551073,
+          "lp_weighted_expectation": 17.35722526696944,
+          "stagea_vs_lp_ratio": 0.03980735041694001,
+          "stagea_vs_amp_sq_ratio": 0.20518620959196807
+        },
+        "partiality_metrics": {
+          "f_latt": 4.126515146201071,
+          "partiality_factor": 17.02812725182685,
+          "stagea_vs_partial": 0.012049840041567391,
+          "stagea_vs_partial_lp": 0.002337740952262928
+        }
+      },
+      {
+        "roi_idx": 21,
+        "refl_idx": 21,
+        "panel_id": 0,
+        "bbox": [
+          787,
+          799,
+          694,
+          706
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 27775.0,
+        "intensity_per_pixel_ref": 192.88194444444446,
+        "stagea_mean_masked": 9.157004356384277,
+        "mapping_mean_masked": 9.159164428710938,
+        "target_mean_masked": 192.20689392089844,
+        "stagea_vs_ref_ratio": 0.04747465804930102,
+        "mapping_vs_ref_ratio": 0.04748585698413591,
+        "target_vs_ref_ratio": 0.9965001881047479,
+        "hkl_index": [
+          -2,
+          -6,
+          5
+        ],
+        "hkl_amplitude": 97.443359375,
+        "amp_sq_per_pixel": 65.9389464325375,
+        "amp_sq_vs_ref_ratio": 0.34186168447472187,
+        "stagea_vs_amp_sq_ratio": 0.13887095338644603,
+        "spot_profile_metrics": {
+          "roi_energy": 1318.608642578125,
+          "halo_energy": 1749.3455810546875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.7537725289151447,
+          "roi_fraction_of_panel": 0.0006433475332585344,
+          "halo_bbox": [
+            777,
+            809,
+            684,
+            716
+          ],
+          "peak_value": 382.6267395019531,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -1.9565211816592358,
+            -5.929015619366297,
+            5.028273045067118
+          ],
+          "delta_hkl": [
+            0.04347881834076417,
+            0.07098438063370338,
+            0.028273045067117586
+          ],
+          "delta_hkl_norm": 0.0879122006073498,
+          "resolution_angstrom": 4.090554725430792,
+          "two_theta_deg": 13.714607106592382,
+          "roi_center_px": [
+            793.0,
+            700.0
+          ],
+          "q_norm": 0.24446562070983813
+        },
+        "physics_metrics": {
+          "lorentz_factor": 4.2178818196324155,
+          "polarization_factor": 0.971895155283902,
+          "lp_factor": 4.099338906060794,
+          "lp_weighted_expectation": 270.3060885355596,
+          "stagea_vs_lp_ratio": 0.03387642655773788,
+          "stagea_vs_amp_sq_ratio": 0.13887095338644603
+        },
+        "partiality_metrics": {
+          "f_latt": -12.737666864798221,
+          "partiality_factor": 162.24815715857855,
+          "stagea_vs_partial": 0.0008559169843187554,
+          "stagea_vs_partial_lp": 0.00020879390651338894
+        }
+      },
+      {
+        "roi_idx": 22,
+        "refl_idx": 22,
+        "panel_id": 0,
+        "bbox": [
+          69,
+          81,
+          700,
+          712
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 475.0,
+        "intensity_per_pixel_ref": 3.298611111111111,
+        "stagea_mean_masked": 0.07122834771871567,
+        "mapping_mean_masked": 0.0714862048625946,
+        "target_mean_masked": 3.5124518871307373,
+        "stagea_vs_ref_ratio": 0.02159343593998959,
+        "mapping_vs_ref_ratio": 0.021671607368870784,
+        "target_vs_ref_ratio": 1.0648275194670025,
+        "hkl_index": [
+          5,
+          0,
+          -7
+        ],
+        "hkl_amplitude": 11.985428810119629,
+        "amp_sq_per_pixel": 0.9975729427947613,
+        "amp_sq_vs_ref_ratio": 0.30242211318409606,
+        "stagea_vs_amp_sq_ratio": 0.07140164359226216,
+        "spot_profile_metrics": {
+          "roi_energy": 10.256881713867188,
+          "halo_energy": 16.70737075805664,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.613913575175861,
+          "roi_fraction_of_panel": 5.004319960044597e-06,
+          "halo_bbox": [
+            59,
+            91,
+            690,
+            722
+          ],
+          "peak_value": 1.6071796417236328,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            5.043693684625476,
+            0.036468042292097255,
+            -6.973466270325933
+          ],
+          "delta_hkl": [
+            0.043693684625475626,
+            0.036468042292097255,
+            0.026533729674066642
+          ],
+          "delta_hkl_norm": 0.06279406815285313,
+          "resolution_angstrom": 2.8890509868517893,
+          "two_theta_deg": 19.465415975372174,
+          "roi_center_px": [
+            75.0,
+            706.0
+          ],
+          "q_norm": 0.3461344242628629
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.0008599091701758,
+          "polarization_factor": 0.9444762792440569,
+          "lp_factor": 2.8342410015457062,
+          "lp_weighted_expectation": 2.8273621365015216,
+          "stagea_vs_lp_ratio": 0.025192509583102474,
+          "stagea_vs_amp_sq_ratio": 0.07140164359226216
+        },
+        "partiality_metrics": {
+          "f_latt": 38.42291864508206,
+          "partiality_factor": 1476.3206772065948,
+          "stagea_vs_partial": 4.83645895466045e-05,
+          "stagea_vs_partial_lp": 1.7064388497741713e-05
+        }
+      },
+      {
+        "roi_idx": 23,
+        "refl_idx": 23,
+        "panel_id": 0,
+        "bbox": [
+          419,
+          431,
+          794,
+          806
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 181.0,
+        "intensity_per_pixel_ref": 1.2569444444444444,
+        "stagea_mean_masked": 0.06280393153429031,
+        "mapping_mean_masked": 0.06292630732059479,
+        "target_mean_masked": 1.9627617597579956,
+        "stagea_vs_ref_ratio": 0.04996555878971163,
+        "mapping_vs_ref_ratio": 0.05006291853130193,
+        "target_vs_ref_ratio": 1.5615342177080187,
+        "hkl_index": [
+          3,
+          -4,
+          0
+        ],
+        "hkl_amplitude": 10.510786056518555,
+        "amp_sq_per_pixel": 0.7671987744854505,
+        "amp_sq_vs_ref_ratio": 0.61036808577848,
+        "stagea_vs_amp_sq_ratio": 0.0818613553917784,
+        "spot_profile_metrics": {
+          "roi_energy": 9.043766021728516,
+          "halo_energy": 13.511064529418945,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.6693599902536659,
+          "roi_fraction_of_panel": 4.4124423074238025e-06,
+          "halo_bbox": [
+            409,
+            441,
+            784,
+            816
+          ],
+          "peak_value": 1.468897819519043,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            3.0513238125616953,
+            -3.946585470516017,
+            0.04796324334173829
+          ],
+          "delta_hkl": [
+            0.05132381256169527,
+            0.05341452948398295,
+            0.04796324334173829
+          ],
+          "delta_hkl_norm": 0.08824805044714651,
+          "resolution_angstrom": 4.620055584428157,
+          "two_theta_deg": 12.136495766033613,
+          "roi_center_px": [
+            425.0,
+            800.0
+          ],
+          "q_norm": 0.2164476123123904
+        },
+        "physics_metrics": {
+          "lorentz_factor": 4.756438477591011,
+          "polarization_factor": 0.9778992894402092,
+          "lp_factor": 4.651317807502321,
+          "lp_weighted_expectation": 3.568485321658133,
+          "stagea_vs_lp_ratio": 0.01759960483881375,
+          "stagea_vs_amp_sq_ratio": 0.0818613553917784
+        },
+        "partiality_metrics": {
+          "f_latt": 78.52293381777918,
+          "partiality_factor": 6165.851135351329,
+          "stagea_vs_partial": 1.3276570191977877e-05,
+          "stagea_vs_partial_lp": 2.8543674591668405e-06
+        }
+      },
+      {
+        "roi_idx": 24,
+        "refl_idx": 24,
+        "panel_id": 0,
+        "bbox": [
+          606,
+          618,
+          805,
+          817
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 4676.0,
+        "intensity_per_pixel_ref": 32.47222222222222,
+        "stagea_mean_masked": 0.6562527418136597,
+        "mapping_mean_masked": 0.6568817496299744,
+        "target_mean_masked": 32.17433166503906,
+        "stagea_vs_ref_ratio": 0.02020966527398781,
+        "mapping_vs_ref_ratio": 0.02022903591674857,
+        "target_vs_ref_ratio": 0.9908262959293467,
+        "hkl_index": [
+          1,
+          -6,
+          3
+        ],
+        "hkl_amplitude": 219.3031768798828,
+        "amp_sq_per_pixel": 333.98530131673033,
+        "amp_sq_vs_ref_ratio": 10.285261631652945,
+        "stagea_vs_amp_sq_ratio": 0.001964915040351765,
+        "spot_profile_metrics": {
+          "roi_energy": 94.50039672851562,
+          "halo_energy": 1782.5008544921875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.0530156249240271,
+          "roi_fraction_of_panel": 4.610662721607433e-05,
+          "halo_bbox": [
+            596,
+            628,
+            795,
+            827
+          ],
+          "peak_value": 21.05752944946289,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            1.0908707732096823,
+            -5.903653969824093,
+            3.0831213020165995
+          ],
+          "delta_hkl": [
+            0.09087077320968229,
+            0.0963460301759067,
+            0.08312130201659951
+          ],
+          "delta_hkl_norm": 0.15636241812953963,
+          "resolution_angstrom": 4.433715158121388,
+          "two_theta_deg": 12.64860821906243,
+          "roi_center_px": [
+            612.0,
+            811.0
+          ],
+          "q_norm": 0.22554448455450857
+        },
+        "physics_metrics": {
+          "lorentz_factor": 4.566812600502535,
+          "polarization_factor": 0.9760258276575423,
+          "lp_factor": 4.45732704816238,
+          "lp_weighted_expectation": 1488.6817172477247,
+          "stagea_vs_lp_ratio": 0.0004408281059748218,
+          "stagea_vs_amp_sq_ratio": 0.001964915040351765
+        },
+        "partiality_metrics": {
+          "f_latt": -18.5041163349512,
+          "partiality_factor": 342.4023213374078,
+          "stagea_vs_partial": 5.738614833792298e-06,
+          "stagea_vs_partial_lp": 1.2874565343277097e-06
+        }
+      },
+      {
+        "roi_idx": 25,
+        "refl_idx": 25,
+        "panel_id": 0,
+        "bbox": [
+          194,
+          206,
+          830,
+          842
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 42716.0,
+        "intensity_per_pixel_ref": 296.6388888888889,
+        "stagea_mean_masked": 4.3173651695251465,
+        "mapping_mean_masked": 4.326968669891357,
+        "target_mean_masked": 296.0765380859375,
+        "stagea_vs_ref_ratio": 0.01455427906198195,
+        "mapping_vs_ref_ratio": 0.014586653442840046,
+        "target_vs_ref_ratio": 0.9981042579917361,
+        "hkl_index": [
+          5,
+          -3,
+          -4
+        ],
+        "hkl_amplitude": 204.5432586669922,
+        "amp_sq_per_pixel": 290.54128240355607,
+        "amp_sq_vs_ref_ratio": 0.9794443455874162,
+        "stagea_vs_amp_sq_ratio": 0.014859730547786363,
+        "spot_profile_metrics": {
+          "roi_energy": 621.7005615234375,
+          "halo_energy": 1456.93310546875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.4267186730741582,
+          "roi_fraction_of_panel": 0.0003033269385369221,
+          "halo_bbox": [
+            184,
+            216,
+            820,
+            852
+          ],
+          "peak_value": 208.79434204101562,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            5.078669834020205,
+            -2.926909988611163,
+            -3.929332684047304
+          ],
+          "delta_hkl": [
+            0.07866983402020544,
+            0.07309001138883708,
+            0.07066731595269582
+          ],
+          "delta_hkl_norm": 0.1285494538827184,
+          "resolution_angstrom": 3.0882143694156636,
+          "two_theta_deg": 18.19902234613026,
+          "roi_center_px": [
+            200.0,
+            836.0
+          ],
+          "q_norm": 0.3238117178339582
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.201857499189043,
+          "polarization_factor": 0.9512285120578076,
+          "lp_factor": 3.0456981447747262,
+          "lp_weighted_expectation": 884.9010447969805,
+          "stagea_vs_lp_ratio": 0.004878924253632974,
+          "stagea_vs_amp_sq_ratio": 0.014859730547786363
+        },
+        "partiality_metrics": {
+          "f_latt": -14.251533620675183,
+          "partiality_factor": 203.10621054123507,
+          "stagea_vs_partial": 7.316236420436541e-05,
+          "stagea_vs_partial_lp": 2.402154144194642e-05
+        }
+      },
+      {
+        "roi_idx": 26,
+        "refl_idx": 26,
+        "panel_id": 0,
+        "bbox": [
+          535,
+          547,
+          842,
+          854
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 1989.0,
+        "intensity_per_pixel_ref": 13.8125,
+        "stagea_mean_masked": 0.18189896643161774,
+        "mapping_mean_masked": 0.18191933631896973,
+        "target_mean_masked": 9.983099937438965,
+        "stagea_vs_ref_ratio": 0.013169155940750606,
+        "mapping_vs_ref_ratio": 0.013170630683726314,
+        "target_vs_ref_ratio": 0.7227583665114182,
+        "hkl_index": [
+          2,
+          -6,
+          2
+        ],
+        "hkl_amplitude": 374.90020751953125,
+        "amp_sq_per_pixel": 976.0428166540805,
+        "amp_sq_vs_ref_ratio": 70.66373333242213,
+        "stagea_vs_amp_sq_ratio": 0.00018636371614841213,
+        "spot_profile_metrics": {
+          "roi_energy": 26.193450927734375,
+          "halo_energy": 2725.995361328125,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.00960876577389799,
+          "roi_fraction_of_panel": 1.277975245857526e-05,
+          "halo_bbox": [
+            525,
+            557,
+            832,
+            864
+          ],
+          "peak_value": 5.352042198181152,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            2.114587722682844,
+            -5.87214873948359,
+            2.1198955881176595
+          ],
+          "delta_hkl": [
+            0.114587722682844,
+            0.12785126051640994,
+            0.11989558811765955
+          ],
+          "delta_hkl_norm": 0.20940688397317492,
+          "resolution_angstrom": 4.143937526950718,
+          "two_theta_deg": 13.53710160659633,
+          "roi_center_px": [
+            541.0,
+            848.0
+          ],
+          "q_norm": 0.2413163792881409
+        },
+        "physics_metrics": {
+          "lorentz_factor": 4.272135577369748,
+          "polarization_factor": 0.972604454599246,
+          "lp_factor": 4.1550980932017385,
+          "lp_weighted_expectation": 4055.553646362624,
+          "stagea_vs_lp_ratio": 4.485182105648157e-05,
+          "stagea_vs_amp_sq_ratio": 0.00018636371614841213
+        },
+        "partiality_metrics": {
+          "f_latt": 6.257118607589819,
+          "partiality_factor": 39.15153326944675,
+          "stagea_vs_partial": 4.7600617545634534e-06,
+          "stagea_vs_partial_lp": 1.1455955185153176e-06
+        }
+      },
+      {
+        "roi_idx": 27,
+        "refl_idx": 27,
+        "panel_id": 0,
+        "bbox": [
+          350,
+          362,
+          877,
+          889
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 780.0,
+        "intensity_per_pixel_ref": 5.416666666666667,
+        "stagea_mean_masked": 11.043543815612793,
+        "mapping_mean_masked": 11.059858322143555,
+        "target_mean_masked": 5.605809211730957,
+        "stagea_vs_ref_ratio": 2.0388080890362077,
+        "mapping_vs_ref_ratio": 2.0418199979341947,
+        "target_vs_ref_ratio": 1.0349186237041765,
+        "hkl_index": [
+          4,
+          -5,
+          -1
+        ],
+        "hkl_amplitude": 2315.25439453125,
+        "amp_sq_per_pixel": 37225.02021802962,
+        "amp_sq_vs_ref_ratio": 6872.311424867006,
+        "stagea_vs_amp_sq_ratio": 0.0002966699212231441,
+        "spot_profile_metrics": {
+          "roi_energy": 1590.270263671875,
+          "halo_energy": 88013.6015625,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.018068460277047022,
+          "roi_fraction_of_panel": 0.0007758909037236068,
+          "halo_bbox": [
+            340,
+            372,
+            867,
+            899
+          ],
+          "peak_value": 127.42793273925781,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            4.117037096955104,
+            -4.893752331090724,
+            -0.8867276399038633
+          ],
+          "delta_hkl": [
+            0.11703709695510423,
+            0.10624766890927617,
+            0.11327236009613673
+          ],
+          "delta_hkl_norm": 0.19446561848841687,
+          "resolution_angstrom": 3.4615582469846524,
+          "two_theta_deg": 16.222141982927475,
+          "roi_center_px": [
+            356.0,
+            883.0
+          ],
+          "q_norm": 0.28888723766849667
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.579582461703218,
+          "polarization_factor": 0.960978383070406,
+          "lp_factor": 3.439901366114742,
+          "lp_weighted_expectation": 128050.39790164898,
+          "stagea_vs_lp_ratio": 8.624372900500436e-05,
+          "stagea_vs_amp_sq_ratio": 0.0002966699212231441
+        },
+        "partiality_metrics": {
+          "f_latt": 3.3617452536495587,
+          "partiality_factor": 11.301331150435336,
+          "stagea_vs_partial": 2.6250882951227927e-05,
+          "stagea_vs_partial_lp": 7.631289434579765e-06
+        }
+      },
+      {
+        "roi_idx": 28,
+        "refl_idx": 28,
+        "panel_id": 0,
+        "bbox": [
+          661,
+          673,
+          940,
+          952
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 446.0,
+        "intensity_per_pixel_ref": 3.0972222222222223,
+        "stagea_mean_masked": 0.26206910610198975,
+        "mapping_mean_masked": 0.26257458329200745,
+        "target_mean_masked": 3.532153606414795,
+        "stagea_vs_ref_ratio": 0.08461424053517158,
+        "mapping_vs_ref_ratio": 0.08477744393284545,
+        "target_vs_ref_ratio": 1.1404262765106064,
+        "hkl_index": [
+          1,
+          -9,
+          4
+        ],
+        "hkl_amplitude": 624.0127563476562,
+        "amp_sq_per_pixel": 2704.1105561430513,
+        "amp_sq_vs_ref_ratio": 873.0760540013439,
+        "stagea_vs_amp_sq_ratio": 9.691508563014756e-05,
+        "spot_profile_metrics": {
+          "roi_energy": 37.737953186035156,
+          "halo_energy": 4622.1982421875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.008164503383172787,
+          "roi_fraction_of_panel": 1.8412300896945854e-05,
+          "halo_bbox": [
+            651,
+            683,
+            930,
+            962
+          ],
+          "peak_value": 4.947635650634766,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            1.135437436377669,
+            -8.871651953032108,
+            4.139601895511634
+          ],
+          "delta_hkl": [
+            0.13543743637766892,
+            0.1283480469678917,
+            0.1396018955116336
+          ],
+          "delta_hkl_norm": 0.23303478187487017,
+          "resolution_angstrom": 3.0577573620656846,
+          "two_theta_deg": 18.381858022398667,
+          "roi_center_px": [
+            667.0,
+            946.0
+          ],
+          "q_norm": 0.32703706723297515
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.1710941158922576,
+          "polarization_factor": 0.9502776391805787,
+          "lp_factor": 3.013419830069519,
+          "lp_weighted_expectation": 8148.620372581787,
+          "stagea_vs_lp_ratio": 3.216116276367363e-05,
+          "stagea_vs_amp_sq_ratio": 9.691508563014756e-05
+        },
+        "partiality_metrics": {
+          "f_latt": 10.930190338899386,
+          "partiality_factor": 119.46906084456948,
+          "stagea_vs_partial": 8.112149283255445e-07,
+          "stagea_vs_partial_lp": 2.69200766594421e-07
+        }
+      }
+    ],
+    "reflection_top_n": [
+      {
+        "roi_idx": 5,
+        "refl_idx": 5,
+        "panel_id": 0,
+        "bbox": [
+          605,
+          617,
+          156,
+          168
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 84.0,
+        "intensity_per_pixel_ref": 0.5833333333333334,
+        "stagea_mean_masked": 0.5374601483345032,
+        "mapping_mean_masked": 0.5382266044616699,
+        "target_mean_masked": 1.1198140382766724,
+        "stagea_vs_ref_ratio": 0.9213602542877196,
+        "mapping_vs_ref_ratio": 0.9226741790771483,
+        "target_vs_ref_ratio": 1.9196812084742954,
+        "hkl_index": [
+          -5,
+          4,
+          -2
+        ],
+        "hkl_amplitude": 41.768760681152344,
+        "amp_sq_per_pixel": 12.115481728051236,
+        "amp_sq_vs_ref_ratio": 20.76939724808783,
+        "stagea_vs_amp_sq_ratio": 0.044361434435587495,
+        "spot_profile_metrics": {
+          "roi_energy": 77.3942642211914,
+          "halo_energy": 109.56697845458984,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.7063648675250047,
+          "roi_fraction_of_panel": 3.776056622661844e-05,
+          "halo_bbox": [
+            595,
+            627,
+            146,
+            178
+          ],
+          "peak_value": 22.059999465942383,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -5.0511306984315825,
+            3.952836169633004,
+            -2.093096201143497
+          ],
+          "delta_hkl": [
+            -0.051130698431582466,
+            -0.047163830366995896,
+            -0.09309620114349704
+          ],
+          "delta_hkl_norm": 0.11621393154152669,
+          "resolution_angstrom": 3.6007608770141815,
+          "two_theta_deg": 15.591027766852244,
+          "roi_center_px": [
+            611.0,
+            162.0
+          ],
+          "q_norm": 0.27771908053756095
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.720667316469466,
+          "polarization_factor": 0.9638816147741187,
+          "lp_factor": 3.586282821035876,
+          "lp_weighted_expectation": 43.4495439898842,
+          "stagea_vs_lp_ratio": 0.012369753488313552,
+          "stagea_vs_amp_sq_ratio": 0.044361434435587495
+        },
+        "partiality_metrics": {
+          "f_latt": -2.6314834302703627,
+          "partiality_factor": 6.924705043787474,
+          "stagea_vs_partial": 0.0064062561733783194,
+          "stagea_vs_partial_lp": 0.001786322075827782
+        }
+      },
+      {
+        "roi_idx": 16,
+        "refl_idx": 16,
+        "panel_id": 0,
+        "bbox": [
+          477,
+          489,
+          595,
+          607
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 30.0,
+        "intensity_per_pixel_ref": 0.20833333333333334,
+        "stagea_mean_masked": 0.1416388601064682,
+        "mapping_mean_masked": 0.14196623861789703,
+        "target_mean_masked": 0.319356232881546,
+        "stagea_vs_ref_ratio": 0.6798665285110473,
+        "mapping_vs_ref_ratio": 0.6814379453659057,
+        "target_vs_ref_ratio": 1.5329099178314207,
+        "hkl_index": [
+          1,
+          -1,
+          0
+        ],
+        "hkl_amplitude": 3.8828179836273193,
+        "amp_sq_per_pixel": 0.1046963575970814,
+        "amp_sq_vs_ref_ratio": 0.5025425164659907,
+        "stagea_vs_amp_sq_ratio": 1.352853751145366,
+        "spot_profile_metrics": {
+          "roi_energy": 20.39599609375,
+          "halo_energy": 20.7091064453125,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9848805474833332,
+          "roi_fraction_of_panel": 9.951181382831965e-06,
+          "halo_bbox": [
+            467,
+            499,
+            585,
+            617
+          ],
+          "peak_value": 2.8452606201171875,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            1.0314929451860735,
+            -0.957683870456516,
+            0.011456743201756289
+          ],
+          "delta_hkl": [
+            0.031492945186073484,
+            0.04231612954348396,
+            0.011456743201756289
+          ],
+          "delta_hkl_norm": 0.05397886049950419,
+          "resolution_angstrom": 15.902018758556649,
+          "two_theta_deg": 3.520013453819071,
+          "roi_center_px": [
+            483.0,
+            601.0
+          ],
+          "q_norm": 0.06288509749505322
+        },
+        "physics_metrics": {
+          "lorentz_factor": 16.28739169060373,
+          "polarization_factor": 0.9981151928400365,
+          "lp_factor": 16.25669309812815,
+          "lp_weighted_expectation": 1.70201655394763,
+          "stagea_vs_lp_ratio": 0.08321826234765654,
+          "stagea_vs_amp_sq_ratio": 1.352853751145366
+        },
+        "partiality_metrics": {
+          "f_latt": 1005.8286293497551,
+          "partiality_factor": 1011691.2316196071,
+          "stagea_vs_partial": 1.337220002371272e-06,
+          "stagea_vs_partial_lp": 8.225658159993461e-08
+        }
+      },
+      {
+        "roi_idx": 19,
+        "refl_idx": 19,
+        "panel_id": 0,
+        "bbox": [
+          407,
+          419,
+          630,
+          642
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 455.0,
+        "intensity_per_pixel_ref": 3.1597222222222223,
+        "stagea_mean_masked": 1.250986933708191,
+        "mapping_mean_masked": 1.253964900970459,
+        "target_mean_masked": 3.28469181060791,
+        "stagea_vs_ref_ratio": 0.39591674385489994,
+        "mapping_vs_ref_ratio": 0.39685922140603536,
+        "target_vs_ref_ratio": 1.0395508147858001,
+        "hkl_index": [
+          2,
+          -1,
+          -1
+        ],
+        "hkl_amplitude": 22.779966354370117,
+        "amp_sq_per_pixel": 3.6036587993488514,
+        "amp_sq_vs_ref_ratio": 1.1404986090246914,
+        "stagea_vs_amp_sq_ratio": 0.34714355696888755,
+        "spot_profile_metrics": {
+          "roi_energy": 180.14212036132812,
+          "halo_energy": 194.84771728515625,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9245277433642872,
+          "roi_fraction_of_panel": 8.789111873544842e-05,
+          "halo_bbox": [
+            397,
+            429,
+            620,
+            652
+          ],
+          "peak_value": 25.765195846557617,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            2.03522047275153,
+            -0.9351806398512789,
+            -0.9782090384633243
+          ],
+          "delta_hkl": [
+            0.035220472751530174,
+            0.06481936014872114,
+            0.0217909615366757
+          ],
+          "delta_hkl_norm": 0.07692123995115899,
+          "resolution_angstrom": 8.749766501209931,
+          "two_theta_deg": 6.399670312124857,
+          "roi_center_px": [
+            413.0,
+            636.0
+          ],
+          "q_norm": 0.11428876414721677
+        },
+        "physics_metrics": {
+          "lorentz_factor": 8.971569765300016,
+          "polarization_factor": 0.993787975970664,
+          "lp_factor": 8.915838158337108,
+          "lp_weighted_expectation": 32.12963863286178,
+          "stagea_vs_lp_ratio": 0.03893560547016852,
+          "stagea_vs_amp_sq_ratio": 0.34714355696888755
+        },
+        "partiality_metrics": {
+          "f_latt": 193.49734497338443,
+          "partiality_factor": 37441.22251174894,
+          "stagea_vs_partial": 9.271693969393091e-06,
+          "stagea_vs_partial_lp": 1.0399127714900507e-06
+        }
+      },
+      {
+        "roi_idx": 15,
+        "refl_idx": 15,
+        "panel_id": 0,
+        "bbox": [
+          943,
+          955,
+          583,
+          595
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 86874.0,
+        "intensity_per_pixel_ref": 603.2916666666666,
+        "stagea_mean_masked": 144.50062561035156,
+        "mapping_mean_masked": 144.16659545898438,
+        "target_mean_masked": 603.079345703125,
+        "stagea_vs_ref_ratio": 0.23952034081417486,
+        "mapping_vs_ref_ratio": 0.23896666144178638,
+        "target_vs_ref_ratio": 0.9996480624956835,
+        "hkl_index": [
+          -5,
+          -6,
+          6
+        ],
+        "hkl_amplitude": 171.12925720214844,
+        "amp_sq_per_pixel": 203.36960187888246,
+        "amp_sq_vs_ref_ratio": 0.33709996858161334,
+        "stagea_vs_amp_sq_ratio": 0.7105320769443678,
+        "spot_profile_metrics": {
+          "roi_energy": 20808.08984375,
+          "halo_energy": 21501.943359375,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9677306602464621,
+          "roi_fraction_of_panel": 0.010152241416092023,
+          "halo_bbox": [
+            933,
+            965,
+            573,
+            605
+          ],
+          "peak_value": 5095.4853515625,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -4.974332720868107,
+            -5.983086785651756,
+            6.014595423604235
+          ],
+          "delta_hkl": [
+            0.02566727913189304,
+            0.016913214348243777,
+            0.014595423604235158
+          ],
+          "delta_hkl_norm": 0.034027818440376334,
+          "resolution_angstrom": 3.1138237226620533,
+          "two_theta_deg": 18.0480908206009,
+          "roi_center_px": [
+            949.0,
+            589.0
+          ],
+          "q_norm": 0.3211485585141234
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.227731135072642,
+          "polarization_factor": 0.9520072869692859,
+          "lp_factor": 3.0728235609667998,
+          "lp_weighted_expectation": 624.918904237868,
+          "stagea_vs_lp_ratio": 0.2312310039437519,
+          "stagea_vs_amp_sq_ratio": 0.7105320769443678
+        },
+        "partiality_metrics": {
+          "f_latt": -830.2460036975148,
+          "partiality_factor": 689308.4266556937,
+          "stagea_vs_partial": 1.0307897734424117e-06,
+          "stagea_vs_partial_lp": 3.3545361553987025e-07
+        }
+      },
+      {
+        "roi_idx": 9,
+        "refl_idx": 9,
+        "panel_id": 0,
+        "bbox": [
+          459,
+          471,
+          275,
+          287
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 170.0,
+        "intensity_per_pixel_ref": 1.1805555555555556,
+        "stagea_mean_masked": 0.1830487996339798,
+        "mapping_mean_masked": 0.18323665857315063,
+        "target_mean_masked": 1.7142091989517212,
+        "stagea_vs_ref_ratio": 0.15505310086642995,
+        "mapping_vs_ref_ratio": 0.15521222843843346,
+        "target_vs_ref_ratio": 1.4520360273473403,
+        "hkl_index": [
+          -2,
+          4,
+          -3
+        ],
+        "hkl_amplitude": 14.737924575805664,
+        "amp_sq_per_pixel": 1.5083779222370595,
+        "amp_sq_vs_ref_ratio": 1.2776848282478621,
+        "stagea_vs_amp_sq_ratio": 0.12135473274661966,
+        "spot_profile_metrics": {
+          "roi_energy": 26.359027862548828,
+          "halo_energy": 34.94892501831055,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.7542156975855117,
+          "roi_fraction_of_panel": 1.2860537241214873e-05,
+          "halo_bbox": [
+            449,
+            481,
+            265,
+            297
+          ],
+          "peak_value": 3.89451265335083,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -2.045249939746083,
+            3.973117056314306,
+            -3.073942352840276
+          ],
+          "delta_hkl": [
+            -0.04524993974608282,
+            -0.026882943685694105,
+            -0.07394235284027584
+          ],
+          "delta_hkl_norm": 0.09076189316992113,
+          "resolution_angstrom": 5.349428328229166,
+          "two_theta_deg": 10.476738720191321,
+          "roi_center_px": [
+            465.0,
+            281.0
+          ],
+          "q_norm": 0.18693586279546107
+        },
+        "physics_metrics": {
+          "lorentz_factor": 5.499451288972532,
+          "polarization_factor": 0.9834677758488225,
+          "lp_factor": 5.4085331275547555,
+          "lp_weighted_expectation": 8.158111961291347,
+          "stagea_vs_lp_ratio": 0.022437642496512762,
+          "stagea_vs_amp_sq_ratio": 0.12135473274661966
+        },
+        "partiality_metrics": {
+          "f_latt": -93.03689615458389,
+          "partiality_factor": 8655.864046078827,
+          "stagea_vs_partial": 1.4019944410008876e-05,
+          "stagea_vs_partial_lp": 2.5921898007024713e-06
+        }
+      }
+    ],
+    "reflection_bottom_n": [
+      {
+        "roi_idx": 14,
+        "refl_idx": 14,
+        "panel_id": 0,
+        "bbox": [
+          431,
+          443,
+          434,
+          446
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 251.0,
+        "intensity_per_pixel_ref": 1.7430555555555556,
+        "stagea_mean_masked": 896.6605834960938,
+        "mapping_mean_masked": 899.004150390625,
+        "target_mean_masked": 2.4828569889068604,
+        "stagea_vs_ref_ratio": 514.418820810508,
+        "mapping_vs_ref_ratio": 515.7633372758964,
+        "target_vs_ref_ratio": 1.4244279139545335,
+        "hkl_index": [
+          0,
+          2,
+          -2
+        ],
+        "hkl_amplitude": 75.03345489501953,
+        "amp_sq_per_pixel": 39.09735662140924,
+        "amp_sq_vs_ref_ratio": 22.430355989971833,
+        "stagea_vs_amp_sq_ratio": 22.93404621132604,
+        "spot_profile_metrics": {
+          "roi_energy": 129119.125,
+          "halo_energy": 129191.4296875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9994403290707836,
+          "roi_fraction_of_panel": 0.0629970621175636,
+          "halo_bbox": [
+            421,
+            453,
+            424,
+            456
+          ],
+          "peak_value": 53478.6328125,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -0.0065308120176647355,
+            2.024873931481871,
+            -2.019832776927742
+          ],
+          "delta_hkl": [
+            -0.0065308120176647355,
+            0.024873931481871114,
+            -0.019832776927742213
+          ],
+          "delta_hkl_norm": 0.032476191489158285,
+          "resolution_angstrom": 11.455182856312376,
+          "two_theta_deg": 4.887175355501713,
+          "roi_center_px": [
+            437.0,
+            440.0
+          ],
+          "q_norm": 0.08729672957153628
+        },
+        "physics_metrics": {
+          "lorentz_factor": 11.737928661026517,
+          "polarization_factor": 0.9963709991247804,
+          "lp_factor": 11.695331707642387,
+          "lp_weighted_expectation": 457.2565545793695,
+          "stagea_vs_lp_ratio": 1.960957310542945,
+          "stagea_vs_amp_sq_ratio": 22.93404621132604
+        },
+        "partiality_metrics": {
+          "f_latt": 5233.689785023263,
+          "partiality_factor": 27391508.765856843,
+          "stagea_vs_partial": 8.372684545187606e-07,
+          "stagea_vs_partial_lp": 7.158997072068015e-08
+        }
+      },
+      {
+        "roi_idx": 11,
+        "refl_idx": 11,
+        "panel_id": 0,
+        "bbox": [
+          121,
+          133,
+          288,
+          300
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 2144.0,
+        "intensity_per_pixel_ref": 14.88888888888889,
+        "stagea_mean_masked": 55.960960388183594,
+        "mapping_mean_masked": 55.906654357910156,
+        "target_mean_masked": 13.414021492004395,
+        "stagea_vs_ref_ratio": 3.75857196637054,
+        "mapping_vs_ref_ratio": 3.7549245464268015,
+        "target_vs_ref_ratio": 0.9009417420002951,
+        "hkl_index": [
+          1,
+          6,
+          -9
+        ],
+        "hkl_amplitude": 297.8048400878906,
+        "amp_sq_per_pixel": 615.8869637484313,
+        "amp_sq_vs_ref_ratio": 41.36554234131255,
+        "stagea_vs_amp_sq_ratio": 0.09086238820122475,
+        "spot_profile_metrics": {
+          "roi_energy": 8058.37841796875,
+          "halo_energy": 10968.57421875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.7346787519743015,
+          "roi_fraction_of_panel": 0.003931672908746952,
+          "halo_bbox": [
+            111,
+            143,
+            278,
+            310
+          ],
+          "peak_value": 2183.76416015625,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            0.9690624259857824,
+            5.960350750812358,
+            -9.067593343716265
+          ],
+          "delta_hkl": [
+            -0.030937574014217595,
+            -0.0396492491876419,
+            -0.0675933437162648
+          ],
+          "delta_hkl_norm": 0.08424996475829546,
+          "resolution_angstrom": 3.0293435217293827,
+          "two_theta_deg": 18.5557869963344,
+          "roi_center_px": [
+            127.0,
+            294.0
+          ],
+          "q_norm": 0.33010452357978964
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.142402457092922,
+          "polarization_factor": 0.9493655154895009,
+          "lp_factor": 2.983288528553496,
+          "lp_weighted_expectation": 1837.368513836338,
+          "stagea_vs_lp_ratio": 0.03045712385227489,
+          "stagea_vs_amp_sq_ratio": 0.09086238820122475
+        },
+        "partiality_metrics": {
+          "f_latt": 65.31084968066996,
+          "partiality_factor": 4265.507086011067,
+          "stagea_vs_partial": 2.130166153028142e-05,
+          "stagea_vs_partial_lp": 7.140328978038853e-06
+        }
+      },
+      {
+        "roi_idx": 17,
+        "refl_idx": 17,
+        "panel_id": 0,
+        "bbox": [
+          739,
+          751,
+          610,
+          622
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 98.0,
+        "intensity_per_pixel_ref": 0.6805555555555556,
+        "stagea_mean_masked": 1.8648134469985962,
+        "mapping_mean_masked": 1.8637746572494507,
+        "target_mean_masked": 1.0681490898132324,
+        "stagea_vs_ref_ratio": 2.740134044569366,
+        "mapping_vs_ref_ratio": 2.7386076596318456,
+        "target_vs_ref_ratio": 1.5695251931949536,
+        "hkl_index": [
+          -2,
+          -4,
+          4
+        ],
+        "hkl_amplitude": 9.582091331481934,
+        "amp_sq_per_pixel": 0.6376144047559806,
+        "amp_sq_vs_ref_ratio": 0.9369027988251144,
+        "stagea_vs_amp_sq_ratio": 2.924672706715704,
+        "spot_profile_metrics": {
+          "roi_energy": 268.53314208984375,
+          "halo_energy": 269.2135009765625,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.9974727906132094,
+          "roi_fraction_of_panel": 0.00013101698941081285,
+          "halo_bbox": [
+            729,
+            761,
+            600,
+            632
+          ],
+          "peak_value": 78.1769790649414,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            -1.9868563878614196,
+            -3.963548812411299,
+            3.9963014242204773
+          ],
+          "delta_hkl": [
+            0.013143612138580396,
+            0.03645118758870103,
+            -0.003698575779522706
+          ],
+          "delta_hkl_norm": 0.03892458194345807,
+          "resolution_angstrom": 5.380749851329359,
+          "two_theta_deg": 10.415584277325618,
+          "roi_center_px": [
+            745.0,
+            616.0
+          ],
+          "q_norm": 0.1858477029466333
+        },
+        "physics_metrics": {
+          "lorentz_factor": 5.531381359782156,
+          "polarization_factor": 0.9836580905155854,
+          "lp_factor": 5.440988026276818,
+          "lp_weighted_expectation": 3.4692523416589114,
+          "stagea_vs_lp_ratio": 0.5375260325130712,
+          "stagea_vs_amp_sq_ratio": 2.924672706715704
+        },
+        "partiality_metrics": {
+          "f_latt": -1173.656970708376,
+          "partiality_factor": 1377470.684892362,
+          "stagea_vs_partial": 2.123219563793652e-06,
+          "stagea_vs_partial_lp": 3.9022683996725084e-07
+        }
+      },
+      {
+        "roi_idx": 18,
+        "refl_idx": 18,
+        "panel_id": 0,
+        "bbox": [
+          144,
+          156,
+          619,
+          631
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 3754.0,
+        "intensity_per_pixel_ref": 26.069444444444443,
+        "stagea_mean_masked": 57.47311782836914,
+        "mapping_mean_masked": 57.66323471069336,
+        "target_mean_masked": 25.58402442932129,
+        "stagea_vs_ref_ratio": 2.204616134066371,
+        "mapping_vs_ref_ratio": 2.2119088434576035,
+        "target_vs_ref_ratio": 0.9813797330373644,
+        "hkl_index": [
+          4,
+          1,
+          -6
+        ],
+        "hkl_amplitude": 220.46456909179688,
+        "amp_sq_per_pixel": 337.5321265613311,
+        "amp_sq_vs_ref_ratio": 12.947423075341417,
+        "stagea_vs_amp_sq_ratio": 0.17027451109287522,
+        "spot_profile_metrics": {
+          "roi_energy": 8276.12890625,
+          "halo_energy": 10339.388671875,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.8004466384712436,
+          "roi_fraction_of_panel": 0.004037913103887553,
+          "halo_bbox": [
+            134,
+            166,
+            609,
+            641
+          ],
+          "peak_value": 1051.679443359375,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            4.042555932768405,
+            1.0384859453578665,
+            -5.995655320100042
+          ],
+          "delta_hkl": [
+            0.04255593276840486,
+            0.038485945357866536,
+            0.004344679899958237
+          ],
+          "delta_hkl_norm": 0.05754173830630062,
+          "resolution_angstrom": 3.5746903158903147,
+          "two_theta_deg": 15.705449342314141,
+          "roi_center_px": [
+            150.0,
+            625.0
+          ],
+          "q_norm": 0.27974451256792
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.694235441644959,
+          "polarization_factor": 0.9633629191149555,
+          "lp_factor": 3.558889438961015,
+          "lp_weighted_expectation": 1201.239520529174,
+          "stagea_vs_lp_ratio": 0.04784484430136872,
+          "stagea_vs_amp_sq_ratio": 0.17027451109287522
+        },
+        "partiality_metrics": {
+          "f_latt": 494.09875299672115,
+          "partiality_factor": 244133.57771291485,
+          "stagea_vs_partial": 6.974645302298685e-07,
+          "stagea_vs_partial_lp": 1.9597813930221078e-07
+        }
+      },
+      {
+        "roi_idx": 27,
+        "refl_idx": 27,
+        "panel_id": 0,
+        "bbox": [
+          350,
+          362,
+          877,
+          889
+        ],
+        "n_masked_pixels": 144,
+        "intensity_sum_ref": 780.0,
+        "intensity_per_pixel_ref": 5.416666666666667,
+        "stagea_mean_masked": 11.043543815612793,
+        "mapping_mean_masked": 11.059858322143555,
+        "target_mean_masked": 5.605809211730957,
+        "stagea_vs_ref_ratio": 2.0388080890362077,
+        "mapping_vs_ref_ratio": 2.0418199979341947,
+        "target_vs_ref_ratio": 1.0349186237041765,
+        "hkl_index": [
+          4,
+          -5,
+          -1
+        ],
+        "hkl_amplitude": 2315.25439453125,
+        "amp_sq_per_pixel": 37225.02021802962,
+        "amp_sq_vs_ref_ratio": 6872.311424867006,
+        "stagea_vs_amp_sq_ratio": 0.0002966699212231441,
+        "spot_profile_metrics": {
+          "roi_energy": 1590.270263671875,
+          "halo_energy": 88013.6015625,
+          "panel_energy": 2049605.5,
+          "roi_fraction_of_halo": 0.018068460277047022,
+          "roi_fraction_of_panel": 0.0007758909037236068,
+          "halo_bbox": [
+            340,
+            372,
+            867,
+            899
+          ],
+          "peak_value": 127.42793273925781,
+          "fwhm_fast": 0,
+          "fwhm_slow": 0,
+          "halo_pixels": 10
+        },
+        "orientation_metrics": {
+          "h_frac": [
+            4.117037096955104,
+            -4.893752331090724,
+            -0.8867276399038633
+          ],
+          "delta_hkl": [
+            0.11703709695510423,
+            0.10624766890927617,
+            0.11327236009613673
+          ],
+          "delta_hkl_norm": 0.19446561848841687,
+          "resolution_angstrom": 3.4615582469846524,
+          "two_theta_deg": 16.222141982927475,
+          "roi_center_px": [
+            356.0,
+            883.0
+          ],
+          "q_norm": 0.28888723766849667
+        },
+        "physics_metrics": {
+          "lorentz_factor": 3.579582461703218,
+          "polarization_factor": 0.960978383070406,
+          "lp_factor": 3.439901366114742,
+          "lp_weighted_expectation": 128050.39790164898,
+          "stagea_vs_lp_ratio": 8.624372900500436e-05,
+          "stagea_vs_amp_sq_ratio": 0.0002966699212231441
+        },
+        "partiality_metrics": {
+          "f_latt": 3.3617452536495587,
+          "partiality_factor": 11.301331150435336,
+          "stagea_vs_partial": 2.6250882951227927e-05,
+          "stagea_vs_partial_lp": 7.631289434579765e-06
+        }
+      }
+    ],
+    "reflection_stats": {
+      "stagea_vs_ref": {
+        "median": 0.04996555878971163,
+        "p25": 0.011764097847647561,
+        "p75": 0.8006133913993835,
+        "min": 3.712322687215536e-05,
+        "max": 514.418820810508
+      },
+      "mapping_vs_ref": {
+        "median": 0.05006291853130193,
+        "p25": 0.011774483422593844,
+        "p75": 0.802056062221527,
+        "min": 3.721752866044628e-05,
+        "max": 515.7633372758964
+      },
+      "target_vs_ref": {
+        "median": 1.0196447329975513,
+        "p25": 0.9966407795213981,
+        "p75": 1.438231970650937,
+        "min": 0.7227583665114182,
+        "max": 2.0607792468781168
+      },
+      "amp_sq_vs_ref": {
+        "median": 1.144725195058553,
+        "p25": 0.5188474495704728,
+        "p75": 11.616342353497181,
+        "min": 0.2892749381804949,
+        "max": 6872.311424867006
+      },
+      "stagea_vs_amp_sq": {
+        "median": 0.07140164359226216,
+        "p25": 0.001236840638476039,
+        "p75": 0.18773036034242163,
+        "min": 6.936945078445732e-05,
+        "max": 22.93404621132604
+      }
+    },
+    "provenance": {
+      "refl_path": "unknown",
+      "expt_path": "unknown"
+    },
+    "mismatch_warning": "2 ROIs unmatched"
+  },
+  "spot_profile_stats": {
+    "enabled": true,
+    "halo_pixels": 10,
+    "n_reflections_with_profiles": 27,
+    "median_roi_fraction_of_halo": 0.6693599902536659,
+    "median_roi_fraction_of_panel": 4.610662721607433e-05,
+    "worst_5_off_roi_energy": [
+      {
+        "roi_idx": 1,
+        "panel_id": 0,
+        "bbox": [
+          644,
+          656,
+          21,
+          33
+        ],
+        "hkl_index": [
+          -7,
+          5,
+          -3
+        ],
+        "roi_fraction_of_halo": 0.0053798073049527335,
+        "roi_energy": 0.043397050350904465,
+        "halo_energy": 8.066655158996582
+      },
+      {
+        "roi_idx": 28,
+        "panel_id": 0,
+        "bbox": [
+          661,
+          673,
+          940,
+          952
+        ],
+        "hkl_index": [
+          1,
+          -9,
+          4
+        ],
+        "roi_fraction_of_halo": 0.008164503383172787,
+        "roi_energy": 37.737953186035156,
+        "halo_energy": 4622.1982421875
+      },
+      {
+        "roi_idx": 26,
+        "panel_id": 0,
+        "bbox": [
+          535,
+          547,
+          842,
+          854
+        ],
+        "hkl_index": [
+          2,
+          -6,
+          2
+        ],
+        "roi_fraction_of_halo": 0.00960876577389799,
+        "roi_energy": 26.193450927734375,
+        "halo_energy": 2725.995361328125
+      },
+      {
+        "roi_idx": 2,
+        "panel_id": 0,
+        "bbox": [
+          257,
+          269,
+          37,
+          49
+        ],
+        "hkl_index": [
+          -3,
+          8,
+          -9
+        ],
+        "roi_fraction_of_halo": 0.011196250911191403,
+        "roi_energy": 17.45926856994629,
+        "halo_energy": 1559.38525390625
+      },
+      {
+        "roi_idx": 27,
+        "panel_id": 0,
+        "bbox": [
+          350,
+          362,
+          877,
+          889
+        ],
+        "hkl_index": [
+          4,
+          -5,
+          -1
+        ],
+        "roi_fraction_of_halo": 0.018068460277047022,
+        "roi_energy": 1590.270263671875,
+        "halo_energy": 88013.6015625
+      }
+    ],
+    "narrowest_5_fwhm": [
+      {
+        "roi_idx": 0,
+        "panel_id": 0,
+        "bbox": [
+          897,
+          909,
+          17,
+          29
+        ],
+        "hkl_index": [
+          -10,
+          2,
+          0
+        ],
+        "fwhm_fast": 0,
+        "fwhm_slow": 0,
+        "peak_value": 0.18987064063549042
+      },
+      {
+        "roi_idx": 1,
+        "panel_id": 0,
+        "bbox": [
+          644,
+          656,
+          21,
+          33
+        ],
+        "hkl_index": [
+          -7,
+          5,
+          -3
+        ],
+        "fwhm_fast": 0,
+        "fwhm_slow": 0,
+        "peak_value": 0.016144346445798874
+      },
+      {
+        "roi_idx": 2,
+        "panel_id": 0,
+        "bbox": [
+          257,
+          269,
+          37,
+          49
+        ],
+        "hkl_index": [
+          -3,
+          8,
+          -9
+        ],
+        "fwhm_fast": 0,
+        "fwhm_slow": 0,
+        "peak_value": 2.5377235412597656
+      },
+      {
+        "roi_idx": 3,
+        "panel_id": 0,
+        "bbox": [
+          939,
+          951,
+          65,
+          77
+        ],
+        "hkl_index": [
+          -10,
+          1,
+          1
+        ],
+        "fwhm_fast": 0,
+        "fwhm_slow": 0,
+        "peak_value": 0.018339483067393303
+      },
+      {
+        "roi_idx": 4,
+        "panel_id": 0,
+        "bbox": [
+          338,
+          350,
+          92,
+          104
+        ],
+        "hkl_index": [
+          -3,
+          7,
+          -7
+        ],
+        "fwhm_fast": 0,
+        "fwhm_slow": 0,
+        "peak_value": 2.5923421382904053
+      }
+    ]
+  },
+  "orientation_alignment": {
+    "enabled": true,
+    "n_reflections_with_orientation": 27,
+    "median_delta_hkl_norm": 0.095003365995711,
+    "p25_delta_hkl_norm": 0.07729705485964083,
+    "p75_delta_hkl_norm": 0.1728107785127062,
+    "max_delta_hkl_norm": 0.24733453661208227,
+    "median_resolution_angstrom": 3.6007608770141815,
+    "median_two_theta_deg": 15.591027766852244,
+    "pearson_corr_delta_hkl_vs_stagea_ratio": -0.28133849640343905,
+    "n_pairs_for_correlation": 27,
+    "worst_5_misalignment": [
+      {
+        "roi_idx": 1,
+        "panel_id": 0,
+        "bbox": [
+          644,
+          656,
+          21,
+          33
+        ],
+        "hkl_index": [
+          -7,
+          5,
+          -3
+        ],
+        "delta_hkl_norm": 0.24733453661208227,
+        "delta_hkl": [
+          -0.1055704915014557,
+          -0.1351218718477316,
+          -0.17824512356196376
+        ],
+        "resolution_angstrom": 2.6808524375815197,
+        "stagea_vs_ref_ratio": 3.712322687215536e-05
+      },
+      {
+        "roi_idx": 28,
+        "panel_id": 0,
+        "bbox": [
+          661,
+          673,
+          940,
+          952
+        ],
+        "hkl_index": [
+          1,
+          -9,
+          4
+        ],
+        "delta_hkl_norm": 0.23303478187487017,
+        "delta_hkl": [
+          0.13543743637766892,
+          0.1283480469678917,
+          0.1396018955116336
+        ],
+        "resolution_angstrom": 3.0577573620656846,
+        "stagea_vs_ref_ratio": 0.08461424053517158
+      },
+      {
+        "roi_idx": 26,
+        "panel_id": 0,
+        "bbox": [
+          535,
+          547,
+          842,
+          854
+        ],
+        "hkl_index": [
+          2,
+          -6,
+          2
+        ],
+        "delta_hkl_norm": 0.20940688397317492,
+        "delta_hkl": [
+          0.114587722682844,
+          0.12785126051640994,
+          0.11989558811765955
+        ],
+        "resolution_angstrom": 4.143937526950718,
+        "stagea_vs_ref_ratio": 0.013169155940750606
+      },
+      {
+        "roi_idx": 2,
+        "panel_id": 0,
+        "bbox": [
+          257,
+          269,
+          37,
+          49
+        ],
+        "hkl_index": [
+          -3,
+          8,
+          -9
+        ],
+        "delta_hkl_norm": 0.19580095786035126,
+        "delta_hkl": [
+          -0.08456006269190519,
+          -0.10172903759861285,
+          -0.14435655096264988
+        ],
+        "resolution_angstrom": 2.556406428280778,
+        "stagea_vs_ref_ratio": 0.0014589511831173115
+      },
+      {
+        "roi_idx": 27,
+        "panel_id": 0,
+        "bbox": [
+          350,
+          362,
+          877,
+          889
+        ],
+        "hkl_index": [
+          4,
+          -5,
+          -1
+        ],
+        "delta_hkl_norm": 0.19446561848841687,
+        "delta_hkl": [
+          0.11703709695510423,
+          0.10624766890927617,
+          0.11327236009613673
+        ],
+        "resolution_angstrom": 3.4615582469846524,
+        "stagea_vs_ref_ratio": 2.0388080890362077
+      }
+    ]
+  },
+  "physics_alignment": {
+    "enabled": true,
+    "n_rois_analyzed": 27,
+    "global_stats": {
+      "median_stagea_vs_lp": 0.01759960483881375,
+      "p25_stagea_vs_lp": 0.0004248021038749343,
+      "p75_stagea_vs_lp": 0.039371477943554264,
+      "median_stagea_vs_amp_sq": 0.07140164359226216,
+      "pearson_corr_lp_vs_ref": 0.9605357825037565,
+      "n_pairs_for_correlation": 27
+    },
+    "resolution_bins": [
+      {
+        "bin_index": 0,
+        "resolution_min": 2.233290172989712,
+        "resolution_max": 5.650472319381446,
+        "n_rois": 24,
+        "median_stagea_vs_lp": 0.009911991853633177
+      },
+      {
+        "bin_index": 1,
+        "resolution_min": 5.650472319381446,
+        "resolution_max": 9.067654465773181,
+        "n_rois": 1,
+        "median_stagea_vs_lp": 0.03893560547016852
+      },
+      {
+        "bin_index": 2,
+        "resolution_min": 9.067654465773181,
+        "resolution_max": 12.484836612164914,
+        "n_rois": 1,
+        "median_stagea_vs_lp": 1.960957310542945
+      },
+      {
+        "bin_index": 3,
+        "resolution_min": 12.484836612164914,
+        "resolution_max": 15.902018758556649,
+        "n_rois": 1,
+        "median_stagea_vs_lp": 0.08321826234765654
+      }
+    ],
+    "worst_5_deviation": [
+      {
+        "roi_idx": 1,
+        "panel_id": 0,
+        "bbox": [
+          644,
+          656,
+          21,
+          33
+        ],
+        "hkl_index": [
+          -7,
+          5,
+          -3
+        ],
+        "resolution_angstrom": 2.6808524375815197,
+        "stagea_vs_ref_ratio": 3.712322687215536e-05,
+        "stagea_vs_lp_ratio": 2.6556919209560205e-05,
+        "stagea_vs_amp_sq_ratio": 6.936945078445732e-05,
+        "lp_factor": 2.6121045983182065
+      },
+      {
+        "roi_idx": 28,
+        "panel_id": 0,
+        "bbox": [
+          661,
+          673,
+          940,
+          952
+        ],
+        "hkl_index": [
+          1,
+          -9,
+          4
+        ],
+        "resolution_angstrom": 3.0577573620656846,
+        "stagea_vs_ref_ratio": 0.08461424053517158,
+        "stagea_vs_lp_ratio": 3.216116276367363e-05,
+        "stagea_vs_amp_sq_ratio": 9.691508563014756e-05,
+        "lp_factor": 3.013419830069519
+      },
+      {
+        "roi_idx": 26,
+        "panel_id": 0,
+        "bbox": [
+          535,
+          547,
+          842,
+          854
+        ],
+        "hkl_index": [
+          2,
+          -6,
+          2
+        ],
+        "resolution_angstrom": 4.143937526950718,
+        "stagea_vs_ref_ratio": 0.013169155940750606,
+        "stagea_vs_lp_ratio": 4.485182105648157e-05,
+        "stagea_vs_amp_sq_ratio": 0.00018636371614841213,
+        "lp_factor": 4.1550980932017385
+      },
+      {
+        "roi_idx": 27,
+        "panel_id": 0,
+        "bbox": [
+          350,
+          362,
+          877,
+          889
+        ],
+        "hkl_index": [
+          4,
+          -5,
+          -1
+        ],
+        "resolution_angstrom": 3.4615582469846524,
+        "stagea_vs_ref_ratio": 2.0388080890362077,
+        "stagea_vs_lp_ratio": 8.624372900500436e-05,
+        "stagea_vs_amp_sq_ratio": 0.0002966699212231441,
+        "lp_factor": 3.439901366114742
+      },
+      {
+        "roi_idx": 2,
+        "panel_id": 0,
+        "bbox": [
+          257,
+          269,
+          37,
+          49
+        ],
+        "hkl_index": [
+          -3,
+          8,
+          -9
+        ],
+        "resolution_angstrom": 2.556406428280778,
+        "stagea_vs_ref_ratio": 0.0014589511831173115,
+        "stagea_vs_lp_ratio": 9.610933000644681e-05,
+        "stagea_vs_amp_sq_ratio": 0.0002382266044717191,
+        "lp_factor": 2.478704247087555
+      }
+    ],
+    "best_5_deviation": [
+      {
+        "roi_idx": 18,
+        "panel_id": 0,
+        "bbox": [
+          144,
+          156,
+          619,
+          631
+        ],
+        "hkl_index": [
+          4,
+          1,
+          -6
+        ],
+        "resolution_angstrom": 3.5746903158903147,
+        "stagea_vs_ref_ratio": 2.204616134066371,
+        "stagea_vs_lp_ratio": 0.04784484430136872,
+        "stagea_vs_amp_sq_ratio": 0.17027451109287522,
+        "lp_factor": 3.558889438961015
+      },
+      {
+        "roi_idx": 10,
+        "panel_id": 0,
+        "bbox": [
+          645,
+          657,
+          284,
+          296
+        ],
+        "hkl_index": [
+          -4,
+          2,
+          0
+        ],
+        "resolution_angstrom": 4.917469874388617,
+        "stagea_vs_ref_ratio": 1.9185878647965207,
+        "stagea_vs_lp_ratio": 0.049439272705811894,
+        "stagea_vs_amp_sq_ratio": 0.24524111873903534,
+        "lp_factor": 4.96045158670398
+      },
+      {
+        "roi_idx": 16,
+        "panel_id": 0,
+        "bbox": [
+          477,
+          489,
+          595,
+          607
+        ],
+        "hkl_index": [
+          1,
+          -1,
+          0
+        ],
+        "resolution_angstrom": 15.902018758556649,
+        "stagea_vs_ref_ratio": 0.6798665285110473,
+        "stagea_vs_lp_ratio": 0.08321826234765654,
+        "stagea_vs_amp_sq_ratio": 1.352853751145366,
+        "lp_factor": 16.25669309812815
+      },
+      {
+        "roi_idx": 15,
+        "panel_id": 0,
+        "bbox": [
+          943,
+          955,
+          583,
+          595
+        ],
+        "hkl_index": [
+          -5,
+          -6,
+          6
+        ],
+        "resolution_angstrom": 3.1138237226620533,
+        "stagea_vs_ref_ratio": 0.23952034081417486,
+        "stagea_vs_lp_ratio": 0.2312310039437519,
+        "stagea_vs_amp_sq_ratio": 0.7105320769443678,
+        "lp_factor": 3.0728235609667998
+      },
+      {
+        "roi_idx": 17,
+        "panel_id": 0,
+        "bbox": [
+          739,
+          751,
+          610,
+          622
+        ],
+        "hkl_index": [
+          -2,
+          -4,
+          4
+        ],
+        "resolution_angstrom": 5.380749851329359,
+        "stagea_vs_ref_ratio": 2.740134044569366,
+        "stagea_vs_lp_ratio": 0.5375260325130712,
+        "stagea_vs_amp_sq_ratio": 2.924672706715704,
+        "lp_factor": 5.440988026276818
+      }
+    ]
+  },
+  "partiality_alignment": {
+    "enabled": true,
+    "n_rois_analyzed": 27,
+    "global_stats": {
+      "median_stagea_vs_partial": 1.3276570191977877e-05,
+      "median_stagea_vs_partial_lp": 2.8543674591668405e-06,
+      "p25_stagea_vs_partial_lp": 4.006121857473687e-07,
+      "p75_stagea_vs_partial_lp": 1.149050142135504e-05,
+      "pearson_corr_partial_lp_vs_ref": -0.060457103159502,
+      "n_pairs_for_correlation": 27
+    },
+    "resolution_bins": [
+      {
+        "bin_index": 0,
+        "resolution_min": 2.233290172989712,
+        "resolution_max": 5.650472319381446,
+        "n_rois": 24,
+        "median_stagea_vs_partial_lp": 5.23170286801603e-06
+      },
+      {
+        "bin_index": 1,
+        "resolution_min": 5.650472319381446,
+        "resolution_max": 9.067654465773181,
+        "n_rois": 1,
+        "median_stagea_vs_partial_lp": 1.0399127714900507e-06
+      },
+      {
+        "bin_index": 2,
+        "resolution_min": 9.067654465773181,
+        "resolution_max": 12.484836612164914,
+        "n_rois": 1,
+        "median_stagea_vs_partial_lp": 7.158997072068015e-08
+      },
+      {
+        "bin_index": 3,
+        "resolution_min": 12.484836612164914,
+        "resolution_max": 15.902018758556649,
+        "n_rois": 1,
+        "median_stagea_vs_partial_lp": 8.225658159993461e-08
+      }
+    ],
+    "worst_5_deviation": [
+      {
+        "roi_idx": 14,
+        "panel_id": 0,
+        "bbox": [
+          431,
+          443,
+          434,
+          446
+        ],
+        "hkl_index": [
+          0,
+          2,
+          -2
+        ],
+        "resolution_angstrom": 11.455182856312376,
+        "stagea_vs_ref_ratio": 514.418820810508,
+        "stagea_vs_partial_lp": 7.158997072068015e-08,
+        "stagea_vs_partial": 8.372684545187606e-07,
+        "f_latt": 5233.689785023263,
+        "lp_factor": 11.695331707642387
+      },
+      {
+        "roi_idx": 16,
+        "panel_id": 0,
+        "bbox": [
+          477,
+          489,
+          595,
+          607
+        ],
+        "hkl_index": [
+          1,
+          -1,
+          0
+        ],
+        "resolution_angstrom": 15.902018758556649,
+        "stagea_vs_ref_ratio": 0.6798665285110473,
+        "stagea_vs_partial_lp": 8.225658159993461e-08,
+        "stagea_vs_partial": 1.337220002371272e-06,
+        "f_latt": 1005.8286293497551,
+        "lp_factor": 16.25669309812815
+      },
+      {
+        "roi_idx": 10,
+        "panel_id": 0,
+        "bbox": [
+          645,
+          657,
+          284,
+          296
+        ],
+        "hkl_index": [
+          -4,
+          2,
+          0
+        ],
+        "resolution_angstrom": 4.917469874388617,
+        "stagea_vs_ref_ratio": 1.9185878647965207,
+        "stagea_vs_partial_lp": 9.472931322574442e-08,
+        "stagea_vs_partial": 4.699001720980222e-07,
+        "f_latt": -722.4267892931998,
+        "lp_factor": 4.96045158670398
+      },
+      {
+        "roi_idx": 18,
+        "panel_id": 0,
+        "bbox": [
+          144,
+          156,
+          619,
+          631
+        ],
+        "hkl_index": [
+          4,
+          1,
+          -6
+        ],
+        "resolution_angstrom": 3.5746903158903147,
+        "stagea_vs_ref_ratio": 2.204616134066371,
+        "stagea_vs_partial_lp": 1.9597813930221078e-07,
+        "stagea_vs_partial": 6.974645302298685e-07,
+        "f_latt": 494.09875299672115,
+        "lp_factor": 3.558889438961015
+      },
+      {
+        "roi_idx": 28,
+        "panel_id": 0,
+        "bbox": [
+          661,
+          673,
+          940,
+          952
+        ],
+        "hkl_index": [
+          1,
+          -9,
+          4
+        ],
+        "resolution_angstrom": 3.0577573620656846,
+        "stagea_vs_ref_ratio": 0.08461424053517158,
+        "stagea_vs_partial_lp": 2.69200766594421e-07,
+        "stagea_vs_partial": 8.112149283255445e-07,
+        "f_latt": 10.930190338899386,
+        "lp_factor": 3.013419830069519
+      }
+    ],
+    "best_5_deviation": [
+      {
+        "roi_idx": 25,
+        "panel_id": 0,
+        "bbox": [
+          194,
+          206,
+          830,
+          842
+        ],
+        "hkl_index": [
+          5,
+          -3,
+          -4
+        ],
+        "resolution_angstrom": 3.0882143694156636,
+        "stagea_vs_ref_ratio": 0.01455427906198195,
+        "stagea_vs_partial_lp": 2.402154144194642e-05,
+        "stagea_vs_partial": 7.316236420436541e-05,
+        "f_latt": -14.251533620675183,
+        "lp_factor": 3.0456981447747262
+      },
+      {
+        "roi_idx": 7,
+        "panel_id": 0,
+        "bbox": [
+          606,
+          618,
+          242,
+          254
+        ],
+        "hkl_index": [
+          -4,
+          3,
+          -1
+        ],
+        "resolution_angstrom": 4.559879612084604,
+        "stagea_vs_ref_ratio": 0.010359039754544518,
+        "stagea_vs_partial_lp": 3.847060219115106e-05,
+        "stagea_vs_partial": 0.00017653001850084308,
+        "f_latt": 13.919925422909092,
+        "lp_factor": 4.588699122090898
+      },
+      {
+        "roi_idx": 21,
+        "panel_id": 0,
+        "bbox": [
+          787,
+          799,
+          694,
+          706
+        ],
+        "hkl_index": [
+          -2,
+          -6,
+          5
+        ],
+        "resolution_angstrom": 4.090554725430792,
+        "stagea_vs_ref_ratio": 0.04747465804930102,
+        "stagea_vs_partial_lp": 0.00020879390651338894,
+        "stagea_vs_partial": 0.0008559169843187554,
+        "f_latt": -12.737666864798221,
+        "lp_factor": 4.099338906060794
+      },
+      {
+        "roi_idx": 5,
+        "panel_id": 0,
+        "bbox": [
+          605,
+          617,
+          156,
+          168
+        ],
+        "hkl_index": [
+          -5,
+          4,
+          -2
+        ],
+        "resolution_angstrom": 3.6007608770141815,
+        "stagea_vs_ref_ratio": 0.9213602542877196,
+        "stagea_vs_partial_lp": 0.001786322075827782,
+        "stagea_vs_partial": 0.0064062561733783194,
+        "f_latt": -2.6314834302703627,
+        "lp_factor": 3.586282821035876
+      },
+      {
+        "roi_idx": 20,
+        "panel_id": 0,
+        "bbox": [
+          708,
+          720,
+          688,
+          700
+        ],
+        "hkl_index": [
+          -1,
+          -5,
+          4
+        ],
+        "resolution_angstrom": 5.104402737155398,
+        "stagea_vs_ref_ratio": 0.08859848742599692,
+        "stagea_vs_partial_lp": 0.002337740952262928,
+        "stagea_vs_partial": 0.012049840041567391,
+        "f_latt": 4.126515146201071,
+        "lp_factor": 5.154480452551073
+      }
+    ],
+    "calibration_info": {
+      "N_cells": [
+        41,
+        29,
+        32
+      ],
+      "fudge": 1.0
+    }
+  }
+}

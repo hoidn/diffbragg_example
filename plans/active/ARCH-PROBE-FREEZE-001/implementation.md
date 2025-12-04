@@ -30,8 +30,8 @@ Stop the growth of shadow pipelines under `plans/active/**/bin`, migrate decisio
 - Coordinated with FINDINGS-LEDGER-002 so new findings reference the enforcement artifacts.
 
 ## Phase A — Catalog & Risk Assessment
-- [ ] A1: Walk every `plans/active/**/bin/*.py` and `bin/*.sh` script, record purpose, owner initiative, touched modules, and whether it duplicates simulator/mapping physics.
-- [ ] A2: Produce `probe_inventory.md` summarizing counts by initiative + classification, and highlight any scripts exceeding thin-wrapper limits (per diagnostic script policy growth caps).
+- [x] A1: Walk every `plans/active/**/bin/*.py` and `bin/*.sh` script, record purpose, owner initiative, touched modules, and whether it duplicates simulator/mapping physics.
+- [x] A2: Produce `probe_inventory.md` summarizing counts by initiative + classification, and highlight any scripts exceeding thin-wrapper limits (per diagnostic script policy growth caps).
 - [ ] A3: Cross-reference docs/fix_plan.md + galph_memory.md entries to see which probes are still decision-carrying vs obsolete.
 
 **Artifacts:**

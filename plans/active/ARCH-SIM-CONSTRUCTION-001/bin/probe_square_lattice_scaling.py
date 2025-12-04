@@ -213,6 +213,28 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
         if 'min_abs_delta_l' in pstats:
             payload['min_abs_delta_l'] = pstats['min_abs_delta_l']
 
+        # C.36: Extract raw slow/fast subpixel offsets from traced pixel
+        if 'trace_subpixel_offset_slow' in pstats:
+            offset_slow = pstats['trace_subpixel_offset_slow']
+            if isinstance(offset_slow, torch.Tensor):
+                offset_slow_np = offset_slow.cpu().numpy().astype(np.float64)
+                payload['subpixel_offset_slow_stats'] = {
+                    'min': float(np.min(offset_slow_np)),
+                    'median': float(np.median(offset_slow_np)),
+                    'max': float(np.max(offset_slow_np)),
+                    'straddles_zero': bool(np.min(offset_slow_np) < 0 and np.max(offset_slow_np) > 0)
+                }
+        if 'trace_subpixel_offset_fast' in pstats:
+            offset_fast = pstats['trace_subpixel_offset_fast']
+            if isinstance(offset_fast, torch.Tensor):
+                offset_fast_np = offset_fast.cpu().numpy().astype(np.float64)
+                payload['subpixel_offset_fast_stats'] = {
+                    'min': float(np.min(offset_fast_np)),
+                    'median': float(np.median(offset_fast_np)),
+                    'max': float(np.max(offset_fast_np)),
+                    'straddles_zero': bool(np.min(offset_fast_np) < 0 and np.max(offset_fast_np) > 0)
+                }
+
         debug_stats['partiality_stats'] = {
             k: (v.tolist() if isinstance(v, torch.Tensor) else v)
             for k, v in pstats.items()
@@ -322,6 +344,17 @@ def main():
                 print(f"    min_abs_delta_k: {payload_scaled['min_abs_delta_k']:.6e}")
             if 'min_abs_delta_l' in payload_scaled:
                 print(f"    min_abs_delta_l: {payload_scaled['min_abs_delta_l']:.6e}")
+        # C.36: Display raw slow/fast subpixel offset stats
+        if 'subpixel_offset_slow_stats' in payload_scaled or 'subpixel_offset_fast_stats' in payload_scaled:
+            print(f"  Subpixel offset stats (C.36 detector-plane sampling):")
+            if 'subpixel_offset_slow_stats' in payload_scaled:
+                stats = payload_scaled['subpixel_offset_slow_stats']
+                straddle = "YES" if stats['straddles_zero'] else "NO"
+                print(f"    Slow: min={stats['min']:.6f}, median={stats['median']:.6f}, max={stats['max']:.6f} | straddles_zero={straddle}")
+            if 'subpixel_offset_fast_stats' in payload_scaled:
+                stats = payload_scaled['subpixel_offset_fast_stats']
+                straddle = "YES" if stats['straddles_zero'] else "NO"
+                print(f"    Fast: min={stats['min']:.6f}, median={stats['median']:.6f}, max={stats['max']:.6f} | straddles_zero={straddle}")
         # C.35: Display HKL tensor stats for traced pixel
         if 'per_axis_data' in payload_scaled:
             per_axis = payload_scaled['per_axis_data']
@@ -633,15 +666,33 @@ def main():
         if payload_base:
             f.write("### Base Case (N_cells=1,1,1)\n")
             for k, v in payload_base.items():
-                if k != 'per_axis_data':
+                if k not in ('per_axis_data', 'subpixel_offset_slow_stats', 'subpixel_offset_fast_stats'):
                     f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
         if payload_scaled:
             f.write(f"### Scaled Case (N_cells={na},{nb},{nc})\n")
             for k, v in payload_scaled.items():
-                if k != 'per_axis_data':
+                if k not in ('per_axis_data', 'subpixel_offset_slow_stats', 'subpixel_offset_fast_stats'):
                     f.write(f"- **{k}**: {v:.6e}\n")
             f.write("\n")
+            # C.36: Add subpixel offset summary before HKL stats
+            if 'subpixel_offset_slow_stats' in payload_scaled or 'subpixel_offset_fast_stats' in payload_scaled:
+                f.write("### Subpixel Offset Stats (Phase C.36)\n\n")
+                f.write("Raw detector-plane slow/fast subpixel offsets (fractional pixel units) for the traced pixel:\n\n")
+                f.write("| Axis | Min | Median | Max | Straddles Zero |\n")
+                f.write("|------|-----|--------|-----|----------------|\n")
+                if 'subpixel_offset_slow_stats' in payload_scaled:
+                    stats = payload_scaled['subpixel_offset_slow_stats']
+                    straddle = "✓" if stats['straddles_zero'] else "✗"
+                    f.write(f"| Slow | {stats['min']:.6f} | {stats['median']:.6f} | {stats['max']:.6f} | {straddle} |\n")
+                if 'subpixel_offset_fast_stats' in payload_scaled:
+                    stats = payload_scaled['subpixel_offset_fast_stats']
+                    straddle = "✓" if stats['straddles_zero'] else "✗"
+                    f.write(f"| Fast | {stats['min']:.6f} | {stats['median']:.6f} | {stats['max']:.6f} | {straddle} |\n")
+                f.write("\n")
+                f.write("**Interpretation**: For oversample=13, expected range is -6/13 = -0.461538 to +6/13 = +0.461538.\n")
+                f.write("Both axes should straddle zero to ensure the sincg lobe center (Δ=0) is sampled.\n\n")
+
             # C.35: Add traced pixel HKL tensor summary
             if 'per_axis_data' in payload_scaled:
                 per_axis = payload_scaled['per_axis_data']

@@ -300,6 +300,10 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
         if 'steps_scalar' in pstats:
             steps = pstats['steps_scalar']
             payload['steps_scalar'] = float(steps) if not isinstance(steps, (int, float)) else steps
+        # C.39: Extract omega application mode flag
+        if 'omega_applied_post_sum' in pstats:
+            omega_post = pstats['omega_applied_post_sum']
+            payload['omega_applied_post_sum'] = bool(omega_post) if not isinstance(omega_post, bool) else omega_post
 
         debug_stats['partiality_stats'] = {
             k: (v.tolist() if isinstance(v, torch.Tensor) else v)
@@ -455,14 +459,18 @@ def main():
             omega_last = payload_scaled.get('trace_subpixel_omega_last')
             omega_mean = payload_scaled.get('trace_subpixel_omega_mean')
             steps = payload_scaled.get('steps_scalar')
+            omega_post_sum = payload_scaled.get('omega_applied_post_sum')
             if raw_sum is not None or norm_int is not None:
-                print(f"  Oversample accumulation breakdown (C.38):")
+                print(f"  Oversample accumulation breakdown (C.38/C.39):")
                 if raw_sum is not None:
                     print(f"    Raw subpixel sum (before omega): {raw_sum:.6e}")
                 if omega_last is not None:
                     print(f"    Omega (last-value semantics): {omega_last:.6e}")
                 if omega_mean is not None:
                     print(f"    Omega (mean, per-subpixel mode): {omega_mean:.6e}")
+                if omega_post_sum is not None:
+                    mode_str = "applied once after sum (SQUARE integral)" if omega_post_sum else "applied per-subpixel or pre-sum"
+                    print(f"    Omega application mode: {mode_str}")
                 if norm_int is not None:
                     print(f"    Normalized intensity (after omega): {norm_int:.6e}")
                 if steps is not None:
@@ -470,7 +478,7 @@ def main():
                 # Compute and display ratio of normalized intensity to raw sum
                 if raw_sum is not None and norm_int is not None and raw_sum > 0:
                     ratio = norm_int / raw_sum
-                    print(f"    Normalized / Raw sum ratio: {ratio:.6f} (explains accumulation loss)")
+                    print(f"    Normalized / Raw sum ratio: {ratio:.6f} (should be ≈1.0 for SQUARE after C.39 fix)")
     print()
 
     # Compute observed ratio
@@ -835,16 +843,17 @@ def main():
                 f.write("than the production dot-product approach, this suggests a bug in the HKL projection logic. ")
                 f.write("If both approaches yield similar offsets from integers, the issue lies upstream (detector geometry or oversample grid construction).\n\n")
 
-            # C.38: Add oversample accumulation breakdown to markdown
+            # C.38/C.39: Add oversample accumulation breakdown to markdown
             if args.oversample > 1:
                 raw_sum = payload_scaled.get('trace_subpixel_F_total_sq_sum')
                 norm_int = payload_scaled.get('trace_normalized_intensity')
                 omega_last = payload_scaled.get('trace_subpixel_omega_last')
                 omega_mean = payload_scaled.get('trace_subpixel_omega_mean')
                 steps = payload_scaled.get('steps_scalar')
+                omega_post_sum = payload_scaled.get('omega_applied_post_sum')
                 if raw_sum is not None or norm_int is not None:
-                    f.write("### Oversample Accumulation Breakdown (Phase C.38)\n\n")
-                    f.write("Instrumentation added to isolate where the ~0.094× lattice deficit enters in the oversample>1 branch.\n\n")
+                    f.write("### Oversample Accumulation Breakdown (Phase C.38/C.39)\n\n")
+                    f.write("Instrumentation to validate omega compensation fix for SQUARE lattices (C.39).\n\n")
                     f.write("| Metric | Value |\n")
                     f.write("|--------|-------|\n")
                     if raw_sum is not None:
@@ -853,6 +862,9 @@ def main():
                         f.write(f"| Omega (last-value semantics) | {omega_last:.6e} |\n")
                     if omega_mean is not None:
                         f.write(f"| Omega (mean, per-subpixel mode) | {omega_mean:.6e} |\n")
+                    if omega_post_sum is not None:
+                        mode_str = "✓ Applied once after sum (SQUARE integral)" if omega_post_sum else "Applied per-subpixel or pre-sum"
+                        f.write(f"| **Omega application mode** | **{mode_str}** |\n")
                     if norm_int is not None:
                         f.write(f"| Normalized intensity (after omega) | {norm_int:.6e} |\n")
                     if steps is not None:
@@ -861,8 +873,8 @@ def main():
                         ratio = norm_int / raw_sum
                         f.write(f"| **Normalized / Raw sum ratio** | **{ratio:.6f}** |\n")
                     f.write("\n")
-                    f.write("**Purpose**: Compare this ratio for oversample=13 vs oversample=1 to pinpoint the exact normalization stage ")
-                    f.write("responsible for the discrepancy. The expected ratio should be close to `omega × 1/steps` if physics is correct.\n\n")
+                    f.write("**Expected after C.39 fix**: For SQUARE lattices, omega should be applied once after summing subpixels (integral semantics). ")
+                    f.write("The Normalized/Raw ratio should be ≈1.0 (omega cancels out when comparing base vs scaled runs with same geometry).\n\n")
 
         if derived_ratios:
             f.write("### Derived Ratios\n\n")

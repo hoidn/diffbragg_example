@@ -47,11 +47,15 @@ def test_square_lattice_applies_ncells(device):
     tolerance = 0.01  # 1% tolerance (was 5% before fix)
 
     # Create configs
+    # ARCH-SIM-CONSTRUCTION-001 C.39: Test with oversample>1 to validate omega compensation
+    test_oversample = 13
+
     detector_config = DetectorConfig(
         distance_mm=100.0,
         pixel_size_mm=0.1,
         spixels=10,
         fpixels=10,
+        oversample=test_oversample,
     )
 
     beam_config = BeamConfig()  # Use defaults (wavelength_A=1.0)
@@ -128,6 +132,22 @@ def test_square_lattice_applies_ncells(device):
         f"expected steps_scalar={expected_steps_scalar_square}, "
         f"observed={steps_scalar_scaled} (should not include oversample²)"
     )
+
+    # ARCH-SIM-CONSTRUCTION-001 C.39: Verify omega compensation telemetry for oversample>1
+    # When oversample>1 and shape=SQUARE, omega must be applied once after sum
+    # The omega_applied_post_sum flag must be True to catch regressions
+    if test_oversample > 1:
+        omega_applied_post_sum_base = stats_base.get('omega_applied_post_sum', None)
+        omega_applied_post_sum_scaled = stats_scaled.get('omega_applied_post_sum', None)
+
+        assert omega_applied_post_sum_base is True, (
+            f"SQUARE lattice with oversample>1 must apply omega once after sum: "
+            f"omega_applied_post_sum={omega_applied_post_sum_base} (expected True)"
+        )
+        assert omega_applied_post_sum_scaled is True, (
+            f"SQUARE lattice with oversample>1 must apply omega once after sum: "
+            f"omega_applied_post_sum={omega_applied_post_sum_scaled} (expected True)"
+        )
 
     # Verify ratio
     observed_ratio = intensity_scaled / intensity_base if intensity_base > 0 else 0.0

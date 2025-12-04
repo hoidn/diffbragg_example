@@ -6,7 +6,7 @@
 - Owner: Galph ↔ Ralph
 - Initiative Type: architecture (probe policy + enforcement)
 - Spec / Policy Owners: docs/diagnostic_script_policy (galph_prompt §10), docs/spec-db-core.md §§20-40 (owner APIs), docs/architecture/data_telemetry_flow.md
-- Status: pending
+- Status: done
 - Tier: 0 (Problems Ledger directive)
 
 ## Goal
@@ -65,14 +65,13 @@ Stop the growth of shadow pipelines under `plans/active/**/bin`, migrate decisio
 
 ## Phase C — Enforcement & Guardrails
 - [x] C1: Author `tests/architecture/test_probe_contracts.py::test_plan_scripts_only_wrap_owner_apis` that enforces diagnostic_script_policy mechanically. **Complete (2025-12-31T010000Z)** — tests/architecture module now contains `test_plan_bin_growth_cap` (400 LOC cap + explicit `GROWTH_CAP_EXCEPTIONS` allowlist) and `test_probe_shims_delegate_to_owner_clis` (AST guard for the new shims). Docs/TESTING_GUIDE.md gained execution guidance, and artifacts live under `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-31T010000Z/`.
-- [ ] C2: Finalize policy docs so the mechanical guard becomes canonical guidance.
-    - Expand `prompts/supervisor.md::diagnostic_script_policy` with an explicit reference to `tests/architecture/test_probe_contracts.py`, allowlist maintenance rules, shim roster, and artifact expectations so future supervisors interpret the guard correctly.
-    - Cross-check `docs/TESTING_GUIDE.md` section that describes the enforcement test (added 2025-12-31) once the prompt updates land to keep the two sources in sync.
-- [ ] C3: Add CI/docs hooks (galph_prompt excerpt + findings) reminding future loops to add telemetry instead of scripts.
-    - Introduce a new knowledge-base entry in `docs/findings.md` (e.g., PROBE-FREEZE-001) that cites the architecture test, diagnostic policy section, and the requirement to migrate probes into owner telemetry before extending plan scripts.
-    - Update `docs/fix_plan.md`/Problems Ledger references once the finding is live so CI + planning tooling cross-link to the enforcement test.
+- [x] C2: Finalize policy docs so the mechanical guard becomes canonical guidance. **Complete (2026-01-01T010000Z)** — Expanded `prompts/supervisor.md::diagnostic_script_policy` with explicit reference to `tests/architecture/test_probe_contracts.py`, allowlist maintenance rules, shim roster, and artifact expectations. Cross-checked with `docs/TESTING_GUIDE.md:255-320` to maintain wording parity. Artifacts: `plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-01T010000Z/`.
+- [x] C3: Add CI/docs hooks (galph_prompt excerpt + findings) reminding future loops to add telemetry instead of scripts. **Complete (2026-01-01T010000Z)** — Added knowledge-base entry `docs/findings.md::PROBE-FREEZE-001` citing the architecture test, diagnostic policy section, and the requirement to migrate probes into owner telemetry before extending plan scripts. Sources include test, prompt, plan, and TESTING_GUIDE. Artifacts: `plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-01T010000Z/`.
 
 **Exit Artifact:** Architecture test log + enforcement summary under `plans/active/ARCH-PROBE-FREEZE-001/reports/<timestamp>/`.
+
+**Phase C Closure (2026-01-02T180000Z):**
+All Phase C exit criteria satisfied. The enforcement test `tests/architecture/test_probe_contracts.py` validates probe freeze policy mechanically (400 LOC cap + thin wrapper delegation). Governance docs (`prompts/supervisor.md::diagnostic_script_policy` + `docs/findings.md::PROBE-FREEZE-001`) embed the guard and cross-reference test/plan/TESTING_GUIDE, satisfying Problems Ledger directive "Freeze plan-local probe scripts in favor of parallel logging." Final validation artifacts: `plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-01T010000Z/` (Phase C.2/C.3 completion) + `plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-02T180000Z/` (closure verification). Initiative marked done per exit criteria #5 (enforcement test + policy hooks + findings entry).
 
 ## Risks & Mitigations
 - **Risk:** Deleting scripts before telemetry exists breaks ongoing investigations.

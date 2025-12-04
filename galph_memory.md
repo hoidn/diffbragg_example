@@ -2448,3 +2448,23 @@ Action State: ready_for_implementation
 - Ralph: update `tests/dbex/test_stage_a_smoke_parity.py` to resolve a baseline metrics path (env or per-test artifact dir), flip the config flag, expose the metrics/path on the fixture, and make DB-AT-028/029 assert that the JSON exists + matches schema v1. Document the workflow in `docs/TESTING_GUIDE.md` and drop the resulting files + pytest logs under the reserved artifacts directory.
 
 **Action State**: ready_for_implementation — Do Now issued (input.md) with precise files/tests, no new probes allowed.
+
+## Loop 2025-12-29T010000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase B.4 sigma embedding migration)
+**State**: planning
+**Dwell**: 1
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Stage A baseline telemetry hook + DB-AT selectors now consume owner metrics, so the next highest-impact shadow pipeline is `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py` (≈250 LOC, still re-implements ExperimentList cloning + external_lookup injection).
+2. Metadata-backed smokes/DB-AT runs (Stage A metadata selector, DB-AT-024, sigma manifest test) all instruct operators to run the plan-local script; to satisfy the Problems Ledger directive we must promote this helper into the production tree (`dbex/tools/embed_sigma_external_lookup.py`) and leave only a compatibility shim under `plans/active/**/bin`.
+3. Updated implementation plan (Phase B.4) + fix_plan attempts now capture the migration scope: new owner CLI + helpers, plan script shrunk to wrapper, docs/tests referencing the canonical path, and validation via `tests/sp_proc/test_sigma_metadata_fixture.py` plus the Stage A metadata smoke selector.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/`
+
+**Next Actions**:
+- ready_for_implementation — Implement the new `dbex.tools.embed_sigma_external_lookup` CLI + manifest/report helpers, convert the plan script to a one-line wrapper, refresh docs/tests to reference the owner tool, and rerun `pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py` plus the Stage A metadata smoke selector with `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
+
+Action State: ready_for_implementation

@@ -1,47 +1,51 @@
-Summary: Wire the Stage A baseline metrics hook into the DB-AT-028/029 smoke fixture so the acceptance selectors consume the production telemetry (no more probe math) and assert that the JSON payload lands under the artifacts directory.
-Mode: Parity
+Summary: Promote the sigma metadata embedding helper into `dbex.tools.embed_sigma_external_lookup` so metadata fixtures/tests stop relying on the plan-local probe script (Problems ledger “Freeze plan-local probe scripts…”).
+Mode: none
 ActionType: implementation_ready
 DecisionStatus: localized
 InitiativeType: architecture
 Focus: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation
 Branch: integration
 Mapped tests:
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/
-Findings Applied (Mandatory): No relevant findings — closing the probe freeze gap documented in `probe_inventory.md`.
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small --smoke-sigma-source=metadata
+Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/
+Findings Applied (Mandatory):
+  - PHYSICS-LOSS-005 — metadata sigma tiles must register as `external_lookup`; migrating the embedding helper keeps provenance inside production owners.
+  - PHYSICS-LOSS-001 — sigma provenance + variance telemetry belong to owner modules, not plan scripts; exposing the helper via `dbex.tools` satisfies this finding while obeying diagnostic_script_policy.
 Pointers:
-  - plans/active/ARCH-PROBE-FREEZE-001/implementation.md:33-54 — Phase B.3 notes showing DB-AT selectors still rely on probe outputs.
-  - dbex/refinement/stage_a.py:2134-2199 — Existing baseline metrics hook that Stage A emits when `enable_stage_a_baseline_metrics` is True.
-  - dbex/refinement/telemetry_baseline.py:1-170 — Helper that computes the schema v1 payload we need the tests to consume.
-  - tests/dbex/test_stage_a_smoke_parity.py:70-520 — Stage A smoke fixture + DB-AT-028/029 selectors (currently oblivious to the new telemetry).
-  - docs/TESTING_GUIDE.md:1-140 — Canonical env-flag documentation that must mention the new `DBEX_STAGE_A_BASELINE_METRICS_PATH` workflow.
+  - plans/active/ARCH-PROBE-FREEZE-001/implementation.md:30-80 — Phase B roadmap (new B4 sigma embedding migration tasks).
+  - plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py:1-210 — legacy shadow pipeline that must shrink to a thin wrapper.
+  - dbex/data_load.py:1-150 — `load_sigma_readout_map` helper used by both the old script and the new owner module.
+  - docs/TESTING_GUIDE.md:90-150 — sigma metadata workflow + current instructions referencing the plan script.
+  - tests/sp_proc/test_sigma_metadata_fixture.py:1-140 — manifest/fixture guard that must continue to pass once the tool migrates.
 ARCH Contracts (mandatory):
-  - prompts/supervisor.md:272-309 (diagnostic_script_policy) — Owner: supervisor policy; failure type: architecture conformance (DB-AT evidence still flows through a shadow pipeline instead of owner telemetry).
-  - docs/architecture/data_telemetry_flow.md:1-120 (Stage A telemetry ownership) — Owner: `dbex.refinement.stage_a`; failure type: architecture conformance (acceptance selectors ignore the owner telemetry and recompute ROI stats externally).
+  - prompts/supervisor.md:272-309 — diagnostic_script_policy; owner module/API: `dbex.tools`/canonical CLIs; failure type: architecture conformance (shadow pipeline duplicating production semantics).
+  - docs/spec-db-core.md:32-68 — sigma provenance contract; owner module/API: `dbex.data_load` + calibration helpers; failure type: implementation bug (metadata embedding lives outside the owner, breaking provenance guarantees).
 Do Now (hard validity contract)
-1. Implement: `tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result` — accept `request`, resolve a baseline metrics path from `DBEX_STAGE_A_BASELINE_METRICS_PATH` or the calling test’s artifact dir (`DBAT028_ARTIFACT_DIR` / `DBAT029_ARTIFACT_DIR`), flip `config.enable_stage_a_baseline_metrics=True`, and stash both `stage_a_artifacts.baseline_metrics` and the resolved JSON path on the fixture result so downstream tests can assert against them.
-2. Implement: `tests/dbex/test_stage_a_smoke_parity.py::{test_db_at_028_loss_scale_sanity,test_db_at_029_structure_parity}` — after `_artifact_dir(...)` resolves, require that the Stage A baseline metrics file exists whenever the fixture surfaced a path, load the JSON (schema v1 from `collect_stage_a_baseline_metrics`), compare it to the in-memory `baseline_metrics`, and persist a copy under the artifact tree so parity evidence no longer depends on `compare_stage_a_baseline.py`.
-3. Implement: `docs/TESTING_GUIDE.md` (env var section) — document the new `DBEX_STAGE_A_BASELINE_METRICS_PATH` knob (dir vs file semantics, how the DB-AT selectors derive filenames, and the expectation that parity loops set it before running Stage A smokes).
+1. Implement: `dbex/tools/embed_sigma_external_lookup.py::main` — move the plan-script logic (arg parsing, sigma map loading, ExperimentList cloning, external_lookup injection, report/manifest writing) into a new owner CLI under `dbex/tools/`. Provide reusable helpers so future scripts/tests can import the embedding function directly.
+2. Implement: `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py` — reduce to a thin compatibility shim that imports the new tool (`from dbex.tools import embed_sigma_external_lookup as tool`) and delegates to `tool.main()`.
+3. Implement: `docs/TESTING_GUIDE.md` (sigma metadata section), `sp.proc/README.md`, and the skip/diagnostic text in `tests/conftest.py`, `tests/dbex/test_mapping_consistency.py`, `tests/dbex/test_artifact_parity.py`, and `tests/dbex/test_torch_refine_smoke.py` — update all instructions to reference `python -m dbex.tools.embed_sigma_external_lookup` (mention the plan path only as a legacy alias) and ensure error messages stay actionable.
 Mapped Validation (pytest):
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_baseline_metrics_dump
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_A_BASELINE_METRICS_PATH=plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/db_at_metrics_dir DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small --smoke-sigma-source=metadata
 Artifacts deliverables:
-  - Stage A baseline metrics JSON(s) emitted by the acceptance tests under `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/`
-  - pytest logs for `test_stage_a_baseline_metrics_dump` and the DB-AT-028/029 run that proves the selectors now read the owner telemetry
+  - CLI help output + summary in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/tool_migration_notes.md` documenting the new entry point.
+  - `pytest_sp_proc_sigma_metadata_fixture.log` and `pytest_stage_a_metadata_smoke.log` under the same artifacts directory.
+  - Copy of the refreshed Stage A baseline metrics JSON for the metadata run (in `db_at_metrics_dir/`).
 Forbidden This Loop:
-  - no new plan-local probe scripts or extensions; the DB-AT selectors must consume Stage A’s telemetry hook
-  - do not bypass `collect_stage_a_baseline_metrics` or re-implement ROI stats in tests/scripts
+  - no new plan-local probe scripts or telemetry forks — all functionality must live in `dbex.tools` + owner helpers.
+  - do not rewrite or regenerate `sp.proc/idx-0000_sigma_metadata.*` in-place; use temporary outputs for validation.
 How-To Map:
-  1. Add a helper in `tests/dbex/test_stage_a_smoke_parity.py` to resolve the baseline metrics file given an env override or per-test artifact directory (append `<test_name>_stage_a_baseline_metrics.json` when a directory is provided). Use it inside `stage_a_smoke_result` to set the config flag and record both the resolved `Path` and the `StageAArtifacts.baseline_metrics` dict in the returned result.
-  2. Update `test_db_at_028_loss_scale_sanity` and `test_db_at_029_structure_parity` to check the returned `baseline_metrics`/`baseline_metrics_path`, assert the JSON exists + matches schema v1, and copy the file into each test’s artifact tree so DB-AT evidence includes the production metrics.
-  3. Refresh `docs/TESTING_GUIDE.md` to describe the new env var and how DB-AT runners should set it (include the exact pytest command from this Do Now) so future loops don’t fall back to the shadow pipeline.
+  1. Start from the current plan script, migrate its helpers (sigma tensor loading, manifest writer, ExperimentList mutation) into `dbex/tools/embed_sigma_external_lookup.py`, expose a `main()` that mirrors today’s CLI flags, and add a module docstring linking to ARCH-PROBE-FREEZE-001.
+  2. Replace the plan script with a compatibility shim that imports the new tool and calls its `main()` so historical instructions keep working while the owner logic lives in `src/`.
+  3. Update docs + skip messaging to reference the new CLI, then run the mapped pytest commands capturing logs + Stage A baseline metrics into the reserved artifact directory.
 Pitfalls To Avoid:
-  - Don’t hard-code baseline metrics filenames; make them unique per test so runs don’t clobber each other.
-  - Avoid importing torch/numpy-heavy modules into helper scripts outside the production path; keep logic inside Stage A/test modules.
-  - Ensure the fixture still works when the env knob is unset (baseline metrics optional outside parity runs).
-  - Don’t write torch tensors directly to JSON — use the serializable dict Stage A already emits.
-  - Preserve the existing DB-AT telemetry artifacts (metrics JSON, mapping diagnostics) while adding the new file so historical comparisons remain valid.
+  - Do not modify the canonical `sp.proc/idx-0000_sigma_metadata.*` fixtures during testing; write to a temp path instead.
+  - Keep CLI signatures/backwards compatibility so existing automation (manifest scripts, docs) keep working.
+  - Avoid importing heavy torch/dxtbx modules at import time in the new tool; gate them under `main()` to preserve CLI responsiveness.
+  - Make sure manifest/report generation preserves SHA256 digest schema (schema_version, command, file metadata) so regression tests stay valid.
+  - Don’t drop the `lookup_key` flag — Stage A smokes still expect pedestal entries.
+  - Ensure the Stage A metadata smoke command sets `DBEX_SMOKE_SIGMA_SOURCE=metadata`; otherwise Stage A won’t exercise the new embedding path.
 If Blocked:
-  - Capture the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-28T150000Z/blockers.md`, update docs/fix_plan.md Attempts History, and ping Galph before reintroducing any plan-local probe logic. If Stage A fails to emit the metrics due to missing context, pause and document instead of adding new instrumentation.
-Doc Sync Plan (Conditional): Not required — test node names stay the same; only their behavior changes.
+  - Document the blocker in `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-29T010000Z/blockers.md`, update `docs/fix_plan.md` Attempts History with evidence, and ping Galph before touching any plan-local scripts.
+Doc Sync Plan (Conditional): Not required — no pytest selectors are being renamed; documentation updates are covered in Do Now step 3.

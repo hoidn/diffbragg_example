@@ -1,47 +1,66 @@
-Summary: Recorder evidence now shows the square-crystal lattice factor is never applied — the Stage A partiality ledger is pinned at zero despite N_cells=(41,29,32) and the simulator hook reports panel 0 median f_latt≈1.3e-4 (spot_profile_summary + summary from 2025-12-26T150000Z). Patch `compute_physics_for_position` so the SQUARE branch evaluates sincg on fractional deltas in float64, add a pytest that fails if Nanobrag stops scaling with (Na·Nb·Nc)^2, capture the diff + rebuild tag, and rerun the mapped probe plus DB-AT-028/029.
+Summary: Patch the nanobrag_torch square-lattice sincg path so fractional HKL deltas evaluated in float64 deliver the Na·Nb·Nc boost and land an enforcement test before rerunning the Stage A baseline probe plus DB-AT-028/029.
 Mode: Parity
 ActionType: arch_conformance
 DecisionStatus: patch_ready
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
+Branch: integration
 Mapped tests:
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --stage-a-mosaic-domains 16 --collect-hkl-stats --collect-spot-profiles --collect-orientation-metrics --collect-physics-ledger --collect-partiality-ledger --collect-simulator-partiality-stats --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T200000Z/stage_a_baseline_probe_baseline.json | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T200000Z/stage_a_baseline_probe_baseline.log
-  - PYTEST_ADDOPTS= KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T200000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T200000Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T200000Z/pytest_db_at_028_029.log
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T200000Z/
-Findings Applied: SIM-CONSTR-LORENTZ-001
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py --geometry-mode baseline --stage-a-mosaic-domains 16 --collect-hkl-stats --collect-spot-profiles --collect-orientation-metrics --collect-physics-ledger --collect-partiality-ledger --collect-simulator-partiality-stats --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/stage_a_baseline_probe_baseline.json | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/stage_a_baseline_probe_baseline.log
+  - PYTEST_ADDOPTS= KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/pytest_arch_partiality.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/pytest_db_at_028_029.log
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/
+Findings Applied: SIM-CONSTR-LORENTZ-001 (Lorentz guard), SCALE-009 (telemetry baseline contract)
+Pointers:
+  - docs/spec-db-core.md:60-140 — lattice weighting + calibration contracts
+  - docs/config_crosswalk.md:61-85 — N_cells threading rules
+  - docs/spec-db-conformance.md:139-172 — DB-AT-028/029 acceptance gates
+  - docs/architecture/calibration_scaling.md:1-90 — Stage A scaling provenance
+  - docs/diagnostic_script_policy.md:1-140 — probe budget / thin-wrapper guard
 ARCH Contracts (mandatory):
-  - docs/spec-db-core.md:70-110 — Owner: `nanobrag_torch.simulator.compute_physics_for_position` must produce physical intensities (photon units, proper Lorentz/partiality terms). Status: conformance restoration; current implementation violates lattice weighting.
-  - docs/config_crosswalk.md:61-85 — Owner: `dbex.refinement.config_factories.create_crystal_config`/`nanobrag_torch.Simulator` preserve calibrated `N_cells` for stills. Status: conformance restoration (N_cells injected but ignored by simulator math).
-  - docs/spec-db-conformance.md:139-172 — Owner: Stage A + mapping pipelines must honor calibration metadata (spot_scale_override, beam flux/exposure, N_cells) and pass DB-AT-028/029 gates. Status: violated; acceptance selectors remain red until simulator physics aligns.
+  - docs/spec-db-core.md:60-140 — Owner: `nanobrag_torch.simulator.compute_physics_for_position` (SQUARE branch) must emit lattice weights proportional to `(Na·Nb·Nc)^2`; failure class: implementation bug (lattice boost collapses when sincg runs in float32 near integer HKLs).
+  - docs/config_crosswalk.md:61-85 — Owner: `dbex.refinement.config_factories.create_crystal_config` + `nanobrag_torch.Simulator` must honor calibrated `N_cells` for stills; failure class: implementation bug (calibrated domain counts ignored by simulator math).
+  - docs/spec-db-conformance.md:139-172 — Owner: Stage A + DB-AT-028/029 acceptance gates; failure class: conformance failure (chi²/pixel ≫1e2 and median ROI corr <0.2 while independent reference stays green).
 Do Now (hard validity contract):
-1. **Fix the SQUARE lattice factor** — `src/nanobrag-torch/src/nanobrag_torch/simulator.py::compute_physics_for_position` lines 295-345:
-   - Compute fractional offsets `delta_h = (h - h0)` (same for k,l) and promote them to `torch.float64` before calling `sincg`. Run `sincg(torch.pi * delta_h, Na)`/… and cast the product back to the simulator dtype so the Na·Nb·Nc boost survives float32 rounding. Leave ROUND/GAUSS/TOPHAT paths untouched.
-   - Ensure the existing partiality stats continue to store the corrected tensors so the probe can confirm `median f_latt≈Na·Nb·Nc` post-fix.
-2. **Add an enforcement test** — create `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` (or equivalent) that instantiates a tiny detector/crystal with `N_cells=(Na,Nb,Nc)`, runs the simulator twice (with and without N_cells), and asserts that the lattice-scaled run is `(Na*Nb*Nc)^2` brighter (within tolerance). This guards the ARCH-CONTRACT going forward.
-3. **Capture the Environment Freeze trail** — after editing, rebuild the editable install (`python -m pip install -e src/nanobrag-torch`), save the diff as `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/partiality_fix.patch`, and record the tag `nanobrag-partiality-2025-12-26` under the new report directory (include rebuild command + git status snapshot).
-4. **Docs/ledger updates** — add SIM-CONSTR-PARTIALITY-001 to docs/findings.md (describe the fix, cite the new test, cite artifacts), and log the loop in docs/fix_plan.md + galph_memory.md before yielding.
-5. **Validate** — rerun the mapped Stage A baseline probe (command above) and both DB-AT selectors. Archive `stage_a_baseline_probe_baseline.{json,log}`, `db_at_028/db_at_029` metrics, `pytest` logs, and the new architecture test output in `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T200000Z/`. The baseline probe should now report `median Stage A / |F|²·F_latt²·LP ≈ 1`. No additional probes are permitted.
-Forbidden This Loop: no new plan-local diagnostic scripts; no extra CLI flags beyond those listed; do not edit non-simulator physics paths (stage_a_utils, mapping) except for doc/test updates; do not add another probe run — validation must rely on the mapped commands.
-ARCH Conformance Remediation:
-  - Canonical owner API: `src/nanobrag-torch/src/nanobrag_torch/simulator.py::compute_physics_for_position` owns SQUARE lattice weighting; all callers (Stage A, mapping, reconstruction) must rely on it.
-  - Duplicates to delete/route: ensure ledger/test logic compares against this canonical implementation only (no alternate partiality math in probes/tests).
-  - Enforcement Test (mandatory): `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` — constructs a trivial simulator with `N_cells > 1`, verifies the intensity ratio between `N_cells=(Na,Nb,Nc)` and `(1,1,1)` matches `(Na·Nb·Nc)^2` within tolerance, and fails if sincg no longer scales accordingly.
-  - Mapped tests must include: the baseline probe command, the new architecture test, and the DB-AT-028/029 pytest nodes (see above).
+1. **Implement the fractional-delta sincg fix** — `src/nanobrag-torch/src/nanobrag_torch/simulator.py::compute_physics_for_position` lines 295-360:
+   - Compute `delta_h = (h - torch.round(h))` (and similarly for k,l) in `torch.float64`, multiply inside `sincg(torch.pi * delta_h, Na)`/… so the arguments land near zero and the ratio returns ±N when the fractional offset is tiny. Downcast the final `f_latt` product back to the simulator dtype before combining with Lorentz/polarization.
+   - Leave the ROUND/GAUSS/TOPHAT branches untouched and keep device dispatch the same.
+2. **Capture Environment Freeze trail** — Rebuild the editable install (`python -m pip install -e src/nanobrag-torch`), run `git status -sb`, and save both the diff and command log to `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/partiality_fix.patch` + `reports/2025-12-27T010000Z/environment.md`. Tag the state as `nanobrag-partiality-2025-12-26` per CLAUDE.md.
+3. **Author the enforcement test + finding** — Create `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` that compares simulator intensity with `N_cells=(1,1,1)` vs `(41,29,32)` (or other >1 tuple) and asserts the ratio matches `(Na·Nb·Nc)^2 ± 5%`. Record the new node in docs/TESTING_GUIDE.md after it passes, stash logs under the artifact folder, and add SIM-CONSTR-PARTIALITY-001 to docs/findings.md citing the test + rebuild tag.
+4. **Validate** — Rerun the mapped Stage A baseline probe (all ledgers enabled) and DB-AT-028/029 selectors with artifacts rooted at the new timestamp, proving `median StageA/(|F|²·F_latt²·LP) → 1` and the acceptance gates pass.
+Forbidden This Loop:
+  - no new plan-local diagnostic scripts or CLI flags beyond those listed above
+  - do not modify ROUND/GAUSS/TOPHAT lattice branches
+  - no additional probes or telemetry hooks (instrumentation budget exhausted)
+  - leave Stage A/mapping/reconstruction code untouched except for test updates needed by the new enforcement node
 DMI Section:
-- **Independent Reference:** DIALS refGeom target + ROI bookkeeping (plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T150000Z/stage_a_baseline_probe_baseline.json:39-69) still provide masked means ≈87 ADU across 4,140 trusted pixels.
+- **Independent Reference:** DIALS mapping ROI baseline (plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T150000Z/stage_a_baseline_probe_baseline.json) still reports `target_mean_masked=87.118` ADU with `n_masked_pixels=4140`.
 - **Transformation Ledger:**
-  | Field/Tensor | Expected (units/shape/axis) | Producer (file:line) | Hydration (file:line) | Consumer (file:line) | Observed Evidence | Hypothesis |
+  | Field/Tensor | Expected (units) | Producer | Hydration | Consumer | Observed Evidence | Hypothesis |
   | --- | --- | --- | --- | --- | --- | --- |
-  | Mapping ROI energy baseline | ≈87 ADU masked mean on canonical loss mask | dbex/vis/mapping.py:94-223 | stage_a_baseline_probe_baseline.json:39-69 | tests/dbex/test_stage_a_smoke_parity.py:323-402 | `target_mean_masked=87.118`, `n_masked_pixels=4140` | Reference stable. |
-  | Stage A zero-iteration telemetry | Should match mapping baseline | dbex/refinement/stage_a.py:403-519 | dbex/refinement/reconstruction.py:167-253 | spot_profile_summary.md:81-97 | `median StageA/|F|²·LP=0.0176`, `StageA/|F|²=0.0714` | Simulator missing lattice boost. |
-  | ROI [431:443,434:446] HKL (0,2,-2) | Stage A/|F|²·F_latt²·LP≈1 | Stage A forward path | compare_stage_a_baseline.py:709-1012 | spot_profile_summary.md:147-154 | `StageA/|F|²·F_latt²·LP=0`, `F_latt=5233.69` | sincg collapses near integer. |
-  | ROI [645:657,284:296] HKL (-4,2,0) | Same as above | same | same | spot_profile_summary.md:149-162 | `StageA/|F|²·F_latt²·LP=0`, `F_latt=-722.43` | identical failure. |
-  | ROI [177:189,610:622] HKL (-2,-4,4) | Partiality-corrected ratio ≈1 | same | same | spot_profile_summary.md:157-163 | `StageA/|F|²·F_latt²·LP=0.0002`, `F_latt=-12.74` | Ratio tracks zero regardless of F_latt magnitude. |
-- **Source Trace Anchors:** dbex/refinement/stage_a.py:403-519 (Stage A warm cache), dbex/refinement/reconstruction.py:167-253 (telemetry replay), plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py:205-389 & 709-1012 (ledger), tests/dbex/test_stage_a_smoke_parity.py:323-485 (DB-AT selectors), src/nanobrag-torch/src/nanobrag_torch/simulator.py:295-523 (physics owner).
-- **Consumption-State Measurements:** stage_a_baseline_probe_baseline.json shows `target_mean_masked=model_mean_masked=87.118`, `scale_factor=1.73456512e8`, and hook summary median `f_latt=1.2957e-4` (summary.md:23-26). DB-AT-028 metrics capture `chi2_per_pixel_initial=2.0979e5`, `roi_cc_median_before=-0.053` (plans/…/db_at_028/db_at_028_metrics.json:2-62).
-- **Boundary Bisection Step:** patch the SQUARE sincg path to use fractional deltas + float64 so `F_latt` matches the calibration, then rerun mapped commands to prove Stage A/(|F|²·F_latt²·LP)→O(1).
-- **Probe Budget:** Final instrumentation slot already spent on the hook; no additional probes permitted until the simulator fix lands.
-How-To Map: Work inside `src/nanobrag-torch` only, apply the delta/float64 change, regenerate editable install & patch file, add the new architecture test + findings entry, commit artifacts under `…/2025-12-26T200000Z/`, and validate via the listed commands before yielding.
-Pitfalls: forgetting to upcast to float64 will leave `sincg` underflowing; skipping the diff/environment tag violates the Environment Freeze exception; omitting the architecture test leaves the contract unenforced; accidentally touching non-SQUARE branches can regress ROUND/GAUSS modes.
-If Blocked: capture failing command output + stack trace in the new artifact directory, update docs/fix_plan.md and galph_memory.md with the blocker reason, and stop — do not introduce new probes or simulator edits without supervisor guidance.
+  | Mapping ROI masked mean | ≈87 ADU | dbex/vis/mapping.py:94-223 | stage_a_baseline_probe_baseline.json:39-69 | tests/dbex/test_stage_a_smoke_parity.py:323-402 | `target_mean_masked=87.118` | Reference stable |
+  | Stage A/|F|² ratio | ≈1 | dbex/refinement/stage_a.py:403-519 | spot_profile_summary.md:81-120 | DB-AT-028 telemetry | `median StageA/|F|²=0.0714` | Simulator misses lattice weight |
+  | Stage A/|F|²·LP ratio | ≈1 | same | same | spot_profile_summary.md | `median StageA/(|F|²·LP)=0.0176` | Still Lorentz already fixed |
+  | Stage A/|F|²·F_latt²·LP ratio | ≈1 | same + partiality ledger | spot_profile_summary.md:120-168 | DB-AT-028 | `median=0.0`, many ROIs ≤1e-4 | Lattice boost collapses |
+  | Simulator hook `f_latt` | ≈Na·Nb·Nc≈38,048 | nanobrag_torch/simulator.py:295-360 | stage_a_baseline_probe_baseline.json:25-37 | compare_stage_a_baseline.py instrumentation | panel 0 median `f_latt=1.3e-4`, `f_latt_sq≈1` | sincg underflows near integer HKLs |
+- **Source Trace Anchors:** dbex/refinement/stage_a.py:403-519, dbex/refinement/reconstruction.py:167-253, plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py:205-389 & 709-1012, tests/dbex/test_stage_a_smoke_parity.py:323-485, src/nanobrag-torch/src/nanobrag_torch/simulator.py:295-523.
+- **Consumption-State Measurements:** Stage A baseline probe + simulator stats show `scale_factor=1.73456512e8`, hook median `f_latt=1.2957e-4`, DB-AT-028 `chi2_per_pixel_initial=2.0979e5`, `roi_cc_median_before=-0.053`.
+- **Boundary Bisection Step:** Patch the SQUARE sincg path, then re-run the baseline probe + DB-AT selectors to verify `Stage A/(|F|²·F_latt²·LP)` converges to ~1 before chasing downstream effects.
+- **Probe Budget:** Final instrumentation hook already in place; no new probes allowed until this fix lands.
+How-To Map:
+  1. Apply the simulator edit, run `python -m pip install -e src/nanobrag-torch` (log command + timestamp), and save `git diff src/nanobrag-torch` to `patches/partiality_fix.patch`.
+  2. Execute the mapped Stage A baseline probe command (tee logs + JSON into the artifact directory). Confirm `simulator_partiality_stats.stage_a` now reports `f_latt` medians ≈Na·Nb·Nc and `StageA/(|F|²·F_latt²·LP)` ratios ≈1 in `spot_profile_summary.md`.
+  3. Run the new architecture test under `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` (tee log + collect-only output) and update docs/TESTING_GUIDE.md selectors once it passes.
+  4. Re-run DB-AT-028/029 with artifact dirs pointed at the new timestamp; stash metrics + pytest logs.
+Pitfalls To Avoid:
+  - forgetting to upcast deltas to float64 before calling `sincg`
+  - mutating ROUND/GAUSS/TOPHAT branches (only fix SQUARE)
+  - omitting the Environment Freeze rebuild/tag + patch file
+  - lowering DB-AT acceptance thresholds instead of fixing physics
+  - adding new plan-local probes or CLI toggles (violates probe-freeze guard)
+  - skipping the architecture test or docs/findings updates
+  - running DB-AT selectors without `AUTHORITATIVE_CMDS_DOC` + required env vars
+If Blocked:
+  - Capture failing command output (probe, pytest, or rebuild) under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/`, update docs/fix_plan.md + galph_memory.md with the blocker reason, and stop. Do not add new probes; escalate to supervisor if simulator edit cannot proceed under Environment Freeze rules.
+Doc Sync Plan:
+  - After `tests/architecture/test_nanobrag_partiality.py` lands, run `pytest --collect-only tests/architecture/test_nanobrag_partiality.py > plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/collect_arch_partiality.log` and update `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md` with the new selector + artifact path once the code passes.

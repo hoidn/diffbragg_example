@@ -369,6 +369,33 @@ raw outputs match Stage A/mapping before re-running the probe + selectors.
 - [ ] **Correlate the sweep with DB-AT selectors:** After capturing the two probe outputs, rerun `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` with artifacts rooted at `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-22T010000Z/` to prove the selectors still fail (chi²≈2.1e5, ROI corr≈-0.05) even when we force different domain counts.
 - [ ] **Summarize the sweep:** Add `mosaic_domain_sweep.md` to the same report directory documenting whether Stage A/reflection medians changed between the two runs. If the ratios stay ~0.061 for both, we have decision-carrying evidence that the simulator ignores the override and can escalate to a nanobrag_torch instrumentation patch per Environment Freeze exception.
 
+#### C.22 — Spot-profile energy partition instrumentation (Complete — 2025-12-22T150000Z)
+- [x] **Extend probe with spot-profile analytics:** Added `--collect-spot-profiles` flag to `compare_stage_a_baseline.py` so each run emits halo vs ROI energy fractions, axial FWHM, and ROI bbox metadata (see `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-22T150000Z/spot_profile_summary.md`).
+- [x] **Run baseline capture:** Executed the probe with all flags enabled plus DB-AT-028/029 selectors under the same timestamp. Evidence showed deterministic energy spill (worst ROIs keep ≤1.8 % of available energy) while DB-AT signatures remained unchanged (chi²≈2.1e5, corr=-0.053), proving spot-profile asymmetry alone is insufficient.
+
+#### C.23 — Orientation ledger (Complete — 2025-12-23T010000Z)
+- [x] **Add orientation metrics:** Implemented `--collect-orientation-metrics` which computes fractional HKL deltas, resolution, and 2θ per ROI using `crystal.get_A()` and detector beam vectors; persisted JSON + Markdown blocks.
+- [x] **Validation:** Probe plus DB-AT reruns confirmed `median |Δhkl|=0.095` with weak correlation to Stage A/Ref ratios (Pearson -0.286), eliminating geometry as the divergence source. Artifacts: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-23T010000Z/`.
+
+#### C.24 — Physics ledger (Complete — 2025-12-23T150000Z)
+- [x] **Lorentz/polarization diagnostics:** Added `--collect-physics-ledger` to compute `|F|²·LP` expectations per ROI and log Stage A ratios by resolution bin. Evidence pinned `median Stage A/(|F|²·LP)=0.0201` even though LP factors span 2.6–11.7×.
+- [x] **Validation:** Baseline probe + DB-AT selectors captured the ledger plus chi²/corr metrics, demonstrating Lorentz weighting was missing downstream. Artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-23T150000Z/`.
+
+#### C.25 — Partiality ledger (Complete — 2025-12-24T190000Z)
+- [x] **Compute expected lattice factor:** Probe now accepts `--collect-partiality-ledger` which reuses orientation metrics + calibration metadata to derive `F_latt` for each ROI and compare Stage A vs `|F|²·F_latt²·LP`.
+- [x] **Validation:** Artifacts (`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-24T150000Z/`) show `median Stage A/(|F|²·F_latt²·LP) ≈ 0`, shifting the leading hypothesis squarely onto the simulator lattice math.
+
+#### C.26 — Simulator partiality hook wiring (Complete — 2025-12-26T150000Z)
+- [x] **Thread debug flag:** Added `collect_simulator_partiality_stats` flag through `_build_stage_a_context`, `simulate_forward_once`, and probe helpers; serialized per-panel aggregates so JSON captures `f_latt`, `lorentz_factor`, `polarization_factor`.
+- [x] **Validation:** Stage A baseline probe now records `f_latt` median `1.3e-4` while independent ledger expected ≈5233, delivering decision-carrying proof that the simulator never applies the Na·Nb·Nc boost. Artifacts: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T150000Z/`.
+
+#### C.27 — Square-lattice sincg fix & enforcement (Pending — 2025-12-27 loop)
+- [ ] **Patch `compute_physics_for_position`:** Update the SQUARE branch to evaluate `sincg` on fractional deltas (`h - h0`, etc.) promoted to `torch.float64`, snap arguments near integer multiples, and cast the final `F_latt` product back to the simulator dtype so Na·Nb·Nc survives float32 rounding.
+- [ ] **Capture Environment Freeze metadata:** Save the diff as `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/partiality_fix.patch`, rebuild `nanobrag_torch` in editable mode, and tag the rebuild (`nanobrag-partiality-2025-12-26`) with commands logged under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/environment.md`.
+- [ ] **Add architecture enforcement:** Author `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`, instantiating a tiny simulator twice (N_cells=(1,1,1) vs `(Na,Nb,Nc)`) and asserting `(Na·Nb·Nc)^2` scaling within tolerance. Capture `pytest` + `--collect-only` logs.
+- [ ] **Update docs/findings.md:** Add SIM-CONSTR-PARTIALITY-001 summarizing the fix, enforcement test, and rebuild tag per Environment Freeze policy.
+- [ ] **Validation:** Rerun the Stage A baseline probe with all collection flags and both DB-AT selectors under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-27T010000Z/`, ensuring `median Stage A/(|F|²·F_latt²·LP) → 1` and DB-AT-028/029 cross their chi²/corr gates.
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

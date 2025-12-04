@@ -1,0 +1,29 @@
+{
+  "n_cells": {
+    "na": 41,
+    "nb": 29,
+    "nc": 32
+  },
+  "oversample": 13,
+  "detector": {
+    "spixels": 1,
+    "fpixels": 1
+  },
+  "phi_steps": 1,
+  "mosaic_domains": 1,
+  "device": "cpu",
+  "intensities": {
+    "base": 6.524461269378662,
+    "scaled": 552052.625
+  },
+  "ratios": {
+    "expected": 1447650304,
+    "observed": 84612.75225756274,
+    "relative_error": 0.9999415516633929,
+    "deviation_factor": 5.844833660710006e-05
+  },
+  "debug_stats": {
+    "base": {},
+    "scaled": {}
+  }
+}

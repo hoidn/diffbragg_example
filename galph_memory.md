@@ -2388,3 +2388,23 @@ Action State: ready_for_implementation
 - Partiality ledger evidence from 2025-12-25 (spot_profile_summary.md lines 83-169) continues to show median `StageA/|F|²·F_latt²·LP≈0`, but we cannot close the boundary bisection without the simulator-reported `F_latt`/Lorentz/polarization payload.
 - Next loop must update `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_stage_a_baseline.py` so the CLI `args` (particularly `collect_hkl_stats`/`collect_simulator_partiality_stats`) are passed explicitly into `collect_stage_a_hkl_stats` / `collect_mapping_hkl_stats`, convert `Simulator.partiality_stats` tensors into JSON-friendly per-panel aggregates (min/mean/max for `f_latt`, `lorentz_factor`, `polarization_factor`), and rerun the mapped probe plus DB-AT-028/029 commands to produce decision-carrying artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-26T150000Z/`.
 Action State: ready_for_implementation
+
+## Loop 2025-12-27T200000Z
+
+**Focus**: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation (Phase A catalog)
+**State**: planning
+**Dwell**: 0 (new focus)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Problems ledger guard triggered because “Freeze plan-local probe scripts…” remains unchecked; redirected focus to ARCH-PROBE-FREEZE-001 and revalidated the plan scaffold at `plans/active/ARCH-PROBE-FREEZE-001/implementation.md`.
+2. Enumerated 19 `plans/active/**/bin` directories (52 scripts total) and flagged high-risk probes (compare_stage_a_baseline.py, probe_stage_a_scale_alignment.py, compare_simulator_outputs.py, etc.) that recreate simulator/mapping physics outside owner modules, violating the thin-wrapper rule in `prompts/supervisor.md:272-309`.
+3. Authored `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-27T200000Z/summary.md` defining Phase A deliverables: build `collect_probe_inventory.py`, produce `probe_inventory.{md,json}` with classification + owner API notes, and tie each shadow pipeline to the telemetry/logging hook it duplicates so Phase B migrations have concrete targets.
+
+**Artifacts Path**: `plans/active/ARCH-PROBE-FREEZE-001/reports/2025-12-27T200000Z/`
+
+**Next Actions**:
+- ready_for_implementation — Ralph to create the collector tooling, fill the inventory docs/json, and run the pytest collect-only guard from input.md so Phase A exits with a decision-carrying catalog.
+
+Action State: ready_for_implementation

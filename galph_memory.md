@@ -2615,3 +2615,20 @@ Action State: implementation_ready
 - Updated `implementation.md`, docs/fix_plan.md, and input.md with Phase C.37 scope: add debug-only instrumentation to `_compute_physics_for_position` capturing the raw scattering vector and a dual-basis HKL solve, extend the square-lattice probe to report projection deltas, and rerun the probe + partiality enforcement test under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-09T010000Z/`.
 - Next action for Ralph: implement the HKL projection audit so we can decide whether to patch `compute_physics_for_position`’s projection math or escalate toward spec_change/oversample adjustments.
 Action State: planning
+## Loop 2026-01-09T150000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase C.38 beam-center centering)
+**State**: ready_for_implementation
+**Dwell**: 0 (back to implementation after two instrumentation loops)
+**Action Type**: implementation_ready
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. The new HKL projection payload (`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-09T010000Z/square_lattice_scaling.{json,md}`) shows min_abs_delta_k=min_abs_delta_l=0.053846 for every subpixel even though the subpixel offsets straddle zero. Dual-basis deltas are ≤1.5e-5, so the projection math is sound—the traced beam is simply 1.5 pixels off the detector midline.
+2. Inspecting `nanobrag_torch/config.py::DetectorConfig.__post_init__` and `Detector.__init__` reveals the MOSFLM/DENZO auto defaults compute `(detsize + pixel)/2` and then the detector mapping adds another +0.5 pixel, so the final Sbeam/Fbeam land at `n/2 + 1` pixels instead of `n/2`. For the 1×1 probe that puts the beam 1.0 px off the only pixel, which matches the measured Δ≈7/130.
+3. Fix scope: change the MOSFLM/DENZO auto formulas to `(detsize - pixel)/2` so that after the +0.5 mapping the beam sits at `n/2` pixels on both axes. Leave explicit beam centers and other conventions untouched, then rerun the sanctioned probe + architecture test to confirm `(Na·Nb·Nc)^2` scaling recovers.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-10T010000Z/`
+
+**Next Actions**:
+- implementation_ready — Ralph to patch `nanobrag_torch/config.py::DetectorConfig.__post_init__` (MOSFLM/DENZO auto defaults := `(detsize - pixel)/2` so the +0.5 mapping recenters any detector), update the inline comments, and rerun the square-lattice probe plus `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1` while capturing artifacts under the new timestamp per input.md.

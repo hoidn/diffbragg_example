@@ -28,8 +28,9 @@ def test_sigma_metadata_manifest_and_loading() -> None:
     if not MANIFEST_PATH.exists():
         pytest.skip(
             "sigma_metadata_manifest.json missing; run "
-            "plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
-            "with --manifest to generate the metadata fixtures."
+            "`python -m dbex.tools.embed_sigma_external_lookup` "
+            "with --manifest to generate the metadata fixtures. "
+            "(Legacy: plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py)"
         )
 
     manifest = json.loads(MANIFEST_PATH.read_text())

@@ -94,7 +94,7 @@ class TestDB_AT_024_Mapping:
                 pytest.skip(
                     "Metadata sigma source requested but required assets are missing: "
                     f"{missing_metadata}. Run "
-                    "plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                    "`python -m dbex.tools.embed_sigma_external_lookup` "
                     "to regenerate sp.proc/idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}."
                 )
         expt_path = refined_expt if has_refined_geometry else legacy_expt

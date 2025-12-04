@@ -25,7 +25,7 @@ and manifest capture a stable command line:
 
 ```bash
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py \
+python -m dbex.tools.embed_sigma_external_lookup \
   --expt refGeom.expt \
   --output sp.proc/idx-0000_sigma_metadata.expt \
   --expt-idx 0 \

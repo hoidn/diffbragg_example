@@ -112,9 +112,9 @@ CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
 Scope: operational. Normative sigma precedence, unit_mode, and variance rules live in `docs/spec-db-core.md` and `docs/spec-db-interfaces.md`. This section only describes how the current tests exercise those rules and where to find artifacts.
 
 - Regression coverage: `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_requires_sigma_rdout,test_nanobrag_backend_accepts_sigma_map,test_nanobrag_backend_accepts_external_lookup_sigma_map,test_torch_diagnostics_metadata}` exercises the CLI guard, calibrated-map happy path, metadata provenance, and telemetry. Loader coverage lives in `tests/dbex/test_data_load_sigma_map.py::{test_sigma_map_loader_formats,test_external_lookup_sigma_map_ingestion,test_external_lookup_shape_or_value_errors}`. Collection logs for these selectors reside under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T063052Z/` (`collect_cli_sigma_map.log`, `collect_data_load_sigma_map.log`); pytest logs share the same prefix (`pytest_cli_sigma_map.log`, `pytest_data_load_sigma_map.log`).
-- Metadata fixtures for Stage smokes: `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py` clones `refGeom.expt` and injects deterministic sigma tiles either from a calibrated map (`--sigma-map`) or a uniform constant (`--sigma-value`). The script writes a new Experiment (`sp.proc/idx-0000_sigma_metadata.expt`) plus a pickle asset (`idx-0000_sigma_metadata.sigma_tiles.pkl`) and JSON provenance. Example command (Phase D canonical):
+- Metadata fixtures for Stage smokes: The canonical embedding tool `python -m dbex.tools.embed_sigma_external_lookup` clones `refGeom.expt` and injects deterministic sigma tiles either from a calibrated map (`--sigma-map`) or a uniform constant (`--sigma-value`). The tool writes a new Experiment (`sp.proc/idx-0000_sigma_metadata.expt`) plus a pickle asset (`idx-0000_sigma_metadata.sigma_tiles.pkl`) and JSON provenance. Example command (Phase D canonical):
   ```
-  python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py \
+  python -m dbex.tools.embed_sigma_external_lookup \
     --expt refGeom.expt \
     --output sp.proc/idx-0000_sigma_metadata.expt \
     --expt-idx 0 \
@@ -122,6 +122,7 @@ Scope: operational. Normative sigma precedence, unit_mode, and variance rules li
     --report plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/sigma_metadata.json \
     --manifest sp.proc/sigma_metadata_manifest.json
   ```
+  (Legacy alias: `python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py` remains for backward compatibility but delegates to the canonical owner.)
   Stage A/B/C smokes are all marked with `@pytest.mark.allow_metadata_sigma`, so pass `--smoke-sigma-source=metadata` (or export `DBEX_SMOKE_SIGMA_SOURCE=metadata`) to exercise DIALS external_lookup provenance; full-detector runs remain mandatory. Canonical metadata commands (run from repo root with `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=full AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`) now tee into `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/pytest_stage_{a,b,c}_full_metadata.log` and append telemetry to `telemetry_full_metadata.json`. Logs for the CLI sigma override share the same directory with `_full_cli.log` suffixes so both sources can be audited side by side.
   These runs assert that Stage B/C telemetry emits `sigma_readout_provenance="external_lookup"` while matching the strict χ² and detector-offset tolerances from REFINE-007/008. Pair them with collect-only evidence (`pytest --collect-only ... > collect_stage_full.log`) before archival so selector drift is detectable.
 

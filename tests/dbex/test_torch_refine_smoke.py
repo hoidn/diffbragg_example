@@ -334,7 +334,7 @@ def refinement_inputs(refgeom_dataload, smoke_sigma_source, request):
                 "Metadata sigma source requested but DataLoad lacks an external_lookup sigma_readout_map. "
                 "Ensure sp.proc/idx-0000_sigma_metadata.expt and "
                 "idx-0000_sigma_metadata.sigma_tiles.pkl exist by running "
-                "plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                "`python -m dbex.tools.embed_sigma_external_lookup` "
                 "with --sigma-value/--sigma-map."
             )
         sigma_readout_array = np.asarray(sigma_map, dtype=np.float32)

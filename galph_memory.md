@@ -2254,3 +2254,10 @@ Action State: ready_for_implementation
 - Updated input.md with a Parity-mode Do Now directing Ralph to add the geometry-mode flag, tag the JSON metadata with the selected mode, re-run the probe in `baseline` mode, and then re-run DB-AT-028/029 with the refreshed evidence bundle under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T010000Z/`.
 - Findings referenced: SCALE-008 (warm cache authority) and SCALE-009 (reconstruction scale provenance). No production edits scheduled—this loop is supervisor-side planning.
 Action State: ready_for_implementation
+
+2025-12-17T200000Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-17T180000Z/ next_action=Implement cold-path baseline alignment
+- Phase C.13 mapping baseline scaling landed (stage_a_baseline_probe_baseline.json shows Stage A vs mapping max|Δ|=3.9e-03 ADU, ROI CC=1.0), so Exit Criterion #1 is satisfied, but DB-AT-028/029 still fail because the reconstruction helper’s cold path ignores the mapping-adjusted baseline whenever StageAArtifacts are missing (masked mean ≈1.46× telemetry).
+- Updated `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` with Phase C.13 completion notes and new Phase C.14 checklist to align build_final_bragg_from_stage_a_telemetry’s cold path with Stage A telemetry; docs/fix_plan.md Attempts History now references the 2025-12-17 evidence bundle.
+- Rebuilt input.md with a Parity-mode Do Now directing Ralph to (a) rescale the cold-path reconstruction via telemetry masked means, (b) add a regression test that reproduces the cache-miss scenario, and (c) rerun the Stage A baseline probe + DB-AT-028/029 under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-18T010000Z/`.
+- Problems ledger item “DB-AT-028/029 scale mismatch” remains serviced by this initiative; focus stays on ARCH-SIM-CONSTRUCTION-001.
+Action State: ready_for_implementation

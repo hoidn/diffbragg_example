@@ -2557,3 +2557,9 @@ Action State: ready_for_implementation
 
 **Next Actions**:
 - implementation_ready — Ralph to author `tests/architecture/test_probe_contracts.py` (growth-cap scanner + shim assertions), update docs/TESTING_GUIDE.md with the enforcement runbook, and capture pytest/log artifacts under the reserved report directory.
+Action State: ready_for_implementation
+
+2026-01-02T150000Z focus=ARCH-PROBE-FREEZE-001 state=review_or_housekeeping dwell=0 action=review_or_housekeeping artifacts=plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-02T180000Z/ next_action=docs_closeout
+- Phase C finished yesterday but the plan/fix-plan/problems ledger still say “pending/in_progress”, so this loop issues a Docs-mode Do Now to flip those statuses, document closure, and archive a fresh enforcement-test log under the new report timestamp.
+- Updated input.md with review_or_housekeeping instructions: mark Phase C.2/C.3 complete in the plan, mark the Tier 0 fix-plan row done with artifact references, check the Problems ledger item, write a summary.md, and rerun `tests/architecture/test_probe_contracts.py` to prove the guard still passes after the doc edits.
+- Findings referenced: PROBE-FREEZE-001 (diagnostic_script_policy guard) and TESTING-003 (selector compliance). No production code edits scheduled—Ralph only touches plan/fix-plan/problems docs plus the enforcement test log this turn.

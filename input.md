@@ -1,45 +1,42 @@
-Summary: Capture single-pixel square-lattice scaling evidence and refresh the failing enforcement log before scheduling another simulator patch.
-Mode: Parity
-ActionType: parity_localization
+Summary: Close out ARCH-PROBE-FREEZE-001 by updating the plan/fix-plan/problems ledger to reflect Phase C completion and capture a fresh enforcement-test log.
+Mode: Docs
+ActionType: review_or_housekeeping
 DecisionStatus: localized
 InitiativeType: architecture
-Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
+Focus: ARCH-PROBE-FREEZE-001 — Probe Freeze & Logging Consolidation
 Branch: integration
 Mapped tests:
-  - KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py --output-dir plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z --n-cells 41 29 32 --oversample 13 --phi-count 1 --mosaic-count 1 --spixels 1 --fpixels 1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/square_lattice_probe.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/pytest_partiality.log
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/architecture/test_probe_contracts.py | tee plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-02T180000Z/pytest_probe_contracts.log
+Artifacts: plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-02T180000Z/
 Findings Applied (Mandatory):
-  - SIM-CONSTR-PARTIALITY-001 — enforcement test still red; collect decisive evidence before attempting another simulator patch.
-  - DIAG-OVERSAMPLE-001 — HKL alignment confirmed, so the new probe can assume A* mapping is correct.
-  - PROBE-FREEZE-001 — limit plan-local scripts to thin wrappers; the new probe must call `nanobrag_torch` owner APIs directly.
+  - PROBE-FREEZE-001 — enforcement test + diagnostic_script_policy govern probe freeze; closing docs must cite this finding.
+  - TESTING-003 — selector compliance guard; rerun the architecture enforcement test after doc updates.
 Pointers:
-  - plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md:400-436 — Phase C.29 recap and Phase C.30 checklist for the square-lattice scaling probe.
-  - docs/fix_plan.md:825-858 — Attempts history detailing the failed sincg patch and why we need a minimal reproduction.
-  - docs/spec-db-core.md:60-140 — SQUARE lattice weighting contract ((Na·Nb·Nc)² scaling) that the enforcement test encodes.
+  - plans/active/ARCH-PROBE-FREEZE-001/implementation.md:66-86 — Phase C checklist still shows C2/C3 open and Status=pending.
+  - docs/fix_plan.md:19-40 — Tier 0 entry lists ARCH-PROBE-FREEZE-001 as in_progress despite Phase C completion.
+  - problems.md:31-34 — Problems ledger item “Freeze plan-local probe scripts…” remains unchecked and needs closure notes.
 ARCH Contracts (mandatory):
-  - docs/spec-db-core.md:60-140 — Owner: `nanobrag_torch.simulator.compute_physics_for_position`; failure type: implementation bug (SQUARE lattice weights do not deliver `(Na·Nb·Nc)^2` scaling).
-  - docs/config_crosswalk.md:71-118 — Owner: `dbex.nanobrag_bridge`/simulator factory; failure type: implementation bug (calibration/lattice conventions misapplied in reconstruction cold path).
+  - prompts/supervisor.md:272-314 — diagnostic_script_policy (owner: supervisor prompt). Failure type: architecture conformance; docs must embed the guard so future loops honor the thin-wrapper rule.
+  - tests/architecture/test_probe_contracts.py:1-200 — enforcement owner module ensuring plan scripts stay thin; failure type: architecture conformance (guard must remain green after doc edits).
 Do Now (hard validity contract)
-1. Implement: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` — thin wrapper that instantiates `nanobrag_torch.Simulator` twice (N_cells=(1,1,1) vs `(41,29,32)`) with a 1×1 detector, single phi/mosaic sample, and configurable oversample. The CLI must accept `--output-dir`, `--n-cells`, `--oversample`, `--spixels`, `--fpixels`, `--phi-count`, and `--mosaic-count`, enable `debug_config={'collect_partiality_stats': True, 'trace_pixel': [0,0]}`, and emit:
-   * JSON file summarizing intensities, `(F_cell·F_latt)^2`, Lorentz/polarization factors, and the observed ratio.
-   * Markdown file highlighting the same numbers plus commentary on how far the ratio deviates from `(Na·Nb·Nc)^2`.
-   * Console log (captured via `tee`) that preserves the trace output for both cases.
-2. Run the probe with the canonical `N_cells=(41,29,32)` (oversample 13, phi=1, mosaic=1, spixels=fpixels=1) and store JSON/Markdown/log artifacts under the reserved directory. Summarize the measured ratio + expected delta in `summary.md`.
-3. Re-run `pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1` (failure expected) so the latest enforcement evidence and probe output live in the same artifact tree. Note the failure in `summary.md` with the observed vs expected ratios.
+1. Implement: plans/active/ARCH-PROBE-FREEZE-001/implementation.md — update Status to done, mark Phase C.2/C.3 checkboxes complete, and add a short closure paragraph referencing the 2026-01-01 artifacts + PROBE-FREEZE-001 finding so exit criteria #5 is explicit.
+2. Implement: docs/fix_plan.md — change the Tier 0 row for ARCH-PROBE-FREEZE-001 to done, summarize Phase B/C completion (with artifact pointer `plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-01T010000Z/`) and note that the Problems ledger item is now resolved.
+3. Implement: problems.md — mark “Freeze plan-local probe scripts in favor of parallel logging” as [x] with a pointer to docs/fix_plan.md + the newest report directory.
+4. Implement: plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-02T180000Z/summary.md — document the doc updates (plan, fix-plan, problems) and reference the fresh enforcement test log.
+5. Run `pytest -vv tests/architecture/test_probe_contracts.py` with AUTHORITATIVE_CMDS_DOC exported, capture the log under the artifacts directory, and confirm in summary.md that both enforcement cases still pass.
 Forbidden This Loop:
-  - no edits to `src/nanobrag-torch/**` or enforcement tests — this loop is evidence only.
-  - no DB-AT reruns or new plan-local probes beyond `probe_square_lattice_scaling.py`.
-  - no changes to `GROWTH_CAP_EXCEPTIONS` or other ARCH-PROBE-FREEZE-001 guards.
+  - no edits under src/ or tests/ beyond capturing the pytest output.
+  - do not modify GROWTH_CAP_EXCEPTIONS or add new plan-local scripts.
+  - no changes to other fix-plan rows outside ARCH-PROBE-FREEZE-001.
 How-To Map:
-  1. `mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z` and implement the probe script per Do Now #1 (keep it ≤150 LOC, owner-only imports).
-  2. `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py --output-dir plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z --n-cells 41 29 32 --oversample 13 --phi-count 1 --mosaic-count 1 --spixels 1 --fpixels 1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/square_lattice_probe.log`.
-  3. Inspect the generated JSON/Markdown to confirm they include base/scaled intensities, `(F_cell·F_latt)^2`, Lorentz/polarization factors, and the observed ratio; reference these numbers in `summary.md`.
-  4. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-02T010000Z/pytest_partiality.log` (capture failure output).
+  1. `mkdir -p plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-02T180000Z`.
+  2. Edit the plan, fix-plan, and problems ledger per Do Now #1-#3 (keep ASCII, cite artifacts/finding IDs).
+  3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv tests/architecture/test_probe_contracts.py | tee plans/active/ARCH-PROBE-FREEZE-001/reports/2026-01-02T180000Z/pytest_probe_contracts.log`.
+  4. Write summary.md covering the doc changes + test result, and link back to docs/fix_plan.md and problems.md updates.
 Pitfalls To Avoid:
-  - The probe script must remain a thin wrapper; do not re-encode Stage A or reconstruction logic.
-  - Set both `KMP_DUPLICATE_LIB_OK=TRUE` and `NANOBRAG_DISABLE_COMPILE=1` so the simulator runs deterministically and avoids torch.compile graph churn.
-  - Do not “fix” the failing pytest; the goal is to document the current shortfall alongside the probe results.
-  - Report ratios in both JSON and Markdown plus `summary.md` so downstream planning can compare against `(Na·Nb·Nc)^2`.
-  - Keep artifacts organized under the reserved timestamp (JSON, Markdown, `.log`, pytest log, summary.md).
-If Blocked: Capture the partial probe/pytest output under the artifacts directory, add a `blockers.md` with the failure description (command, stdout, traceback), and update docs/fix_plan.md Attempts History plus galph_memory with evidence explaining why the probe could not run (e.g., simulator import failure). Do not attempt simulator edits without new supervisor approval.
+  - Don’t forget to change the plan Status field; leaving it “pending” contradicts fix_plan.
+  - Keep the problems entry text but append closure references instead of deleting the bullet.
+  - Cite artifact paths + finding IDs inside docs/fix_plan.md per ledger rules.
+  - Ensure the pytest command uses AUTHORITATIVE_CMDS_DOC to satisfy testing guardrails.
+  - Capture logs under the new timestamp only—no reusing the 2026-01-01 report tree.
+If Blocked: Document the blocker in summary.md and galph_memory, attach any partial doc diffs/logs under the artifact directory, and explain in docs/fix_plan.md why closure couldn’t complete; do not downgrade problem status without evidence.

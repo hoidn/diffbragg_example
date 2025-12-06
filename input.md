@@ -1,16 +1,16 @@
-# Loop i=108 — ARCH-IMPL-CONFORMANCE-001 Phase A.1 Planning
+# Ralph Input — Loop i=109
 
 ## Summary
-Plan Phase A.1 (nucleus architecture test) for ARCH-IMPL-CONFORMANCE-001 after ARCH-SIM-CONSTRUCTION-001 blocked pending environment investigation.
+Implement Phase A.1 nucleus test for ARCH-IMPL-CONFORMANCE-001 to establish baseline detection of Stage A vs reconstruction scaling mismatch.
 
 ## Mode
-Docs
+TDD
 
 ## ActionType
-planning
+implementation_ready
 
 ## DecisionStatus
-exploring
+patch_ready
 
 ## InitiativeType
 architecture
@@ -21,153 +21,197 @@ architecture
 ## Branch
 integration
 
-## Mapped Tests
-none — planning-only (architecture test nucleus will be defined this loop)
+## Mapped tests
+```bash
+pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale
+```
 
 ## Artifacts
-`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/`
+`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/`
 
 ## Findings Applied (Mandatory)
-- **SCALE-008** (docs/findings.md:322-339): Stage A warm-cache baseline authority — relevant for defining the Stage A ↔ reconstruction scaling contract.
-- **SCALE-009** (docs/findings.md:341-358): Reconstruction scaling provenance (to be corrected/clarified under this initiative).
-- **ARCH-FACTORY-001** (docs/findings.md:360-377): Unified simulator factory responsibilities — provides boundaries for the proposed owner API.
-- **PROBE-FREEZE-001** (docs/findings.md:379-396): Probe freeze policy — enforcement tests must be under `tests/architecture/`, not plan-local.
-- **No other findings directly applicable** to Phase A.1 planning scope.
+- **SCALE-008** (docs/findings.md:42 line 322-339): Stage A warm-cache baseline authority — Nucleus test will validate this contract by comparing Stage A warm-cache forward vs reconstruction cold-path masked means.
+- **SCALE-009** (docs/findings.md:43 line 341-358): Reconstruction scaling provenance — Test will expose whether reconstruction duplicates vs reuses Stage A scaling logic.
+- **ARCH-FACTORY-001** (docs/findings.md:90 line 360-377): Unified simulator factory responsibilities — Test uses existing factory/helpers without modification to establish baseline behavior.
+- **PROBE-FREEZE-001** (docs/findings.md:93 line 393-410): Probe freeze policy — Test is architecture enforcement (tests/architecture/), not plan-local probe, so no growth cap applies.
 
 ## Pointers
-- **Spec:** docs/spec-db-core.md:20-140 (simulator construction, calibration threading)
-- **Architecture:** docs/architecture/calibration_scaling.md:80-145 (spot_scale/sigma threading), docs/architecture/module_map.md (owner modules)
-- **Testing Guide:** docs/TESTING_GUIDE.md:255-320 (architecture test execution workflow)
-- **Implementation Plan:** plans/active/ARCH-IMPL-CONFORMANCE-001/implementation.md:1-100
-- **Kickoff Report:** plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/summary.md (findings inventory, module inventory)
+- **Spec:** docs/spec-db-core.md:60-140 (simulator construction, calibration threading, 1e-6 tolerance)
+- **Arch:** docs/architecture/calibration_scaling.md (spot_scale_override sqrt pattern)
+- **Testing:** docs/TESTING_GUIDE.md:255-320 (architecture test execution workflow)
+- **Design:** plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/nucleus_test_design.md (full test specification)
+- **Implementation Plan:** plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/phase_a1_implementation_plan.md
 
 ## ARCH Contracts (mandatory)
-### Relevant ARCH-CONTRACTs for this initiative:
-1. **ARCH-SCALE-PARITY-001** (to be defined this initiative):
-   - **Owner Module/API:** `dbex.refinement.helpers.simulate_forward_once` (canonical mapping forward path)
-   - **Forbidden Duplicates:** Any Stage A or reconstruction helper that re-implements spot_scale threading or sqrt multiplication outside the owner API
-   - **Failure Classification:** Implementation bug (Stage A vs reconstruction currently duplicate spot_scale logic; must centralize)
+- **ARCH-CONTRACT-001** (proposed, to be enforced): Stage A vs Reconstruction Scaling Parity
+  - **Owner**: dbex/refinement/stage_a.py:442-443 (Stage A sqrt scaling pattern)
+  - **Duplicates**: dbex/refinement/reconstruction.py:167-223 (reconstruction cold path duplicates Stage A pattern)
+  - **Failure Classification**: Implementation bug within architecture (duplicated logic instead of shared owner API)
 
-2. **ARCH-BASELINE-OVERRIDE-001** (to be defined this initiative):
-   - **Owner Module/API:** `dbex.refinement.stage_a_utils.build_mapping_stage_a_context` (warm-cache authority for masked-intensity baseline)
-   - **Forbidden Duplicates:** Reconstruction helpers must not re-derive masked baselines independently; must consume telemetry baseline
-   - **Failure Classification:** Architecture conformance failure (reconstruction helper currently ignores telemetry baseline in some paths)
+- **ARCH-CONTRACT-002** (proposed, to be enforced): Calibration Metadata Threading
+  - **Owner**: dbex/refinement/stage_a_utils.py:267 (beam calibration threading)
+  - **Duplicates**: Multiple paths in reconstruction.py, nanobrag_bridge.py threading calibration separately
+  - **Failure Classification**: Architecture conformance failure (duplicated semantics exist, no canonical API)
+
+- **ARCH-CONTRACT-003** (proposed, to be enforced): Masked-Mean Computation Consistency
+  - **Owner**: dbex/refinement/stage_a_impl.py:1336-1365 (Stage A trusted-mask intersection pattern)
+  - **Duplicates**: Reconstruction helpers may apply masks differently
+  - **Failure Classification**: Architecture conformance failure (no shared mask normalization API)
 
 ## Do Now (hard validity contract)
 
-### Focus
-[ARCH-IMPL-CONFORMANCE-001] Phase A.1 — Nucleus Architecture Test Planning
+**Focus**: [ARCH-IMPL-CONFORMANCE-001] Phase A.1
 
-### Implement
-Not applicable (Mode: Docs) — **Planning loop only**. Next loop will implement the nucleus test defined here.
+**Implement**: `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale`
 
-### Validating pytest selector(s)
-None this loop (nucleus test does not exist yet; will be created next loop per plan output).
+**Validating pytest selector**:
+```bash
+pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale --tb=short
+```
 
-### Artifacts path
-`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/`
+**Artifacts path**: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/`
 
-### Initiative type constraint check
-✅ Initiative type=architecture; requested work=planning ARCH-CONTRACTs, defining nucleus test scope — **VALID**
+**Initiative type**: architecture (ARCH-CONTRACT enforcement)
 
-### Concrete deliverables for this loop:
-1. **Read kickoff report** (plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/summary.md, findings_inventory.md, module_inventory.md) to understand duplicated scaling patterns already identified.
+### Detailed Implementation Steps
 
-2. **Design nucleus architecture test** (Phase A.0 checklist item):
-   - Test file: `tests/architecture/test_scale_contracts.py` (new file)
-   - Test function: `test_stage_a_vs_reconstruction_scale` (minimal reproducer)
-   - Scope: Compare masked mean outputs from Stage A warm-cache vs reconstruction helper using refGeom_small fixture (same geometry, same calibration metadata, param_state="initial")
-   - Expected behavior: Masked means must match within ≤1e-6 relative error (docs/spec-db-core.md:60-140 tolerance)
-   - Current expected outcome: **FAIL** (exposes current mismatch from ARCH-SIM-CONSTRUCTION-001 C.1-C.39 evidence)
+1. **Create new test module**: `tests/architecture/test_scale_contracts.py`
 
-3. **Document test design** in new planning note:
-   - File: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/nucleus_test_design.md`
-   - Contents:
-     - Test rationale (expose Stage A vs reconstruction scaling drift)
-     - Fixture selection (refGeom_small, same as DB-AT-027/028/029)
-     - Assertion logic (masked mean comparison)
-     - Success criteria (FAIL initially, PASS after Phase B owner API implemented)
-     - Cross-refs to SCALE-008/009, ARCH-FACTORY-001
+2. **Implement `test_stage_a_vs_reconstruction_scale` function** following nucleus_test_design.md:
 
-4. **Draft Phase A.1 implementation plan** for next loop:
-   - File: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/phase_a1_implementation_plan.md`
-   - Contents:
-     - Step-by-step guide for implementing `test_stage_a_vs_reconstruction_scale`
-     - Required imports (`DataLoad`, `build_mapping_stage_a_context`, `build_final_bragg_from_stage_a_telemetry`)
-     - Fixture setup (load refGeom_small, run Stage A to get telemetry)
-     - Reconstruction invocation (call helper with telemetry, param_state="initial")
-     - Comparison logic (compute masked means, assert within tolerance)
-     - Validation commands (pytest selector, expected FAIL outcome with metrics capture)
+   a. **Fixture Setup**:
+   - Use `refgeom_dataload` fixture (tests/conftest.py:90-163) to load `refGeom_small`
+   - Extract geometry, calibration_metadata, trusted_mask from DataLoad
+   - Ensure param_state="initial" (zero refinement deltas)
 
-5. **Update implementation.md Phase A checklist**:
-   - Mark A0 as [x] complete (nucleus test designed)
-   - Update status to reflect planning complete, ready for A.1 implementation next loop
+   b. **Stage A Path (Warm-Cache)**:
+   - Import: `from dbex.vis.mapping import build_mapping_stage_a_context`
+   - Call `build_mapping_stage_a_context(DL, ...)` to get Stage A artifacts
+   - Extract `bragg_stage_a` (post-sqrt-scaling Bragg tensor)
+   - Compute `masked_mean_stage_a = mean(bragg_stage_a[trusted_mask])`
 
-6. **Write summary.md** for this planning loop documenting:
-   - Lifecycle decision from ARCH-SIM-CONSTRUCTION-001 (marked blocked_pending_environment)
-   - Portfolio switch rationale (Tier 0 unblocked item)
-   - Nucleus test design summary
-   - Next action (delegate test implementation to Ralph)
+   c. **Reconstruction Path (Cold)**:
+   - Import: `from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry`
+   - Call reconstruction helper with Stage A telemetry, param_state="initial", same calibration_metadata
+   - Extract `bragg_reconstruction` from reconstruction outputs
+   - Compute `masked_mean_reconstruction = mean(bragg_reconstruction[trusted_mask])`
+
+   d. **Assertion Logic**:
+   ```python
+   rel_error = abs(masked_mean_stage_a - masked_mean_reconstruction) / masked_mean_stage_a
+   assert rel_error <= 1e-6, (
+       f"Stage A vs reconstruction masked mean mismatch: "
+       f"stage_a={masked_mean_stage_a:.6e}, "
+       f"reconstruction={masked_mean_reconstruction:.6e}, "
+       f"rel_error={rel_error:.6e} (tolerance=1e-6)"
+   )
+   ```
+
+3. **Run test and capture baseline failure**:
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale --tb=short \
+   > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/pytest_nucleus_baseline.log 2>&1
+   ```
+
+4. **Capture metrics on failure**:
+   - Extract `masked_mean_stage_a`, `masked_mean_reconstruction`, `rel_error` from pytest output
+   - Compute ratio `masked_mean_stage_a / masked_mean_reconstruction`
+   - Write metrics to `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/nucleus_baseline_metrics.json`
+
+5. **Update implementation.md**:
+   - Mark A0 [x] complete
+   - Add A1 loop record with timestamp, artifacts, outcome (PASS/FAIL + metrics)
 
 ## Forbidden This Loop
-- **No production code changes** (planning only)
-- **No new probes** (enforcement tests are the mechanism, not plan-local probes)
-- **Do not implement the nucleus test yet** (design it, defer implementation to next loop)
+- no new probes in `plans/active/ARCH-IMPL-CONFORMANCE-001/bin/` (test goes in `tests/architecture/` per ARCH-CONTRACT enforcement pattern)
+- do not modify Stage A or reconstruction production code (baseline test must expose current mismatch)
+- do not touch dbex/refinement/stage_a.py, dbex/refinement/reconstruction.py, dbex/nanobrag_bridge.py (Phase B scope)
 
 ## How-To Map
 
-### Commands for this loop
-No pytest/probe runs this loop. Planning only.
+### Environment
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+KMP_DUPLICATE_LIB_OK=TRUE
+NANOBRAGG_DISABLE_COMPILE=1
+```
 
-### Artifact destinations
-All deliverables go to: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/`
-- `nucleus_test_design.md`
-- `phase_a1_implementation_plan.md`
-- `summary.md`
-- Updated `../implementation.md` (mark A0 complete)
+### Test Execution
+```bash
+# Run nucleus test (expect FAIL showing current mismatch)
+pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale --tb=short \
+  > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/pytest_nucleus_baseline.log 2>&1
+
+# Verify test collection
+pytest --collect-only tests/architecture/test_scale_contracts.py \
+  > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/pytest_collection.log 2>&1
+```
+
+### Artifact Destinations
+- Test module: `tests/architecture/test_scale_contracts.py` (new file)
+- Pytest baseline log: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/pytest_nucleus_baseline.log`
+- Collection log: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/pytest_collection.log`
+- Baseline metrics: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/nucleus_baseline_metrics.json`
+- Summary: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/summary.md`
 
 ## Pitfalls To Avoid
-1. **Type discipline:** This is an `architecture` initiative. Do not attempt `spec_change` work (relaxing acceptance criteria). Only align implementation to existing spec.
-2. **No stacking on cliff:** ARCH-SIM-CONSTRUCTION-001 is blocked on environment dependency; do not try to fix it here. Focus on ARCH-IMPL-CONFORMANCE-001 scope only.
-3. **Parity-first:** Nucleus test should expose the Stage A vs reconstruction mismatch that blocked ARCH-SIM-CONSTRUCTION-001. Design it carefully so it's a stable baseline.
-4. **Shadow-pipeline guard:** Enforcement tests go under `tests/architecture/`, NOT `plans/active/.../bin/`. Follow PROBE-FREEZE-001 policy.
-5. **Implementation floor:** This is the first planning loop for this initiative. Next loop MUST implement the nucleus test (not another planning loop).
-6. **ARCH/Impl consistency gate:** You have classified this as an implementation bug (Stage A vs reconstruction duplicate spot_scale logic). Do not retype unless evidence shows otherwise.
+
+1. **Type discipline**: This is architecture type, not bugfix/perf — test must enforce ARCH-CONTRACT, not fix production code this loop
+2. **No stacking**: Baseline test must run against current implementation (do not attempt to fix Stage A/reconstruction before establishing baseline)
+3. **Parity-first**: Test establishes current divergence magnitude before attempting alignment (Phase B will fix)
+4. **Shadow-pipeline guard**: Test goes in tests/architecture/, uses existing fixtures/helpers, no new plan-local scripts
+5. **Spec alignment**: 1e-6 tolerance matches docs/spec-db-core.md:60-140 (do not invent new tolerance)
+6. **Fixture selection**: Use refgeom_dataload fixture (conftest.py:90-163), not direct file loading (maintains test isolation)
+7. **Import paths**:
+   - `from dbex.vis.mapping import build_mapping_stage_a_context` (Stage A context builder)
+   - `from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry` (reconstruction helper)
+8. **Masked-mean computation**: Apply same trusted_mask to both Stage A and reconstruction outputs before computing means (mask from DataLoad fixture)
+9. **Param state**: Ensure param_state="initial" for reconstruction (zero deltas) to match Stage A zero-point
+10. **Telemetry threading**: Reconstruction helper requires Stage A telemetry — extract from Stage A artifacts returned by build_mapping_stage_a_context
 
 ## If Blocked
-If you discover that the nucleus test cannot be designed without additional evidence (e.g., missing telemetry fields, unclear reconstruction helper API):
-- Document the blocking condition in `nucleus_test_design.md`
-- Mark initiative as `blocked_pending_<reason>` in implementation.md
-- Switch focus back to Tier 1 or propose a diagnostic initiative to gather missing evidence
-- Do NOT proceed with Phase A.1 implementation if design is incomplete
 
-## Doc Sync Plan
-Not applicable this loop (no new tests yet; nucleus test will be added next loop and collection log will be captured then).
+If any blocker occurs:
+1. Document blocker in `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/blocker.md`
+2. Mark initiative status `blocked_pending_<reason>` in implementation.md
+3. Potential blockers:
+   - Missing fixture access (refGeom_small unavailable) → try alternative fixture
+   - API signature changed (build_mapping_stage_a_context) → review code, adapt test design
+   - Environment failure (pytest collection fails) → escalate to supervisor
+4. Do NOT proceed with test implementation if blocked — document and escalate
 
----
+## Doc Sync Plan (Conditional)
 
-## Background Context
+**Triggered**: Yes (new test authored)
 
-### ARCH-SIM-CONSTRUCTION-001 Blocking Summary
-- After 39 loops (C.1-C.39), ARCH-SIM-CONSTRUCTION-001 marked **blocked_pending_environment** (2026-01-13T200000Z).
-- Root cause: sincg lattice factor bug in nanobrag_torch SQUARE branch (F_latt at 11% of expected amplitude).
-- PROBE-FREEZE-001 forbids further plan-local instrumentation.
-- Three unblock options: (A) maintainer investigation [RECOMMENDED], (B) spec_change, (C) harness-grade diagnostic initiative.
-- Lifecycle budget exceeded: 39 loops vs 6-loop hard limit without validated first-divergence or monotonic improvement.
-- Cross-refs: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/lifecycle_decision.md, reports/2026-01-13T150000Z/BLOCKED.md
+After test implementation:
+1. Run collection-only to verify selector is discoverable:
+   ```bash
+   pytest --collect-only tests/architecture/test_scale_contracts.py \
+     > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/pytest_collection.log 2>&1
+   ```
+2. Update test registries (after code passes):
+   - Add `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale` to docs/TESTING_GUIDE.md §Architecture Tests
+   - Add row to docs/development/TEST_SUITE_INDEX.md with Status=Active, Purpose="ARCH-CONTRACT-001 enforcement (Stage A vs reconstruction scaling parity)"
+3. Cross-reference in findings:
+   - Update SCALE-008, SCALE-009 findings to reference the new enforcement test
+   - Note: enforcement test currently FAILS (baseline), will PASS after Phase B canonical API implementation
 
-### Portfolio Steering Decision
-- Switched focus to ARCH-IMPL-CONFORMANCE-001 (Tier 0, pending, architecture type, unblocked).
-- Rationale: Define ARCH-CONTRACTs + enforcement tests to prevent future Stage A/reconstruction drift.
-- Kickoff planning already complete (2026-01-13T150000Z): findings inventory, module inventory.
-- Next step: Design nucleus test (Phase A.0), then implement it (Phase A.1 next loop).
+## Expected Outcome
 
-### Key Findings Context
-- **SCALE-008:** Stage A warm-cache masked-intensity baseline is authoritative (docs/findings.md:322-339).
-- **SCALE-009:** Reconstruction scaling provenance (to be corrected under this initiative; docs/findings.md:341-358).
-- **ARCH-FACTORY-001:** Unified simulator factory responsibilities (docs/findings.md:360-377).
-- **PROBE-FREEZE-001:** Enforcement tests must be under `tests/architecture/`, not plan-local (docs/findings.md:379-396).
+**Test Status**: FAIL (baseline detector)
 
----
+**Metrics**:
+- `masked_mean_stage_a` ≠ `masked_mean_reconstruction` (mismatch exposed)
+- `rel_error > 1e-6` (outside tolerance)
+- Ratio `masked_mean_stage_a / masked_mean_reconstruction` ≠ 1.0 (quantifies divergence)
 
-**End of input.md**
+**Artifacts**:
+- pytest log showing AssertionError with metrics
+- nucleus_baseline_metrics.json capturing divergence magnitude
+- summary.md documenting Phase A.1 completion and readiness for Phase B
+
+**Next Loop**: Phase B canonical API implementation to eliminate duplicated scaling logic and make test PASS

@@ -1,0 +1,40 @@
+{
+  "test": "test_stage_a_vs_reconstruction_scale_cold_path",
+  "phase": "A.2",
+  "timestamp": "2026-01-13T230000Z",
+  "outcome": "FAIL",
+  "expected_outcome": "FAIL (exposes duplicated scaling logic drift)",
+  "metrics": {
+    "masked_mean_stage_a": 2.15907e0,
+    "masked_mean_reconstruction_cold": 7.626188e-1,
+    "rel_error": 6.467836e-1,
+    "ratio_stage_a_over_reconstruction": 2.831126,
+    "tolerance": 1e-6
+  },
+  "interpretation": {
+    "drift_magnitude": "64.7% relative error",
+    "scale_factor": "2.83x (Stage A produces 2.83x higher values than cold-path reconstruction)",
+    "root_cause_hypothesis": "Duplicated sqrt(spot_scale_override) scaling logic in reconstruction.py:203-208 missing or applied differently than stage_a.py:442-443",
+    "severity": "architecture_conformance_failure",
+    "next_phase": "Phase B canonical API implementation to eliminate duplicates"
+  },
+  "contracts": {
+    "ARCH-CONTRACT-001": {
+      "status": "VIOLATED (cold-path only)",
+      "warm_cache_status": "SATISFIED (Phase A.1 test passed)",
+      "cold_path_status": "VIOLATED (Phase A.2 test failed)"
+    },
+    "ARCH-CONTRACT-002": {
+      "status": "NOT_SATISFIED",
+      "duplicates_confirmed": [
+        "dbex/refinement/stage_a.py:442-443",
+        "dbex/refinement/reconstruction.py:203-208 (cold path)"
+      ]
+    }
+  },
+  "artifacts": {
+    "pytest_log": "plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T230000Z/pytest_cold_path_baseline.log",
+    "collection_log": "plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T230000Z/pytest_collection.log",
+    "metrics_json": "plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T230000Z/cold_path_metrics.json"
+  }
+}

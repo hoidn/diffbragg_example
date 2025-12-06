@@ -73,7 +73,9 @@
 - Phase A.1 analysis complete (2026-01-13T220000Z): cold-path scenario identified as unvalidated, Phase A.2 planned (phase_a1_outcome_analysis.md)
 - Phase A.2 implementation complete (2026-01-13T230000Z): cold-path enforcement test FAILED (expected), 64.7% rel_error, 2.83x scale factor drift confirmed
 - Phase B.1-B.2 planning complete (2026-01-14T000000Z): phase_b_planning.md scopes canonical scaling_utils module + calibration_metadata threading
-- **Next: Phase B.1-B.2** (loop i=111): implement canonical API + thread calibration_metadata to reconstruction
+- Phase B.1-B.2 implementation complete (2026-01-14T000000Z, loop i=111): canonical API delivered (11/11 unit tests PASS), calibration_metadata threaded to reconstruction, warm-cache regression PASS, cold-path baseline FAIL as expected
+- Phase B.3-B.4 planning complete (2026-01-14T020000Z): phase_b3_b4_planning.md scopes Stage A + reconstruction refactor to use canonical API
+- **Next: Phase B.3-B.4** (loop i=112): refactor stage_a.py:442-443 and reconstruction.py:213-221 to use apply_sqrt_spot_scale, expect cold-path test PASS
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** dbex/refinement/stage_a.py, dbex/refinement/reconstruction.py, dbex/nanobrag_bridge.py, dbex/refinement/helpers.py, tests/architecture/* (new).
@@ -86,11 +88,11 @@
 
 ## Phase B — Canonical Owner APIs + Enforcement
 ### Checklist
-- [ ] B1: Create `dbex/refinement/scaling_utils.py` with canonical `apply_sqrt_spot_scale` function + unit tests **[PLANNED 2026-01-14T000000Z — phase_b_planning.md]**
-- [ ] B2: Thread `calibration_metadata` to reconstruction cold path (update signature, extract in cold path) **[PLANNED 2026-01-14T000000Z — phase_b_planning.md]**
-- [ ] B3: Refactor Stage A to use canonical API (stage_a.py:442-443 → call `apply_sqrt_spot_scale`)
-- [ ] B4: Refactor reconstruction to use canonical API (reconstruction.py:203-208 → call `apply_sqrt_spot_scale`)
-- [ ] B5: Architecture enforcement tests — Phase A.1 (warm-cache) and A.2 (cold-path) both PASS **[Phase A.1/A.2 tests already exist]**
+- [x] B1: Create `dbex/refinement/scaling_utils.py` with canonical `apply_sqrt_spot_scale` function + unit tests **[COMPLETE 2026-01-14T000000Z — 11/11 unit tests PASS]**
+- [x] B2: Thread `calibration_metadata` to reconstruction cold path (update signature, extract in cold path) **[COMPLETE 2026-01-14T000000Z — parameter added, cold-path extraction at lines 213-221]**
+- [ ] B3: Refactor Stage A to use canonical API (stage_a.py:442-443 → call `apply_sqrt_spot_scale`) **[PLANNED 2026-01-14T020000Z — phase_b3_b4_planning.md]**
+- [ ] B4: Refactor reconstruction to use canonical API (reconstruction.py:213-221 → call `apply_sqrt_spot_scale`) **[PLANNED 2026-01-14T020000Z — phase_b3_b4_planning.md]**
+- [ ] B5: Architecture enforcement tests — Phase A.1 (warm-cache) and A.2 (cold-path) both PASS **[Phase A.1 PASS; A.2 awaits B.3-B.4 refactor]**
 - [ ] B6: Update docs/findings.md (SCALE-008/009), docs/TESTING_GUIDE.md, docs/development/TEST_SUITE_INDEX.md
 
 ### Notes & Risks

@@ -61,7 +61,7 @@
 ### Checklist
 - [x] A0: **Nucleus / Test-first gate:** Identify or create a minimal architecture test that exposes current Stage A vs reconstruction scaling mismatch (e.g., a small `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale`). **[COMPLETE 2026-01-13T200000Z — nucleus_test_design.md]**
 - [x] A1: **Nucleus test implementation** — Implement `test_stage_a_vs_reconstruction_scale` for warm-cache path validation. **[COMPLETE 2026-01-13T210000Z — test PASSED (unexpected), warm-cache parity confirmed via ARCH-SIM-CONSTRUCTION-001 Phase C.8 cache optimization]**
-- [ ] A2: **Cold-path enforcement test** — Add `test_stage_a_vs_reconstruction_scale_cold_path` to validate reconstruction cold-path contract (force `stage_a_ctx=None` to bypass cache). **[PLANNED 2026-01-13T220000Z — next loop, TDD approach]**
+- [x] A2: **Cold-path enforcement test** — Add `test_stage_a_vs_reconstruction_scale_cold_path` to validate reconstruction cold-path contract (force `stage_a_ctx=None` to bypass cache). **[COMPLETE 2026-01-13T230000Z — test FAILED (expected), 64.7% rel_error, 2.83x scale factor drift confirmed]**
 - [x] A3: Extract all existing SCALE/ARCH findings touching simulator construction and scaling (SCALE-008/009, ARCH-FACTORY-001) and cross-check them against current Stage A, reconstruction, and `simulate_forward_once` implementations. **[COMPLETE 2026-01-13T150000Z — findings_inventory.md, module_inventory.md]**
 - [x] A4: Identify duplicated semantics and inconsistencies (e.g., double-sqrt handling, conflicting SCALE-009 text vs implementation) and document them as candidate ARCH-CONTRACT corrections. **[COMPLETE 2026-01-13T150000Z — findings_inventory.md identified 3 patterns]**
 - [x] A5: Propose concrete ARCH-CONTRACT definitions for at least the Stage A ↔ reconstruction scaling path and Stage A ↔ mapping baseline path, including owner API(s) and forbidden duplicates list. **[COMPLETE 2026-01-13T150000Z — ARCH-CONTRACT-001/002/003 proposed in summary.md]**
@@ -71,8 +71,8 @@
 - Phase A.0 nucleus test design complete (2026-01-13T200000Z): nucleus_test_design.md, phase_a1_implementation_plan.md
 - Phase A.1 implementation complete (2026-01-13T210000Z): nucleus test PASSED (warm-cache parity validated via cache optimization)
 - Phase A.1 analysis complete (2026-01-13T220000Z): cold-path scenario identified as unvalidated, Phase A.2 planned (phase_a1_outcome_analysis.md)
-- **Next: Phase A.2** (loop i=110): implement cold-path enforcement test to validate reconstruction cold-path contract before Phase B canonical API work
-- After A.2: Proceed to Phase B (canonical API implementation) if cold-path test confirms drift
+- Phase A.2 implementation complete (2026-01-13T230000Z): cold-path enforcement test FAILED (expected), 64.7% rel_error, 2.83x scale factor drift confirmed
+- **Next: Phase B** (loop i=111): canonical API implementation (B.1-B.2: scaling_utils + calibration threading)
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** dbex/refinement/stage_a.py, dbex/refinement/reconstruction.py, dbex/nanobrag_bridge.py, dbex/refinement/helpers.py, tests/architecture/* (new).

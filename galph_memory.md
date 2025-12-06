@@ -1,13 +1,11 @@
-2026-01-13T210000Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T210000Z/ next_action=implement_nucleus_test
-- Portfolio decision: switched focus from ARCH-SIM-CONSTRUCTION-001 (blocked_pending_environment per lifecycle decision 2026-01-13T200000Z) to ARCH-IMPL-CONFORMANCE-001 (Tier 0, architecture type, ready to start).
-- Phase A.0 nucleus test design complete (nucleus_test_design.md + phase_a1_implementation_plan.md); Phase A.1 implementation now scheduled.
-- Do Now: Implement tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale (TDD mode, expect FAIL baseline detector) following nucleus_test_design.md specification.
-- Test will compare Stage A warm-cache forward (build_mapping_stage_a_context) vs reconstruction cold-path (build_final_bragg_from_stage_a_telemetry) masked means with 1e-6 tolerance per docs/spec-db-core.md:60-140.
-- Mapped validation: pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale with refgeom_dataload fixture (refGeom_small).
-- Findings applied: SCALE-008/009 (scaling parity), ARCH-FACTORY-001 (factory responsibilities), PROBE-FREEZE-001 (enforcement test policy).
-- ARCH-CONTRACTs: ARCH-CONTRACT-001 (Stage A vs reconstruction scaling), ARCH-CONTRACT-002 (calibration threading), ARCH-CONTRACT-003 (masked-mean consistency) — all classified as architecture conformance failures (duplicated semantics, no canonical owner APIs).
-- Exit criterion this loop: Phase A.1 complete — baseline test implemented, pytest log captured showing FAIL with metrics (masked_mean divergence), artifacts stored under 2026-01-13T210000Z.
-Action State: implementation_ready
+2026-01-13T220000Z focus=ARCH-IMPL-CONFORMANCE-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T220000Z/ next_action=phase_a2_cold_path_test_planning
+- Phase A.1 outcome analysis complete: nucleus test PASSED (not FAIL as expected) with perfect parity (rel_error=0, ratio=1.0).
+- Root cause: ARCH-SIM-CONSTRUCTION-001 Phase C.8 cache optimization in dbex/refinement/reconstruction.py:83-86 returns cached bragg_zero_iter when stage_a_ctx provided + param_state='initial', bypassing all simulator/scaling logic.
+- Contract satisfaction: ARCH-CONTRACT-001 warm-cache path SATISFIED, but cold-path (stage_a_ctx=None, lines 88-223) unvalidated with duplicated scaling logic still present.
+- Phase A.2 planned (TDD approach): implement test_stage_a_vs_reconstruction_scale_cold_path to force reconstruction cold-path, expecting FAIL baseline showing duplicated logic drift before Phase B canonical API work.
+- Phase A.1 outcome documented in phase_a1_outcome_analysis.md, implementation.md updated (A1 complete, A2 planned), fix_plan.md Attempts History updated.
+- Next loop (i=110): Phase A.2 cold-path enforcement test implementation (TDD mode) with expected FAIL validating duplicates still exist in cold path.
+Action State: planning
 
 2026-01-13T200000Z focus=ARCH-SIM-CONSTRUCTION-001 state=lifecycle_decision dwell=2 action=review_or_housekeeping artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/ next_action=mark_blocked_escalate_to_environment
 - Ralph's C.39 omega blocking was correct: omega hypothesis definitively rejected by evidence showing deficit exists in raw subpixel sum BEFORE omega application. F_latt at 11% of expected amplitude (vs 100%) indicates sincg lattice factor bug in nanobrag_torch itself.

@@ -1,0 +1,18 @@
+{
+  "test": "tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale",
+  "phase": "A.1",
+  "timestamp": "2026-01-13T210000Z",
+  "outcome": "PASS",
+  "metrics": {
+    "masked_mean_stage_a": 2.128348e+00,
+    "masked_mean_reconstruction": 2.128348e+00,
+    "rel_error": 0.000000e+00,
+    "ratio_stage_a_over_reconstruction": 1.000000
+  },
+  "cache_behavior": "CACHE_HIT",
+  "cache_message": "[ARCH-SIM-CONSTRUCTION-001 CACHE HIT] Returning cached zero-iteration Bragg stack for param_state='initial'",
+  "interpretation": "Test PASSED with perfect parity (rel_error=0). When stage_a_ctx is provided to reconstruction with param_state='initial', the cached bragg_zero_iter is returned directly, ensuring exact parity. This validates that ARCH-SIM-CONSTRUCTION-001 Phase C.8 cache optimization correctly maintains Stage A vs reconstruction alignment in the warm-cache code path.",
+  "contract_status": "SATISFIED (warm-cache path)",
+  "tolerance": 1e-6,
+  "fixture": "refgeom_dataload (refGeom_small)"
+}

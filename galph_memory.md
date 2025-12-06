@@ -2712,3 +2712,31 @@ Action State: ready_for_implementation
 - Environment Freeze exception bookkeeping: capture patch as `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/omega_compensation.patch`, rebuild nanobrag-torch editable install, tag environment in `patches/environment_tag.md`, update `docs/findings.md::SIM-CONSTR-PARTIALITY-001`.
 - Expected outcome: enforcement test and probe ratios improve to ≥0.99× (≤1% error), forward parity achieved. DB-AT-028/029 may still fail due to downstream reconstruction issues (SCALE-009), but that represents progress.
 Action State: ready_for_implementation
+
+## Loop 2026-01-13T150000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (C.39 omega diagnosis correction)
+**State**: planning
+**Dwell**: 0 (fresh planning loop after Ralph's block)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Ralph correctly blocked C.39 omega compensation implementation, identifying a specification contradiction: input.md said "apply omega once after sum" while DMI ledger expected normalized/raw ≈ 1.0, which are incompatible when omega ≈ 1e-6.
+2. Re-analysis of C.38 instrumentation evidence proves **omega is a red herring**: The 90.60% deficit appears in `trace_subpixel_F_total_sq_sum` (raw sum before omega) and persists identically in `trace_normalized_intensity` (after omega). Both base and scaled runs have omega≈1e-6, so it cancels in the ratio.
+3. The bug is in the per-subpixel accumulation itself. F_latt shows 11% of expected amplitude (4206.5 vs 38,048), which squared gives 1.2% of expected intensity, but we observe 9.4%, suggesting multiple compounding factors.
+4. Phase C.34 coverage analysis showed 81/169 subpixels (47.93%) hit the central sincg lobe contributing 93.53% of intensity, with coverage-implied ratio of 1.354e+09 vs expected 1.448e+09.
+5. Further instrumentation to debug sincg lattice factor computation would violate PROBE-FREEZE-001 without delivering actionable fix.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T150000Z/`
+
+**Decision**:
+- Mark ARCH-SIM-CONSTRUCTION-001 as **blocked_pending_environment** (nanobrag_torch sincg behavior exceeds diagnostic capacity under PROBE-FREEZE-001 constraints)
+- Switch focus to highest-priority unblocked Tier 0 initiative per Execution Roadmap
+- Document block in docs/fix_plan.md with cross-references to C.34-C.39 evidence
+- If no unblocked Tier 0 remains, escalate to spec_change or open harness-grade diagnostic initiative
+
+**Next Actions**:
+- review_or_housekeeping — Update docs/fix_plan.md ARCH-SIM-CONSTRUCTION-001 status to blocked_pending_environment, capture C.39 block rationale with artifacts, survey Tier 0 for next unblocked focus, and prepare input.md for the new focus or escalation path.
+
+Action State: planning

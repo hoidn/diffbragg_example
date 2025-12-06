@@ -1,64 +1,174 @@
-Summary: Apply the Phase C.39 omega-compensation patch so SQUARE lattices with oversample>1 apply the Lorentz omega exactly once after the Riemann-sum accumulation, restoring the missing `(N_a·N_b·N_c)^2` lattice weight and revalidating DB-AT-028/029.
-Mode: Parity
-ActionType: implementation_ready
-DecisionStatus: patch_ready
-InitiativeType: architecture
-Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
-Branch: integration
-Mapped tests:
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py --output-dir plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z --n-cells 41 29 32 --oversample 13 --phi-count 1 --mosaic-count 1 --spixels 1 --fpixels 1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/square_lattice_probe_os13.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells --maxfail=1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/pytest_partiality.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/pytest_db_at_028_029.log
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/
-Findings Applied (Mandatory):
-  - SIM-CONSTR-PARTIALITY-001 — simulator fixes must land inside `nanobrag_torch.simulator` with telemetry preserved; every patch requires a captured diff/tag and findings note.
-  - PROBE-FREEZE-001 — use the sanctioned probe + architecture test only; no new plan-local diagnostic scripts or extensions are allowed.
-  - SCALE-009 — DB-AT-028/029 enforce the `(N_a·N_b·N_c)^2` lattice contract and calibrated chi²/ROI gates, so the simulator fix must restore these metrics before the initiative can close.
-Pointers:
-  - docs/spec-db-core.md:60-140 — SCALE-009 lattice-scaling contract and chi²/ROI acceptance gates for DB-AT-028/029.
-  - docs/architecture/calibration_scaling.md:80-145 — Lorentz + calibration precedence (omega placement) that this patch must respect.
-  - plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-11T010000Z/summary.md — telemetry proving normalized/raw = 1e-6 for oversample>1 SQUARE lattices.
-  - plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/summary.md — this loop’s scope, guardrails, and validation plan.
-ARCH Contracts (mandatory):
-  - SCALE-009 lattice scaling (docs/spec-db-core.md:60-140); owner: `nanobrag_torch.simulator.Simulator.run` + `compute_physics_for_position`; failure class: implementation bug causing `(N_a·N_b·N_c)^2` deficit.
-  - Diagnostic-script policy (prompts/supervisor.md §10, enforced by tests/architecture/test_probe_contracts.py); owner: `tests/architecture/test_probe_contracts.py`; failure class: implementation bug if probe scripting bypasses owner APIs.
-Do Now (hard validity contract)
-Implement:
-  - `src/nanobrag-torch/src/nanobrag_torch/simulator.py::Simulator.run` — When `crystal.shape == CrystalShape.SQUARE` and `oversample > 1`, skip multiplying `subpixel_physics_intensity_all` by `last_omega` per subpixel. Accumulate the raw sum, then apply `omega_scalar` exactly once after the Riemann-sum aggregation (mirroring the oversample==1 branch). Keep GAUSS/TOPHAT/ROUND behavior unchanged.
-  - Preserve `_partiality_stats['trace_subpixel_F_total_sq_sum']`, `trace_subpixel_omega_{last,mean}`, and `trace_normalized_intensity`; add a boolean or scalar marker if needed so probes/tests can prove omega moved to the post-sum location without new plan-local scripts.
-  - `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` — tighten assertions so both cpu/cuda legs observe `(41·29·32)^2` within ≤1% when `oversample>1`, and verify the telemetry fields still exist (guard regressions if omega sneaks back inside the accumulation loop).
-  - `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` — keep telemetry ingestion/reporting in sync so `square_lattice_scaling.{json,md}` surfaces the normalized/raw ratio and any new `_partiality_stats` markers.
-  - Environment Freeze bookkeeping — capture the simulator diff as `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/omega_compensation.patch`, rerun `python -m pip install -e src/nanobrag-torch`, tag the rebuild in `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/environment_tag.md` (e.g., `nanobrag-partiality-2026-01-13`), and append a SIM-CONSTR-PARTIALITY-001 note in `docs/findings.md` describing the omega change.
-Validate:
-  - Re-run the mapped probe + partiality architecture test + DB-AT-028/029 commands above, teeing logs and copying DB-AT metrics into this timestamped directory. Summarize normalized/raw ratios, architecture-test ratios, and DB-AT chi²/ROI deltas in `summary.md`.
-Forbidden This Loop:
-  - no new probes
-  - do not extend plan-local diagnostic scripts (PROBE-FREEZE-001)
-  - no edits outside simulator/tests/probe scope listed above (Stage A/mapping helpers stay untouched)
-DMI Section:
-  - Independent Reference: SCALE-009 lattice scaling contract (docs/spec-db-core.md:60-140) enforced via the single-pixel probe + `tests/architecture/test_nanobrag_partiality.py` + DB-AT-028/029 selectors (independent harness vs production implementation).
-  - Transformation Ledger:
-    | Field/Tensor | Expected (units/shape/axis) | Producer (file:line) | Hydration (file:line) | Consumer (file:line) | Observed Evidence | Hypothesis |
-    | --- | --- | --- | --- | --- | --- | --- |
-    | Single-pixel ratio (oversample=13) | `(41·29·32)^2 = 1.447650304e9` photons | probe_square_lattice_scaling.py:119-311 | simulator.py:1180-1365 | square_lattice_scaling.md:24-35 | 1.3601574985e8 (0.0939× spec) | Omega applied before Riemann sum deletes lattice weight |
-    | Raw vs normalized intensity | ratio ≈ 1.0 | simulator.py:1325-1365 | `_partiality_stats['trace_subpixel_*']` | square_lattice_scaling.json:120-155 | `trace_subpixel_F_total_sq_sum=1.6148e17`, `trace_normalized_intensity=1.6148e11` ⇒ 1e-6 ratio | Oversample>1 path multiplies by `last_omega` per subpixel |
-    | Architecture partiality ratio | 1.447650304e9 | tests/architecture/test_nanobrag_partiality.py:20-158 | same | pytest_partiality.log | 5.9038e8 (59% error) | Same omega bug across multi-pixel grids |
-    | DB-AT-028 chi²/pixel initial | ≤1e2 | tests/dbex/test_stage_a_smoke_parity.py | Stage A telemetry | db_at_028_metrics.json (2026-01-11T010000Z) | 2.1e5 | Acceptance failure tied to missing lattice weight |
-    | DB-AT-029 median ROI corr | ≥0.2 | same | Stage A ROI stats | db_at_029_metrics.json (2026-01-11T010000Z) | -0.053 | Same root cause |
-  - Source Trace Anchors: `src/nanobrag-torch/src/nanobrag_torch/simulator.py:1180-1365`, `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py:119-311`, `tests/architecture/test_nanobrag_partiality.py:20-158`.
-  - Consumption-State Measurements: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-11T010000Z/square_lattice_scaling.{md,json}`, `pytest_partiality.log`, `db_at_{028,029}_metrics.json`.
-  - Boundary Bisection Step: Modify the oversample omega boundary; success criteria = normalized/raw→1 and architecture + DB-AT selectors trending toward spec. If deficit persists, move downstream to reconstruction scaling logic.
-  - Probe Budget: unchanged (0/2 new probes used); all visibility flows through existing owner instrumentation.
-How-To Map:
-  1. `mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/{db_at_028,db_at_029}`
-  2. Implement the simulator/test/probe changes and capture `git diff` for `src/nanobrag-torch/.../simulator.py` and `tests/architecture/test_nanobrag_partiality.py`.
-  3. `python -m pip install -e src/nanobrag-torch` and log the command/tag in `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/environment_tag.md`; save the diff as `patches/omega_compensation.patch` and add a SIM-CONSTR-PARTIALITY-001 note in `docs/findings.md`.
-  4. Run the mapped probe + pytest commands above (inherit the env vars exactly as written) while teeing logs into this report directory; copy the regenerated `square_lattice_scaling.{json,md}`, `pytest_partiality.log`, and `db_at_{028,029}_metrics.json` under the appropriate subdirectories.
-  5. Summarize normalized/raw ratios, architecture-test ratios, and DB-AT chi²/ROI corr deltas in `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/summary.md`, then update docs/fix_plan.md + galph_memory.md with outcomes.
-Pitfalls To Avoid:
-  - Keep omega edits gated strictly to SQUARE lattices with oversample>1; other lattice shapes still rely on mean semantics.
-  - Do not remove `_partiality_stats` guards or add new instrumentation outside the existing hooks (PROBE-FREEZE-001, diagnostic_script_policy).
-  - Remember to reinstall the vendored simulator and capture the diff/tag; skipping this violates the Environment Freeze exception bookkeeping.
-  - DB-AT selectors must run with `DBEX_SMOKE_DETECTOR_SIZE=full` per docs/TESTING_GUIDE.md §1.1.
-  - Architecture test tolerances must remain tight (≤1%) so regressions surface immediately.
-If Blocked: Capture failure evidence (logs + metrics) under this timestamp, update docs/fix_plan.md Attempts History and galph_memory.md with the block reason, and consider escalating to spec_change or a follow-on architecture initiative if omega compensation cannot restore `(N_a·N_b·N_c)^2` parity.
+# input.md — Loop 2026-01-13T150000Z → Ralph
+
+## Summary
+Switch focus from ARCH-SIM-CONSTRUCTION-001 (blocked) to ARCH-IMPL-CONFORMANCE-001 Phase A planning after documenting the omega diagnosis correction.
+
+## Mode
+Docs
+
+## ActionType
+review_or_housekeeping
+
+## DecisionStatus
+exploring
+
+## InitiativeType
+architecture
+
+## Focus
+ARCH-IMPL-CONFORMANCE-001 — Architecture / Implementation Contract Alignment
+
+## Branch
+integration
+
+## Mapped tests
+none — docs-only loop
+
+## Artifacts
+`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T150000Z/` (block documentation)
+`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/` (Phase A kickoff planning)
+
+## Findings Applied (Mandatory)
+- **PROBE-FREEZE-001** (`prompts/supervisor.md::diagnostic_script_policy`): No new plan-local probes allowed; ARCH-SIM-CONSTRUCTION-001 exhausted diagnostic capacity without delivering actionable fix
+- **SIM-CONSTR-PARTIALITY-001** (`docs/findings.md`): Owner path for partiality/lattice semantics lives in nanobrag_torch.simulator; cannot extend plan scripts beyond existing instrumentation
+- **SCALE-008** / **SCALE-009** (`docs/findings.md`): Relevant to ARCH-IMPL-CONFORMANCE-001 contract inventory
+- **ARCH-FACTORY-001** (`docs/findings.md`): Simulator factory responsibilities; relevant to ARCH-IMPL-CONFORMANCE-001 contract definitions
+
+## Pointers
+- **Spec:** `docs/spec-db-core.md` §§20–40 (simulator construction + calibration contracts)
+- **Arch:** `docs/architecture/calibration_scaling.md` (scaling/calibration threading policy)
+- **ARCH:** `docs/architecture/module_map.md` (module → responsibility mapping)
+- **Testing:** `docs/TESTING_GUIDE.md` §1-2 (smoke/acceptance selectors, artifact policy)
+- **Planning:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-11T010000Z/summary.md` (C.38 omega instrumentation evidence)
+- **Planning:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/summary.md` (Ralph's omega block)
+- **Planning:** `plans/active/ARCH-IMPL-CONFORMANCE-001/implementation.md` (contract alignment plan)
+
+## ARCH Contracts (mandatory)
+1. **SCALE-009** (Stage A vs reconstruction scaling):
+   - **Owner**: To be determined in Phase A (candidate: canonical forward helper)
+   - **Current state**: Implementation bug (deficit in raw sincg accumulation before omega)
+   - **Classification**: Environment blocker (nanobrag_torch sincg behavior; cannot fix within PROBE-FREEZE-001 constraints)
+
+2. **ARCH-FACTORY-001** (Unified simulator factory):
+   - **Owner**: `dbex.nanobrag_bridge.create_unified_simulator`
+   - **Current state**: Factory contract unclear re: calibration threading
+   - **Classification**: Architectural contract gap (needs explicit ARCH-CONTRACT definition in ARCH-IMPL-CONFORMANCE-001)
+
+3. **Stage A vs mapping baseline** (from ARCH-IMPL-CONFORMANCE-001 scope):
+   - **Owner**: To be determined in Phase A
+   - **Current state**: Unknown (not yet inventoried)
+   - **Classification**: Candidate ARCH-CONTRACT for Phase A
+
+## Do Now
+
+### Task 1: Document ARCH-SIM-CONSTRUCTION-001 Block (Docs Mode)
+
+1. **Update `docs/fix_plan.md` line 24** (ARCH-SIM-CONSTRUCTION-001 Tier 0 entry):
+   - Change status from `in_progress` to `blocked_pending_environment`
+   - Replace "Next action: edit the oversample>1 SQUARE path..." with: "**Blocked:** Omega hypothesis rejected (C.39 evidence proves deficit exists in raw subpixel sum before omega application). F_latt shows 11% of expected amplitude, but observed intensity is 9.4% of expected, suggesting sincg lattice factor computation bug in nanobrag_torch. Further instrumentation violates PROBE-FREEZE-001. Blocked pending: (a) nanobrag_torch maintainer investigation, (b) spec_change to relax DB-AT-028/029 criteria, or (c) harness-grade diagnostic initiative outside plan-local probes."
+   - Update artifacts pointer: `...2026-01-13T150000Z/summary.md` (omega diagnosis correction)
+
+2. **Append new Attempts History entry to ARCH-SIM-CONSTRUCTION-001 section** (~line 135 or in dedicated section):
+   ```markdown
+   * 2026-01-13T150000Z — **C.39 OMEGA HYPOTHESIS REJECTED**: Ralph correctly blocked omega compensation implementation, exposing specification contradiction. Re-analysis proved omega is a red herring: deficit of 90.60% appears in `trace_subpixel_F_total_sq_sum` (raw sum before omega) and persists identically after omega application (both base and scaled runs have omega≈1e-6, so it cancels in ratio). Root cause: per-subpixel sincg accumulation produces F_latt at 11% of expected amplitude (4206.5 vs 38,048 for N_cells=41×29×32), which squared gives 1.2% of expected intensity, yet observed is 9.4%, suggesting multiple compounding factors in sincg lattice weight computation. Phase C.34-C.38 instrumentation exhausted diagnostic capacity under PROBE-FREEZE-001 constraints. Marked **blocked_pending_environment** awaiting: (a) nanobrag_torch maintainer investigation of sincg behavior, (b) spec_change to relax DB-AT-028/029 acceptance criteria, or (c) harness-grade diagnostic initiative outside plan-local tools. Artifacts: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T150000Z/summary.md` (omega diagnosis correction), cross-refs to C.34-C.39 evidence.
+   ```
+
+3. **Update `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md`**:
+   - Mark Phase C.39 as **BLOCKED** (already done if Ralph updated it)
+   - Add Phase C closure note documenting the block and evidence trail
+   - No changes to earlier phases; preserve C.34-C.38 completed checkboxes
+
+4. **Create blocking note artifact**:
+   - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T150000Z/BLOCKED.md` containing:
+     - Summary of C.39 omega hypothesis rejection
+     - Evidence that deficit is in raw sum before omega (with numbers)
+     - F_latt deficit analysis (11% amplitude → 1.2% intensity expected, but observing 9.4%)
+     - PROBE-FREEZE-001 constraint preventing further instrumentation
+     - Three unblock options (maintainer/spec_change/harness initiative)
+     - Cross-references to C.34-C.39 reports
+
+### Task 2: ARCH-IMPL-CONFORMANCE-001 Phase A Kickoff Planning
+
+5. **Create `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/` directory**
+
+6. **Create `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/summary.md`**:
+   - Title: "Phase A Kickoff — Contract Inventory & Reconciliation Planning"
+   - Context: ARCH-SIM-CONSTRUCTION-001 blocked; switching to ARCH-IMPL-CONFORMANCE-001 to make progress on architectural contract enforcement while environment blocker is resolved
+   - Scope: Phase A planning to inventory SCALE/ARCH findings, identify duplicated semantics, and propose ARCH-CONTRACT definitions for Stage A ↔ reconstruction scaling and Stage A ↔ mapping baseline
+   - Next loop will be implementation_ready with Phase A.0-A.3 checklist items
+
+7. **Review and annotate existing findings** (research only; no edits yet):
+   - Read `docs/findings.md` entries for SCALE-008, SCALE-009, ARCH-FACTORY-001
+   - Note any contradictions or drift vs current implementation
+   - Capture notes in `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/findings_inventory.md`
+
+8. **Identify candidate owner modules** (research only):
+   - Review `dbex/refinement/stage_a.py`, `dbex/refinement/reconstruction.py`, `dbex/nanobrag_bridge.py`
+   - Note which modules currently duplicate scaling/calibration logic
+   - Capture module inventory in `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/module_inventory.md`
+
+9. **Update `docs/fix_plan.md`** to reflect ARCH-IMPL-CONFORMANCE-001 focus:
+   - Ensure ARCH-IMPL-CONFORMANCE-001 appears in Tier 0 section (should already be there at line ~22)
+   - Add minimal Attempts History entry: "2026-01-13T150000Z — Phase A kickoff planning after ARCH-SIM-CONSTRUCTION-001 blocked. Scoped contract inventory for SCALE-008/009 + ARCH-FACTORY-001. Artifacts: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/`."
+
+10. **Update `galph_memory.md`**:
+    - Current loop entry already added; no further changes needed
+
+## Forbidden This Loop
+- **No production code edits** — Docs mode only
+- **No test execution** — Research and planning only
+- **No new probes** — PROBE-FREEZE-001 remains in effect
+- **No ARCH-SIM-CONSTRUCTION-001 implementation work** — Initiative is blocked
+
+## DMI Section
+N/A — No DMI in this docs/planning loop
+
+## ARCH Conformance Remediation
+N/A — Phase A planning only; remediation comes in Phase B
+
+## SYNC Closure
+N/A — No SYNC mid-air detected
+
+## How-To Map
+All tasks are file operations (Read, Edit, Write for markdown docs):
+
+1. Edit `docs/fix_plan.md` line 24 + append Attempts History entry
+2. Update `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` (Phase C.39 closure note)
+3. Write `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T150000Z/BLOCKED.md`
+4. Create directory: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/`
+5. Write `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/summary.md`
+6. Read `docs/findings.md` (SCALE-008/009, ARCH-FACTORY-001) → Write `findings_inventory.md`
+7. Read `dbex/refinement/{stage_a.py,reconstruction.py}`, `dbex/nanobrag_bridge.py` → Write `module_inventory.md`
+8. Edit `docs/fix_plan.md` (add ARCH-IMPL-CONFORMANCE-001 Attempts History entry)
+9. Verify `galph_memory.md` is up-to-date (already done by supervisor)
+
+No pytest, no compile, no environment changes.
+
+## Pitfalls To Avoid
+1. **Do not weaken acceptance criteria** — Document blocks honestly; don't adjust gates to hide problems
+2. **Do not create new probes** — PROBE-FREEZE-001 forbids extending plan-local diagnostics
+3. **Do not force implementation** — If blocked, document and switch focus per initiative lifecycle
+4. **Findings drift** — Ensure SCALE-009 annotations capture current state accurately (may be partially incorrect)
+5. **Type discipline** — If ARCH-IMPL-CONFORMANCE-001 work uncovers spec issues, mark them for spec_change; don't sneak normative changes into architecture initiative
+
+## If Blocked
+If any docs are missing or contradictory:
+1. Note the specific contradiction in the planning summary
+2. Mark the relevant Phase A checklist item as blocked with a note
+3. Propose resolution in the summary (e.g., "Need maintainer clarification on SCALE-009 intent")
+4. Do not proceed to Phase B planning until Phase A blockers are resolved
+
+## Doc Sync Plan
+Not applicable this loop (no new tests added/renamed).
+
+---
+
+**Validation**: After completing these tasks, the following should be true:
+- `docs/fix_plan.md` shows ARCH-SIM-CONSTRUCTION-001 as `blocked_pending_environment` with clear block rationale
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T150000Z/BLOCKED.md` exists and documents the omega hypothesis rejection
+- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/summary.md` exists and scopes Phase A
+- `findings_inventory.md` and `module_inventory.md` exist with research notes
+- `docs/fix_plan.md` includes new Attempts History for both initiatives
+- `galph_memory.md` reflects the focus switch
+
+No tests to run this loop; all validation is file existence + content spot-checks.

@@ -1,3 +1,15 @@
+# ARCH-IMPL-CONFORMANCE-001 Loop i=108 — Phase A.0 Nucleus Test Design
+
+---
+
+### Turn Summary (Ralph, 2026-01-13T200000Z)
+
+Completed docs-only planning loop (i=108, Mode: Docs) for ARCH-IMPL-CONFORMANCE-001 Phase A.0 nucleus test design. Designed `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale` to enforce Stage A vs reconstruction masked_mean parity (ARCH-CONTRACT-002, ≤1e-6 rel tolerance, expected baseline FAIL). Drafted detailed Phase A.1 implementation plan with step-by-step guide for next loop (API search, test implementation, baseline FAIL capture, ledgers update, commit). Updated implementation.md: marked A0 complete, added status note. Next: Implement nucleus test per phase_a1_implementation_plan.md (loop i=109).
+
+Artifacts: plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/nucleus_test_design.md, phase_a1_implementation_plan.md
+
+---
+
 # ARCH-IMPL-CONFORMANCE-001 Loop i=108 — Portfolio Switch After ARCH-SIM-CONSTRUCTION-001 Blocked
 
 ## Status: Planning (Focus Switch from Blocked Initiative)

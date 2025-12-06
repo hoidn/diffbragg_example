@@ -225,6 +225,7 @@
 - Working Plan: `plans/active/ARCH-IMPL-CONFORMANCE-001/implementation.md`
 - Attempts History:
   * 2026-01-13T150000Z — Phase A kickoff planning after ARCH-SIM-CONSTRUCTION-001 blocked. Scoped contract inventory for SCALE-008/009 + ARCH-FACTORY-001, identified three duplicated scaling/calibration patterns (sqrt multiplication, beam threading, baseline override), proposed three ARCH-CONTRACTs with canonical owner APIs. Artifacts: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T150000Z/`.
+  * 2026-01-13T200000Z — Phase A.0 nucleus test design (docs-only planning loop). Designed `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale` to enforce Stage A vs reconstruction masked_mean parity (ARCH-CONTRACT-002, ≤1e-6 rel tolerance, expected baseline FAIL). Drafted phase_a1_implementation_plan.md with step-by-step guide for next loop. Updated implementation.md: marked A0 complete. Next: implement nucleus test (loop i=109). [architecture, exploring] Artifacts: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-13T200000Z/`.
 
 ### [DIAG-NANOBRAGG-OVERSAMPLE-001] nanobrag_torch Oversample Parameter Investigation
 - Depends on: None

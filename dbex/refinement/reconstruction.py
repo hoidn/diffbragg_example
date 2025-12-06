@@ -40,6 +40,7 @@ def build_final_bragg_from_stage_a_telemetry(
     stage_a_ctx=None,
     baseline_crystal=None,
     param_state="final",
+    calibration_metadata=None,
 ):
     """
     Build final Bragg array from Stage A telemetry (optimized crystal/scale params).
@@ -61,9 +62,18 @@ def build_final_bragg_from_stage_a_telemetry(
         baseline_crystal: Optional baseline dxtbx Crystal for misset extraction
         param_state: str, "initial" or "final" - which telemetry parameter state to replay
                      (ARCH-SIM-CONSTRUCTION-001 Phase C.8)
+        calibration_metadata: Optional dict with calibration overrides including
+                             'spot_scale_override'. If None, falls back to config.calibration_metadata.
+                             This parameter enables explicit calibration threading for cold-path
+                             reconstruction (ARCH-IMPL-CONFORMANCE-001 Phase B.2).
 
     Returns:
         bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image
+
+    Notes:
+        Phase B.2 (ARCH-IMPL-CONFORMANCE-001): calibration_metadata parameter added
+        for explicit calibration threading. Phase B.3-B.4 will refactor cold-path
+        spot_scale_override extraction to use canonical API from scaling_utils.py.
     """
     # Lazy imports to avoid circular dependencies
     from nanobrag_torch.simulator import Simulator
@@ -201,9 +211,12 @@ def build_final_bragg_from_stage_a_telemetry(
     sampled_panel_ids = list(range(n_panels))
 
     # Extract spot_scale_override for post-run scaling (matches stage_a.py:442-443, SCALE-009)
+    # Phase B.2 (ARCH-IMPL-CONFORMANCE-001): Thread calibration_metadata parameter
+    # effective_calibration_metadata prioritizes explicit parameter over config default
+    effective_calibration_metadata = calibration_metadata or config.calibration_metadata
     spot_scale_override = None
-    if config.calibration_metadata is not None:
-        spot_scale_override = config.calibration_metadata.get('spot_scale_override')
+    if effective_calibration_metadata is not None:
+        spot_scale_override = effective_calibration_metadata.get('spot_scale_override')
 
     sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override and spot_scale_override > 0 else 1.0
 

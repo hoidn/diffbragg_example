@@ -300,10 +300,13 @@ def run_simulation(na, nb, nc, spixels, fpixels, oversample, phi_steps, mosaic_d
         if 'steps_scalar' in pstats:
             steps = pstats['steps_scalar']
             payload['steps_scalar'] = float(steps) if not isinstance(steps, (int, float)) else steps
-        # C.39: Extract omega application mode flag
+        # C.39: Extract omega application mode flags
         if 'omega_applied_post_sum' in pstats:
             omega_post = pstats['omega_applied_post_sum']
             payload['omega_applied_post_sum'] = bool(omega_post) if not isinstance(omega_post, bool) else omega_post
+        if 'square_used_riemann_sum' in pstats:
+            riemann = pstats['square_used_riemann_sum']
+            payload['square_used_riemann_sum'] = bool(riemann) if not isinstance(riemann, bool) else riemann
 
         debug_stats['partiality_stats'] = {
             k: (v.tolist() if isinstance(v, torch.Tensor) else v)

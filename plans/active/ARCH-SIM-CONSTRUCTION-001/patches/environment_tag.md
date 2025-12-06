@@ -111,44 +111,49 @@ Coverage analysis (`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-05T15
 
 ---
 
-# Environment Tag: nanobrag-partiality-omega-2026-01-12
+# Environment Tag: nanobrag-partiality-omega-2026-01-13
 
 ## Patch Applied
-- **Date**: 2026-01-12T15:00:00Z
+- **Date**: 2026-01-13T01:00:00Z
 - **Initiative**: ARCH-SIM-CONSTRUCTION-001
 - **Patch File**: `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/omega_compensation.patch`
 
 ## Description
-Applied Phase C.39 omega-compensation patch to `src/nanobrag-torch/src/nanobrag_torch/simulator.py`.
+Applied Phase C.39 omega-compensation patch to `src/nanobrag_torch/simulator.py`.
 
 **Change**: When `crystal.shape == CrystalShape.SQUARE` and `oversample > 1`:
-- Changed from center-sample-only to **Riemann-sum** across all subpixels
-- Apply omega (from center subpixel) **once after** the Riemann-sum aggregation
+- Changed from last-value omega semantics to **shape-gated** omega application
+- SQUARE: Apply omega (from center subpixel) **once after** the Riemann-sum aggregation
+- Other shapes (GAUSS/TOPHAT/ROUND): Preserve existing last-value or per-subpixel omega semantics
 - This restores the missing `(Na·Nb·Nc)²` lattice weight while maintaining integral semantics
 
 ## Files Modified
-- `src/nanobrag-torch/src/nanobrag_torch/simulator.py` (lines 1333-1408)
-  - Modified oversample>1 SQUARE lattice path to sum all subpixels then apply omega once
-  - Updated telemetry flag from `square_used_center_only` to `square_used_riemann_sum`
-  - Preserved `omega_applied_post_sum=True` flag for architecture test enforcement
+- `src/nanobrag_torch/simulator.py` (lines 1333-1418)
+  - Added `is_square` branch to gate omega application strategy
+  - SQUARE path: sum all subpixels, then apply center omega once (lines 1377-1391)
+  - Added telemetry flags: `omega_applied_post_sum=True`, `square_used_riemann_sum=True`
+  - Preserved trace fields: `trace_subpixel_F_total_sq_sum`, `trace_normalized_intensity`, `trace_subpixel_omega_last`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` (lines 303-309)
+  - Added ingestion of `square_used_riemann_sum` telemetry flag
 
 ## Rebuild Command
-The nanobrag-torch package is installed in editable mode, so changes take effect immediately:
+The nanobrag-torch package is in PYTHONPATH from `src/`, so changes take effect immediately:
 ```bash
-# No rebuild needed - editable install picks up changes automatically
-python -c "import nanobrag_torch; print(nanobrag_torch.__file__)"
+# Verify changes are live:
+python -c "import nanobrag_torch.simulator; import inspect; print(inspect.getsourcefile(nanobrag_torch.simulator.Simulator))"
+# Expected: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag_torch/simulator.py
 ```
 
 ## Validation Targets
-- Architecture test: `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells`
-- Probe script: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py`
+- Architecture test: `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` (oversample=13, ≤1% tolerance)
+- Probe script: `probe_square_lattice_scaling.py --n-cells 41 29 32 --oversample 13`
 - Acceptance tests: DB-AT-028, DB-AT-029
 
 ## Expected Outcomes
-- Normalized/raw intensity ratio → 1.0 (was 1e-6)
-- Architecture test ratios → (41·29·32)² within ≤1%
+- Probe normalized/raw intensity ratio → 1.0 (was 1e-6)
+- Architecture test cpu/cuda ratios → (41·29·32)² = 1,447,650,304 within ≤1% (was 59% error)
 - DB-AT-028 chi²/pixel initial → ≤100 (was 2.1e5)
 - DB-AT-029 median ROI corr → ≥0.2 (was -0.053)
 
 ## SIM-CONSTR-PARTIALITY-001 Note
-This patch implements the canonical omega placement for SQUARE lattices with oversample>1 per docs/spec-db-core.md:60-140 SCALE-009 contract. The Lorentz solid-angle correction (`omega`) must be applied exactly once after the Riemann-sum accumulation to preserve the lattice weight `(Na·Nb·Nc)²`.
+This patch implements the canonical omega placement for SQUARE lattices with oversample>1 per docs/spec-db-core.md:60-140 SCALE-009 contract and docs/architecture/calibration_scaling.md:80-145. The Lorentz solid-angle correction (`omega`) must be applied exactly once after the Riemann-sum accumulation to preserve the lattice weight `(Na·Nb·Nc)²`.

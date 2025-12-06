@@ -175,4 +175,4 @@ tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncel
 FAILED tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu] - AssertionError: Lattice weight scaling violation: expected ratio=1447650304.0, observed=3494551.6, relative_error=99.76% (tolerance=1%)
 assert 0.9975860526648781 < 0.01
 !!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
-======================== 1 failed, 3 warnings in 1.33s =========================
+======================== 1 failed, 3 warnings in 0.90s =========================

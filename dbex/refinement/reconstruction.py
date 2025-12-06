@@ -25,6 +25,9 @@ import numpy as np
 import torch
 from typing import Any, Dict, Optional
 
+# Canonical post-simulation scaling (ARCH-CONTRACT-002, Phase B.4)
+from dbex.refinement.scaling_utils import apply_sqrt_spot_scale
+
 
 def build_final_bragg_from_stage_a_telemetry(
     telemetry_a,
@@ -210,15 +213,10 @@ def build_final_bragg_from_stage_a_telemetry(
     )
     sampled_panel_ids = list(range(n_panels))
 
-    # Extract spot_scale_override for post-run scaling (matches stage_a.py:442-443, SCALE-009)
     # Phase B.2 (ARCH-IMPL-CONFORMANCE-001): Thread calibration_metadata parameter
     # effective_calibration_metadata prioritizes explicit parameter over config default
+    # Phase B.4: spot_scale_override application delegated to canonical apply_sqrt_spot_scale API
     effective_calibration_metadata = calibration_metadata or config.calibration_metadata
-    spot_scale_override = None
-    if effective_calibration_metadata is not None:
-        spot_scale_override = effective_calibration_metadata.get('spot_scale_override')
-
-    sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override and spot_scale_override > 0 else 1.0
 
     # Build full Bragg array (panel mode)
     # Reuse warm cache simulators if available
@@ -304,7 +302,12 @@ def build_final_bragg_from_stage_a_telemetry(
 
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
             # Pass mask_array explicitly so helpers.py normalization branch executes (ARCH-SIM-CONSTRUCTION-001)
-            # Pass spot_scale_override so factory can compute sqrt_scale for post-run application
+            # Phase B.4: spot_scale_override now handled via canonical apply_sqrt_spot_scale API (post-simulation)
+            # Extract spot_scale_override for factory (still needs it for metadata/diagnostics)
+            spot_scale_override_for_factory = None
+            if effective_calibration_metadata is not None:
+                spot_scale_override_for_factory = effective_calibration_metadata.get('spot_scale_override')
+
             simulator, normalized_mask, sqrt_scale_from_factory, metadata = create_unified_simulator(
                 detector_config=detector_config,
                 crystal_config=crystal_config,
@@ -312,7 +315,7 @@ def build_final_bragg_from_stage_a_telemetry(
                 hkl_grid=hkl_grid,
                 hkl_metadata=hkl_metadata,
                 mask_array=mask_array_for_factory,  # Pass normalized mask so factory can validate/attach
-                spot_scale_override=spot_scale_override,  # Factory needs this to compute sqrt_scale
+                spot_scale_override=spot_scale_override_for_factory,  # Factory computes sqrt_scale for diagnostics
                 device=device,
                 dtype=dtype,
                 calibration_metadata=getattr(config, 'calibration_metadata', None),
@@ -399,11 +402,6 @@ def build_final_bragg_from_stage_a_telemetry(
             if rel_diff > 1e-6:
                 print(f"[ARCH-SIM-CONSTRUCTION-001 WARNING] scale_factor recomputation disagrees with recorded value:")
                 print(f"  recorded: {recorded_scale:.6e}, recomputed: {recomputed_scale:.6e}, rel_diff: {rel_diff:.2e}")
-
-
-    # Legacy DEBUG block retained for sqrt_spot_scale / spot_scale_override visibility
-    print(f"  sqrt_spot_scale: {sqrt_spot_scale}")
-    print(f"  spot_scale_override: {spot_scale_override}")
 
     # ARCH-SIM-CONSTRUCTION-001 Phase C.14: Cold-path baseline alignment
     # When Stage A warm-cache artifacts are missing (bragg_zero_iter=None for param_state="initial"),
@@ -496,17 +494,22 @@ def build_final_bragg_from_stage_a_telemetry(
             print(f"  bragg_panel[0] mean (raw sim output): {bragg_panel.mean().item():.6e}")
             print(f"  bragg_panel[0] max: {bragg_panel.max().item():.6e}")
 
-        # TOOLING-VIS-001 Phase D.D / ARCH-SIM-CONSTRUCTION-001 Phase C.9:
-        # Apply scale_factor from telemetry (exp(log_scale_effective)).
-        # scale_factor already incorporates sqrt_spot_scale either via:
-        #  - Standard path: log_scale_baseline = log(sqrt_spot_scale), so scale_factor = sqrt_spot_scale * exp(delta)
-        #  - Global hint path: log_scale_baseline = log(global_scale_hint), where global_scale_hint already accounts for sqrt_spot_scale via mapping forward
-        # Do NOT multiply by sqrt_spot_scale again here (that would double-apply it).
-        # ARCH-SIM-CONSTRUCTION-001 Phase C.14: Also apply baseline_alignment_factor for cold-path initial state
-        bragg_scaled = bragg_panel * scale_factor * baseline_alignment_factor
+        # TOOLING-VIS-001 Phase D.D / ARCH-SIM-CONSTRUCTION-001 Phase C.9, C.14:
+        # Apply scale_factor from telemetry and baseline_alignment_factor for cold-path alignment
+        bragg_prescaled = bragg_panel * scale_factor * baseline_alignment_factor
+
+        # ARCH-CONTRACT-002 (Phase B.4, ARCH-IMPL-CONFORMANCE-001):
+        # Apply canonical spot_scale_override sqrt scaling
+        # For warm-path with full telemetry, log_scale_baseline incorporates sqrt_spot_scale,
+        # so this becomes identity (scale=1.0). For cold-path, this applies the missing sqrt factor.
+        bragg_prescaled_np = bragg_prescaled.cpu().numpy()
+        bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)
+        bragg_scaled = torch.from_numpy(bragg_scaled_np).to(
+            device=bragg_panel.device, dtype=bragg_panel.dtype
+        )
 
         if pid == 0:
-            print(f"  bragg_scaled[0] mean (after scale_factor × baseline_alignment): {bragg_scaled.mean().item():.6e}")
+            print(f"  bragg_scaled[0] mean (after scale_factor × baseline_alignment × sqrt_spot_scale): {bragg_scaled.mean().item():.6e}")
         bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 
     # DEBUG: final output summary

@@ -35,6 +35,8 @@ from dbex.refinement.artifacts import StageAArtifacts
 from dbex.refinement.stage import StageResult
 # Variance-weighted loss imported from canonical physics.loss module (Phase C.9)
 from dbex.physics.loss import _compute_variance_weighted_loss
+# Canonical post-simulation scaling (ARCH-CONTRACT-002, Phase B.3)
+from dbex.refinement.scaling_utils import apply_sqrt_spot_scale
 # Shared helpers used by Stage B, C, and reconstruction
 from dbex.refinement.stage_a_utils import (
     _clamp_log_cell_deltas,
@@ -435,13 +437,17 @@ class StageA:
                 with torch.no_grad():
                     bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
                     bragg_stack = torch.stack(bragg_samples, dim=0)
-                    # Apply spot_scale_override per SCALE-002 (sqrt factor)
-                    # Extract spot_scale_override from calibration_metadata when present
-                    spot_scale_override = 1.0
-                    if config.calibration_metadata is not None:
-                        spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
-                    sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override > 0 else 1.0
-                    bragg_stack_scaled = bragg_stack * sqrt_spot_scale
+
+                    # Apply spot_scale_override per SCALE-002 using canonical API
+                    # ARCH-CONTRACT-002 (Phase B.3, ARCH-IMPL-CONFORMANCE-001)
+                    # Canonical owner: dbex.refinement.scaling_utils.apply_sqrt_spot_scale
+                    bragg_stack_np = bragg_stack.detach().cpu().numpy()
+                    bragg_stack_scaled_np = apply_sqrt_spot_scale(
+                        bragg_stack_np, config.calibration_metadata
+                    )
+                    bragg_stack_scaled = torch.from_numpy(bragg_stack_scaled_np).to(
+                        device=bragg_stack.device, dtype=bragg_stack.dtype
+                    )
 
                     # Cache the zero-iteration Bragg stack for reconstruction helpers (ARCH-SIM-CONSTRUCTION-001)
                     # When warm cache is active, stash a CPU float32 copy on stage_a_ctx so

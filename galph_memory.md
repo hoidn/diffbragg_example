@@ -2703,3 +2703,12 @@ Action State: ready_for_implementation
 - Problems ledger row “DB-AT-028/029 scale mismatch (SCALE-009…)” remains the serviced backlog item; Findings SIM-CONSTR-PARTIALITY-001 and PROBE-FREEZE-001 continue to constrain scope (no new plan-local probes, instrumentation via owner hooks only).
 
 Action State: ready_for_implementation
+
+2026-01-13T010000Z focus=ARCH-SIM-CONSTRUCTION-001 state=implementation_ready dwell=2 action=implementation_ready artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T010000Z/ next_action=apply_omega_compensation_patch
+- Problems ledger entry "DB-AT-028/029 scale mismatch (SCALE-009, ARCH-SIM-CONSTRUCTION-001)" serviced via omega compensation fix.
+- Evidence from Phase C.34-C.38 proved oversample>1 SQUARE branch applies Lorentz omega per subpixel (last_omega≈1e-6), diluting central-lobe contribution by factor of ~1/169. Single-pixel probe ratio degraded from C.33's 0.25% to C.38's 0.094× (9.4% of spec), indicating the centering fixes unmasked the omega normalization bug.
+- Non-negotiables enforced: (1) Implementation floor after dwell=2 → next loop MUST be production code, (2) Dominant-hypothesis lock with confidence ≥0.7 → no more probes allowed, (3) Probe saturation at signature level → use existing sanctioned tools only.
+- Decision: Approved implementation_ready Do Now for omega compensation fix in `src/nanobrag-torch/src/nanobrag_torch/simulator.py::Simulator.run()` so oversample>1 SQUARE branch applies omega once after Riemann sum instead of per-subpixel. Updated `tests/architecture/test_nanobrag_partiality.py` to enforce ≤1% error. Mapped tests: probe_square_lattice_scaling.py (expect ratio ≥0.99), enforcement test (PASS ≤1% error), DB-AT-028/029 (secondary goals).
+- Environment Freeze exception bookkeeping: capture patch as `plans/active/ARCH-SIM-CONSTRUCTION-001/patches/omega_compensation.patch`, rebuild nanobrag-torch editable install, tag environment in `patches/environment_tag.md`, update `docs/findings.md::SIM-CONSTR-PARTIALITY-001`.
+- Expected outcome: enforcement test and probe ratios improve to ≥0.99× (≤1% error), forward parity achieved. DB-AT-028/029 may still fail due to downstream reconstruction issues (SCALE-009), but that represents progress.
+Action State: ready_for_implementation

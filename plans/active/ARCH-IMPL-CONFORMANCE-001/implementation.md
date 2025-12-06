@@ -72,7 +72,8 @@
 - Phase A.1 implementation complete (2026-01-13T210000Z): nucleus test PASSED (warm-cache parity validated via cache optimization)
 - Phase A.1 analysis complete (2026-01-13T220000Z): cold-path scenario identified as unvalidated, Phase A.2 planned (phase_a1_outcome_analysis.md)
 - Phase A.2 implementation complete (2026-01-13T230000Z): cold-path enforcement test FAILED (expected), 64.7% rel_error, 2.83x scale factor drift confirmed
-- **Next: Phase B** (loop i=111): canonical API implementation (B.1-B.2: scaling_utils + calibration threading)
+- Phase B.1-B.2 planning complete (2026-01-14T000000Z): phase_b_planning.md scopes canonical scaling_utils module + calibration_metadata threading
+- **Next: Phase B.1-B.2** (loop i=111): implement canonical API + thread calibration_metadata to reconstruction
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** dbex/refinement/stage_a.py, dbex/refinement/reconstruction.py, dbex/nanobrag_bridge.py, dbex/refinement/helpers.py, tests/architecture/* (new).
@@ -85,15 +86,17 @@
 
 ## Phase B — Canonical Owner APIs + Enforcement
 ### Checklist
-- [ ] B1: Design and implement canonical owner API(s) for the chosen ARCH-CONTRACTs (e.g., a single helper that encodes the authoritative “Stage A-like forward + scale” contract used by both reconstruction and diagnostic paths).
-- [ ] B2: Route existing duplicate implementations (reconstruction helper, bridge helper, mapping forward probes) through the owner API or clearly document any exceptions.
-- [ ] B3: Add architecture enforcement tests under `tests/architecture/` that fail when:
-  - Stage A and reconstruction forward paths diverge in masked mean beyond tolerance for calibrated runs, or
-  - mapping forward vs Stage A forward violate the agreed baseline contract.
+- [ ] B1: Create `dbex/refinement/scaling_utils.py` with canonical `apply_sqrt_spot_scale` function + unit tests **[PLANNED 2026-01-14T000000Z — phase_b_planning.md]**
+- [ ] B2: Thread `calibration_metadata` to reconstruction cold path (update signature, extract in cold path) **[PLANNED 2026-01-14T000000Z — phase_b_planning.md]**
+- [ ] B3: Refactor Stage A to use canonical API (stage_a.py:442-443 → call `apply_sqrt_spot_scale`)
+- [ ] B4: Refactor reconstruction to use canonical API (reconstruction.py:203-208 → call `apply_sqrt_spot_scale`)
+- [ ] B5: Architecture enforcement tests — Phase A.1 (warm-cache) and A.2 (cold-path) both PASS **[Phase A.1/A.2 tests already exist]**
+- [ ] B6: Update docs/findings.md (SCALE-008/009), docs/TESTING_GUIDE.md, docs/development/TEST_SUITE_INDEX.md
 
 ### Notes & Risks
 - Need to respect Environment Freeze by not modifying upstream nanobrag_torch; only dbex and tests should change.
 - Enforcement tests must be stable (no excessive runtime, no dependence on random seeds).
+- Phase B.1-B.2 establishes infrastructure; Phase A.2 test will still FAIL until B.3-B.4 refactor complete.
 
 ## Phase C — Acceptance Alignment (DB-AT-027/028/029)
 ### Checklist

@@ -23,9 +23,19 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - `dataload.args.calibration_config_path` (populated via `DBEX_SMOKE_CALIB_PATH` once TODO landed).
   - `dataload.sigma_readout_map` (map tier).
 - **Default Provenance (current code):**
-  - HKL: prefers `tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz` when present (even for other datasets) — **needs fix**.
-  - Calibration: unconditionally loads `tests/fixtures/golden_data/simple_cubic/config_torch.json` — **needs fix**.
-  - Sigma: uses `dataload.sigma_readout_map` or uniform fallback.
+  - HKL:
+    - By default uses `dataload.F` constructed from `dataload.args.mtzFile` (typically `scaled.mtz` or a smoke refined MTZ).
+    - When `dataload.args.hkl_source_path` points at a refined structure‑factors MTZ and exists
+      (e.g. `tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz` as set by
+      `dbex.tools.stage_a_adam.build_dataload` or `tests.conftest.refgeom_dataload` in golden mode),
+      the helper loads that MTZ via `load_refined_mtz` and marks `hkl_source="refined"` /
+      `diagnostics["hkl_path"]=hkl_source_path`.
+  - Calibration:
+    - Loaded only when `dataload.args.calibration_config_path` is set and the file exists
+      (e.g. DB‑AT‑024/027/028/029 golden `config_torch.json`, or smoke `config_torch_smoke*.json`);
+      otherwise `calibration=None` and mapping runs without an explicit torch_config.
+  - Sigma: uses `dataload.sigma_readout_map` when present (CLI/metadata map via `sigma_map`) or the
+    `default_sigma_readout` scalar fallback.
 - **Telemetry/Diagnostics:**
   - `diagnostics["hkl_source"]` / `["hkl_path"]` MUST reflect the actual HKL file used.
   - Add `diagnostics["calibration_path"]` when calibration metadata is loaded.
@@ -39,13 +49,17 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - `DBEX_SMOKE_HKL_PATH` overrides HKL file (explicit override takes precedence).
   - `DBEX_SMOKE_CALIB_PATH` overrides calibration config path.
   - `DBEX_SMOKE_SIGMA_MAP_PATH` overrides sigma-map pickle path when `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
+  - `DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC` (truthy) routes DB‑AT / mapping‑aligned paths through the DB‑AT‑024 golden
+    simple_cubic mapping configuration for calibration/HKL when no explicit smoke overrides are set.
 - **Default Provenance (Detector-Size Aware, TOOLING-VIS-001 Phase D.D):**
   - HKL (with override precedence):
     - Override: `DBEX_SMOKE_HKL_PATH` if set (takes precedence).
-    - Small detector: `sp.proc/calibration/smoke_refined_structure_factors_small.mtz` when calibration exists, else `scaled.mtz`.
-    - Full detector: `sp.proc/calibration/smoke_refined_structure_factors.mtz` when calibration exists, else `scaled.mtz`.
+    - Golden DB‑AT path (`DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC` set and golden assets present): `tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz`.
+    - Small detector (smoke path): `sp.proc/calibration/smoke_refined_structure_factors_small.mtz` when calibration exists, else `scaled.mtz`.
+    - Full detector (smoke path): `sp.proc/calibration/smoke_refined_structure_factors.mtz` when calibration exists, else `scaled.mtz`.
   - Calibration (with override precedence):
     - Override: `DBEX_SMOKE_CALIB_PATH` if set (takes precedence).
+    - Golden DB‑AT path (`DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC` set and golden assets present): `tests/fixtures/golden_data/simple_cubic/config_torch.json`.
     - Small detector: `sp.proc/calibration/config_torch_smoke_small.json` when present, else None.
     - Full detector: `sp.proc/calibration/config_torch_smoke.json` when present, else None.
   - Sigma-map (when metadata source):

@@ -768,5 +768,104 @@
         "fallback_reason": null
       }
     ]
+  },
+  {
+    "timestamp": "2025-12-04T20:13:32.512778Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T20:17:00.088950Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T20:18:38.381531Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T20:29:26.966772Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T20:30:49.686432Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T21:47:33.304036Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T21:48:48.654905Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T21:55:33.842607Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-04T21:56:49.196254Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
   }
 ]

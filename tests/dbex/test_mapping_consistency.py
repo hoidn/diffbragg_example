@@ -362,6 +362,78 @@ class TestDB_AT_024_Mapping:
         with open(metrics_json_path, "w") as f:
             json.dump(summary_metrics, f, indent=2)
 
+        # Optional visualization: emit mapping ROI triptych PNGs for a few ROIs
+        try:
+            import matplotlib
+
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+        except Exception:
+            # If matplotlib is unavailable, skip PNG emission
+            pass
+        else:
+            n_show = min(6, len(inputs.panel_slices))
+            if n_show > 0:
+                # Build a shared intensity scale across selected ROIs
+                stacked_chunks = []
+                for idx in range(n_show):
+                    pid, (x0, x1, y0, y1) = inputs.panel_slices[idx]
+                    pid = int(pid)
+                    x0, x1, y0, y1 = int(x0), int(x1), int(y0), int(y1)
+                    data_roi = inputs.target[pid, y0:y1, x0:x1]
+                    model_roi = bragg[pid, y0:y1, x0:x1]
+                    stacked_chunks.extend(
+                        [
+                            np.asarray(data_roi, dtype=np.float64).ravel(),
+                            np.asarray(model_roi, dtype=np.float64).ravel(),
+                        ]
+                    )
+
+                stacked = np.concatenate(stacked_chunks) if stacked_chunks else np.array([], dtype=np.float64)
+                stacked = stacked[np.isfinite(stacked)]
+                if stacked.size > 0:
+                    vmin, vmax = np.percentile(stacked, [1.0, 99.0])
+                    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin >= vmax:
+                        vmin, vmax = float(stacked.min()), float(stacked.max())
+                else:
+                    vmin, vmax = None, None
+
+                fig, axes = plt.subplots(n_show, 3, figsize=(15, 4 * n_show))
+                if n_show == 1:
+                    axes = np.array([axes])
+
+                for row in range(n_show):
+                    pid, (x0, x1, y0, y1) = inputs.panel_slices[row]
+                    pid = int(pid)
+                    x0, x1, y0, y1 = int(x0), int(x1), int(y0), int(y1)
+                    data_roi = inputs.target[pid, y0:y1, x0:x1]
+                    model_roi = bragg[pid, y0:y1, x0:x1]
+                    resid_roi = data_roi - model_roi
+
+                    row_axes = axes[row]
+                    titles = [
+                        f"ROI {row} Data (panel {pid})",
+                        "Mapping (zero-iter)",
+                        "Residual (Data - Model)",
+                    ]
+                    images = [data_roi, model_roi, resid_roi]
+
+                    for ax, img, title in zip(row_axes, images, titles):
+                        if vmin is not None and vmax is not None:
+                            im = ax.imshow(img, origin="lower", cmap="viridis", vmin=vmin, vmax=vmax)
+                        else:
+                            im = ax.imshow(img, origin="lower", cmap="viridis")
+                        ax.set_title(title)
+                        ax.set_xticks([])
+                        ax.set_yticks([])
+                        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+                fig.suptitle("DB-AT-024 Mapping ROI examples: Data | Model | Residual")
+                fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+                out_png = artifact_dir / "db_at_024_mapping_roi_triptych.png"
+                fig.savefig(out_png, dpi=150)
+                plt.close(fig)
+
         # Write per-ROI metrics CSV
         metrics_csv_path = artifact_dir / "mapping_metrics.csv"
         with open(metrics_csv_path, "w", newline="") as f:

@@ -37,6 +37,13 @@ export DBEX_SMOKE_DETECTOR_SIZE=full  # default is "small"
 - **Guard**: `tests/conftest.py::pytest_runtest_setup` enforces `docs/spec-db-workflow.md` (“Stage Smoke Dataset Policy”) by raising `pytest.UsageError` when any DB-AT/workflow selector runs without `--smoke-detector-size=full`/`DBEX_SMOKE_DETECTOR_SIZE=full`. Expect the failure message to cite the spec and knob so the rerun is actionable.
 - **Canonical full-detector gates**: When `DBEX_SMOKE_DETECTOR_SIZE=full`, Stage C must cut the injected ±0.25 mm offsets by ≥80 % (or end within ±0.05 mm) **and** keep Stage C chi-squared within +0.05 % of Stage A. Stage B must stay within ±1e-6 relative loss while every shell modifier remains within ±1 % of identity. Latest canonical telemetry lives under `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/` (`telemetry_full_cli.json`, `telemetry_full_metadata.json`). Stage A improved the variance-weighted loss by 0.9106 (χ² 1.37 × 10⁹ → 1.22 × 10⁸ across 17 closure evals), Stage B recorded `loss_improvement=-7.62e-08` (≥−1e-6 tolerance) with shell modifiers clamped to identity, and Stage C achieved `detector_offset_reduction_min=0.99999994` (final |Δ| ≤1.5 × 10⁻⁸ mm) while trimming chi-squared by 0.11%. Use these numbers as the current gold standard when validating future parity runs.
 
+**Golden mapping baseline for DB‑AT‑024/027/028/029:**
+```bash
+export DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1
+```
+- **Rationale**: Routes DB‑AT‑024/027/028/029 selectors and mapping‑aligned Stage‑A fixtures through the DB‑AT‑024 golden simple_cubic mapping configuration (`tests/fixtures/golden_data/simple_cubic/refined.{expt,refl,structure_factors.mtz}`, `config_torch.json`, `747_mask.pkl`) via `refgeom_dataload` / `build_mapping_stage_a_context`. This eliminates hidden differences between “golden” and “smoke” mapping baselines (geometry, mask, HKL, calibration, N_cells) for DB‑AT selectors and TOOLING‑VIS‑001 visuals.
+- **Scope**: Intended for DB‑AT/mapping runs; perf‑only Stage smokes MAY omit this flag to keep using the sp.proc `refGeom`/`refGeom_small` smoke calibration bundles.
+
 **Stage smoke telemetry logging (optional):**
 ```bash
 export DBEX_SMOKE_TELEMETRY_PATH=plans/active/<initiative>/reports/<timestamp>/telemetry_small.json

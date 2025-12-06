@@ -53,11 +53,19 @@ def test_db_at_027_zero_point_parity():
     sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "metadata")
     detector_size = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE", "full")
 
+    # Resolve artifact directory (optional) for metrics + PNGs
+    artifact_dir = os.environ.get("DBAT027_ARTIFACT_DIR")
+    artifact_path = None
+    if artifact_dir:
+        artifact_path = Path(artifact_dir)
+        artifact_path.mkdir(parents=True, exist_ok=True)
+
     # Run engine-delegation zero-point probe (DB-AT-027)
     result = run_engine_zero_point_probe(
         dataload,
         device_str="cpu",
         sigma_source=sigma_source,
+        triptych_path=artifact_path / "db_at_027_zero_point_triptych.png" if artifact_path else None,
     )
 
     # Extract metrics
@@ -71,10 +79,7 @@ def test_db_at_027_zero_point_parity():
     db_at_027_pass = result["db_at_027_pass"]
 
     # Emit artifact JSONs BEFORE assertions (so they're written even on xfail)
-    artifact_dir = os.environ.get("DBAT027_ARTIFACT_DIR")
-    if artifact_dir:
-        artifact_path = Path(artifact_dir)
-        artifact_path.mkdir(parents=True, exist_ok=True)
+    if artifact_path:
 
         # db_at_027_metrics.json: Full result dict with all metrics
         metrics_json_path = artifact_path / "db_at_027_metrics.json"
@@ -149,4 +154,156 @@ def test_db_at_027_zero_point_parity():
         f"DB-AT-027 internal consistency error: individual tolerances passed but "
         f"db_at_027_pass={db_at_027_pass}. This indicates a logic bug in "
         f"run_engine_zero_point_probe."
+    )
+
+
+@pytest.mark.db_at_027
+@pytest.mark.allow_metadata_sigma
+@pytest.mark.xfail(
+    reason=(
+        "Stage A zero-point reconstruction currently does not reproduce the "
+        "mapping baseline (STAGEA-001 baseline miscalibration); forward-only "
+        "zero-point parity remains to be fixed."
+    ),
+    strict=False,
+)
+def test_db_at_027_zero_point_forward_only():
+    """
+    DB-AT-027 variant: zero-point forward parity only (no refinement steps).
+
+    Compares the mapping zero-iteration Bragg stack from
+    build_mapping_stage_a_context with the Stage A zero-point reconstruction
+    built from telemetry at max_iter=0, using the same HKL grid, calibration,
+    and inputs. Does not enforce any refinement behavior; it only checks that
+    the Stage A forward model at zero deltas matches the mapping forward
+    baseline.
+    """
+    import copy
+    import json
+    from pathlib import Path
+
+    import numpy as np
+    import torch
+
+    from dbex.tools.stage_a_adam import build_dataload
+    from dbex.vis.mapping import build_mapping_stage_a_context
+    from dbex.nanobrag_bridge import build_structure_factor_grid
+    from dbex.nanobrag_refinement import (
+        RefinementConfig,
+        run_nanobrag_refinement,
+    )
+    from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
+
+    repo_root = Path(__file__).resolve().parents[2]
+    dataload = build_dataload(repo_root)
+
+    # Build mapping context (DB-AT-024-style baseline) on CPU
+    mapping_context = build_mapping_stage_a_context(
+        dataload,
+        default_sigma_readout=3.0,
+        device="cpu",
+    )
+
+    # HKL grid mirrored from mapping context indices/amplitudes
+    hkl_indices = mapping_context.hkl_indices
+    hkl_amplitudes = mapping_context.hkl_amplitudes
+    hkl_has_halo = bool(mapping_context.diagnostics.get("hkl_stats", {}).get("has_halo", False))
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
+        device="cpu",
+        halo=hkl_has_halo,
+    )
+
+    calibration = mapping_context.calibration or {}
+    spot_scale_override = mapping_context.spot_scale_override
+    if spot_scale_override is None and calibration:
+        spot_scale_override = calibration.get("spot_scale_override")
+
+    log_scale_baseline = None
+    if spot_scale_override is not None:
+        try:
+            log_scale_baseline = float(np.log(np.sqrt(spot_scale_override)))
+        except (TypeError, ValueError):
+            log_scale_baseline = None
+
+    # Stage A config with max_iter=0 (no refinement steps)
+    config = RefinementConfig(
+        device="cpu",
+        max_iter=0,
+        enable_stage_b=False,
+        enable_stage_c=False,
+        sigma_readout_provenance="metadata",
+        calibration_metadata=mapping_context.calibration,
+    )
+    config.log_scale_baseline = log_scale_baseline
+
+    # Run Stage A engine once to obtain telemetry at zero iterations
+    bragg_full, telemetry_dict, _ = run_nanobrag_refinement(
+        inputs=mapping_context.inputs,
+        detector=dataload.detector,
+        beam=dataload.beam,
+        crystal=dataload.crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+    )
+
+    telemetry_a = telemetry_dict.get("A")
+    assert telemetry_a is not None, "Stage A telemetry missing in zero-point forward-only probe"
+
+    # Force initial → final in telemetry so reconstruction uses zero deltas
+    telemetry_a_zero = copy.deepcopy(telemetry_a)
+    for key, val in telemetry_a_zero.param_deltas.items():
+        if isinstance(val, dict) and "initial" in val and "final" in val:
+            val["final"] = val["initial"]
+
+    # Rebuild Stage A zero-point Bragg from telemetry
+    device = torch.device("cpu")
+    dtype = config.dtype
+    bragg_stagea_zero = build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry_a_zero,
+        detector=dataload.detector,
+        beam=dataload.beam,
+        crystal=dataload.crystal,
+        inputs=mapping_context.inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        device=device,
+        dtype=dtype,
+    )
+
+    bragg_mapping = mapping_context.bragg_zero_iter
+    assert bragg_stagea_zero.shape == bragg_mapping.shape
+
+    # Forward-only parity metrics
+    diff = bragg_stagea_zero - bragg_mapping
+    mean_abs_diff = float(np.abs(diff).mean())
+    max_abs_diff = float(np.abs(diff).max())
+
+    mean_abs_tol = 1e-3
+    max_abs_tol = 2.0e2
+
+    # Persist simple metrics alongside existing DB-AT-027 artifacts when requested
+    artifact_dir = os.environ.get("DBAT027_ARTIFACT_DIR")
+    if artifact_dir:
+        artifact_path = Path(artifact_dir)
+        artifact_path.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "mean_abs_diff": mean_abs_diff,
+            "max_abs_diff": max_abs_diff,
+            "shape": list(bragg_mapping.shape),
+        }
+        (artifact_path / "db_at_027_forward_only_metrics.json").write_text(
+            json.dumps(payload, indent=2)
+        )
+
+    assert mean_abs_diff <= mean_abs_tol, (
+        f"DB-AT-027 forward-only FAIL: mean_abs_diff={mean_abs_diff:.6e} exceeds "
+        f"tolerance {mean_abs_tol:.6e} for Stage A zero-point vs mapping baseline."
+    )
+    assert max_abs_diff <= max_abs_tol, (
+        f"DB-AT-027 forward-only FAIL: max_abs_diff={max_abs_diff:.6e} exceeds "
+        f"tolerance {max_abs_tol:.6e} for Stage A zero-point vs mapping baseline."
     )

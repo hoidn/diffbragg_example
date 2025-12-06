@@ -167,9 +167,12 @@ def create_unified_simulator(
 
     # Validate HKL grid shape (3D grid from build_structure_factor_grid)
     if hkl_grid.ndim != 3:
-        raise ValueError(f"hkl_grid must be 3D (h_range, k_range, l_range), got {hkl_grid.shape}")
+        raise ValueError(
+            f"hkl_grid must be 3D (h_range, k_range, l_range), got {hkl_grid.shape}"
+        )
+    # Ensure HKL grid lives on requested device/dtype; move if necessary
     if hkl_grid.device != device or hkl_grid.dtype != dtype:
-        raise ValueError(f"hkl_grid device/dtype mismatch: expected {device}/{dtype}, got {hkl_grid.device}/{hkl_grid.dtype}")
+        hkl_grid = hkl_grid.to(device=device, dtype=dtype)
 
     # Normalize mask to device/dtype if provided
     normalized_mask = None

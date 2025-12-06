@@ -114,6 +114,69 @@ def _roi_correlations(
     return corrs
 
 
+def _emit_stage_a_triptych_png(stage_a_smoke_result, artifact_dir: Path) -> None:
+    try:
+        import matplotlib.pyplot as plt  # type: ignore[import]
+    except Exception:
+        return
+
+    inputs = stage_a_smoke_result.get("inputs")
+    bragg_before = stage_a_smoke_result.get("bragg_before")
+    bragg_after = stage_a_smoke_result.get("bragg_after")
+
+    if inputs is None or bragg_before is None or bragg_after is None:
+        return
+
+    target = inputs.target
+    loss_mask = inputs.loss_mask
+    if target is None or loss_mask is None:
+        return
+
+    if target.ndim < 3 or loss_mask.ndim < 3:
+        return
+
+    panel_id = 0
+    if panel_id >= target.shape[0]:
+        return
+
+    data_panel = np.asarray(target[panel_id], dtype=np.float32)
+    model_before_panel = np.asarray(bragg_before[panel_id], dtype=np.float32)
+    model_after_panel = np.asarray(bragg_after[panel_id], dtype=np.float32)
+
+    # Robust intensity range: clip outliers so structure is visible
+    stacked = np.concatenate(
+        [
+            data_panel[np.isfinite(data_panel)].ravel(),
+            model_before_panel[np.isfinite(model_before_panel)].ravel(),
+            model_after_panel[np.isfinite(model_after_panel)].ravel(),
+        ]
+    )
+    if stacked.size == 0:
+        return
+    vmin, vmax = np.percentile(stacked, [1.0, 99.0])
+    # Guard against degenerate ranges
+    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin >= vmax:
+        vmin, vmax = float(stacked.min()), float(stacked.max())
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    for ax, img, title in zip(
+        axes,
+        [data_panel, model_before_panel, model_after_panel],
+        ["Data", "Stage A before", "Stage A after"],
+    ):
+        im = ax.imshow(img, origin="lower", cmap="viridis", vmin=vmin, vmax=vmax)
+        ax.set_title(title)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+    fig.suptitle("DB-AT-028 Stage A panel 0: data vs model")
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    out_path = artifact_dir / "db_at_028_stage_a_panel0_triptych.png"
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 @pytest.fixture
 def stage_a_smoke_result(
     request,
@@ -490,6 +553,8 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         "bragg_before_source": "stage_a_telemetry_initial",
     }
     (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
+
+    _emit_stage_a_triptych_png(stage_a_smoke_result, artifact_dir)
 
     assert chi2_per_pixel_initial <= 1e2, f"chi²/pixel initial {chi2_per_pixel_initial:.3e} exceeds 1e2 bound"
     assert chi2_per_pixel_final <= 1e2, f"chi²/pixel final {chi2_per_pixel_final:.3e} exceeds 1e2 bound"

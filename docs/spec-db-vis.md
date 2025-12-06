@@ -39,7 +39,7 @@ Terminology (Normative)
 - `Residual`: `I_obs - I_model`.
 
 Mapping-Aligned Stage‑A Visuals (Normative)
-- For visuals that claim DB‑AT‑024 mapping parity (e.g., TOOLING‑VIS‑001 Stage‑A ROI triptychs), the “before” model SHALL come from the mapping-aligned configuration defined in `spec-db-workflow.md` (Canon. Initial Configuration) and enforced by DB‑AT‑027: same geometry/masks/sigma/HKL/calibration as DB‑AT‑024, and zero geometry deltas/baseline scale reproduce the mapping Bragg tensor within tolerance.
+- For visuals that claim DB‑AT‑024 mapping parity (e.g., TOOLING‑VIS‑001 Stage‑A ROI triptychs), the “before” model SHALL come from the mapping-aligned configuration defined in `spec-db-workflow.md` (Canon. Initial Configuration) and enforced by DB‑AT‑027: same geometry/masks/sigma/HKL/calibration as DB‑AT‑024, and zero geometry deltas/baseline scale reproduce the mapping Bragg tensor within tolerance. Concretely, this corresponds to the DB‑AT‑024 golden simple_cubic mapping configuration (`tests/fixtures/golden_data/simple_cubic/refined.{expt,refl,structure_factors.mtz}`, `config_torch.json`, `747_mask.pkl`) wired through the mapping helpers/fixtures.
 - Plan‑local Stage‑A refinement/vis helpers MAY generate “after” panels on top of this mapping-aligned baseline but SHALL NOT be used as the “before” reference unless their zero-point has been validated against the canonical mapping simulator via an explicit equality probe (e.g., a zero-point check artifact comparing Bragg tensors, chi², and median ROI correlation).
 
 File Formats (Normative)

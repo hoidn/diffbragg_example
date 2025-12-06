@@ -61,6 +61,12 @@ def _resolve_smoke_sigma_source(pytestconfig) -> str:
     return source
 
 
+def _use_golden_simple_cubic() -> bool:
+    """Return True when DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC requests golden mapping config."""
+    flag = os.environ.get("DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC", "")
+    return flag.lower() in {"1", "true", "yes", "on"}
+
+
 @pytest.fixture(scope="session")
 def smoke_detector_size(pytestconfig) -> str:
     return _resolve_smoke_detector_size(pytestconfig)
@@ -84,36 +90,83 @@ def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDataset
     (sp.proc/idx-0000_sigma_metadata.expt or sp.proc/refGeom_small/idx-0000_sigma_metadata_small.expt)
     which have sigma embedded in imageset.external_lookup. The sigma_map_path is kept as None
     (unless DBEX_SMOKE_SIGMA_MAP_PATH is explicitly set) so DataLoad will use the external_lookup path.
+
+    DBAT-SMOKE-GOLDEN-001 extension:
+        - When DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC is set (truthy) and no explicit
+          DBEX_SMOKE_GEOM_PATH override is provided, DB-AT selectors and mapping-
+          aligned helpers MAY route geometry/reflections/mask through the DB-AT-024
+          golden simple_cubic mapping configuration:
+              tests/fixtures/golden_data/simple_cubic/refined.{expt,refl}
+              747_mask.pkl
+          Sigma provenance (cli_override vs metadata) remains controlled by
+          smoke_sigma_source and DBEX_SMOKE_SIGMA_MAP_PATH; golden mode does not
+          implicitly change sigma sourcing.
     """
     repo_root = Path(__file__).resolve().parent.parent
 
-    # Resolve canonical geometry path from env or defaults
-    # When smoke_sigma_source=="metadata", use sigma metadata experiment files
-    # (which have sigma embedded in external_lookup) instead of refGeom files
     geom_path_override = os.environ.get("DBEX_SMOKE_GEOM_PATH")
-    if geom_path_override:
-        geom_path = repo_root / geom_path_override
-    elif smoke_sigma_source == "metadata":
-        # Use sigma metadata experiment files for external_lookup sigma sourcing
-        if smoke_detector_size == "small":
-            geom_path = repo_root / "sp.proc" / "refGeom_small" / "idx-0000_sigma_metadata_small.expt"
-        else:
-            geom_path = repo_root / "sp.proc" / "idx-0000_sigma_metadata.expt"
-    elif smoke_detector_size == "small":
-        geom_path = repo_root / "sp.proc" / "refGeom_small" / "refGeom_small.expt"
-    else:
-        geom_path = repo_root / "refGeom.expt"
+    golden_root = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
+    golden_expt = golden_root / "refined.expt"
+    golden_refl = golden_root / "refined.refl"
+    golden_mask = repo_root / "747_mask.pkl"
 
-    # Resolve reflections and mask paths based on detector size
-    if smoke_detector_size == "small":
-        base = repo_root / "sp.proc" / "refGeom_small"
-        refl_path = base / "refGeom_small.refl"
-        mask_path = base / "refGeom_small_mask.pkl"
-        label = "small"
-    else:
-        refl_path = repo_root / "refGeom.refl"
-        mask_path = repo_root / "747_mask.pkl"
-        label = "full"
+    # Initialise placeholders; they will be filled by the branches below.
+    geom_path: Path
+    refl_path: Path
+    mask_path: Path
+    label: str
+
+    # Optional golden simple_cubic wiring for DB-AT / mapping-aligned runs
+    if geom_path_override is None and _use_golden_simple_cubic():
+        if golden_expt.exists() and golden_refl.exists() and golden_mask.exists():
+            geom_path = golden_expt
+            refl_path = golden_refl
+            mask_path = golden_mask
+            label = "golden_simple_cubic"
+        else:
+            # Golden fixtures missing; fall back to legacy behavior
+            geom_path_override = None
+
+    if geom_path_override:
+        # Explicit geometry override takes precedence; reflections/mask still
+        # follow detector-size defaults to preserve existing behavior.
+        geom_path = repo_root / geom_path_override
+        if smoke_detector_size == "small":
+            base = repo_root / "sp.proc" / "refGeom_small"
+            refl_path = base / "refGeom_small.refl"
+            mask_path = base / "refGeom_small_mask.pkl"
+            label = "small"
+        else:
+            refl_path = repo_root / "refGeom.refl"
+            mask_path = repo_root / "747_mask.pkl"
+            label = "full"
+    elif "geom_path" not in locals():
+        # Resolve canonical geometry path from defaults
+        if smoke_sigma_source == "metadata":
+            # Use sigma metadata experiment files for external_lookup sigma sourcing
+            if smoke_detector_size == "small":
+                geom_path = repo_root / "sp.proc" / "refGeom_small" / "idx-0000_sigma_metadata_small.expt"
+                base = repo_root / "sp.proc" / "refGeom_small"
+                refl_path = base / "refGeom_small.refl"
+                mask_path = base / "refGeom_small_mask.pkl"
+                label = "small"
+            else:
+                geom_path = repo_root / "sp.proc" / "idx-0000_sigma_metadata.expt"
+                refl_path = repo_root / "refGeom.refl"
+                mask_path = repo_root / "747_mask.pkl"
+                label = "full"
+        else:
+            if smoke_detector_size == "small":
+                geom_path = repo_root / "sp.proc" / "refGeom_small" / "refGeom_small.expt"
+                base = repo_root / "sp.proc" / "refGeom_small"
+                refl_path = base / "refGeom_small.refl"
+                mask_path = base / "refGeom_small_mask.pkl"
+                label = "small"
+            else:
+                geom_path = repo_root / "refGeom.expt"
+                refl_path = repo_root / "refGeom.refl"
+                mask_path = repo_root / "747_mask.pkl"
+                label = "full"
 
     # Resolve sigma-map path when metadata source is requested
     # Note: When smoke_sigma_source=="metadata", sigma is loaded from the experiment file's
@@ -206,46 +259,55 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source, smoke_detector_siz
 
     repo_root = Path(__file__).resolve().parent.parent
 
-    # Resolve calibration path: detector-size aware defaults, with override taking precedence
+    golden_root = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
+    golden_calib = golden_root / "config_torch.json"
+    golden_refined_mtz = golden_root / "refined_structure_factors.mtz"
+
+    # Resolve calibration path: detector-size aware defaults, with override taking precedence.
     calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
     if calib_path_override:
         calib_path = repo_root / calib_path_override
+    elif _use_golden_simple_cubic() and golden_calib.exists():
+        # DBAT-SMOKE-GOLDEN-001: golden simple_cubic mapping calibration for DB-AT path.
+        calib_path = golden_calib
     elif smoke_detector_size == "small":
         # Small-detector default
         default_smoke_calib_small = repo_root / "sp.proc" / "calibration" / "config_torch_smoke_small.json"
-        if default_smoke_calib_small.exists():
-            calib_path = default_smoke_calib_small
-        else:
-            calib_path = None
+        calib_path = default_smoke_calib_small if default_smoke_calib_small.exists() else None
     else:
         # Full-detector default
         default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
-        if default_smoke_calib.exists():
-            calib_path = default_smoke_calib
-        else:
-            calib_path = None
+        calib_path = default_smoke_calib if default_smoke_calib.exists() else None
 
-    # Resolve HKL path from env or default to detector-size-specific refined MTZ when calibration exists
-    # Per TOOLING-VIS-001 Phase D.C: refined structure factors must accompany calibration metadata
+    # Resolve HKL path from env or default to refined MTZ when calibration exists.
+    # Per TOOLING-VIS-001 Phase D.C and DBAT-SMOKE-GOLDEN-001:
+    # refined structure factors must accompany calibration metadata.
     hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
     if hkl_path_override:
         hkl_path = repo_root / hkl_path_override
         # Infer MTZ column type from filename or default to intensities
         mtz_col = "F(+),SIGF(+),F(-),SIGF(-)" if "refined" in str(hkl_path_override).lower() else "I(+),SIGI(+),I(-),SIGI(-)"
     elif calib_path:
-        # When calibration metadata is present, default to detector-size-specific refined MTZ
-        if smoke_detector_size == "small":
+        # When calibration metadata is present, prefer golden refined MTZ when requested.
+        if _use_golden_simple_cubic() and golden_refined_mtz.exists():
+            hkl_path = golden_refined_mtz
+            mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"
+        elif smoke_detector_size == "small":
             default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors_small.mtz"
+            if default_refined_mtz.exists():
+                hkl_path = default_refined_mtz
+                mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"  # Refined MTZ uses F columns
+            else:
+                hkl_path = repo_root / "scaled.mtz"
+                mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"
         else:
             default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
-
-        if default_refined_mtz.exists():
-            hkl_path = default_refined_mtz
-            mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"  # Refined MTZ uses F columns
-        else:
-            # Fallback to raw scaled MTZ if refined MTZ is missing
-            hkl_path = repo_root / "scaled.mtz"
-            mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"
+            if default_refined_mtz.exists():
+                hkl_path = default_refined_mtz
+                mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"  # Refined MTZ uses F columns
+            else:
+                hkl_path = repo_root / "scaled.mtz"
+                mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"
     else:
         hkl_path = repo_root / "scaled.mtz"
         mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"  # Raw MTZ uses I columns
@@ -306,10 +368,16 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source, smoke_detector_siz
         "canonical_source": "DBEX_SMOKE_GEOM_PATH" if os.environ.get("DBEX_SMOKE_GEOM_PATH") else "default",
     }
 
-    # TOOLING-VIS-001: Gate N_cells for small-detector metadata fixtures to suppress Stage-A anti-correlation
-    # Apply N_cells only when NOT (small detector AND metadata sigma source)
-    # Default to True for full-detector runs and raw-sigma runs
-    if smoke_detector_size == "small" and smoke_sigma_source == "metadata":
+    # TOOLING-VIS-001 / DBAT-SMOKE-GOLDEN-001:
+    # Gate N_cells for small-detector metadata fixtures to suppress Stage-A anti-correlation.
+    # Apply N_cells only when NOT (small detector AND metadata sigma source),
+    # except when the golden simple_cubic mapping configuration is explicitly requested,
+    # in which case DB-AT selectors treat N_cells as canonical.
+    if (
+        smoke_detector_size == "small"
+        and smoke_sigma_source == "metadata"
+        and not _use_golden_simple_cubic()
+    ):
         dataload.apply_calibration_n_cells = False
     else:
         dataload.apply_calibration_n_cells = True

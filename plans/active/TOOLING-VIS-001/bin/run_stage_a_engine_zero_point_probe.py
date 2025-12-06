@@ -58,6 +58,18 @@ def main():
 
     args = parser.parse_args()
 
+    # Resolve device, falling back to CPU if CUDA is unavailable
+    if args.device and str(args.device).lower().startswith("cuda"):
+        try:
+            import torch
+
+            if not torch.cuda.is_available():
+                print("WARNING: CUDA is not available; falling back to cpu for DB-AT-027 probe.")
+                args.device = "cpu"
+        except Exception as exc:
+            print(f"WARNING: CUDA initialization failed ({exc}); falling back to cpu for DB-AT-027 probe.")
+            args.device = "cpu"
+
     # Determine output directory
     if args.out_dir is None:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -89,10 +101,12 @@ def main():
 
     # Run RefinementEngine zero-point probe
     print("Running Stage A RefinementEngine zero-point probe (DB-AT-027)...")
+    png_path = out_dir / "db_at_027_zero_point_triptych.png"
     result = run_engine_zero_point_probe(
         dataload,
         device_str=args.device,
         sigma_source=sigma_source,
+        triptych_path=png_path,
     )
 
     # Emit JSON

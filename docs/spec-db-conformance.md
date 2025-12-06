@@ -68,7 +68,9 @@ Acceptance Tests (Normative)
   - Expectation: photon mode yields scale near 1; ADU mode learns positive scale with stable initialization. HDF5 `/torch_diagnostics` MUST record `spot_scale_override`, `sigma_floor` (value + provenance), `sigma_readout_provenance`, `beam_flux`/`beam_exposure` provenance, `beamsize_mm`, and `N_cells`; missing fields are non‑conformant.
   - Command: `pytest -v tests -k DB_AT_023`
 - DB‑AT‑024 Mapping consistency
-  - Setup: build per‑panel configs from a real Experiment; run a forward pass with initial parameters; evaluate K ROIs (e.g., 32) for correlation and localization.
+  - Setup: build per‑panel configs from the canonical DB‑AT‑024 mapping configuration using the golden simple_cubic assets
+    (`tests/fixtures/golden_data/simple_cubic/refined.{expt,refl,structure_factors.mtz}`, `config_torch.json`) with
+    `747_mask.pkl`; run a forward pass with initial parameters; evaluate K ROIs (e.g., 32) for correlation and localization.
   - Expectation: median ROI correlation ≥ 0.2 and ≥90% ROIs contain a local intensity maximum within the central half‑box.
   - Command: `pytest -v tests -k DB_AT_024`
 
@@ -285,11 +287,16 @@ Acceptance Tests (Normative)
   - Command: a dedicated Stage‑A mapping test (e.g. `pytest -v tests -k DB_AT_027`) SHALL enforce this contract for the simple_cubic fixture and is the enforcement point for “mapping‑aligned” Stage‑A zero‑point behavior.
 
 - DB‑AT‑028 Stage‑A loss‑scale and clamp sanity
-  - Goal: Ensure Stage‑A χ² values remain in a physically reasonable regime on the canonical Stage‑A smoke dataset, and that sigma_floor acts as a guardrail rather than the dominant regime.
+  - Goal: Ensure Stage‑A χ² values remain in a physically reasonable regime on the canonical DB‑AT‑024/027/028/029 mapping
+    configuration, and that sigma_floor acts as a guardrail rather than the dominant regime.
   - Setup:
-    - Dataset: Stage‑A smoke dataset from `test_stage_a_expansion` (sp.proc refGeom_small/refGeom_full).
+    - Dataset: DB‑AT‑024 golden simple_cubic mapping configuration (same geometry/mask/HKL/calibration as DB‑AT‑024; see
+      above), wired via the mapping helpers/fixtures used by DB‑AT‑027/028/029 (e.g. `refgeom_dataload` +
+      `build_mapping_stage_a_context` when `DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC` is set).
     - Geometry: deterministic perturbation from `create_perturbed_geometry` (+2/+1/+1% cell stretch, +1.5° Z‑misset).
-    - HKL grid: canonical Stage‑A policy uses nearest‑neighbor (`enable_hkl_interpolation=False` / `interpolation=False`) to match dbex→DiffBragg. Haloed tricubic MAY be run separately as a tagged, non‑canonical diagnostic; such runs are not part of DB‑AT‑028.
+    - HKL grid: canonical Stage‑A policy uses nearest‑neighbor (`enable_hkl_interpolation=False` / `interpolation=False`)
+      to match dbex→DiffBragg. Haloed tricubic MAY be run separately as a tagged, non‑canonical diagnostic; such runs are
+      not part of DB‑AT‑028.
     - Sigma policy: same as Stage‑A smoke (external tiles when available, else 3.0 ADU).
     - Config: Stage‑A LBFGS `RefinementConfig` as used by the smoke test (ROI sampling, warm cache enabled).
   - Procedure:
@@ -315,9 +322,11 @@ Acceptance Tests (Normative)
   - Command: DB‑AT‑028 MAY be enforced by extending `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` or via a dedicated selector `pytest -v tests -k DB_AT_028`.
 
 - DB‑AT‑029 Stage‑A intensity and structure parity vs experiment
-  - Goal: Guarantee that Stage‑A predictions have reasonable intensity scale and ROI structure relative to experimental data, not just a decreasing scalar loss.
+  - Goal: Guarantee that Stage‑A predictions have reasonable intensity scale and ROI structure relative to experimental data,
+    not just a decreasing scalar loss, when run against the shared DB‑AT‑024/027/028/029 golden mapping configuration.
   - Setup:
-    - Dataset and `RefinementInputs` as in DB‑AT‑028 (Stage‑A smoke dataset with perturbed geometry and canonical sigma_readout).
+    - Dataset and `RefinementInputs` as in DB‑AT‑028 (DB‑AT‑024 golden simple_cubic mapping configuration with perturbed
+      geometry and canonical sigma_readout).
     - HKL grid and `RefinementConfig` identical to `test_stage_a_expansion` (haloed grid, interpolation enabled, LBFGS Stage‑A only).
   - Procedure:
     1) Run Stage‑A refinement once under the smoke configuration to obtain Stage‑A telemetry (`telemetry_A`) and the final Bragg image (`bragg_after`).

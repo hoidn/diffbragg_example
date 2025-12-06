@@ -22,17 +22,19 @@ import random
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import median
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 
 from dbex.data_load import DataLoad
 from dbex.nanobrag_bridge import (
     build_structure_factor_grid,
+    compute_baseline_misset_deg,
+)
+from dbex.refinement.config_factories import (
     create_beam_config,
     create_crystal_config,
     create_detector_config,
-    compute_baseline_misset_deg,
 )
 from dbex.refinement.stage_a_utils import (
     quaternion_to_xyz_euler,
@@ -97,6 +99,8 @@ def build_dataload(repo_root: Path) -> DataLoad:
     fixtures_root = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
     refined_expt = fixtures_root / "refined.expt"
     refined_refl = fixtures_root / "refined.refl"
+    golden_calib = fixtures_root / "config_torch.json"
+    golden_refined_mtz = fixtures_root / "refined_structure_factors.mtz"
     legacy_expt = repo_root / "refGeom.expt"
     legacy_refl = repo_root / "refGeom.refl"
 
@@ -110,6 +114,13 @@ def build_dataload(repo_root: Path) -> DataLoad:
     mtz = repo_root / "scaled.mtz"
     mask = repo_root / "747_mask.pkl"
 
+    # DBAT-SMOKE-GOLDEN-001: Thread golden simple_cubic calibration + refined MTZ into
+    # the DataLoad args so build_mapping_stage_a_context can mirror the DB-AT-024
+    # mapping configuration (refined_structure_factors.mtz + config_torch.json) when
+    # those assets are present.
+    calibration_config_path = str(golden_calib) if golden_calib.exists() else None
+    hkl_source_path = str(golden_refined_mtz) if golden_refined_mtz.exists() else str(mtz)
+
     args = argparse.Namespace(
         exptName=str(expt),
         reflName=str(refl),
@@ -117,8 +128,18 @@ def build_dataload(repo_root: Path) -> DataLoad:
         mtzFile=str(mtz),
         mtzCol="F,SIGF",
         maskFile=str(mask),
+        # Optional fields consumed by mapping helpers / downstream tooling
+        hkl_source_path=hkl_source_path,
+        calibration_config_path=calibration_config_path,
+        config_path=calibration_config_path,
     )
-    return DataLoad(args)
+
+    dataload = DataLoad(args)
+    # For the canonical golden/simple_cubic configuration, DB-AT paths treat
+    # N_cells application as part of the mapping baseline (no small+metadata
+    # suppression). Expose this flag for helpers that consult the fixture.
+    dataload.apply_calibration_n_cells = True
+    return dataload
 
 
 def setup_environment(seed: int, device_str: str) -> int:
@@ -1592,6 +1613,7 @@ def run_engine_zero_point_probe(
     *,
     device_str: str = "cpu",
     sigma_source: str = "metadata",
+    triptych_path: "Path | None" = None,
 ) -> Dict[str, object]:
     """RefinementEngine zero-point probe (DB-AT-027).
 
@@ -1681,7 +1703,7 @@ def run_engine_zero_point_probe(
     config.log_scale_baseline = log_scale_baseline
 
     # Run RefinementEngine to capture telemetry
-    _, telemetry = run_nanobrag_refinement(
+    _, telemetry, _ = run_nanobrag_refinement(
         inputs=context.inputs,
         detector=dataload.detector,
         beam=dataload.beam,
@@ -1720,8 +1742,89 @@ def run_engine_zero_point_probe(
         dtype=dtype,
     )
 
-    # Compute forward-model differences
+    # Mapping baseline from context
     bragg_mapping = context.bragg_zero_iter
+
+    # Optional visualization: emit triptych PNG(s) (Data | Mapping | Stage A) for a few ROIs
+    if triptych_path is not None:
+        try:
+            import matplotlib
+
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+        except Exception:
+            # If matplotlib is unavailable, silently skip PNG emission
+            triptych_path = None
+        else:
+            target = context.inputs.target
+            panel_slices = context.inputs.panel_slices
+
+            if not panel_slices:
+                # Fallback: single full panel comparison
+                panel_slices = [(0, (0, target.shape[2], 0, target.shape[1]))]
+
+            # Use up to 6 ROIs for the visual triptych grid
+            roi_indices = list(range(min(6, len(panel_slices))))
+
+            # Collect all pixels across selected ROIs to compute a shared color scale
+            stacked_chunks = []
+            for idx in roi_indices:
+                pid, (x0, x1, y0, y1) = panel_slices[idx]
+                pid = int(pid)
+                x0, x1, y0, y1 = int(x0), int(x1), int(y0), int(y1)
+                stacked_chunks.extend(
+                    [
+                        np.asarray(target[pid, y0:y1, x0:x1], dtype=np.float64).ravel(),
+                        np.asarray(bragg_mapping[pid, y0:y1, x0:x1], dtype=np.float64).ravel(),
+                        np.asarray(bragg_stagea_zero[pid, y0:y1, x0:x1], dtype=np.float64).ravel(),
+                    ]
+                )
+
+            stacked = np.concatenate(stacked_chunks) if stacked_chunks else np.array([], dtype=np.float64)
+            stacked = stacked[np.isfinite(stacked)]
+            if stacked.size > 0:
+                vmin, vmax = np.percentile(stacked, [1.0, 99.0])
+                if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin >= vmax:
+                    vmin, vmax = float(stacked.min()), float(stacked.max())
+            else:
+                vmin, vmax = None, None
+
+            triptych_path.parent.mkdir(parents=True, exist_ok=True)
+            n_rows = len(roi_indices)
+            fig, axes = plt.subplots(n_rows, 3, figsize=(15, 4 * n_rows))
+            if n_rows == 1:
+                axes = np.array([axes])
+
+            for row, idx in enumerate(roi_indices):
+                pid, (x0, x1, y0, y1) = panel_slices[idx]
+                pid = int(pid)
+                x0, x1, y0, y1 = int(x0), int(x1), int(y0), int(y1)
+                data_img = target[pid, y0:y1, x0:x1]
+                mapping_img = bragg_mapping[pid, y0:y1, x0:x1]
+                stagea_img = bragg_stagea_zero[pid, y0:y1, x0:x1]
+
+                row_axes = axes[row]
+                titles = [
+                    f"ROI {idx} Data (panel {pid})",
+                    "Mapping zero-point",
+                    "Stage A zero-point",
+                ]
+                for ax, img, title in zip(row_axes, [data_img, mapping_img, stagea_img], titles):
+                    if vmin is not None and vmax is not None:
+                        im = ax.imshow(img, origin="lower", cmap="viridis", vmin=vmin, vmax=vmax)
+                    else:
+                        im = ax.imshow(img, origin="lower", cmap="viridis")
+                    ax.set_title(title)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+            fig.suptitle("DB-AT-027 Stage A vs mapping zero-point (first ROIs)")
+            fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+            fig.savefig(triptych_path, dpi=150)
+            plt.close(fig)
+
+    # Compute forward-model differences
     diff = bragg_stagea_zero - bragg_mapping
     max_abs_diff = float(np.abs(diff).max())
     mean_abs_diff = float(np.abs(diff).mean())

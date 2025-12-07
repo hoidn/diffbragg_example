@@ -113,8 +113,13 @@ def test_stage_a_vs_reconstruction_scale(refgeom_dataload):
     )
 
     # RefinementInputs doesn't have a config attribute; we need to create a minimal config
+    # ARCH-IMPL-CONFORMANCE-001 Phase B.5: thread calibration_metadata
     from dbex.refinement.config import RefinementConfig
-    config = RefinementConfig(device="cpu", dtype=torch.float32)
+    config = RefinementConfig(
+        device="cpu",
+        dtype=torch.float32,
+        calibration_metadata=stage_a_ctx.calibration,
+    )
 
     bragg_reconstruction = build_final_bragg_from_stage_a_telemetry(
         telemetry_a=telemetry_initial,
@@ -233,9 +238,11 @@ def test_stage_a_vs_reconstruction_scale_cold_path(refgeom_dataload):
     }
     telemetry_initial = RefinementTelemetry(param_deltas=zero_deltas)
 
-    # Build HKL grid for reconstruction (same as warm-cache test)
-    hkl_indices = dataload.F.indices()
-    hkl_amplitudes = dataload.F.data()
+    # Build HKL grid for reconstruction using SAME HKL data as Stage A context
+    # ARCH-IMPL-CONFORMANCE-001 Phase B.5: Stage A may use refined structure factors;
+    # cold path must match to ensure parity
+    hkl_indices = stage_a_ctx.hkl_indices
+    hkl_amplitudes = stage_a_ctx.hkl_amplitudes
 
     hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
         indices=hkl_indices,
@@ -244,9 +251,15 @@ def test_stage_a_vs_reconstruction_scale_cold_path(refgeom_dataload):
         halo=True  # TORCH-REFINE-002D: Add ±1 padding for tricubic interpolation
     )
 
-    # Create minimal config (same as warm-cache test)
+    # Create minimal config with calibration_metadata from Stage A context
+    # ARCH-IMPL-CONFORMANCE-001 Phase B.5: thread calibration_metadata to cold path
+    # so apply_sqrt_spot_scale receives correct spot_scale_override value
     from dbex.refinement.config import RefinementConfig
-    config = RefinementConfig(device="cpu", dtype=torch.float32)
+    config = RefinementConfig(
+        device="cpu",
+        dtype=torch.float32,
+        calibration_metadata=stage_a_ctx.calibration,  # CRITICAL: pass calibration from Stage A
+    )
 
     # CRITICAL: Set stage_a_ctx=None to force cold-path reconstruction
     # This bypasses the cache optimization (reconstruction.py:83-86)

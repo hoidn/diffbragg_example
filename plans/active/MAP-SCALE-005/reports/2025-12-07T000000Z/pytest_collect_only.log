@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 4 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_refine_one_cli.py>
+        <Function test_refined_mtz_missing_file_fails_fast>
+        <Function test_refined_mtz_telemetry_provenance>
+        <Function test_torch_diagnostics_metadata[cli_override-3.0]>
+        <Function test_torch_diagnostics_metadata[external_lookup-5.0]>
+
+========================== 4 tests collected in 0.81s ==========================

@@ -73,11 +73,13 @@ Goal: ensure every active finding has a home in the fix-plan ledger and vice ver
 
 ### Phase C — Cadence, Tooling, and Working Agreements
 Goal: bake the maintenance workflow into documented guardrails.
-- **C1 — Cadence Definition:** Author a checklist (e.g., quarterly) covering rerun command (`python plans/active/FINDINGS-LEDGER-002/bin/findings_inventory.py ...` or manual steps), artifact expectations, and sign-off procedure. Reference it in `docs/index.md` + `docs/fix_plan.md`.
-- **C2 — Automation Hook (Optional/Tier-2):** If warranted, implement a small helper script under `plans/active/FINDINGS-LEDGER-002/bin/` that emits `findings_inventory.json` to reduce manual toil. Document usage + tests.
-- **C3 — Guardrail Update:** Update Working Agreements / plan inventory instructions so the cadence becomes part of the broader doc graph (similar to the plan inventory guard).
+- **C1 — Cadence Definition:** DONE (2025-12-07T100000Z) — `cadence_checklist.md` template authored, 5-phase checklist with quarterly schedule, orphan triage, and artifact expectations.
+- **C2 — Automation Hook (Optional/Tier-2):** DEFERRED — manual quarterly cadence sufficient; revisit if findings volume >150 or cadence frequency increases to monthly.
+- **C3 — Guardrail Update:** DONE (2025-12-07T100000Z) — `docs/index.md` § Knowledge Base Ledger and `docs/fix_plan.md` Working Agreements updated with cadence cross-references.
 
-**Artifacts:** Cadence checklist (`reports/<ts>/cadence.md`), optional bin scripts + tests, fix-plan Working Agreements updates.
+**Phase C complete (2025-12-07T100000Z):** Cadence checklist template delivered, guardrails updated in index.md + fix_plan.md. Artifacts: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T100000Z/`. C.2 automation deferred to future loop.
+
+**Artifacts:** Cadence checklist (`cadence_checklist.md`), planning notes, summary.md, cross-reference validation.
 
 ## Compliance & Controls
 - **Environment Freeze:** Documentation-only changes; any helper scripts live under initiative `bin/` and respect the targeted bugfix exception documentation rules (patch files, findings updates, env tags) if they ever touch vendored code.

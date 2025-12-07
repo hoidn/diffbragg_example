@@ -46,9 +46,10 @@ Use this when: Inspecting fit quality and ROI scores from a refinement run. See 
 ## Operational Ledgers
 
 ### [Knowledge Base Ledger](findings.md)
-Description: Persistent record of architectural findings, runtime guardrails, and parity lessons for the torch integration.  
-Keywords: findings, guardrails, lessons  
+Description: Persistent record of architectural findings, runtime guardrails, and parity lessons for the torch integration.
+Keywords: findings, guardrails, lessons
 Use this when: Planning a loop or checking prior art before touching simulator/bridge code.
+The ledger is maintained quarterly via [FINDINGS-LEDGER-002] cadence checklist (`plans/active/FINDINGS-LEDGER-002/cadence_checklist.md`); rerun when >10 findings change in a month or after major initiative closures.
 
 ### [Fix Plan Ledger](fix_plan.md)
 Description: Master task list for the torch backend rollout, including dependencies, exit criteria, and Attempts History.  

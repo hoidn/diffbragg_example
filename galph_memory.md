@@ -1,4 +1,12 @@
-2025-12-07T060000Z focus=PHYSICS-LOSS-001 state=closed dwell=N/A action=review_or_housekeeping artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/ next_action=tier1_focus_selection
+2025-12-07T140000Z focus=MAP-SCALE-SYNC-001 state=planning dwell=0 action=planning artifacts=plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/ next_action=map_scale_003_phase_a_planning
+- Loop i=127 (Galph): Selected MAP-SCALE-SYNC-001 from Tier 1 after PHYSICS-LOSS-001 closure
+- Roll-up scoping complete: 3/5 member plans done (MAP-SCALE-001/002/004), 2/5 pending (MAP-SCALE-003/005)
+- Focus: MAP-SCALE-003 Phase A (CLI Refined Structure Factor Telemetry design audit)
+- DecisionStatus: exploring (telemetry schema design, MTZ flow trace, consumer compatibility)
+- Next: Ralph implements Phase A planning deliverables (5 artifacts: schema audit, MTZ trace, telemetry schema, consumer compatibility, planning notes)
+- Dwell: 0 (new Tier 1 focus selected, first planning loop for this selector+signature)
+
+2025-12-07T060000Z focus=PHYSICS-LOSS-001 state=closed dwell=N/A action=review_or_housekeeping artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z_i126/ next_action=tier1_focus_selection
 - Loop i=126 (Ralph): Closed PHYSICS-LOSS-001 with status done_with_environment_caveat
 - All 4/4 exit criteria satisfied: variance-weighted loss matches spec (Phase D canonical helper), sigma-floor telemetry validated (Phases B/E/F/G/H/I), implementation.md Phases A-I complete, risks documented
 - Core functionality tests PASSED (CLI metadata, sigma fixture); Stage A/B/C smoke tests blocked by CUDA OOM (environment regression, not implementation issue)

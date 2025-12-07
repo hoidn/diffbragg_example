@@ -374,6 +374,7 @@
 - Spec References: `docs/spec-db-workflow.md` "Calibration & Unit Conventions", `docs/config_crosswalk.md`
 - Attempts History:
   * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Member plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports documenting sigma provenance and spot-scale alignment goals. Next: consolidate latest status from member reports.
+  * 2025-12-07T180000Z — [Ralph i=127] MAP-SCALE-003 Phase B complete: CLI plumbing verification + test assertion validation. CLI correctly threads hkl_source/hkl_path from argument parsing through writer (lines 378-401, 640-645, 691 in dbex/refine_one.py). Both test_torch_diagnostics_metadata (lines 1052-1059) and test_db_at_024_mapping_smoke (lines 495-514) already have complete hkl_telemetry assertions. Tests: test_torch_diagnostics_metadata PASSED (2/2 parametrizations), test_db_at_024_mapping_smoke SKIPPED (missing DBAT024_ARTIFACT_DIR env var, expected per fixture design). Collect-only regression guard: both selectors collected successfully (2 items + 1 item respectively). No production code changes required (assertions already present from prior work). Findings: SCALE-003, SCALE-004, SCALE-006 validated; SCALE-007 enforcement deferred to MAP-SCALE-005 per plan. Next: MAP-SCALE-004 Phase A (bridge telemetry construction verification). Artifacts: plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/.
 
 ### [PHYSICS-LOSS-001] Variance-Weighted Loss Parity and Telemetry
 - Depends on: MAP-SCALE-SYNC-001 (calibration precedence)

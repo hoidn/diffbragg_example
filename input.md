@@ -1,8 +1,8 @@
-# Input for Ralph — Loop i=139
+# Input for Ralph — Loop i=140
 
-**Summary**: Fix detector and beam test harness gradient breaks by implementing tensor-valued override mechanisms in config factories.
+**Summary**: Refactor detector/beam overrides to post-creation pattern (match crystal_overrides), validate detector distance gradcheck, document beam wavelength external blocker.
 
-**Mode**: none (production fix)
+**Mode**: none
 
 **ActionType**: implementation_ready
 
@@ -15,187 +15,340 @@
 **Branch**: integration
 
 **Mapped tests**:
-- `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance` (expect PASS post-fix)
-- `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength` (expect PASS post-fix)
-- `pytest -v tests -k DB_AT_010 --smoke-detector-size=full` (full suite regression check)
+- `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance` (primary validation, expect PASS)
+- `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength` (secondary validation, expect FAIL external blocker)
+- `pytest -v tests -k DB_AT_010 --smoke-detector-size=full` (regression check IF detector passes)
 
-**Artifacts**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/`
-
-**Findings Applied (Mandatory)**:
-
-- **GRADIENT-001** (Gradient test patterns): Tests must inject differentiable parameters via override dicts to preserve autograd graph.
-  - Code: `tests/dbex/test_gradients.py` (existing crystal_overrides pattern)
-  - Adherence: Implement `distance_mm_override` and `wavelength_override` following same pattern.
-
-- **RUNTIME-001** (Runtime execution guardrails): DB-AT-010 requires `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference.
-  - Code: `docs/TESTING_GUIDE.md:161`
-  - Adherence: Use canonical flags for all pytest runs.
-
-- **ARCH-ENGINE-002** (Config factory ownership): Geometry construction logic lives in config factories; overrides must flow through public API.
-  - Code: `dbex/refinement/config_factories.py`
-  - Adherence: Add override parameters to `create_detector_config` / `create_beam_config`, no test-specific backdoors.
-
-**Pointers**:
-
-- **Evidence artifacts**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/` (Phase A.1-A.2 complete)
-  - `suspect_audit.md` — Root cause analysis (test_gradients.py:383, :496)
-  - `call_graph_trace.md` — Execution path from gradcheck → forward → loss
-- **Implementation plan**: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md` (Phase B.1 tasks)
-- **Planning notes**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/planning_notes.md`
-- **SPEC**: `docs/spec-db-conformance.md` §DB-AT-010 (gradcheck acceptance criteria)
-- **ARCH**: `docs/architecture.md` §13 Common Pitfalls (gradient hygiene)
-- **Testing docs**: `docs/TESTING_GUIDE.md` §1.4 (DB-AT-010 selector pattern)
-
-**ARCH Contracts (mandatory)**:
-
-1. **GRADIENT-001** (Test gradient preservation):
-   - **Owner module/API**: Test harness must use tensor-valued override mechanisms (e.g., `crystal_overrides` dict pattern)
-   - **Failure classification**: Implementation bug within architecture (test harness violates gradient hygiene by calling `.item()`)
-   - **Spec/Doc pointer**: `docs/spec-db-runtime.md` §Gradient Hygiene, `tests/dbex/test_gradients.py` existing crystal tests
-
-2. **ARCH-ENGINE-002** (Config factory ownership):
-   - **Owner module/API**: `dbex/refinement/config_factories.py` owns geometry config construction
-   - **Failure classification**: Implementation bug within architecture (config factories lack tensor override parameters)
-   - **Spec/Doc pointer**: `docs/architecture/module_map.md` (config_factories.py responsibility)
-
-3. **RUNTIME-001** (Gradient execution environment):
-   - **Owner module/API**: PyTorch runtime checklist (`NANOBRAGG_DISABLE_COMPILE=1` for gradcheck)
-   - **Failure classification**: Implementation bug within architecture (test harness uses correct flags per TESTING_GUIDE.md)
-   - **Spec/Doc pointer**: `docs/pytorch_runtime_checklist.md:26`, `docs/TESTING_GUIDE.md:161`
-
-**Do Now (hard validity contract)**:
-
-1. **Implement: `dbex/refinement/config_factories.py::create_detector_config`**
-   - Add `distance_mm_override: Optional[torch.Tensor] = None` parameter
-   - Conditional logic: if override provided and is tensor, use it; else extract scalar from dxtbx Detector
-   - Estimated: 20-30 LOC
-   - Pattern reference: `dbex/physics/forward.py:158-163` (existing `crystal_overrides` mechanism)
-
-2. **Implement: `dbex/refinement/config_factories.py::create_beam_config`**
-   - Add `wavelength_override: Optional[torch.Tensor] = None` parameter
-   - Conditional logic: if override provided and is tensor, use it; else extract scalar from dxtbx Beam
-   - Estimated: 15-25 LOC
-   - Alternative: Modify test to use BeamConfig constructor directly (if simpler)
-
-3. **Update: `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance`**
-   - Lines 379-427: Replace `float(distance_tensor.item())` pattern
-   - Call `create_detector_config(..., distance_mm_override=distance_tensor)`
-   - Remove manual Detector construction workaround
-   - Estimated: 5-10 LOC
-
-4. **Update: `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength`**
-   - Lines 493-518: Replace `float(wavelength_tensor.item())` pattern
-   - Call `create_beam_config(..., wavelength_override=wavelength_tensor)` or equivalent
-   - Estimated: 5-10 LOC
-
-5. **Validate: Run primary tests** (with canonical flags):
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance
-   ```
-   - Capture log: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_detector_distance_post_fix.log`
-   - Expected: PASSED
-
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength
-   ```
-   - Capture log: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_beam_wavelength_post_fix.log`
-   - Expected: PASSED
-
-6. **Validate: Run full DB-AT-010 suite** (regression check):
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests -k DB_AT_010 --smoke-detector-size=full
-   ```
-   - Capture log: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_db_at_010_full_suite_post_fix.log`
-   - Expected: 2/5 PASSED (detector + beam), 3/5 status TBD (crystal tests)
-
-7. **Deliverables: Create analysis report**
-   - File: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/phase_b1_analysis.md`
-   - Contents:
-     - Implementation summary (LOC changed, modules touched)
-     - Test results (detector PASS/FAIL, beam PASS/FAIL, crystal status)
-     - Crystal test failure signature (if still failing)
-     - Next action recommendation (Phase A.3 probe OR Phase B.2-B.3 enforcement test)
-   - File: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/summary.md`
-   - Contents: Loop summary for galph_memory.md (focus, deliverables, test metrics, next action)
-
-**Forbidden This Loop**:
-- No new plan-local diagnostic scripts (Phase B.1 is production fix only)
-- Do not attempt to fix crystal tests (defer to Phase A.3 probe if needed)
-- Do not write enforcement test yet (defer to Phase B.2 after status clear)
-- Do not update docs/findings.md or TEST_SUITE_INDEX.md (defer to Phase B.4 after all tests passing)
-
-**How-To Map**:
-
-1. Read existing code for patterns:
-   - `dbex/physics/forward.py:158-163` — `crystal_overrides` pattern
-   - `dbex/refinement/config_factories.py` — detector/beam config factory signatures
-
-2. Implement config factory overrides:
-   - Add optional tensor parameters to function signatures
-   - Add conditional branches: `if override is not None and isinstance(override, torch.Tensor): ...`
-   - Preserve backward compatibility: if override not provided, use existing scalar extraction path
-
-3. Update test harness:
-   - Remove `float(tensor.item())` calls
-   - Pass tensor directly via new override parameters
-   - Ensure rest of test logic unchanged (same loss_fn closure pattern)
-
-4. Run tests sequentially (not parallel):
-   - First: detector test alone
-   - Second: beam test alone
-   - Third: full suite (assess crystal test status)
-
-5. Write analysis report:
-   - Document exact LOC changed
-   - Copy-paste pytest output (PASSED/FAILED lines, gradcheck tolerances if applicable)
-   - For crystal tests: copy full error traceback if still failing
-
-**Pitfalls To Avoid**:
-
-1. **Type discipline**: This is `architecture` (gradient hygiene enforcement), not `bugfix` (semantic change)
-2. **No stacking**: Production code is clean; only fix test harness + config factory API
-3. **Parity-first**: Not applicable (gradient flow, not numerical parity)
-4. **No shadow-pipeline**: Do not create probe scripts; Phase B.1 is production code only
-5. **Thin wrapper budget**: Not applicable this loop (production fix, not probe)
-6. **No test weakening**: Do not relax gradcheck tolerances or skip tests
-7. **Backward compat**: Config factory changes must not break existing call sites (optional parameters)
-8. **Symmetric patterns**: Detector and beam overrides should follow same pattern for maintainability
-9. **Minimal scope**: Fix only detector + beam this loop; crystal tests investigated separately if needed
-10. **Evidence-based next action**: If crystal tests still fail, recommend Phase A.3 probe with concrete hypothesis
-
-**If Blocked**:
-
-- **If config factory override implementation complex** (>30 LOC per function):
-  - Document complexity, propose alternative (e.g., test-side BeamConfig construction)
-  - Continue with detector override only, defer beam to next loop
-
-- **If detector/beam tests still fail post-fix**:
-  - Capture full pytest traceback in analysis report
-  - Mark Phase B.1 as blocked, recommend deeper call graph audit or pivot to spec_change
-
-- **If crystal tests mysteriously pass**:
-  - Great! Proceed to Phase B.2-B.3 next loop (enforcement test + docs)
-  - Update planning_notes.md with surprise success scenario
-
-- **If environment issues** (e.g., nanobrag_torch import errors):
-  - Treat as blocker per Environment Freeze policy
-  - Do not attempt local patches; mark ARCH-GRADIENT-FLOW-001 blocked_pending_environment
-
-**Doc Sync Plan**: Not applicable this loop (no test renames, no registry changes)
+**Artifacts**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/`
 
 ---
 
-**Galph's confidence in this plan**: 0.9 (high confidence detector/beam fixes work; low confidence crystal tests self-resolve)
+## Findings Applied (Mandatory)
 
-**Estimated effort**: 1 loop (40-60 LOC implementation + 3 pytest runs)
+**RUNTIME-001** (Runtime execution guardrails):
+- DB-AT-010 gradcheck requires `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference with `torch.autograd.gradcheck`
+- Code: `docs/TESTING_GUIDE.md:22-28`, `docs/pytorch_runtime_checklist.md:26`
+- Adherence: All validation commands include `NANOBRAGG_DISABLE_COMPILE=1` + `KMP_DUPLICATE_LIB_OK=TRUE`
 
-**Next loop decision tree**:
-- If 2/5 PASS (detector+beam), 3/5 FAIL (crystal) → Phase A.3 probe
-- If 5/5 PASS → Phase B.2-B.3 enforcement test + docs
-- If 0/5 or 1/5 PASS → Deeper audit or blocked
+**GRADIENT-001** (Gradient test patterns):
+- Tests must inject differentiable parameters via tensor-valued override mechanisms preserving autograd graph
+- Post-creation override pattern matches crystal_overrides precedent (working implementation)
+- Code: `dbex/physics/forward.py:194-208` (crystal_overrides pattern)
+- Adherence: Option C refactor implements symmetrical pattern for detector/beam configs
+
+**ARCH-ENGINE-002** (Config factory ownership):
+- Geometry config construction logic lives in `config_factories.py` with scalar extraction from dxtbx
+- Override logic lives in caller scope (`simulate_forward_torch`) with tensor field assignment
+- Code: `dbex/refinement/config_factories.py`
+- Adherence: Revert factory parameter approach (i=139), restore factory-creates-caller-overrides separation
+
+**TESTING-003** (Acceptance test registry maintenance):
+- TEST_SUITE_INDEX.md must update when DB-AT-010 status changes
+- Code: `docs/development/TEST_SUITE_INDEX.md`
+- Adherence: Deferred to Phase B.4 after full gradcheck suite passes
+
+---
+
+## Pointers
+
+**SPEC**:
+- `docs/spec-db-conformance.md` §DB-AT-010 — Gradcheck tolerance requirements (eps=1e-6, atol=1e-5, rtol=0.05)
+- `docs/spec-db-runtime.md` §Gradient Hygiene — Differentiability preservation contract
+
+**ARCH**:
+- `docs/architecture.md` §13 Common Pitfalls — Gradient flow preservation (to be updated Phase B.4)
+- `docs/architecture/module_map.md` — Physics/geometry module responsibilities
+
+**Testing Docs**:
+- `docs/TESTING_GUIDE.md:106-108` — Gradient test canonical commands with compile guard
+- `docs/development/TEST_SUITE_INDEX.md` — DB-AT-010 status row (currently FAILING)
+
+**Evidence Artifacts** (Ralph i=139):
+- `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/phase_b1_analysis.md` — Option C recommendation (lines 183-195)
+- `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_detector_distance_post_fix.log` — Jacobian mismatch signature
+- `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_beam_wavelength_post_fix.log` — External blocker evidence (nanobrag_torch.simulator.py:761)
+
+**Code Modules**:
+- `dbex/physics/forward.py:85-86,113-118,184-188,231-241` — Current override implementation (i=139, to be refactored)
+- `dbex/refinement/config_factories.py:234,249-250,257-260` — Wavelength override addition (i=139, to be reverted)
+- `tests/dbex/test_gradients.py:379-401,467-489` — Updated test harness (i=139, minor adjustments if needed)
+- `dbex/physics/forward.py:194-208` — Crystal overrides pattern (precedent for Option C)
+
+---
+
+## ARCH Contracts (mandatory)
+
+### ARCH-CONTRACT: GRADIENT-001 (Gradient Test Tensor Override Pattern)
+
+**Owner API**: `dbex/physics/forward.py::simulate_forward_torch` (crystal_overrides parameter + post-creation field assignment pattern)
+
+**Description**: Gradient tests inject differentiable tensor parameters via override dictionaries. Configs are created with scalars from dxtbx, then overridden with tensors AFTER creation to preserve autograd graph.
+
+**Forbidden duplicates**:
+- Test-specific backdoors in config factories (e.g., tensor-typed parameters in `create_detector_config`, `create_beam_config`)
+- Pre-creation tensor injection (type conversions/validations may strip gradients)
+- Manual geometry construction in tests (duplicate config factory logic)
+
+**Failure classification**: Implementation bug within architecture (i=139 used pre-creation pattern, violates GRADIENT-001 post-creation precedent)
+
+**Remediation** (this loop):
+1. **Canonical owner API**: `simulate_forward_torch` post-creation override pattern (lines 194-208 crystal precedent)
+2. **Delete/route duplicates**: Revert factory parameter approach from i=139 (`wavelength_override`, `distance_mm_override` parameters removed)
+3. **Enforcement test**: Deferred to Phase B.3 (requires detector test passing first)
+
+---
+
+### ARCH-CONTRACT: ARCH-ENGINE-002 (Config Factory Scalar Extraction Responsibility)
+
+**Owner API**: `dbex/refinement/config_factories.py` (create_detector_config, create_beam_config, create_crystal_config)
+
+**Description**: Config factories extract scalar geometry values from dxtbx objects and construct nanobrag_torch config dataclasses. Tensor-valued overrides are NOT in factory scope (caller responsibility).
+
+**Forbidden duplicates**:
+- Tensor parameter threading through factory signatures (violates scalar extraction contract)
+- Test-specific logic branches in factories (use caller override pattern instead)
+
+**Failure classification**: Implementation bug (i=139 added tensor parameters to factories, violates separation of concerns)
+
+**Remediation** (this loop):
+1. **Canonical owner API**: Factories create configs with scalars only (restore pre-i=139 signatures)
+2. **Delete/route duplicates**: Remove wavelength_override parameter from create_beam_config (revert lines 234, 249-250, 257-260)
+3. **Enforcement test**: Covered by GRADIENT-001 enforcement (same test validates both contracts)
+
+---
+
+## Do Now (hard validity contract)
+
+**Focus**: ARCH-GRADIENT-FLOW-001 Phase B.1 Continuation (Option C Refactor)
+
+### Implement: `dbex/physics/forward.py::simulate_forward_torch` + `dbex/refinement/config_factories.py`
+
+**Exact changes**:
+
+1. **Revert beam override factory approach** (`dbex/refinement/config_factories.py`):
+   - Remove `wavelength_override` parameter from `create_beam_config` signature (line 234)
+   - Remove wavelength override docstring (lines 249-250)
+   - Remove conditional logic using wavelength override (lines 257-260)
+   - Restore function to pre-i=139 state (scalar extraction from dxtbx Beam only)
+
+2. **Add post-creation beam override** (`dbex/physics/forward.py`):
+   - After `beam_config = create_beam_config(beam)` call (locate existing call site)
+   - Insert override logic:
+     ```python
+     # Apply beam overrides (post-creation pattern matching crystal_overrides)
+     if beam_overrides and 'wavelength_A' in beam_overrides:
+         beam_config.wavelength_A = beam_overrides['wavelength_A']
+     ```
+   - Remove wavelength_override parameter from create_beam_config call (line 184-188 region)
+
+3. **Add post-creation detector override** (`dbex/physics/forward.py`):
+   - After `detector_configs = [create_detector_config(...) for panel in ...]` loop (locate existing call site)
+   - Insert override logic:
+     ```python
+     # Apply detector overrides (post-creation pattern matching crystal_overrides)
+     if detector_overrides and 'distance_mm' in detector_overrides:
+         for panel_idx in range(len(detector_configs)):
+             detector_configs[panel_idx].distance_mm = detector_overrides['distance_mm']
+     ```
+   - Remove distance_mm_override parameter from create_detector_config calls (line 231-241 region)
+
+4. **Update simulate_forward_torch docstring** (`dbex/physics/forward.py`):
+   - Update detector_overrides / beam_overrides parameter documentation (lines 113-118)
+   - Note: "Applied AFTER config creation to preserve gradient graph"
+
+**Validation commands**:
+
+5. **Detector distance gradcheck** (primary validation):
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     KMP_DUPLICATE_LIB_OK=TRUE \
+     NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -vv tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance \
+     --smoke-detector-size=full \
+     | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/pytest_detector_distance_option_c.log
+   ```
+   Expected: **PASS** (Jacobian mismatch resolved, gradcheck tolerance satisfied)
+
+6. **Beam wavelength gradcheck** (secondary validation):
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     KMP_DUPLICATE_LIB_OK=TRUE \
+     NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -vv tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength \
+     --smoke-detector-size=full \
+     | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/pytest_beam_wavelength_option_c.log
+   ```
+   Expected: **FAIL** (external blocker persists, nanobrag_torch.simulator.py:761)
+
+7. **Full DB-AT-010 suite** (regression check, conditional):
+   ```bash
+   # ONLY run if detector test PASSES (task 5)
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     KMP_DUPLICATE_LIB_OK=TRUE \
+     NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -vv tests -k DB_AT_010 --smoke-detector-size=full \
+     | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/pytest_db_at_010_full_suite_option_c.log
+   ```
+   Expected: ≥1/5 PASS (detector), 3 crystal tests status TBD, 1 beam FAIL
+
+**Artifacts**:
+
+8. **Implementation summary** (`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/option_c_implementation_summary.md`):
+   - Modules touched (file paths + line ranges)
+   - LOC metrics (added/removed/net)
+   - Git diff snippets for key changes
+   - Pattern comparison: pre-creation (i=139) vs post-creation (i=140)
+
+9. **Loop summary** (`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/summary.md`):
+   - Test results (detector PASS/FAIL, beam FAIL expected)
+   - Next loop decision (Phase B.1 closure OR escalation)
+   - Beam blocker documentation status
+
+**Commit**:
+
+10. Commit with message:
+    ```
+    ARCH-GRADIENT-FLOW-001: Phase B.1 Option C refactor — post-creation detector/beam overrides
+
+    Refactored detector_overrides and beam_overrides to use post-creation pattern
+    matching crystal_overrides (assign tensor values AFTER config object creation).
+    Reverted i=139 factory parameter approach (wavelength_override removed from
+    create_beam_config signature).
+
+    Test results: detector distance gradcheck [PASS/FAIL], beam wavelength gradcheck
+    FAIL (external blocker nanobrag_torch.simulator.py:761 persists as expected).
+
+    Artifacts: plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/
+    ```
+
+---
+
+## Forbidden This Loop
+
+**Phase B.1 Continuation Scope**:
+- **No new probes or diagnostic scripts** — implementation only (post-creation override refactor)
+- **No factory signature expansion** — revert i=139 changes, restore scalar-only factory contract
+- **No nanobrag_torch patches** — external blocker documented, not fixed (out of scope)
+- **No enforcement test authoring** — deferred to Phase B.3 after detector test passes
+
+**File Restrictions**:
+- **Do not extend** `plans/active/ARCH-GRADIENT-FLOW-001/bin/` (no new probe scripts per PROBE-FREEZE-001)
+- **Do not modify** `tests/architecture/` (enforcement test deferred to Phase B.3)
+- **Do not modify** nanobrag_torch submodule (external dependency, blocker documented only)
+
+---
+
+## How-To Map
+
+**Standard pytest execution** (detector/beam individual tests):
+1. Set canonical env vars: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`
+2. Run pytest with smoke detector size flag: `--smoke-detector-size=full`
+3. Tee output to timestamped log under `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/`
+4. Review gradcheck error signature (if FAIL): Jacobian mismatch vs numerical gradient zero
+5. Expected runtime: ~30-50s per test (gradcheck is compute-intensive)
+
+**Full suite execution** (conditional on detector PASS):
+1. Same env vars as individual tests
+2. Use `-k DB_AT_010` selector to run all 5 gradcheck tests
+3. Expected: ≥1 PASS (detector), ≤1 FAIL (beam external blocker), 3 crystal tests TBD
+4. If crystal tests regress → revert Option C changes, escalate to blocked
+
+**Artifact assembly**:
+1. All pytest logs tee to `reports/2025-12-07T230000Z/pytest_*.log`
+2. Implementation summary references git diff output + LOC metrics
+3. Loop summary captures test results + next loop decision tree
+
+**No toggle matrices** — single implementation path (post-creation override refactor)
+
+---
+
+## Pitfalls To Avoid
+
+1. **Type discipline (gradient hygiene)**:
+   - Do NOT use `.item()`, `.detach()`, `.numpy()` when overriding config fields
+   - Ensure override dict values are tensor-typed with `requires_grad=True` (test harness responsibility)
+   - Post-creation assignment must preserve gradient graph (assign tensor directly, no conversions)
+
+2. **No stacking on cliff**:
+   - i=139 showed gradient flow restored (not a cliff), Jacobian error is addressable
+   - If detector test fails with NEW failure mode (not Jacobian mismatch) → stop, escalate
+
+3. **Parity-first NOT applicable** (architecture work, not parity debugging):
+   - This is gradient flow restoration, not end-to-end metric convergence
+   - Success = gradcheck PASSES (analytical == numerical gradients within tolerance)
+
+4. **Shadow-pipeline guard**:
+   - Do NOT create new scripts under `plans/active/ARCH-GRADIENT-FLOW-001/bin/`
+   - Beam blocker reproducer deferred to next loop IF detector passes
+
+5. **Factory signature discipline**:
+   - Revert ALL i=139 factory parameter additions (wavelength_override removal mandatory)
+   - Factories must remain scalar-only (no tensor parameters per ARCH-ENGINE-002)
+
+6. **Enforcement test timing**:
+   - Do NOT author `tests/architecture/test_gradient_contracts.py` this loop
+   - Enforcement test requires working implementation first (deferred to Phase B.3)
+
+7. **Crystal test regression prevention**:
+   - If full suite shows crystal tests FAIL with NEW signature → revert changes immediately
+   - Crystal overrides pattern must remain unchanged (lines 194-208 reference only)
+
+8. **External blocker acknowledgment**:
+   - Beam wavelength test expected to FAIL (nanobrag_torch.simulator.py:761)
+   - Do NOT attempt nanobrag_torch patch (environment freeze + external scope)
+   - Document blocker persistence in summary.md, defer escalation decision to next loop
+
+9. **Test harness modification minimization**:
+   - Test harness already updated in i=139 to use override dicts
+   - Only modify test_gradients.py IF config field names mismatch (unlikely)
+
+10. **Commit hygiene**:
+    - Commit message must reference Option C explicitly (distinguish from i=139 approach)
+    - Test results in commit message (detector PASS/FAIL, beam FAIL expected)
+    - Artifacts path mandatory for reproducibility
+
+---
+
+## If Blocked
+
+**Detector test FAILS with Jacobian mismatch** (same signature as i=139):
+- **Root cause hypothesis rejected**: Post-creation pattern does NOT resolve magnitude error
+- **Action**: Mark ARCH-GRADIENT-FLOW-001 as `blocked_pending_environment`
+- **Deliverables**:
+  1. Create minimal reproducer for nanobrag_torch maintainer (detector + beam gradient breaks combined)
+  2. Document both issues in `docs/findings.md::GRADIENT-003` (detector Jacobian) + `GRADIENT-004` (beam wavelength)
+  3. Update `docs/fix_plan.md` ARCH-GRADIENT-FLOW-001 status: blocked_pending_environment
+  4. Update galph_memory.md with escalation rationale + blocker classification
+
+**Detector test FAILS with NEW failure mode** (not Jacobian mismatch):
+- **Unexpected regression**: Option C refactor introduced new issue
+- **Action**: Revert i=140 changes, re-run detector test to confirm pre-i=140 signature
+- **If revert restores i=139 signature**: Document Option C failure, escalate to blocked
+- **If revert shows NEW signature**: Deeper issue introduced, audit forward.py call chain
+
+**Crystal tests regress** (new FAILs or changed signatures):
+- **Architectural risk realized**: Refactor broke working crystal override pattern
+- **Action**: Immediate revert of all i=140 changes
+- **Escalate**: Mark blocked_pending_architecture, audit config object field assignment semantics
+
+**Both detector AND beam PASS** (optimistic scenario):
+- **Hypothesis**: nanobrag_torch.simulator.py:761 self-resolved OR BeamConfig field assignment bypasses simulator constructor
+- **Action**: Continue to Phase B.2 (enforcement test authoring)
+- **Validation**: Run full DB-AT-010 suite, expect 5/5 PASS
+
+---
+
+## Doc Sync Plan (Conditional)
+
+**Not applicable this loop** — no new tests authored, no selector renames.
+
+**Deferred to Phase B.3** (when enforcement test added):
+- Run `pytest --collect-only tests/architecture/test_gradient_contracts.py` → capture to collect log
+- Update `docs/development/TEST_SUITE_INDEX.md` with new enforcement test row
+- Cross-reference in `docs/TESTING_GUIDE.md` §Architecture Enforcement Tests
+
+---
+
+**Input authored**: 2025-12-07T230000Z (Loop i=140, Galph)
+**Dwell**: 2 (i=139 implementation + i=140 continuation)
+**Next loop**: Phase B.1 closure OR escalation (depends on detector test result)

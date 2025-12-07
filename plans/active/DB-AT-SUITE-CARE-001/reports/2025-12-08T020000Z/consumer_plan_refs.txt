@@ -1,0 +1,12 @@
+=== DB-AT-020 ===
+4:- [ ] **A1 — Dataset availability**: Confirm refGeom assets (`scaled.mtz`, `refGeom.expt`, `refGeom.refl`) remain in the workspace; note skip behavior when `refGeom.refl` is absent (mirror smoke fixture guard).
+9:- [ ] **B1 — Test scaffold**: Introduce `tests/dbex/test_reflection_ingestion.py` with `TestReflectionIngestion` covering DB_AT_020; add fixture that instantiates `DataLoad` (skips if `refGeom.refl` is missing) and scopes canonical assets.
+
+=== DB-AT-021 ===
+4:- [ ] A1: Confirm canonical assets present (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`); log `ls -lh` snapshot under reports.
+
+=== DB-AT-023 ===
+4:- [ ] A1: Reality-check canonical assets (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`) and capture inventory log under reports.
+
+=== DB-AT-024 ===
+4:- [x] A1: Confirm canonical assets present (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`, golden tensors) and log inventory under reports.

@@ -1,0 +1,16 @@
+VALID: refGeom.expt is valid JSON with keys: ['__id__', 'experiment', 'imageset', 'beam', 'detector', 'goniometer', 'scan', 'crystal', 'profile', 'scaling_model']
+  detector: 1 panel(s)
+  beam: present
+  crystal: present
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+VALID: refGeom.refl loaded successfully
+  reflections: 282
+ERROR: TypeError: object of type 'iterator' has no len()
+VALID: scaled.mtz loaded successfully
+  columns: ['H', 'K', 'L', 'FreeR_flag', 'IMEAN', 'SIGIMEAN', 'N', 'F', 'SIGF', 'I(+)', 'SIGI(+)', 'I(-)', 'SIGI(-)', 'N(+)', 'N(-)', 'F(+)', 'SIGF(+)', 'F(-)', 'SIGF(-)', 'DANO', 'SIGDANO']
+  n_reflections: 34807
+VALID: 747_mask.pkl loaded successfully
+  type: tuple
+  shape: non-array
+  dtype: N/A

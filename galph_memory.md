@@ -1,3 +1,11 @@
+2025-12-06T235959Z focus=MAP-SCALE-SYNC-001 state=planning dwell=0 action=planning artifacts=plans/active/MAP-SCALE-005/reports/2025-12-06T235959Z/ next_action=map_scale_005_phase_a_planning
+- Loop i=129 (Galph): Selected MAP-SCALE-005 Phase A (CLI refined telemetry enforcement guard design) from MAP-SCALE-SYNC-001 roll-up
+- Roll-up status: 4/5 member plans done (MAP-SCALE-001/002/003/004), 1/5 pending (MAP-SCALE-005)
+- Focus: MAP-SCALE-005 Phase A (reality check, spec citations, guard design)
+- DecisionStatus: exploring (determine whether CLI currently fails or falls back silently when --refined-mtz missing)
+- Next: Ralph implements Phase A planning deliverables (4 artifacts: fallback_reproduction.md, spec_citations.md, guard_design.md, summary.md)
+- Dwell: 0 (new focus selected from Tier 1 after MAP-SCALE-003 Phase B completion, first planning loop for this selector+signature)
+
 2025-12-07T180000Z focus=MAP-SCALE-SYNC-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/ next_action=map_scale_003_phase_b_implementation
 - Loop i=128 (Galph): Transitioned MAP-SCALE-003 from Phase A (planning) → Phase B (implementation)
 - DecisionStatus: exploring → patch_ready (schema known, test modifications scoped per Phase A planning_notes.md)

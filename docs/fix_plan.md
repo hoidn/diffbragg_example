@@ -19,6 +19,8 @@
 
 ### Tier 0: Refinement Architecture Finish
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place, and align ARCH docs/contracts with implementation via enforcement tests.
+- [ARCH-GRADIENT-FLOW-001] (Gradient Flow Restoration — DB-AT-010 Unblock) — **in_progress** (2025-12-07T210000Z: Created in response to DB-AT-SUITE-CARE-001 Phase B.1 verification showing DB-AT-010 gradcheck regression persists; all 5/5 tests FAILING with disconnected autograd graph. Phase A planning complete; next loop: call graph trace + suspect module audit. Blocks: Gradient-Safe Profile conformance, DB-AT-SUITE-CARE-001 portfolio advancement. Artifacts: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T210000Z/`)
+  - **Governed by:** GRADIENT-001, RUNTIME-001, TESTING-003
 - [ARCH-IMPL-CONFORMANCE-001] (Architecture / Implementation contract alignment) — **done** (2025-12-07T054500Z: Phases A-B complete; ARCH-CONTRACT-002/003 delivered with enforcement tests; exit criteria 3.5/4 satisfied; artifacts under `archive/plans/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T054500Z/initiative_closure_summary.md`)
 - [DIAG-NANOBRAGG-OVERSAMPLE-001] (nanobrag_torch oversample parameter investigation) — **done** (2025-12-09T153000Z: Phase F HKL stats + Stage-A instrumentation closed out diagnostics; artifacts under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/` now cover oversample, beam flux, and HKL evidence)
 - [ARCH-SIM-HKL-BOUNDS-001] (Stage-A / mapping HKL alignment) — **done** (2025-12-03T154217Z: incident-beam sign fix restored 100% HKL coverage; DB-AT-028/029 intensity failure delegated to ARCH-SIM-CONSTRUCTION-001; artifacts under `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/`)
@@ -223,9 +225,27 @@
 - Attempts History:
   * See docs/fix_plan_archive.md (snapshot 2025-12-07) and plans/active/ARCH-TELEMETRY-001/reports/ for full Attempts History.
 
+### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
+- Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)
+- Blocks: DB-AT-SUITE-CARE-001 portfolio advancement, Gradient-Safe Profile conformance
+- Status: **in_progress** (Phase A planning complete, Phase A.1-A.2 execution next)
+- Type: architecture
+- Priority: Tier 0 (blocks conformance profile)
+- Owner/Date: Galph ↔ Ralph / 2025-12-07
+- Exit Criteria:
+  1. Gradient flow restored: DB-AT-010 gradcheck tests pass (5/5) with documented tolerances (eps=1e-6, atol=1e-5, rtol=0.05)
+  2. Root cause identified and fixed: Code audit locates `.item()` coercion or tensor detachment; patch applied
+  3. Enforcement test added: `tests/architecture/test_gradient_contracts.py` validates gradient flow preservation
+  4. Documentation updated: `docs/findings.md` GRADIENT-002, `docs/architecture.md` §13 gradient hygiene guardrail
+  5. Regression validation: Full DB-AT-010 suite passes; `docs/development/TEST_SUITE_INDEX.md` status updated
+- Working Plan: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md`
+- Attempts History:
+  * 2025-12-07T210000Z (Loop i=137, Galph) — Phase A planning: Created initiative in response to DB-AT-SUITE-CARE-001 Phase B.1 verification (Ralph i=136) showing DB-AT-010 gradcheck regression persists (5/5 tests FAILING, disconnected autograd graph). Authored implementation.md with Phases A/B/C (call graph trace, suspect audit, gradient probe, fix, enforcement test, closure). Scoped 4 suspect modules (forward.py, crystallography.py, loss.py, inputs.py). Estimated effort: 5-7 loops. Next: Phase A.1-A.2 (call graph + suspect audit). Artifacts: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T210000Z/` (implementation.md, planning_notes.md).
+  * ... (see plans/active/ARCH-GRADIENT-FLOW-001/reports/ for continued Attempts History).
+
 ### [DB-AT-SUITE-CARE-001] Acceptance Suite Upkeep (DB-AT-002/010/020—024)
-- Depends on: None (foundational test infrastructure)
-- Status: in_progress (Phase B.1 complete, Phase B.3-B.5 pending)
+- Depends on: ARCH-GRADIENT-FLOW-001 (DB-AT-010 unblock for portfolio advancement)
+- Status: in_progress (Phase B.1 complete — escalated to ARCH-GRADIENT-FLOW-001; Phase B.2-B.7 pending Tier-0 resolution)
 - Type: harness
 - Priority: High (Core acceptance gates)
 - Tier: 1
@@ -240,7 +260,8 @@
 - Attempts History:
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
   * 2025-12-07T100000Z — see docs/fix_plan_archive.md for details.
-  * 2025-12-07T204336Z (Loop i=136) — Phase B.1 complete (second attempt): DB-AT-010 verification executed (5 tests, exit code 1, 0/5 passed). All gradcheck tests fail with GradcheckError: disconnected autograd graph. Harness stable (no collection errors, Phase B.3/B.4 fixes successful). Tier-0 blocker confirmed: gradient flow break in simulate_forward_torch or TorchCrystal bridge. Escalate to Tier-0. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/` (verification report, pytest log, summary).
+  * 2025-12-07T204336Z (Loop i=136, Ralph) — Phase B.1 complete (second attempt): DB-AT-010 verification executed (5 tests, exit code 1, 0/5 passed). All gradcheck tests fail with GradcheckError: disconnected autograd graph. Harness stable (no collection errors, Phase B.3/B.4 fixes successful). Tier-0 blocker confirmed: gradient flow break in simulate_forward_torch or TorchCrystal bridge. Escalated to ARCH-GRADIENT-FLOW-001 (Tier 0) per implementation.md Phase B.1 directive. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/` (verification report, pytest log, summary).
+  * 2025-12-07T210000Z (Loop i=137, Galph) — Created ARCH-GRADIENT-FLOW-001 to execute Tier-0 escalation; DB-AT-SUITE-CARE-001 now blocked pending gradient flow fix. Portfolio advancement paused until ARCH-GRADIENT-FLOW-001 Phase B complete (gradcheck 5/5 PASS).
   * ... (see docs/fix_plan_archive.md and plans/active/DB-AT-SUITE-CARE-001/reports/ for full Attempts History and metrics).
 
 ### [MAP-SCALE-SYNC-001] Calibration Ladder Synchronization (MAP-SCALE-001—005)

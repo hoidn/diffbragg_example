@@ -1,0 +1,4 @@
+dbex/physics/forward.py:125:                       .item()/.numpy() detaching, preserving autograd graph for gradcheck
+dbex/physics/forward.py:182:    # This allows tensor-valued parameters to flow through without .item() detaching
+dbex/physics/loss.py:51:    masked_pixels = int(mask_bool.sum().item())
+dbex/physics/loss.py:52:    clamped_pixels = int(((variance_raw < sigma_floor_sq_tensor) & mask_bool).sum().item())

@@ -1,0 +1,6 @@
+dbex/physics/forward.py:92:    .detach().numpy() conversions. Designed for DB-AT-010 gradcheck acceptance
+dbex/physics/forward.py:125:                       .item()/.numpy() detaching, preserving autograd graph for gradcheck
+dbex/physics/forward.py:126:        - Preserves gradient graph (no .detach() or .numpy() conversions)
+dbex/geometry/crystallography.py:122:    a_star_nb = geom["a_star"].detach().cpu().numpy().reshape(3)
+dbex/geometry/crystallography.py:123:    b_star_nb = geom["b_star"].detach().cpu().numpy().reshape(3)
+dbex/geometry/crystallography.py:124:    c_star_nb = geom["c_star"].detach().cpu().numpy().reshape(3)

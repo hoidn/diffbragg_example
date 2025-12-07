@@ -1,0 +1,15 @@
+total 102M
+drwxrwxr-x 3 ollie ollie 4.0K Nov  4 09:19 .
+drwxrwxr-x 3 ollie ollie 4.0K Oct 28 18:06 ..
+-rw-rw-r-- 1 ollie ollie  24M Nov  4 09:18 bragg_diffbragg.npy
+-rw-rw-r-- 1 ollie ollie  24M Oct 29 03:31 bragg_panel_0.npy
+-rw-rw-r-- 1 ollie ollie  24M Nov  4 09:19 bragg_torch.npy
+-rw-rw-r-- 1 ollie ollie 1.9K Nov  4 01:09 config_torch.json
+-rw-rw-r-- 1 ollie ollie 6.0M Nov  4 09:19 loss_mask_panel_0.npy
+-rw-rw-r-- 1 ollie ollie 2.1K Nov  4 09:19 manifest.json
+-rw-rw-r-- 1 ollie ollie  479 Nov  4 09:19 metadata.json
+drwxrwxr-x 3 ollie ollie 4.0K Oct 29 12:29 plans
+-rw-rw-r-- 1 ollie ollie 5.1K Nov  4 09:19 refined.expt
+-rw-rw-r-- 1 ollie ollie  67K Nov  4 09:19 refined.refl
+-rw-rw-r-- 1 ollie ollie 955K Nov  4 09:19 refined_structure_factors.mtz
+-rw-rw-r-- 1 ollie ollie  24M Nov  4 09:19 target_panel_0.npy

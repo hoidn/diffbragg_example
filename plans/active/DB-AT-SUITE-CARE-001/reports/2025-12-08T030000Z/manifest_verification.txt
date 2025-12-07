@@ -1,0 +1,39 @@
+Manifest exists
+1a45240a0a86409b1f214c239293dc042b9eb6a04455c26aa6eccaa3ac035d02  tests/fixtures/golden_data/simple_cubic/manifest.json
+Manifest keys: ['dataset_name', 'generation_timestamp', 'generator_command', 'git_revision', 'structure_factor_source', 'experiment_source', 'reflection_source', 'files', 'manifest_sha256']
+Self-reported manifest_sha256: b73e5049daebcb6a5166aa33f19705bf27964609bcbb607fe42fd02867b5405d
+Computed checksum (excluding manifest_sha256): 9290abacc3c5bb1dffb9bdc93c16daee8eeec4744e5c73552b9c863121730eb4
+Match: False
+
+File paths check (MANIFEST-001):
+  bragg_diffbragg: bragg_diffbragg.npy — Foreign path: False
+  bragg_torch: bragg_torch.npy — Foreign path: False
+  target_panel_0: target_panel_0.npy — Foreign path: False
+  loss_mask_panel_0: loss_mask_panel_0.npy — Foreign path: False
+  refined_structure_factors: refined_structure_factors.mtz — Foreign path: False
+  refined_experiment: refined.expt — Foreign path: False
+  refined_reflections: refined.refl — Foreign path: False
+File existence verification:
+bragg_diffbragg:
+  Expected: bragg_diffbragg.npy (24896132 bytes)
+  Exists: True, Size: 24896132 bytes, Match: True
+bragg_torch:
+  Expected: bragg_torch.npy (24896132 bytes)
+  Exists: True, Size: 24896132 bytes, Match: True
+target_panel_0:
+  Expected: target_panel_0.npy (24896132 bytes)
+  Exists: True, Size: 24896132 bytes, Match: True
+loss_mask_panel_0:
+  Expected: loss_mask_panel_0.npy (6224129 bytes)
+  Exists: True, Size: 6224129 bytes, Match: True
+refined_structure_factors:
+  Expected: refined_structure_factors.mtz (977156 bytes)
+  Exists: True, Size: 977156 bytes, Match: True
+refined_experiment:
+  Expected: refined.expt (5204 bytes)
+  Exists: True, Size: 5204 bytes, Match: True
+refined_reflections:
+  Expected: refined.refl (67657 bytes)
+  Exists: True, Size: 67657 bytes, Match: True
+
+All files exist: True

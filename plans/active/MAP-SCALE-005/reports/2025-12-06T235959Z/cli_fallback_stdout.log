@@ -1,0 +1,39 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[DBEX] Loading experiment data...
+[DBEX] Using backend: nanobrag
+[nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Resolved sigma_readout source=cli_override reference=3
+[nanobrag backend] Target shape: (1, 2527, 2463)
+[nanobrag backend] Loss mask coverage: 0.2102%
+[nanobrag backend] Number of ROIs: 92
+[nanobrag backend] Loaded calibration from tests/fixtures/golden_data/simple_cubic/config_torch.json:
+  spot_scale_override=3.185e+17
+  beam_flux=1.000e+12, exposure=1.000e+00
+  beamsize_mm=1.000e+00
+  N_cells=(36, 28, 26)
+[nanobrag backend] Building structure factor grid from MTZ...
+[nanobrag backend] Using device=cuda:0 for zero-iteration simulation and refinement.
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py", line 382, in run_nanobrag_backend
+    hkl_indices, hkl_amplitudes = load_refined_mtz(args.refined_mtz, column="F")
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/nanobrag_bridge.py", line 1155, in load_refined_mtz
+    raise FileNotFoundError(
+FileNotFoundError: Refined MTZ not found: /nonexistent/path.mtz. Expected DiffBragg-refined structure factors for parity testing.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ollie/miniconda3/envs/simtbx/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/ollie/miniconda3/envs/simtbx/lib/python3.9/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py", line 795, in <module>
+    main()
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py", line 789, in main
+    run_nanobrag_backend(args, DL, devid)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py", line 389, in run_nanobrag_backend
+    raise RuntimeError(
+RuntimeError: Failed to load refined structure factors from --refined-mtz '/nonexistent/path.mtz': Refined MTZ not found: /nonexistent/path.mtz. Expected DiffBragg-refined structure factors for parity testing.
+When --refined-mtz is provided, refined structure factors MUST be consumed.
+Ensure the MTZ file exists and contains valid F(+)/F(-) or F/SIGF columns.

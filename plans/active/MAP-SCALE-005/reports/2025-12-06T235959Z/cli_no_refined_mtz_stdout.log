@@ -1,0 +1,228 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[DBEX] Loading experiment data...
+[DBEX] Using backend: nanobrag
+[nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Resolved sigma_readout source=cli_override reference=3
+[nanobrag backend] Target shape: (1, 2527, 2463)
+[nanobrag backend] Loss mask coverage: 0.2102%
+[nanobrag backend] Number of ROIs: 92
+[nanobrag backend] Loaded calibration from tests/fixtures/golden_data/simple_cubic/config_torch.json:
+  spot_scale_override=3.185e+17
+  beam_flux=1.000e+12, exposure=1.000e+00
+  beamsize_mm=1.000e+00
+  N_cells=(36, 28, 26)
+[nanobrag backend] Building structure factor grid from MTZ...
+[nanobrag backend] Using device=cuda:0 for zero-iteration simulation and refinement.
+[nanobrag backend] Using raw structure factors from tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz
+[nanobrag backend] HKL grid shape: torch.Size([49, 57, 63]), nonzero: 69614
+[nanobrag backend] Using calibration spot_scale_override=3.185e+17
+[nanobrag backend] Will apply sqrt(spot_scale)=5.643e+08 post-simulation per SCALE-002
+[nanobrag backend] Running nanobrag_torch Simulator on 1 panels...
+auto-selected 3-fold oversampling
+/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:388: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  Na_f64 = torch.tensor(Na, dtype=torch.float64, device=h.device)
+/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:389: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  Nb_f64 = torch.tensor(Nb, dtype=torch.float64, device=h.device)
+/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:390: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  Nc_f64 = torch.tensor(Nc, dtype=torch.float64, device=h.device)
+[nanobrag backend] Simulator complete. Bragg shape: (1, 2527, 2463)
+[nanobrag backend] Bragg stats: min=0.000e+00, max=1.251e+06, mean=6.280e+00
+[nanobrag backend] Masked MSE (zero-iteration): 5.63e+08
+[nanobrag backend] Running Stage A LBFGS refinement nucleus...
+[nanobrag backend] JobContext built: sigma_provenance=cli_override, hkl_source=raw, spot_scale=3.185e+17
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 5.640373e+08
+  log_scale_effective (recorded): 20.150631
+  log_scale_baseline: 20.151154
+  log_scale_delta_clamped (recorded): -0.0005219955346547067
+[nanobrag backend] WARNING: Refinement failed: CUDA out of memory. Tried to allocate 3.34 GiB. GPU 0 has a total capacity of 23.56 GiB of which 427.62 MiB is free. Including non-PyTorch memory, this process has 23.07 GiB memory in use. Of the allocated memory 19.96 GiB is allocated by PyTorch, and 2.80 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[nanobrag backend] Falling back to zero-iteration Bragg
+[nanobrag backend] Scoring 92 ROIs (sigma_readout=6.307e-03, sigma_floor=1.000e+00)...
+roi=0 : score= 51.9
+roi=1 : score= 1.8
+roi=2 : score= 32.7
+roi=3 : score= 0.0
+roi=4 : score= 41.7
+roi=5 : score= 0.0
+roi=6 : score= 0.0
+roi=7 : score= 0.0
+roi=8 : score= 2.3
+roi=9 : score= 0.0
+roi=10 : score= 13.7
+roi=11 : score= 0.0
+roi=12 : score= 0.0
+roi=13 : score= 0.0
+roi=14 : score= 0.0
+roi=15 : score= 0.0
+roi=16 : score= 43.8
+roi=17 : score= 0.0
+roi=18 : score= 0.0
+roi=19 : score= 0.0
+roi=20 : score= 42.7
+roi=21 : score= 0.9
+roi=22 : score= 0.0
+roi=23 : score= 0.0
+roi=24 : score= 0.0
+roi=25 : score= 0.0
+roi=26 : score= 54.4
+roi=27 : score= 0.0
+roi=28 : score= 50.1
+roi=29 : score= 0.0
+roi=30 : score= 69.1
+roi=31 : score= 0.0
+roi=32 : score= 0.0
+roi=33 : score= 63.9
+roi=34 : score= 0.0
+roi=35 : score= 0.0
+roi=36 : score= 55.5
+roi=37 : score= 0.0
+roi=38 : score= 0.0
+roi=39 : score= 73.5
+roi=40 : score= 0.0
+roi=41 : score= 76.3
+roi=42 : score= 0.0
+roi=43 : score= 53.3
+roi=44 : score= 0.0
+roi=45 : score= 0.0
+roi=46 : score= 74.8
+roi=47 : score= 0.0
+roi=48 : score= 74.8
+roi=49 : score= 0.0
+roi=50 : score= 0.0
+roi=51 : score= 0.0
+roi=52 : score= 0.0
+roi=53 : score= 0.0
+roi=54 : score= 79.4
+roi=55 : score= 69.5
+roi=56 : score= 72.6
+roi=57 : score= 0.0
+roi=58 : score= 26.7
+roi=59 : score= 0.0
+roi=60 : score= 0.0
+roi=61 : score= 0.0
+roi=62 : score= 0.0
+roi=63 : score= 0.0
+roi=64 : score= 12.2
+roi=65 : score= 0.0
+roi=66 : score= 0.0
+roi=67 : score= 49.4
+roi=68 : score= 0.0
+roi=69 : score= 0.0
+roi=70 : score= 0.0
+roi=71 : score= 0.0
+roi=72 : score= 0.0
+roi=73 : score= 0.0
+roi=74 : score= 0.0
+roi=75 : score= 9.4
+roi=76 : score= 0.0
+roi=77 : score= 3.4
+roi=78 : score= 0.0
+roi=79 : score= 0.0
+roi=80 : score= 0.0
+roi=81 : score= 24.0
+roi=82 : score= 69.3
+roi=83 : score= 61.5
+roi=84 : score= 0.0
+roi=85 : score= 70.8
+roi=86 : score= 52.7
+roi=87 : score= 26.8
+roi=88 : score= 9.1
+roi=89 : score= 9.4
+roi=90 : score= 47.6
+roi=91 : score= 43.3
+roi=0 : score= 51.9
+roi=1 : score= 1.8
+roi=2 : score= 32.7
+roi=3 : score= 0.0
+roi=4 : score= 41.7
+roi=5 : score= 0.0
+roi=6 : score= 0.0
+roi=7 : score= 0.0
+roi=8 : score= 2.3
+roi=9 : score= 0.0
+roi=10 : score= 13.7
+roi=11 : score= 0.0
+roi=12 : score= 0.0
+roi=13 : score= 0.0
+roi=14 : score= 0.0
+roi=15 : score= 0.0
+roi=16 : score= 43.8
+roi=17 : score= 0.0
+roi=18 : score= 0.0
+roi=19 : score= 0.0
+roi=20 : score= 42.7
+roi=21 : score= 0.9
+roi=22 : score= 0.0
+roi=23 : score= 0.0
+roi=24 : score= 0.0
+roi=25 : score= 0.0
+roi=26 : score= 54.4
+roi=27 : score= 0.0
+roi=28 : score= 50.1
+roi=29 : score= 0.0
+roi=30 : score= 69.1
+roi=31 : score= 0.0
+roi=32 : score= 0.0
+roi=33 : score= 63.9
+roi=34 : score= 0.0
+roi=35 : score= 0.0
+roi=36 : score= 55.5
+roi=37 : score= 0.0
+roi=38 : score= 0.0
+roi=39 : score= 73.5
+roi=40 : score= 0.0
+roi=41 : score= 76.3
+roi=42 : score= 0.0
+roi=43 : score= 53.3
+roi=44 : score= 0.0
+roi=45 : score= 0.0
+roi=46 : score= 74.8
+roi=47 : score= 0.0
+roi=48 : score= 74.8
+roi=49 : score= 0.0
+roi=50 : score= 0.0
+roi=51 : score= 0.0
+roi=52 : score= 0.0
+roi=53 : score= 0.0
+roi=54 : score= 79.4
+roi=55 : score= 69.5
+roi=56 : score= 72.6
+roi=57 : score= 0.0
+roi=58 : score= 26.7
+roi=59 : score= 0.0
+roi=60 : score= 0.0
+roi=61 : score= 0.0
+roi=62 : score= 0.0
+roi=63 : score= 0.0
+roi=64 : score= 12.2
+roi=65 : score= 0.0
+roi=66 : score= 0.0
+roi=67 : score= 49.4
+roi=68 : score= 0.0
+roi=69 : score= 0.0
+roi=70 : score= 0.0
+roi=71 : score= 0.0
+roi=72 : score= 0.0
+roi=73 : score= 0.0
+roi=74 : score= 0.0
+roi=75 : score= 9.4
+roi=76 : score= 0.0
+roi=77 : score= 3.4
+roi=78 : score= 0.0
+roi=79 : score= 0.0
+roi=80 : score= 0.0
+roi=81 : score= 24.0
+roi=82 : score= 69.3
+roi=83 : score= 61.5
+roi=84 : score= 0.0
+roi=85 : score= 70.8
+roi=86 : score= 52.7
+roi=87 : score= 26.8
+roi=88 : score= 9.1
+roi=89 : score= 9.4
+roi=90 : score= 47.6
+roi=91 : score= 43.3
+Average score: 17.549516409513235 +- 26.698812261696688
+Fraction of spots well modeled= 19.6%
+Visualize using `python -m dbex.look /tmp/test_no_refined.h5`

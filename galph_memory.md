@@ -1,3 +1,15 @@
+2025-12-07T052400Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T052400Z/ next_action=phase_b9_implementation
+- Loop i=117 (Ralph) Phase B.8: Fixed test mask contract (use inputs.loss_mask), but cold-path test FAILED with 12.77% error (worse than pre-fix 2.46%).
+- Root cause identified (Galph i=118): **incorrect baseline_alignment_factor fallback logic** in reconstruction.py:464-484.
+- Current (wrong): `baseline_alignment_factor = masked_mean_ratio` (assumes reconstruction simulator matches mapping simulator)
+- Observed: reconstruction simulator produces ~13% more intensity than mapping simulator
+- Mathematical proof: For parity, must compute `baseline_alignment_factor = target_mean / cold_masked_mean` using ACTUAL cold-path output
+- Fix: reconstruction.py:477-479 - replace `masked_mean_ratio` with `float(inputs.target[inputs.loss_mask].mean()) / cold_masked_mean`
+- DecisionStatus: patch_ready (exact fix location known, confidence=0.95)
+- Mapped tests: test_stage_a_vs_reconstruction_scale (warm-cache regression, expect PASS), test_stage_a_vs_reconstruction_scale_cold_path (cold-path enforcement, expect PASS after fix, currently 12.77% error)
+- Next loop (i=119): Ralph implements baseline_alignment_factor correction at reconstruction.py:477-479, expects both tests PASS with rel_error < 1e-6
+Action State: implementation_ready
+
 2025-12-07T050658Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T050658Z/ next_action=phase_b8_test_fix
 - Loop i=116 (Ralph) Phase B.6: achieved 4.17× improvement (ratio 1/35 → 1/8.4), cold-path test still fails 738% error.
 - Loop i=117 (Ralph) Phase B.7: achieved 30× reduction (738% → 2.5%), warm-cache PASS, cold-path blocked at 2.5% residual after 3 implementation attempts (B.5/B.6/B.7).

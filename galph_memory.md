@@ -1,3 +1,8 @@
+2025-12-07T054500Z focus=ARCH-IMPL-CONFORMANCE-001 state=closed dwell=N/A action=review_or_housekeeping artifacts=archive/plans/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T054500Z/ next_action=select_tier1_focus
+- Initiative closed: 3.5/4 exit criteria satisfied, ARCH-CONTRACT-002/003 delivered with enforcement tests passing
+- Deferred: Phase C (DB-AT-027/028/029) to future initiative, B.3-B.4 refactor as cleanup, B.6 docs as hygiene
+- Next loop: Select Tier 1 focus (all Tier 0 items blocked/done)
+
 2025-12-07T052400Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T052400Z/ next_action=phase_b9_implementation
 - Loop i=117 (Ralph) Phase B.8: Fixed test mask contract (use inputs.loss_mask), but cold-path test FAILED with 12.77% error (worse than pre-fix 2.46%).
 - Root cause identified (Galph i=118): **incorrect baseline_alignment_factor fallback logic** in reconstruction.py:464-484.

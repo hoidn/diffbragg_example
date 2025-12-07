@@ -1,175 +1,144 @@
-# Input for Ralph — Loop i=124
+# Input for Ralph (Loop i=125)
 
-**Summary:** Close FINDINGS-LEDGER-002 initiative (all exit criteria satisfied), fix ARCH-ENGINE-ARTIFACTS-001 ledger discrepancy, update galph_memory, and prepare for next Tier 1 focus selection.
+## Summary
+Validate PHYSICS-LOSS-001 initiative closure: all phases A-I are checked complete; verify exit criteria, run mapped acceptance tests, and prepare closure summary or identify blocking work.
 
-**Mode:** Docs
+## Mode
+none
 
-**ActionType:** review_or_housekeeping
+## ActionType
+review_or_housekeeping
 
-**DecisionStatus:** validated
+## DecisionStatus
+validated
 
-**InitiativeType:** housekeeping
+## InitiativeType
+bugfix
 
-**Focus:** [FINDINGS-LEDGER-002] — Findings ledger upkeep and knowledge base maintenance (CLOSURE)
+## Focus
+[PHYSICS-LOSS-001] — Variance-Weighted Loss Parity and Telemetry
 
-**Branch:** integration
+## Branch
+integration
 
-**Mapped tests:** none — docs-only closure + ledger hygiene
+## Mapped tests
+```bash
+# Core acceptance tests from implementation.md exit criteria
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+pytest -vv tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
+pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py
+```
 
-**Artifacts:** `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/`
+## Artifacts
+plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/
 
-**Findings Applied (Mandatory):** No relevant findings (housekeeping initiative closure).
+## Findings Applied (Mandatory)
+- **PHYSICS-LOSS-001** (variance-weighted loss spec): All phases A-I delivered per implementation.md checklist.
+- **PHYSICS-LOSS-002** (sigma-floor enforcement): Implemented in Phase D/E; telemetry provenance tracked.
+- **PHYSICS-LOSS-003** (sigma-map ingestion): Phases E-I cover CLI/metadata/external_lookup paths.
+- **PHYSICS-LOSS-004** (DIALS external_lookup harvest): Phases F-I deliver metadata integration.
+- **PHYSICS-LOSS-005** (telemetry chi-squared/masked_mse dual reporting): Phase D canonical alignment complete.
+- **SCALE-001** (calibration precedence): Phases align with spot-scale/N_cells/beam-flux requirements.
+- **SCALE-002** (spot-scale override threading): Metadata propagation validated Phases G-I.
 
-**Pointers:**
-- `docs/fix_plan.md` (Tier 0-1 ledger entries)
-- `plans/active/FINDINGS-LEDGER-002/implementation.md` (exit criteria verification)
-- `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T100000Z/summary.md` (Phase C completion evidence)
-- `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/closure_summary.md` (Galph-authored closure summary)
-- `galph_memory.md` (dwell tracking + loop history)
+## Pointers
+- Spec: `docs/spec-db-core.md:57-68` (variance-weighted loss function)
+- Architecture: `docs/architecture/calibration_scaling.md` (sigma/scale/MTZ threading)
+- Testing: `docs/TESTING_GUIDE.md:§1.4` (sigma-map workflow), `docs/development/TEST_SUITE_INDEX.md`
+- Implementation: `plans/active/PHYSICS-LOSS-001/implementation.md` (all phases A-I complete)
+- Findings: `docs/findings.md` (PHYSICS-LOSS-001—005, SCALE-001/002)
 
-**ARCH Contracts (mandatory):**
-No ARCH-CONTRACT work in this loop (docs-only closure).
-- **Classification:** housekeeping loop — ledger synchronization and portfolio steering preparation.
+## ARCH Contracts (mandatory)
+**Relevant Contracts:**
+1. **ARCH-CONTRACT-LOSS-001** (Variance-weighted loss API)
+   - Owner: `dbex/physics/loss.py::_compute_variance_weighted_loss` (delivered Phase D)
+   - Classification: **implementation bug** (was missing pre-Phase A, now complete)
 
----
+2. **ARCH-CONTRACT-CALIBRATION-001** (Sigma provenance threading)
+   - Owner: `dbex/data_load.py::_load_external_lookup_sigma_map`, `dbex/refinement/config.py::RefinementConfig.sigma_readout_provenance`
+   - Classification: **implementation complete** (Phases E-I delivered metadata integration)
+
+3. **ARCH-CONTRACT-TELEMETRY-001** (Chi-squared + masked_mse dual reporting)
+   - Owner: `dbex/refinement/telemetry.py::RefinementTelemetry`, `dbex/io/writer.py::_write_torch_outputs`
+   - Classification: **implementation complete** (Phase D/I telemetry enforcement validated)
 
 ## Do Now (hard validity contract)
 
-### Context
-Loop i=123 (Ralph) successfully completed FINDINGS-LEDGER-002 Phase C (C.1+C.3): cadence checklist authored, `docs/index.md` + `docs/fix_plan.md` updated with cadence cross-references. All 4/4 exit criteria now satisfied:
-1. ✅ Ledger integrity (Phase A: 100% path:line coverage)
-2. ✅ Cross-linking (Phase B: 78.4% consumer coverage)
-3. ✅ Cadence & guardrails (Phase C.1/C.3: checklist + doc updates)
-4. ✅ Automation artifact (Phase A: findings_inventory.json)
+**Task:** Validate PHYSICS-LOSS-001 initiative closure readiness
 
-Closure summary authored by Galph at `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/closure_summary.md` confirms all exit criteria satisfied. This loop closes the initiative and prepares for portfolio steering.
+**Closure verification steps:**
+1. **Exit Criteria Check:**
+   - ✅ Verify all 4 exit criteria from fix_plan.md:378-393 satisfied
+   - Review implementation.md Phases A-I completion notes
+   - Check for outstanding TODOs/risks in implementation.md or latest reports
 
-### Tasks
+2. **Test Validation:**
+   - Run mapped acceptance tests (Stage A/B/C smoke + DB-AT-024 + CLI metadata + sigma-metadata fixture)
+   - Confirm all tests PASS with no regressions
+   - Capture pytest logs + exit codes in artifacts directory
 
-1. **Close FINDINGS-LEDGER-002:**
-   - Update `docs/fix_plan.md` line 65 (Tier 1 section): change status from "Phase C complete (C.2 deferred). **All exit criteria satisfied** — initiative ready for closure." to:
-     ```
-     — **done** (2025-12-07T124500Z: All phases complete except deferred B.3+C.2. Exit criteria 4/4 satisfied. Closure summary: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/closure_summary.md`)
-     ```
-   - Preserve the detailed completion history (Phase A.2, B.2, C stats) that follows for reference.
+3. **Documentation Sweep:**
+   - Verify `docs/TESTING_GUIDE.md` + `docs/development/TEST_SUITE_INDEX.md` reflect Phase I updates
+   - Confirm `docs/findings.md` PHYSICS-LOSS-001—005 findings cite implementation artifacts
+   - Check `docs/architecture/calibration_scaling.md` documents sigma-map threading
 
-2. **Fix ARCH-ENGINE-ARTIFACTS-001 ledger discrepancy:**
-   - `docs/fix_plan.md` line 37 currently shows: `[ARCH-ENGINE-ARTIFACTS-001] (Engine artifact channel & Bragg unification) — *pending*`
-   - But line 691 (archive section) shows it was archived 2025-12-02T185000Z
-   - **Fix:** Update line 37 to match archive status:
-     ```
-     - [ARCH-ENGINE-ARTIFACTS-001] (Engine artifact channel & Bragg unification) — **archived** (2025-12-02T185000Z, see docs/fix_plan_archive_2025-12-02.md)
-     ```
+4. **Closure Decision:**
+   - If ALL exit criteria met + tests PASS + docs current: prepare initiative_closure_summary.md
+   - If blocking issues found: document them in this loop's summary.md and mark PHYSICS-LOSS-001 as `in_progress` with next action
 
-3. **Update galph_memory.md:**
-   - Append new entry for loop i=124:
-     ```
-     2025-12-07T124500Z focus=FINDINGS-LEDGER-002 state=closed dwell=N/A action=review_or_housekeeping artifacts=plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/ next_action=tier1_focus_selection
-     - Loop i=124: Closed FINDINGS-LEDGER-002 (all 4/4 exit criteria satisfied)
-     - Fixed ARCH-ENGINE-ARTIFACTS-001 ledger discrepancy (line 37 now matches archive status)
-     - Tier 0 status: all items done/archived/blocked (ARCH-SIM-CONSTRUCTION-001 blocked_pending_environment, ARCH-REFACTOR-001 blocked_pending_architecture)
-     - Portfolio steering: next loop must select Tier 1 focus (candidates: DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, or roll-up scoping)
-     ```
+**Artifacts to produce:**
+- `plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/summary.md` (this loop's analysis)
+- `plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/pytest_validation.log` (mapped test run)
+- `plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/closure_checklist.md` (exit criteria verification)
+- If ready: `plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/initiative_closure_summary.md`
 
-4. **Commit with closure message:**
-   - Run standard git commit workflow:
-     ```bash
-     git add docs/fix_plan.md galph_memory.md plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/
-     git commit -m "$(cat <<'EOF'
-     [FINDINGS-LEDGER-002] Initiative closure + ledger hygiene (i=124)
-
-     FINDINGS-LEDGER-002 closure complete: all 4/4 exit criteria satisfied.
-
-     Deliverables:
-     - Phase A (100% path:line coverage): 86/86 findings cited
-     - Phase B (78.4% consumer coverage): 58/74 findings mapped to initiatives
-     - Phase C (cadence + guardrails): quarterly checklist + doc cross-refs
-     - Automation artifacts: findings_inventory.json, consumer_map_v2.json
-
-     Ledger hygiene:
-     - Updated fix_plan.md:65 FINDINGS-LEDGER-002 status to "done"
-     - Fixed fix_plan.md:37 ARCH-ENGINE-ARTIFACTS-001 discrepancy (now matches archive status)
-     - Updated galph_memory.md with closure event
-
-     Portfolio status:
-     - Tier 0: all items done/archived/blocked
-     - Tier 1: FINDINGS-LEDGER-002 now closed; next loop selects new focus
-
-     Mode: Docs (housekeeping). Artifacts: plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/closure_summary.md.
-
-     🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-     Co-Authored-By: Claude <noreply@anthropic.com>
-     EOF
-     )"
-     ```
-
-5. **Validate closure:**
-   - Run grep to confirm status changes:
-     ```bash
-     grep -n "FINDINGS-LEDGER-002" docs/fix_plan.md | head -3
-     grep -n "ARCH-ENGINE-ARTIFACTS-001" docs/fix_plan.md | head -2
-     ```
-
----
-
-## Forbidden This Loop
-- No new probes or instrumentation (docs-only closure)
-- No production code changes
-- No test changes
-
----
-
-## How-To Map
-
-### Closure Validation Commands
+**Pytest selectors:**
 ```bash
-# Verify closure summary exists
-ls -lh plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/closure_summary.md
+# Set env vars per TESTING_GUIDE.md
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export DBEX_SMOKE_SIGMA_SOURCE=metadata  # Test metadata path per Phase I
+export DBEX_SMOKE_DETECTOR_SIZE=full
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
 
-# Check fix_plan.md updates
-grep -A2 "FINDINGS-LEDGER-002" docs/fix_plan.md | head -10
-grep -A1 "ARCH-ENGINE-ARTIFACTS-001" docs/fix_plan.md | head -5
-
-# Validate galph_memory append
-tail -8 galph_memory.md
+# Run acceptance battery
+pytest -vv \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke \
+  tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \
+  tests/sp_proc/test_sigma_metadata_fixture.py \
+  --tb=short \
+  2>&1 | tee plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/pytest_validation.log
 ```
 
----
+## Forbidden This Loop
+- No production code changes (review-only loop)
+- No new probes or diagnostic scripts
+- Do not extend implementation.md phases
+
+## How-To Map
+1. Create artifacts directory: `mkdir -p plans/active/PHYSICS-LOSS-001/reports/2025-12-07T060000Z/`
+2. Run exit criteria checklist review (compare fix_plan.md:385-393 vs implementation.md)
+3. Execute pytest battery with env vars as specified above
+4. Review latest implementation.md reports (2025-11-21T083500Z was last timestamp)
+5. Prepare closure summary or blocking issues report
+6. Update galph_memory.md with closure decision
 
 ## Pitfalls To Avoid
-
-1. **Do not delete detailed completion history** — fix_plan.md line 65 has valuable Phase A/B/C metrics; preserve them while updating status.
-
-2. **Archive vs. Active** — FINDINGS-LEDGER-002 can remain in `plans/active/` (it's a recurring maintenance plan); archival is optional. Just mark status as "done" in ledger.
-
-3. **Ledger consistency** — Both ARCH-ENGINE-ARTIFACTS-001 fixes (line 37 + line 691) must align to prevent future confusion.
-
-4. **Commit message clarity** — Include closure artifact path so future loops can quickly verify what was delivered.
-
-5. **Portfolio steering note** — galph_memory must flag that next loop requires Tier 1 focus selection (Tier 0 all blocked/done).
-
----
+- Do not assume closure without running mapped tests
+- Verify Phase I doc updates are in place (TESTING_GUIDE/TEST_SUITE_INDEX)
+- Check for uncommitted changes or stale fixtures
+- Ensure metadata sigma fixture (sp.proc/) is tracked and manifest valid
+- Do not mark complete if any exit criterion unmet
+- Respect implementation floor: next loop after this review must be implementation OR switch focus
 
 ## If Blocked
-
-If any ledger updates conflict with concurrent work or if closure criteria are disputed:
-1. Document the conflict in `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/BLOCKED.md`
-2. Mark this loop as "validation pending" in galph_memory
-3. Return control to Galph for adjudication
-
-Otherwise, proceed with closure and commit.
-
----
-
-## Doc Sync Plan (Conditional)
-Not applicable — no test changes in this loop.
-
----
-
-**Expected Outcome:**
-- FINDINGS-LEDGER-002 marked "done" in fix_plan.md with closure artifact path
-- ARCH-ENGINE-ARTIFACTS-001 ledger discrepancy resolved
-- galph_memory.md updated with closure event + portfolio steering note
-- Clean commit with closure summary
-- Next loop (i=125) ready to select Tier 1 focus for implementation work
+- If tests fail: document failure signature, mark PHYSICS-LOSS-001 `in_progress`, identify next production fix
+- If exit criteria unmet: list missing items explicitly, plan remediation as new phase or separate initiative
+- If documentation gaps found: schedule doc-sync loop with specific targets
+- If blocked: switch focus to MAP-SCALE-SYNC-001 (next priority Tier 1 roll-up)

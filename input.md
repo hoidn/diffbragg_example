@@ -1,203 +1,142 @@
-# Input for Ralph (Loop i=128)
+# MAP-SCALE-003 Phase B — CLI Telemetry Verification & Test Assertions
 
 ## Summary
-Plan MAP-SCALE-003 Phase A telemetry design: audit current CLI diagnostics schema, trace refined MTZ loading path, define structure-factor telemetry contract, confirm downstream consumer compatibility.
+Verify CLI plumbing correctly populates structure-factor telemetry (`hkl_source`, `hkl_path`) and extend test assertions to validate HDF5 serialization (test_torch_diagnostics_metadata) and diagnostics dict persistence (test_db_at_024_mapping_smoke).
 
-## Mode
-Docs
-
-## ActionType
-planning
-
-## DecisionStatus
-exploring
-
-## InitiativeType
-spec_change
-
-## Focus
-MAP-SCALE-SYNC-001 — Calibration Ladder Synchronization (MAP-SCALE-001—005)
-
-**Current member focus**: MAP-SCALE-003 (CLI Refined Structure Factor Telemetry) Phase A
-
-## Branch
-integration
-
-## Mapped tests
-none — planning loop (Phase A design audit, no production changes)
-
-## Artifacts
-plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/
+## Metadata
+- **Mode**: none
+- **ActionType**: implementation_ready
+- **DecisionStatus**: patch_ready
+- **InitiativeType**: feature
+- **Focus**: MAP-SCALE-SYNC-001 — Calibration Ladder Synchronization (member plan: MAP-SCALE-003)
+- **Branch**: integration
+- **Mapped tests**:
+  - `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata`
+  - `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke`
+- **Artifacts**: `plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/`
 
 ## Findings Applied (Mandatory)
-**Relevant findings**:
-- **SCALE-003**: Zero-iteration helper must ingest DiffBragg-refined √spot_scale + refined |F| amplitudes (dbex/nanobrag_bridge.py:843-1106). Governs telemetry design: must surface refined vs raw MTZ provenance.
-- **SCALE-004**: CLI calibration plumbing must propagate refined structure-factor path (dbex/refine_one.py, --refined-mtz flag). Governs telemetry hook points: refined MTZ loading → build_structure_factor_grid.
-- **SCALE-006**: Telemetry must capture calibration metadata provenance (spot_scale, beam flux, N_cells). Governs schema: hkl_source, reflection count, mean amplitude, MTZ path fields required.
-- **SCALE-007**: Silent fallback from refined to raw MTZ violates spec-db-tracing.md §2; telemetry must enforce refined-request → refined-telemetry contract. Governs Phase C deliverable (MAP-SCALE-005 enforcement).
-- **TESTING-003**: Selector status transitions require pytest --collect-only confirmation. Governs artifact expectations: collect-only logs must validate telemetry test discoverability.
-
-**No relevant findings**: None (all SCALE findings apply to calibration telemetry contract design)
-
-## Pointers
-
-**SPEC**:
-- docs/spec-db-workflow.md:125-158 — Calibration & Unit Conventions (spot_scale, refined MTZ, sample clipping precedence)
-- docs/spec-db-tracing.md:85-120 — Torch diagnostics artifact expectations (telemetry schema, provenance requirements)
-- docs/config_crosswalk.md:75-95 — Structure-factor parameter mapping (refined vs raw MTZ, HKL ingestion)
-
-**ARCH**:
-- docs/architecture/calibration_scaling.md:45-78 — Calibration threading (torch_config precedence, spot_scale_override, refined MTZ path)
-- docs/architecture/dbex/io/writer.idl.md:55-85 — Writer diagnostics contract (HDF5 /torch_diagnostics group schema)
-
-**TESTING**:
-- docs/TESTING_GUIDE.md:125-145 — CLI regression selectors (test_nanobrag_backend_runs_simulator, DB-AT-024 mapping)
-- docs/development/TEST_SUITE_INDEX.md:85-105 — Selector registry (MAP-SCALE-002/004 completion status)
-
-**IMPLEMENTATION**:
-- plans/active/MAP-SCALE-003/implementation.md:1-39 — Phase A/B/C breakdown (telemetry design → implementation → documentation)
-- plans/active/MAP-SCALE-002/implementation.md:25-36 — CLI plumbing context (--refined-mtz, load_calibration_metadata, apply_n_cells)
-- plans/active/MAP-SCALE-004/implementation.md:26-34 — Zero-iteration telemetry precedent (simulate_forward_once diagnostics payload)
+- **SCALE-003**: Zero-iteration helper must ingest refined |F| amplitudes — ✓ Planning traced MTZ loading path; Phase B verifies CLI threading
+- **SCALE-004**: CLI plumbing must propagate refined MTZ path — ✓ Planning identified --refined-mtz arg; Phase B validates hkl_path population
+- **SCALE-006**: Telemetry must capture calibration metadata provenance — ✓ Schema defined (hkl_source, hkl_n_reflections, hkl_mean_amplitude); Phase B adds test assertions
+- **SCALE-007**: Silent fallback from refined to raw violates spec — ✓ Deferred enforcement to MAP-SCALE-005; Phase B asserts hkl_source="refined" in DB-AT-024
+- **TESTING-003**: Selector status transitions require pytest --collect-only confirmation — ✓ Phase B includes collect-only logs in artifacts
 
 ## ARCH Contracts (mandatory)
+### ARCH-CONTRACT-WRITER-001 (Torch Diagnostics Persistence)
+- **Owner module**: `dbex/io/writer.py::write_torch_outputs` (lines 41-54, 196-200)
+- **Pointer**: `docs/architecture/dbex/io/writer.idl.md:55-85`
+- **Failure classification**: Implementation bug (verifying HDF5 attrs match schema)
+- **Contract**: Writer SHALL serialize hkl_telemetry dict to /torch_diagnostics HDF5 group attrs (hkl_source, hkl_n_reflections, hkl_mean_amplitude, hkl_path); backward compatibility required (additive-only extension)
 
-**Relevant ARCH-CONTRACTs**:
+### ARCH-CONTRACT-STRUCTURE-FACTORS-001 (Refined MTZ Ingestion)
+- **Owner module**: `dbex/nanobrag_bridge.py::simulate_forward_once` (line 1230)
+- **Pointer**: `docs/config_crosswalk.md:15-72`, `docs/spec-db-workflow.md:125-158`
+- **Failure classification**: Implementation bug (verifying telemetry dict construction)
+- **Contract**: Bridge SHALL construct hkl_telemetry dict from function params (hkl_source, hkl_path) + computed stats (len(hkl_indices), np.mean(hkl_amplitudes)) and include it in diagnostics dict returned to CLI
 
-1. **ARCH-CONTRACT-CALIBRATION-001** (Calibration Metadata Threading)
-   - **Owner module**: `dbex/io/calibration.py::load_calibration_metadata` (canonical loader)
-   - **Consumer contracts**:
-     - `dbex/refine_one.py::run_nanobrag_backend` (CLI backend, --torch-config ingestion)
-     - `dbex/nanobrag_bridge.py::simulate_forward_once` (zero-iteration helper)
-     - `dbex/refinement/config.py::RefinementConfig` (calibration_metadata field)
-   - **Invariant**: Calibration metadata (spot_scale_override, beam flux, N_cells) must flow CLI → backend → simulator without silent fallback to defaults
-   - **Telemetry requirement**: Provenance tracking required per spec-db-tracing.md §2 (source: calibrated vs cli_override vs default)
-   - **Failure classification**: Implementation bug (telemetry schema incomplete, missing hkl_source/MTZ path fields)
+### ARCH-CONTRACT-CALIBRATION-001 (Calibration Metadata Threading)
+- **Owner module**: `dbex/refine_one.py::run_nanobrag_backend` (lines 162-248)
+- **Pointer**: `docs/architecture/calibration_scaling.md:45-78`
+- **Failure classification**: Implementation bug (verifying hkl_source/hkl_path propagation from CLI args)
+- **Contract**: CLI backend SHALL populate hkl_source based on --refined-mtz vs --mtzFile precedence and forward hkl_path (absolute MTZ path) to bridge/writer
 
-2. **ARCH-CONTRACT-WRITER-001** (Torch Diagnostics Persistence)
-   - **Owner module**: `dbex/io/writer.py::_write_torch_outputs` (HDF5 /torch_diagnostics group)
-   - **Consumer contracts**:
-     - `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` (regression test)
-     - `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping` (acceptance test)
-     - `dbex/look.py` (visualization, reads HDF5 artifacts)
-   - **Invariant**: Diagnostics group must persist all calibration/telemetry metadata fields without breaking backward compatibility
-   - **Schema extension**: hkl_source, hkl_n_reflections, hkl_mean_amplitude, hkl_path fields (Phase B deliverable)
-   - **Failure classification**: Implementation bug (schema incomplete, Phase A must define fields)
+## Do Now (hard validity contract)
 
-3. **ARCH-CONTRACT-STRUCTURE-FACTORS-001** (Refined MTZ Ingestion)
-   - **Owner module**: `dbex/nanobrag_bridge.py::load_refined_mtz` (refined structure-factor loader)
-   - **Consumer contracts**:
-     - `dbex/nanobrag_bridge.py::build_structure_factor_grid` (HKL grid builder, consumes refined amplitudes)
-     - `dbex/refine_one.py::run_nanobrag_backend` (CLI backend, --refined-mtz path)
-     - `dbex/nanobrag_bridge.py::simulate_forward_once` (zero-iteration helper, delegates to grid builder)
-   - **Invariant**: Refined MTZ path must flow --refined-mtz → load_refined_mtz → build_structure_factor_grid → simulator without silent fallback to raw amplitudes
-   - **Telemetry requirement**: hkl_source must distinguish "refined" vs "raw" per SCALE-007
-   - **Failure classification**: Implementation bug (telemetry hook points not identified, Phase A must trace call chain)
+**Objective**: Implement MAP-SCALE-003 Phase B (CLI plumbing verification + test assertions)
 
-## Do Now
+### Task 1: Verify CLI Plumbing (Read + Document)
+**File**: `dbex/refine_one.py`
+1. **Implement**: Read `dbex/refine_one.py` (focus: run_nanobrag_backend function, lines 162-300)
+2. Locate where `--refined-mtz` argument is consumed and how `hkl_source`/`hkl_path` are set
+3. Trace data flow: CLI args → `simulate_forward_once` → `write_torch_outputs`
+4. Document file:line anchors in `plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/cli_plumbing_verification.md`:
+   - Where `hkl_source` is set (expected: "refined" if --refined-mtz provided, else "raw")
+   - Where `hkl_path` is set (expected: absolute path from --refined-mtz or --mtzFile)
+   - Where telemetry dict is passed to writer
+5. Validation: Confirm CLI correctly threads telemetry to writer OR identify gap requiring code fix
 
-**Phase A planning deliverables** (MAP-SCALE-003 implementation.md lines 21-24):
+### Task 2: Extend test_torch_diagnostics_metadata Assertions (Edit + Run)
+**File**: `tests/dbex/test_refine_one_cli.py`
+1. **Implement**: Read lines 913-1100 (test_torch_diagnostics_metadata function)
+2. Locate existing HDF5 attr assertions (after line 1020)
+3. Add 4 new assertions after existing diagnostics attrs (check mock hkl_telemetry dict values from lines 959-965 first to get correct expected values)
+4. Run test: `pytest tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata -v`
+5. Capture pytest log to `plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/pytest_diagnostics_metadata.log`
 
-1. **Audit current diagnostics schema** (`dbex/io/writer.py::_write_torch_outputs`):
-   - Read `dbex/io/writer.py` lines covering `_write_torch_outputs` function
-   - List existing `/torch_diagnostics` HDF5 attributes (e.g., masked_mse, loss_mask_coverage, backend)
-   - Identify schema extension points for structure-factor telemetry (hkl_source, hkl_n_reflections, hkl_mean_amplitude, hkl_path)
-   - Document findings in `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/schema_audit.md`
+### Task 3: Extend test_db_at_024_mapping_smoke Assertions (Edit + Run)
+**File**: `tests/dbex/test_mapping_consistency.py`
+1. **Implement**: Read lines 188-400 (TestDB_AT_024_Mapping class + test_db_at_024_mapping_smoke function)
+2. Locate diagnostics dict assertions (search for `assert "` in diagnostics context)
+3. Add hkl_telemetry assertions after existing diagnostics checks
+4. Run test: `pytest tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke -v`
+5. Capture pytest log to `plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/pytest_db_at_024.log`
 
-2. **Trace refined MTZ loading path**:
-   - Read `dbex/refine_one.py` to locate `--refined-mtz` CLI argument handling
-   - Read `dbex/nanobrag_bridge.py` to trace:
-     - `load_refined_mtz` invocation site (where refined MTZ path is consumed)
-     - `build_structure_factor_grid` call site (where refined amplitudes enter HKL grid)
-     - Return value flow to `simulate_forward_once` (where diagnostics payload is constructed)
-   - Identify hook points for telemetry computation (post `load_refined_mtz`, pre simulator invocation)
-   - Document call chain with file:line anchors in `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/mtz_flow_trace.md`
+### Task 4: Regression Guard (Run)
+**Objective**: Confirm no test discovery breakage from assertion additions
+1. Run collect-only for both modified tests and capture logs
 
-3. **Define telemetry metadata schema**:
-   - Design metadata dictionary with 4 required fields:
-     - `hkl_source`: str ("refined" | "raw") — distinguishes refined MTZ vs raw amplitudes
-     - `hkl_n_reflections`: int — reflection count from HKL grid
-     - `hkl_mean_amplitude`: float — mean |F| amplitude for diagnostics
-     - `hkl_path`: str — absolute path to MTZ file (or empty string if default)
-   - Specify fallback behavior when refined MTZ absent (hkl_source="raw", hkl_path="")
-   - Document schema + rationale in `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/telemetry_schema.md`
-
-4. **Confirm downstream consumer compatibility**:
-   - Read `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to understand existing assertion patterns
-   - Read `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke` to identify telemetry access points
-   - Verify HDF5 schema extension (new attrs under `/torch_diagnostics`) won't break existing artifact parsers
-   - Document compatibility analysis in `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/consumer_compatibility.md`
-
-5. **Synthesize planning report**:
-   - Consolidate findings from steps 1-4 into `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/planning_notes.md`
-   - Include:
-     - Schema audit summary (existing fields + proposed extensions)
-     - MTZ flow trace diagram (file:line anchors for hook points)
-     - Telemetry metadata schema (4 required fields + fallback rules)
-     - Consumer compatibility assessment (regression/acceptance test impact)
-     - Next action recommendation (Phase B implementation readiness)
-
-**Validation**: None (planning loop, no pytest execution required)
-
-**Artifact destinations**:
-- `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/schema_audit.md`
-- `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/mtz_flow_trace.md`
-- `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/telemetry_schema.md`
-- `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/consumer_compatibility.md`
-- `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/planning_notes.md`
+### Task 5: Write Summary & Update Plan
+**Objective**: Document Phase B completion
+1. Create summary.md with all task findings
+2. Update implementation.md with Phase B completion status
 
 ## Forbidden This Loop
-- No production code changes (planning only)
-- No pytest execution (Docs mode, no tests mapped)
-- No new probes or instrumentation (schema audit via code reading only)
+- **No new probes**: Phase B is test validation only; instrumentation out of scope
+- **No plan-local diagnostic scripts**: All work in production test files
+- **Do not modify writer/bridge code unless Task 1 reveals missing telemetry construction** (unlikely per Phase A findings)
 
 ## How-To Map
-
-**Not applicable** (Docs mode — no test execution or production changes)
-
-**Artifact capture**:
+### Environment
 ```bash
-# Ralph should create reports directory manually:
-mkdir -p plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/
-
-# Write planning artifacts as specified in Do Now steps 1-5
-# (schema_audit.md, mtz_flow_trace.md, telemetry_schema.md, consumer_compatibility.md, planning_notes.md)
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
+export DBEX_SMOKE_SIGMA_SOURCE=metadata
+export DBEX_SMOKE_DETECTOR_SIZE=full
 ```
 
+### Test Execution Commands
+```bash
+# Create reports directory
+mkdir -p plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/
+
+# Task 2: test_torch_diagnostics_metadata
+pytest tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata -v > plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/pytest_diagnostics_metadata.log 2>&1
+
+# Task 3: test_db_at_024_mapping_smoke
+pytest tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke -v > plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/pytest_db_at_024.log 2>&1
+
+# Task 4: Collect-only regression guard
+pytest tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata --collect-only > plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/collect_diagnostics_metadata.log 2>&1
+pytest tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --collect-only > plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/collect_db_at_024.log 2>&1
+```
+
+### Artifact Destinations
+All artifacts under: `plans/active/MAP-SCALE-003/reports/2025-12-07T180000Z/`
+- `cli_plumbing_verification.md` (Task 1 file:line anchors)
+- `pytest_diagnostics_metadata.log` (Task 2 test run)
+- `pytest_db_at_024.log` (Task 3 test run)
+- `collect_diagnostics_metadata.log` (Task 4 regression guard)
+- `collect_db_at_024.log` (Task 4 regression guard)
+- `summary.md` (Task 5 turn summary)
+
 ## Pitfalls To Avoid
-
-1. **Type discipline**: This is a planning loop (ActionType=planning, Mode=Docs). Do not attempt implementation edits to dbex/io/writer.py or dbex/nanobrag_bridge.py. Code reading only.
-
-2. **Parity-first**: MAP-SCALE-003 telemetry contract must align with MAP-SCALE-004 precedent (simulate_forward_once diagnostics payload). Review MAP-SCALE-004 implementation.md Phase A/B for schema consistency.
-
-3. **No stacking**: This is Phase A planning. Do not skip to Phase B implementation without completing all 5 Do Now deliverables (schema audit, MTZ trace, telemetry schema, consumer compatibility, planning notes).
-
-4. **Evidence→Action contract**: Planning notes must end with concrete Phase B next action (file::function to edit, pytest selector to validate). If uncertain, mark blocked and escalate to Galph.
-
-5. **Findings paydown**: SCALE-003/004/006/007 findings govern telemetry design. All 4 must be cited in planning notes with implementation guidance.
-
-6. **ARCH conformance**: Telemetry schema must conform to ARCH-CONTRACT-WRITER-001 (HDF5 /torch_diagnostics group). Do not introduce conflicting persistence patterns.
-
-7. **Scriptization policy**: If analysis requires trace capture, use existing production code paths (no new plan-local probes). Code reading via Read tool is sufficient for Phase A.
-
-8. **Environment freeze**: No package installs, no env modifications. All planning work stays in docs/reports artifacts.
-
-9. **Doc sync plan**: None required (planning loop, no tests added/renamed).
-
-10. **Loop discipline**: This is the first planning loop for MAP-SCALE-SYNC-001. Next loop must either delegate Phase B implementation OR switch focus if blocked. Maximum 2 consecutive planning loops per focus.
+1. **Type discipline**: This is a `feature` initiative (exposing telemetry schema), not `spec_change` — do not alter normative behavior, only add observability
+2. **No stacking**: If Task 2/3 tests FAIL due to missing telemetry dict construction (not assertion bugs), STOP and document the gap in summary.md; next loop will fix bridge code
+3. **Shadow-pipeline guard**: No plan-local scripts — all work in production test files per PROBE-FREEZE-001
+4. **Evidence→Action**: Task 1 MUST end with file:line anchors OR explicit "gap identified at X" note; do not leave CLI plumbing status ambiguous
+5. **Findings paydown**: All SCALE findings (003/004/006/007) addressed via schema + test assertions per Phase A planning
+6. **ARCH consistency**: Writer schema already correct (Phase A audit confirmed); only validate data flow CLI → bridge → writer
+7. **Environment freeze**: Do not install/upgrade packages; tests use existing fixtures
 
 ## If Blocked
+- **Task 1 reveals missing CLI plumbing**: Document gap in cli_plumbing_verification.md, write summary.md noting "implementation_required", mark Phase B incomplete, next loop fixes bridge code
+- **Task 2/3 tests FAIL due to assertion errors (not missing data)**: Adjust expected values based on actual fixture schema, re-run tests
+- **Task 2/3 tests FAIL due to missing hkl_telemetry dict**: Document in summary.md, mark Phase B blocked, next loop adds telemetry construction to bridge
+- **Task 4 collect-only errors**: Fix test syntax errors, re-run collect-only
 
-**Blocking scenarios**:
-1. **Schema extension conflicts**: If existing `/torch_diagnostics` attrs cannot accommodate 4 new fields without breaking backward compatibility, mark Phase A blocked and document conflict in planning_notes.md. Escalate to Galph for spec_change scoping (HDF5 schema versioning).
+## Doc Sync Plan (Conditional)
+**Not required for Phase B** (no new test files authored; only assertion additions to existing tests)
 
-2. **MTZ flow trace incomplete**: If `load_refined_mtz` → `build_structure_factor_grid` call chain cannot be traced (missing functions, unclear delegation), mark Phase A blocked and document gap in mtz_flow_trace.md. Escalate to Galph for architecture audit (ARCH-CONTRACT-STRUCTURE-FACTORS-001 violation).
-
-3. **Consumer incompatibility**: If regression tests (test_torch_diagnostics_metadata, DB-AT-024) require breaking changes to access new telemetry fields, mark Phase A blocked and document impact in consumer_compatibility.md. Escalate to Galph for harness initiative (test refactor scoping).
-
-**Resolution**:
-- Record block in `plans/active/MAP-SCALE-003/reports/2025-12-07T150000Z/planning_notes.md`
-- Update galph_memory.md with block details + escalation reason
-- Next loop: Galph selects alternative Tier 1 focus (DB-AT-SUITE-CARE-001) OR scopes unblock initiative (spec_change/harness)
-
-## Doc Sync Plan
-**Not applicable** (planning loop, no tests added/renamed)
+**If tests PASS**: Phase C will update TESTING_GUIDE.md + TEST_SUITE_INDEX.md to document hkl_telemetry fields

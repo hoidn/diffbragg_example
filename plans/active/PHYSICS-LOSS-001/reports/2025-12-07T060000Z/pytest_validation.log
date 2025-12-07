@@ -1,0 +1,293 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 7 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [ 14%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers SKIPPED [ 28%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [ 42%]
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke SKIPPED [ 57%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0] PASSED [ 71%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0] PASSED [ 85%]
+tests/sp_proc/test_sigma_metadata_fixture.py::test_sigma_metadata_manifest_and_loading PASSED [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+tests/dbex/test_torch_refine_smoke.py:453: in test_stage_a_expansion
+    telemetry_dict = engine.run({"context": refinement_context})
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:2188: in run
+    bragg_full_artifact = build_final_bragg_from_stage_a_telemetry(
+dbex/refinement/reconstruction.py:565: in build_final_bragg_from_stage_a_telemetry
+    bragg_panel = sim.run()
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:1292: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:944: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:207: in compute_physics_for_position
+    l = dot_product(scattering_broadcast, rot_c_broadcast)  # noqa: E741
+src/nanobrag-torch/src/nanobrag_torch/utils/geometry.py:23: in dot_product
+    return torch.sum(x * y, dim=-1)
+E   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.34 GiB. GPU 0 has a total capacity of 23.56 GiB of which 161.62 MiB is free. Including non-PyTorch memory, this process has 23.33 GiB memory in use. Of the allocated memory 19.84 GiB is allocated by PyTorch, and 3.18 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=full
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 2.202647e+04
+  log_scale_effective (recorded): 10.000000
+  log_scale_baseline: 0.000000
+  log_scale_delta_clamped (recorded): 10.0
+_______________________ test_stage_c_detector_microslip ________________________
+tests/dbex/test_torch_refine_smoke.py:1129: in test_stage_c_detector_microslip
+    telemetry_dict = engine.run({"context": refinement_context})
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:1292: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:944: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:331: in compute_physics_for_position
+    F_cell = crystal_get_structure_factor(h0, k0, l0)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:242: in get_structure_factor
+    return self._tricubic_interpolation(h, k, l)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:421: in _tricubic_interpolation
+    h_array_grid = h_grid_coords - h_min  # (B, 4)
+E   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.67 GiB. GPU 0 has a total capacity of 23.56 GiB of which 161.62 MiB is free. Including non-PyTorch memory, this process has 23.33 GiB memory in use. Of the allocated memory 21.76 GiB is allocated by PyTorch, and 1.26 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=full
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:388: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Na_f64 = torch.tensor(Na, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:389: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nb_f64 = torch.tensor(Nb, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:390: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nc_f64 = torch.tensor(Nc, dtype=torch.float64, device=h.device)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.34 GiB. GPU 0 has a total capacity of 23.56 GiB of which 161.62 MiB is free. Including non-PyTorch memory, this process has 23.33 GiB memory in use. Of the allocated memory 19.84 GiB is allocated by PyTorch, and 3.18 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.67 GiB. GPU 0 has a total capacity of 23.56 GiB of which 161.62 MiB is free. Including non-PyTorch memory, this process has 23.33 GiB memory in use. Of the allocated memory 21.76 GiB is allocated by PyTorch, and 1.26 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+============= 2 failed, 3 passed, 2 skipped, 9 warnings in 23.95s ==============
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 3 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion ERROR      [ 33%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers ERROR [ 66%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip ERROR [100%]
+
+==================================== ERRORS ====================================
+___________________ ERROR at setup of test_stage_a_expansion ___________________
+tests/conftest.py:389: in pytest_runtest_setup
+    detector_size = _resolve_smoke_detector_size(item.config)
+tests/conftest.py:47: in _resolve_smoke_detector_size
+    raise pytest.UsageError(
+E   _pytest.config.exceptions.UsageError: Invalid smoke-detector-size 'sampled'. Expected 'small' or 'full'.
+________________ ERROR at setup of test_stage_b_shell_modifiers ________________
+tests/conftest.py:389: in pytest_runtest_setup
+    detector_size = _resolve_smoke_detector_size(item.config)
+tests/conftest.py:47: in _resolve_smoke_detector_size
+    raise pytest.UsageError(
+E   _pytest.config.exceptions.UsageError: Invalid smoke-detector-size 'sampled'. Expected 'small' or 'full'.
+______________ ERROR at setup of test_stage_c_detector_microslip _______________
+tests/conftest.py:389: in pytest_runtest_setup
+    detector_size = _resolve_smoke_detector_size(item.config)
+tests/conftest.py:47: in _resolve_smoke_detector_size
+    raise pytest.UsageError(
+E   _pytest.config.exceptions.UsageError: Invalid smoke-detector-size 'sampled'. Expected 'small' or 'full'.
+=========================== short test summary info ============================
+ERROR tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - _pytest.config.exceptions.UsageError: Invalid smoke-detector-size 'sampled'. Expected 'small' or 'full'.
+ERROR tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - _pytest.config.exceptions.UsageError: Invalid smoke-detector-size 'sampled'. Expected 'small' or 'full'.
+ERROR tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - _pytest.config.exceptions.UsageError: Invalid smoke-detector-size 'sampled'. Expected 'small' or 'full'.
+============================== 3 errors in 0.78s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 4 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [ 25%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [ 50%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [ 75%]
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke ERROR [100%]
+
+==================================== ERRORS ====================================
+_____ ERROR at setup of TestDB_AT_024_Mapping.test_db_at_024_mapping_smoke _____
+tests/conftest.py:399: in pytest_runtest_setup
+    raise pytest.UsageError(
+E   _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+tests/dbex/test_torch_refine_smoke.py:453: in test_stage_a_expansion
+    telemetry_dict = engine.run({"context": refinement_context})
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:2188: in run
+    bragg_full_artifact = build_final_bragg_from_stage_a_telemetry(
+dbex/refinement/reconstruction.py:565: in build_final_bragg_from_stage_a_telemetry
+    bragg_panel = sim.run()
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:1292: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:944: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:331: in compute_physics_for_position
+    F_cell = crystal_get_structure_factor(h0, k0, l0)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:242: in get_structure_factor
+    return self._tricubic_interpolation(h, k, l)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:408: in _tricubic_interpolation
+    k_grid_coords = k_flr_flat.unsqueeze(-1) + offsets  # (B, 4)
+E   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 3.44 GiB is free. Including non-PyTorch memory, this process has 20.04 GiB memory in use. Of the allocated memory 15.31 GiB is allocated by PyTorch, and 4.43 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=small
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 2.202647e+04
+  log_scale_effective (recorded): 10.000000
+  log_scale_baseline: 0.000000
+  log_scale_delta_clamped (recorded): 10.0
+_________________________ test_stage_b_shell_modifiers _________________________
+tests/dbex/test_torch_refine_smoke.py:1477: in test_stage_b_shell_modifiers
+    telemetry_dict = engine.run({"context": refinement_context})
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:1292: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:944: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:331: in compute_physics_for_position
+    F_cell = crystal_get_structure_factor(h0, k0, l0)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:242: in get_structure_factor
+    return self._tricubic_interpolation(h, k, l)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:431: in _tricubic_interpolation
+    sub_Fhkl = self.hkl_data[
+E   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 643.62 MiB is free. Including non-PyTorch memory, this process has 22.86 GiB memory in use. Of the allocated memory 18.16 GiB is allocated by PyTorch, and 4.39 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_shell_modifiers] detector=small
+_______________________ test_stage_c_detector_microslip ________________________
+tests/dbex/test_torch_refine_smoke.py:1129: in test_stage_c_detector_microslip
+    telemetry_dict = engine.run({"context": refinement_context})
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:1292: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:944: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:331: in compute_physics_for_position
+    F_cell = crystal_get_structure_factor(h0, k0, l0)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:242: in get_structure_factor
+    return self._tricubic_interpolation(h, k, l)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:431: in _tricubic_interpolation
+    sub_Fhkl = self.hkl_data[
+E   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 65.62 MiB is free. Including non-PyTorch memory, this process has 23.42 GiB memory in use. Of the allocated memory 21.02 GiB is allocated by PyTorch, and 2.10 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=small
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:388: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Na_f64 = torch.tensor(Na, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:389: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nb_f64 = torch.tensor(Nb, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:390: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nc_f64 = torch.tensor(Nc, dtype=torch.float64, device=h.device)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 3.44 GiB is free. Including non-PyTorch memory, this process has 20.04 GiB memory in use. Of the allocated memory 15.31 GiB is allocated by PyTorch, and 4.43 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 643.62 MiB is free. Including non-PyTorch memory, this process has 22.86 GiB memory in use. Of the allocated memory 18.16 GiB is allocated by PyTorch, and 4.39 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 65.62 MiB is free. Including non-PyTorch memory, this process has 23.42 GiB memory in use. Of the allocated memory 21.02 GiB is allocated by PyTorch, and 2.10 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+ERROR tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke - _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+=================== 3 failed, 12 warnings, 1 error in 16.68s ===================

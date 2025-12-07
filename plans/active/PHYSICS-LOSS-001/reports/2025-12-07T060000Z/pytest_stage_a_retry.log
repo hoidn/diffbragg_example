@@ -1,0 +1,73 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+tests/dbex/test_torch_refine_smoke.py:453: in test_stage_a_expansion
+    telemetry_dict = engine.run({"context": refinement_context})
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:2188: in run
+    bragg_full_artifact = build_final_bragg_from_stage_a_telemetry(
+dbex/refinement/reconstruction.py:565: in build_final_bragg_from_stage_a_telemetry
+    bragg_panel = sim.run()
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:1292: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:944: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+src/nanobrag-torch/src/nanobrag_torch/simulator.py:331: in compute_physics_for_position
+    F_cell = crystal_get_structure_factor(h0, k0, l0)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:242: in get_structure_factor
+    return self._tricubic_interpolation(h, k, l)
+src/nanobrag-torch/src/nanobrag_torch/models/crystal.py:409: in _tricubic_interpolation
+    l_grid_coords = l_flr_flat.unsqueeze(-1) + offsets  # (B, 4)
+E   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 3.29 GiB is free. Including non-PyTorch memory, this process has 20.20 GiB memory in use. Of the allocated memory 19.81 GiB is allocated by PyTorch, and 81.96 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=small
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 2.202647e+04
+  log_scale_effective (recorded): 10.000000
+  log_scale_baseline: 0.000000
+  log_scale_delta_clamped (recorded): 10.0
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:388: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Na_f64 = torch.tensor(Na, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:389: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nb_f64 = torch.tensor(Nb, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:390: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nc_f64 = torch.tensor(Nc, dtype=torch.float64, device=h.device)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.50 GiB. GPU 0 has a total capacity of 23.56 GiB of which 3.29 GiB is free. Including non-PyTorch memory, this process has 20.20 GiB memory in use. Of the allocated memory 19.81 GiB is allocated by PyTorch, and 81.96 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+======================== 1 failed, 8 warnings in 11.68s ========================

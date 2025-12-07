@@ -2327,5 +2327,75 @@
       },
       "checksum_mismatch": false
     }
+  },
+  {
+    "timestamp": "2025-12-07T04:16:22.415684Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 591.7754516601562,
+      "mean_unmasked": 7.6680474281311035
+    },
+    "target": {
+      "mean_masked": 63.02534484863281,
+      "mean_unmasked": 0.13249096274375916
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 9.389483755803575
+    },
+    "chi_squared": {
+      "per_pixel": 409049.2595536533,
+      "n_masked_pixels": 13084
+    },
+    "scale_factor_used": 1.0,
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 13084,
+        "mask_checksum": "1acd1df3e22c5c519111a04471c71291c44a8eee"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-07T04:25:39.571699Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 591.7749633789062,
+      "mean_unmasked": 7.668041706085205
+    },
+    "target": {
+      "mean_masked": 63.02534484863281,
+      "mean_unmasked": 0.13249096274375916
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 9.389476008424307
+    },
+    "chi_squared": {
+      "per_pixel": 409049.3378171813,
+      "n_masked_pixels": 13084
+    },
+    "scale_factor_used": 557230080.0,
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 13084,
+        "mask_checksum": "1acd1df3e22c5c519111a04471c71291c44a8eee"
+      },
+      "checksum_mismatch": false
+    }
   }
 ]

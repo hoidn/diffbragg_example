@@ -1,223 +1,211 @@
-# Input for Loop i=114
+# Input for Ralph — Loop i=116
 
 ## Summary
-Diagnose calibration_metadata threading break causing Phase A.2 cold-path test to see None instead of spot_scale_override, producing 2.83× scale mismatch despite canonical API refactor.
+Fix double-sqrt scaling bug in reconstruction cold path by making `apply_sqrt_spot_scale` conditional on `log_scale_baseline` absence.
 
 ## Mode
-none
+`none` (production bugfix, not test-first)
 
 ## ActionType
-evidence_collection
+`implementation_ready`
 
 ## DecisionStatus
-exploring
+`patch_ready`
 
 ## InitiativeType
-architecture
+`architecture` (ARCH-CONTRACT enforcement)
 
 ## Focus
-ARCH-IMPL-CONFORMANCE-001 — Architecture / Implementation Contract Alignment
+`ARCH-IMPL-CONFORMANCE-001` — Architecture / Implementation Contract Alignment (Phase B.6)
 
 ## Branch
-integration
+`integration`
 
-## Mapped tests
-- `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path` (diagnostic, expect FAIL with detailed logging)
-- `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale` (warm-cache regression check, expect PASS)
+## Mapped Tests
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale \
+  tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path
+```
 
 ## Artifacts
-`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/`
+`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/`
 
 ## Findings Applied (Mandatory)
-- **SCALE-002** (docs/findings.md:39): DiffBragg spot_scale_override re-applied as sqrt factor post-simulation. Canonical owner API is `dbex/refinement/scaling_utils.py::apply_sqrt_spot_scale`.
-- **SCALE-008** (docs/findings.md:42): Stage A warm-cache baseline authority. Calibration metadata must thread from simulate_forward_once → Stage A context → reconstruction helpers.
-- **SCALE-009** (docs/findings.md:43): Reconstruction cold path must match Stage A scaling when param_state="initial". Current status: VIOLATED (64.6% rel_error, 2.83× scale factor drift).
-- **ARCH-FACTORY-001** (docs/findings.md:90): create_unified_simulator is forward-only factory, separate from refinement closure paths. Used by reconstruction cold path at reconstruction.py:245-324.
+- **SCALE-008**: Stage A warm-cache authority and masked-intensity baseline
+- **SCALE-009**: Reconstruction scaling provenance (to be updated post-fix with double-scaling root cause)
+- **ARCH-CONTRACT-001**: Stage A vs reconstruction scaling alignment (enforced via conditional sqrt application)
+- **ARCH-CONTRACT-002**: Post-run scaling pattern (canonical `apply_sqrt_spot_scale` API, conditional usage)
 
 ## Pointers
-
-### Spec/Arch References
-- `docs/spec-db-core.md:60-140` — Simulator construction and calibration contracts
-- `docs/architecture/calibration_scaling.md:14` — Calibration threading requirements
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/implementation.md:89-101` — Phase B checklist
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/phase_b5_planning.md` — This loop's planning document
-
-### Code References
-- `dbex/refinement/scaling_utils.py:35-111` — Canonical apply_sqrt_spot_scale API (owner)
-- `dbex/refinement/reconstruction.py:216-221` — effective_calibration_metadata defaulting logic
-- `dbex/refinement/reconstruction.py:501-509` — apply_sqrt_spot_scale call site
-- `tests/architecture/test_scale_contracts.py:254-262` — RefinementConfig with calibration_metadata threading (Ralph's i=112 fix)
-- `tests/architecture/test_scale_contracts.py:267-280` — build_final_bragg_from_stage_a_telemetry cold-path call
-
-### Evidence
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T060000Z/pytest_phase_a2_extended_timeout.log:13-15` — Raw vs scaled output IDENTICAL (proving apply_sqrt_spot_scale saw None)
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T060000Z/summary.md` — Loop i=113 diagnostic summary
+- Planning doc: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/phase_b6_planning.md`
+- Evidence: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/phase_b5_decision.md`
+- Stage A scaling logic: `dbex/refinement/stage_a.py:172-177, 500-514, 1275-1290`
+- Reconstruction cold path: `dbex/refinement/reconstruction.py:88-223, 373-395, 499-513`
+- Canonical API: `dbex/refinement/scaling_utils.py:35-111`
+- Enforcement tests: `tests/architecture/test_scale_contracts.py:24-302`
 
 ## ARCH Contracts (mandatory)
 
-### ARCH-CONTRACT-002: Post-Run Scaling Pattern
-- **Owner module/API**: `dbex/refinement/scaling_utils.py::apply_sqrt_spot_scale`
-- **Responsibility**: Apply sqrt(spot_scale_override) to raw simulator outputs per SCALE-002
-- **Consumers**: Stage A (stage_a.py:442-443), reconstruction (reconstruction.py:506), mapping (simulate_forward_once via nanobrag_bridge.py:1457)
-- **Failure classification**: **Architecture conformance failure**
-  - Reconstruction cold path calls apply_sqrt_spot_scale with None calibration_metadata despite test threading it to RefinementConfig
-  - Either (a) config.calibration_metadata not hydrated, or (b) calibration_metadata parameter not passed through call chain
-  - This violates ARCH-CONTRACT-002 requirement that all consumers receive identical calibration_metadata
-
 ### ARCH-CONTRACT-001: Stage A vs Reconstruction Scaling Alignment
-- **Owner module/API**: Stage A forward path (`build_mapping_stage_a_context` → `simulate_forward_once`)
-- **Responsibility**: Authoritative zero-iteration Bragg baseline for DB-AT-027/028/029
-- **Consumers**: Reconstruction helpers (build_final_bragg_from_stage_a_telemetry with param_state="initial")
-- **Failure classification**: **Architecture conformance failure**
-  - Reconstruction cold path produces 2.83× scale mismatch vs Stage A baseline
-  - Root cause: calibration_metadata threading break prevents apply_sqrt_spot_scale from executing
-  - Violates parity contract (docs/spec-db-core.md:60-140 requires ≤1e-6 rel_error)
+- **Owner API**: `dbex.refinement.scaling_utils.apply_sqrt_spot_scale`
+- **Owner Module**: `dbex/refinement/scaling_utils.py`
+- **Duplicates Being Removed**: Unconditional `apply_sqrt_spot_scale` call in reconstruction.py:506 (will be conditional)
+- **Failure Classification**: **Implementation bug within architecture** (reconstruction cold path incorrectly applies sqrt twice when log_scale_baseline present)
+
+### ARCH-CONTRACT-002: Post-Run Scaling Pattern
+- **Owner API**: `dbex.refinement.scaling_utils.apply_sqrt_spot_scale`
+- **Owner Module**: `dbex/refinement/scaling_utils.py`
+- **Usage Rule**: Apply ONLY when `log_scale_baseline` is absent (uncalibrated path); skip when `log_scale_baseline` present (calibrated path already includes sqrt in `scale_factor`)
+- **Failure Classification**: **Implementation bug** (conditional logic missing)
 
 ## Do Now (hard validity contract)
 
-**This is an evidence-collection loop.** No production code changes are permitted. Only add temporary diagnostic logging to trace calibration_metadata threading.
+### Focus Item
+ARCH-IMPL-CONFORMANCE-001 Phase B.6 — Fix double-sqrt scaling in reconstruction cold path
 
-### Step 1: Add calibration tracing to test_scale_contracts.py
+### Implement
+**File**: `dbex/refinement/reconstruction.py`
+**Function**: `build_final_bragg_from_stage_a_telemetry` (lines 501-513)
 
-File: `tests/architecture/test_scale_contracts.py`
+**Change**: Wrap `apply_sqrt_spot_scale` call in conditional to prevent double-scaling when `log_scale_baseline` is present.
 
-At line 262 (after `config = RefinementConfig(...)`), add:
+**Before** (lines 501-513):
 ```python
-# GALPH DIAGNOSTIC: Trace calibration threading (loop i=114)
-print(f"\n[CALIBRATION TRACE] test_scale_contracts.py:262 → RefinementConfig created")
-print(f"  config.calibration_metadata: {config.calibration_metadata}")
-if config.calibration_metadata is not None:
-    print(f"  spot_scale_override: {config.calibration_metadata.get('spot_scale_override')}")
+# ARCH-CONTRACT-002 (Phase B.4, ARCH-IMPL-CONFORMANCE-001):
+# Apply canonical spot_scale_override sqrt scaling
+# For warm-path with full telemetry, log_scale_baseline incorporates sqrt_spot_scale,
+# so this becomes identity (scale=1.0). For cold-path, this applies the missing sqrt factor.
+bragg_prescaled_np = bragg_prescaled.cpu().numpy()
+bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)
+bragg_scaled = torch.from_numpy(bragg_scaled_np).to(
+    device=bragg_panel.device, dtype=bragg_panel.dtype
+)
+
+if pid == 0:
+    print(f"  bragg_scaled[0] mean (after scale_factor × baseline_alignment × sqrt_spot_scale): {bragg_scaled.mean().item():.6e}")
+bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 ```
 
-At line 280 (after `bragg_reconstruction_cold = build_final_bragg_from_stage_a_telemetry(...)`), add:
+**After** (lines 501-520, expanded):
 ```python
-# GALPH DIAGNOSTIC: Confirm calibration was passed
-print(f"\n[CALIBRATION TRACE] build_final_bragg_from_stage_a_telemetry returned")
-print(f"  bragg_reconstruction_cold.mean(): {bragg_reconstruction_cold.mean():.6e}")
+# ARCH-CONTRACT-002 (Phase B.6, ARCH-IMPL-CONFORMANCE-001):
+# Apply canonical spot_scale_override sqrt scaling ONLY when log_scale_baseline is absent.
+# When log_scale_baseline is present (calibrated path), scale_factor already incorporates
+# sqrt(spot_scale) per stage_a.py:173, so applying it again would double-scale.
+#
+# Root cause (Phase B.5 analysis): Reconstruction cold path was applying sqrt twice:
+#   1. scale_factor = exp(log_scale_baseline) = exp(log(sqrt(spot_scale))) = sqrt(spot_scale)
+#   2. apply_sqrt_spot_scale multiplies by sqrt(spot_scale) again
+#   Result: raw * sqrt * sqrt = raw * spot_scale (2× correct scaling, ~35× mismatch)
+if log_scale_baseline_value is None:
+    # Uncalibrated path: scale_factor doesn't include sqrt, apply it separately
+    bragg_prescaled_np = bragg_prescaled.cpu().numpy()
+    bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)
+    bragg_scaled = torch.from_numpy(bragg_scaled_np).to(
+        device=bragg_panel.device, dtype=bragg_panel.dtype
+    )
+    scaling_path = "uncalibrated (scale_factor + apply_sqrt_spot_scale)"
+else:
+    # Calibrated path: scale_factor = exp(log_scale_baseline) already includes sqrt(spot_scale)
+    # Do not apply sqrt scaling again to avoid double-scaling
+    bragg_scaled = bragg_prescaled
+    scaling_path = "calibrated (scale_factor only, no double-sqrt)"
+
+if pid == 0:
+    print(f"  bragg_scaled[0] mean ({scaling_path}): {bragg_scaled.mean().item():.6e}")
+bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 ```
 
-### Step 2: Add calibration tracing to reconstruction.py
-
-File: `dbex/refinement/reconstruction.py`
-
-At line 221 (after `effective_calibration_metadata = calibration_metadata or config.calibration_metadata`), add:
-```python
-# GALPH DIAGNOSTIC: Trace calibration defaulting (loop i=114)
-print(f"\n[CALIBRATION TRACE] reconstruction.py:221 → effective_calibration_metadata resolved")
-print(f"  calibration_metadata (param): {calibration_metadata}")
-print(f"  config.calibration_metadata: {config.calibration_metadata}")
-print(f"  effective_calibration_metadata: {effective_calibration_metadata}")
-if effective_calibration_metadata is not None:
-    print(f"  spot_scale_override: {effective_calibration_metadata.get('spot_scale_override')}")
+### Validating Pytest Nodes
+```
+tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale
+tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path
 ```
 
-At line 509 (after `bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)`), add:
-```python
-# GALPH DIAGNOSTIC: Confirm apply_sqrt_spot_scale executed (loop i=114)
-print(f"\n[CALIBRATION TRACE] reconstruction.py:509 → apply_sqrt_spot_scale returned")
-print(f"  bragg_prescaled_np.mean(): {bragg_prescaled_np.mean():.6e}")
-print(f"  bragg_scaled_np.mean(): {bragg_scaled_np.mean():.6e}")
-ratio = bragg_scaled_np.mean() / bragg_prescaled_np.mean() if bragg_prescaled_np.mean() != 0 else float('inf')
-print(f"  ratio (scaled/prescaled): {ratio:.6f}")
-```
+### Artifacts Path
+`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/`
 
-### Step 3: Add calibration tracing to scaling_utils.py
-
-File: `dbex/refinement/scaling_utils.py`
-
-At line 88 (after `# Extract spot_scale_override, defaulting to None`), add:
-```python
-# GALPH DIAGNOSTIC: Trace apply_sqrt_spot_scale inputs (loop i=114)
-print(f"\n[CALIBRATION TRACE] scaling_utils.py:88 → apply_sqrt_spot_scale entry")
-print(f"  calibration_metadata: {calibration_metadata}")
-if calibration_metadata is not None:
-    print(f"  spot_scale_override: {calibration_metadata.get('spot_scale_override')}")
-```
-
-At line 111 (after `return bragg * sqrt_spot_scale`), replace with:
-```python
-# GALPH DIAGNOSTIC: Trace scaling execution (loop i=114)
-print(f"\n[CALIBRATION TRACE] scaling_utils.py:111 → applying sqrt_spot_scale={sqrt_spot_scale:.6e}")
-print(f"  bragg.mean() BEFORE: {bragg.mean():.6e}")
-result = bragg * sqrt_spot_scale
-print(f"  bragg.mean() AFTER: {result.mean():.6e}")
-return result
-```
-
-### Step 4: Run diagnostic test
-
-```bash
-cd /home/ollie/Documents/diffbragg_example
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-pytest -vv tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path \
-  > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/pytest_phase_b5_trace.log 2>&1
-```
-
-### Step 5: Analyze trace log and write decision doc
-
-Review `pytest_phase_b5_trace.log` and identify which hop shows None:
-
-Create `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/phase_b5_decision.md` with:
-- Section 1: Trace Evidence — Paste relevant log excerpts showing calibration values at each hop
-- Section 2: Root Cause — State which scenario (A/B/C from phase_b5_planning.md) matches the evidence
-- Section 3: Fix Path — Exact code change needed (config constructor fix, parameter threading fix, or test fix)
-- Section 4: Next Action — Either "implement fix in Phase B.6" OR "escalate to supervisor if unexpected scenario"
-
-### Step 6: Regression check (warm-cache test)
-
-After analysis, run warm-cache test to confirm it still PASSES:
-
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-pytest -vv tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale \
-  > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/pytest_warm_cache_regression.log 2>&1
-```
-
-Expected: PASS (warm-cache path uses stage_a_ctx.bragg_zero_iter, skips reconstruction cold path entirely).
+### Initiative Type Consistency
+✓ `architecture` initiative requesting implementation of ARCH-CONTRACT conditional logic (fixing implementation bug within architecture)
 
 ## Forbidden This Loop
-
-- NO production code changes (Stage A, reconstruction, scaling_utils, config factories)
-- NO test logic changes beyond adding print statements
-- NO new tests or test refactoring
-- NO changes to dbex/refinement/config.py (defer to Phase B.6 if Scenario A confirmed)
+- No new probes or diagnostic scripts
+- Do not extend plan-local helpers
+- Do not modify `apply_sqrt_spot_scale` API (already correct, just misused)
+- Do not change Stage A scaling logic (already correct)
+- Do not modify warm-cache fast-path (lines 96-99, already correct)
 
 ## How-To Map
 
-### Environment Setup
+### Step 1: Edit reconstruction.py
+Apply the code change described above to `dbex/refinement/reconstruction.py` lines 501-520.
+
+### Step 2: Run enforcement tests
 ```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-cd /home/ollie/Documents/diffbragg_example
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale \
+  tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path \
+  > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/pytest_phase_b6_fix.log 2>&1
 ```
 
-### Execution Sequence
-1. Add diagnostic logging (Steps 1-3)
-2. Run cold-path test with full output capture (Step 4)
-3. Analyze trace log, identify None hop (Step 5)
-4. Write phase_b5_decision.md with root cause determination
-5. Run warm-cache regression (Step 6)
-6. Commit diagnostic artifacts only (NOT the logging changes)
+### Step 3: Expected outcomes
+- **Phase A.1** (warm-cache): PASS (regression check, no code changes)
+- **Phase A.2** (cold-path): PASS with rel_error < 1e-6 (currently FAILING with 3420% error)
 
-### Artifact Destinations
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/pytest_phase_b5_trace.log`
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/pytest_warm_cache_regression.log`
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/phase_b5_decision.md`
-- `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/summary.md` (this loop's summary)
+### Step 4: Commit artifacts
+```bash
+git add plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/pytest_phase_b6_fix.log
+git add plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/phase_b6_summary.md
+```
+
+Write `phase_b6_summary.md` with:
+- Test results (both PASS expected)
+- Metrics: Phase A.2 rel_error before (64.6%) vs after (<0.0001%)
+- Next phase: B.7 (findings update) then C.1 (DB-AT-027/028/029 alignment)
 
 ## Pitfalls To Avoid
 
-1. **No premature fixes**: This is evidence-only. Do not fix config/test/reconstruction until decision doc confirms root cause.
-2. **Preserve logging format**: Use `[CALIBRATION TRACE]` prefix for all diagnostic output so grep works.
-3. **Check ALL hops**: Trace must show test → config → reconstruction → scaling_utils. Missing any hop = incomplete diagnosis.
-4. **Regression hygiene**: Warm-cache test must still PASS. If it fails, logging broke something; remove logging and retry.
-5. **Commit discipline**: Do NOT commit the logging changes. Only commit artifacts (*.log, *.md).
-6. **Decision quality**: phase_b5_decision.md MUST state exact file:line fix path, not just "threading is broken."
+1. **Type Discipline**: This is `architecture` initiative (ARCH-CONTRACT enforcement), not `bugfix`. The bug is an implementation failure to follow the architecture contract.
+
+2. **No Stacking**: Phase B.5 proved calibration threading works. Do not add more threading code.
+
+3. **Parity-First**: Warm-cache path already has parity (Phase A.1 PASS). This fix brings cold-path into parity with it.
+
+4. **Shadow-Pipeline Guard**: Do not create new diagnostic scripts. Use existing enforcement tests only.
+
+5. **Evidence→Action**: Phase B.5 evidence identified exact root cause (double-sqrt) and exact fix location (conditional at line 506). Implement exactly that.
+
+6. **Dominant-Hypothesis Lock**: Confidence=0.9 for double-sqrt hypothesis. No additional probes allowed.
+
+7. **ARCH Conformance Enforcement**: Phase B.6 fix must bring both enforcement tests to PASS. Next loop will add enforcement for uncalibrated path if needed.
+
+8. **No Environment Changes**: All changes to dbex code only, no nanobrag_torch patches.
+
+9. **Preserve Debug Logs**: Keep existing debug logging but update messages to reflect conditional logic.
+
+10. **Test Both Paths**: Run both warm-cache and cold-path tests to ensure no regressions.
 
 ## If Blocked
 
-If trace logs show unexpected scenario (e.g., calibration_metadata present at ALL hops but apply_sqrt_spot_scale still returns identity):
-1. Write phase_b5_decision.md documenting the unexpected state
-2. Mark ARCH-IMPL-CONFORMANCE-001 Phase B.5 as blocked
-3. Escalate to Galph with artifact pointers and hypothesis for why threading appears correct but scaling fails
-4. Do NOT attempt speculative fixes without supervisor approval
+If Phase A.2 test still fails after fix:
+1. Capture exact metrics: `masked_mean_stage_a`, `masked_mean_reconstruction_cold`, `rel_error`, `ratio`
+2. Check pytest log for which scaling path was used (calibrated vs uncalibrated)
+3. Verify `log_scale_baseline_value` is NOT None for refGeom fixture (should be ~20.14)
+4. Write `blocked_analysis.md` with evidence and hypothesis for next root cause
+5. Do NOT attempt more fixes this loop; return to Galph for re-planning
+
+## Doc Sync Plan (Conditional)
+Not applicable (no new tests added this loop; enforcement tests already exist from Phase A.0-A.2)
+
+---
+
+**Galph's Assessment**: Phase B.5 evidence is conclusive. This is a straightforward conditional fix with high confidence. Ralph should implement exactly as specified and expect both tests to PASS. If not, escalate with detailed metrics rather than debugging further.

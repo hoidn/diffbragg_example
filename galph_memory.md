@@ -1,4 +1,15 @@
-2026-01-14T090000Z focus=ARCH-IMPL-CONFORMANCE-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/ next_action=phase_b5_root_cause_analysis
+2026-01-14T120000Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/ next_action=phase_b6_implementation
+- Loop i=114 evidence collection (Ralph) proved calibration threading works correctly at all 4 hops (test→config→reconstruction→apply_sqrt_spot_scale).
+- Phase B.5 analysis (Galph i=115) identified root cause: double-sqrt scaling in reconstruction cold path when log_scale_baseline present.
+- Double-scaling mechanism: (1) scale_factor = exp(log_scale_baseline) = sqrt(spot_scale) applied at line 499, then (2) apply_sqrt_spot_scale multiplies by sqrt(spot_scale) again at line 506.
+- Result: raw * sqrt * sqrt = raw * spot_scale (2× correct scaling, ~35× mismatch, ratio 1:35.2).
+- Fix: Make apply_sqrt_spot_scale conditional on log_scale_baseline absence (calibrated path already includes sqrt in scale_factor).
+- DecisionStatus: patch_ready (exact fix location known, high confidence=0.9).
+- Mapped tests: test_stage_a_vs_reconstruction_scale (warm-cache regression, expect PASS), test_stage_a_vs_reconstruction_scale_cold_path (cold-path enforcement, expect PASS after fix, currently 3420% error).
+- Next loop (i=116): Ralph implements conditional at reconstruction.py:501-520, expects both enforcement tests to PASS (rel_error < 1e-6).
+Action State: implementation_ready
+
+2026-01-14T090000Z focus=ARCH-IMPL-CONFORMANCE-001 state=debug dwell=0 action=debug artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/ next_action=phase_b5_root_cause_analysis
 - Loop i=113 investigation complete: Phase A.2 cold-path test revealed fundamental simulator construction mismatch, not just calibration threading issue.
 - Ralph's i=112 fix threaded `calibration_metadata` to RefinementConfig (test_scale_contracts.py:258-262) BUT cold-path still produces 2.83× scale factor mismatch (64.6% rel_error).
 - Diagnostic evidence (pytest log lines 13-15): raw simulator output 6.9e-01 ≈ scaled output 6.9e-01, proving apply_sqrt_spot_scale received None calibration despite threading.

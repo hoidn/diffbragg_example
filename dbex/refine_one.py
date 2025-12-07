@@ -373,6 +373,12 @@ def run_nanobrag_backend(args, DL, devid=0):
     print(f"[nanobrag backend] Using device={device} for zero-iteration simulation and refinement.")
 
     # Try refined MTZ first if provided, FAIL if not consumed (SCALE-007)
+    # ARCH-CONTRACT-CALIBRATION-001: Refined MTZ enforcement guard
+    # Per spec-db-workflow.md:47, when --refined-mtz is provided, the CLI MUST fail fast
+    # if the refined MTZ cannot be loaded. No silent fallback to raw MTZ is permitted.
+    # See docs/architecture/calibration_scaling.md ARCH-CONTRACT-CALIBRATION-001.
+    # Regression tests: tests/dbex/test_refine_one_cli.py::test_refined_mtz_missing_file_fails_fast
+    #                   tests/dbex/test_refine_one_cli.py::test_refined_mtz_telemetry_provenance
     hkl_indices = None
     hkl_amplitudes = None
     hkl_source = "raw"  # Track telemetry: "refined" or "raw"

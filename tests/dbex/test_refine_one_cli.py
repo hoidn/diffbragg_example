@@ -1156,19 +1156,20 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
 
 
 @patch('dbex.data_load.DataLoad')
-def test_nanobrag_backend_refined_mtz_missing_errors(mock_DataLoad):
+def test_refined_mtz_missing_file_fails_fast(mock_DataLoad):
     """
-    MAP-SCALE-005: Verify CLI fails fast when --refined-mtz is provided but cannot be loaded.
+    MAP-SCALE-005 Phase B: Regression test validating CLI refined MTZ enforcement.
 
-    Validates SCALE-007 guardrail: when --refined-mtz is supplied, the CLI MUST raise
-    a RuntimeError (not SystemExit, to avoid masking stack traces) if:
-    1. The refined MTZ file does not exist
-    2. The refined MTZ file cannot be parsed
-    3. The refined MTZ file lacks expected columns
+    Validates SCALE-007 guardrail at dbex/refine_one.py:382-389 per spec-db-workflow.md:47:
+    When --refined-mtz is supplied, the CLI MUST raise RuntimeError if the refined MTZ
+    file cannot be loaded (FileNotFoundError, parse errors, missing columns).
 
-    This test ensures the CLI does not silently fall back to raw MTZ when refined
-    structure factors are explicitly requested, preventing calibration metadata
-    from being ignored.
+    This regression test ensures the CLI does not silently fall back to raw MTZ when
+    refined structure factors are explicitly requested, preventing calibration metadata
+    from being ignored. Per ARCH-CONTRACT-CALIBRATION-001, the implementation fails fast
+    rather than falling back silently.
+
+    Cross-reference: docs/architecture/calibration_scaling.md ARCH-CONTRACT-CALIBRATION-001
     """
     import tempfile
     import sys
@@ -1257,3 +1258,174 @@ def test_nanobrag_backend_refined_mtz_missing_errors(mock_DataLoad):
                 os.unlink(path)
             except OSError:
                 pass
+
+
+@patch('dbex.nanobrag_bridge.load_refined_mtz')
+@patch('dbex.refine_one.write_torch_outputs')  # Patch where it's imported
+@patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+@patch('dbex.refinement.inputs.prepare_refinement_inputs')
+@patch('nanobrag_torch.simulator.Simulator')
+@patch('nanobrag_torch.models.detector.Detector')
+@patch('nanobrag_torch.models.crystal.Crystal')
+@patch('dbex.refinement.config_factories.create_detector_config')
+@patch('dbex.refinement.config_factories.create_beam_config')
+@patch('dbex.refinement.config_factories.create_crystal_config')
+@patch('dbex.io.roi_scoring.score_roi_payloads')
+def test_refined_mtz_telemetry_provenance(
+    mock_score_roi, mock_crystal_config, mock_beam_config, mock_detector_config,
+    mock_Crystal, mock_Detector, mock_Simulator,
+    mock_prepare, mock_build_grid, mock_write, mock_load_refined
+):
+    """
+    MAP-SCALE-005 Phase B: Regression test validating HKL source telemetry.
+
+    Validates SCALE-007 telemetry requirement per spec-db-workflow.md:45:
+    - When --refined-mtz is omitted: hkl_source="raw"
+    - When --refined-mtz is provided and valid: hkl_source="refined"
+
+    This regression test ensures telemetry accurately reflects the HKL data source,
+    enabling downstream analysis to distinguish raw vs refined structure factors.
+
+    Cross-reference: docs/architecture/calibration_scaling.md ARCH-CONTRACT-CALIBRATION-001
+    """
+    import tempfile
+    import numpy as np
+    import torch
+    from unittest.mock import Mock, MagicMock
+    from dbex.refinement.inputs import RefinementInputs
+
+    # === Common test setup ===
+    # Mock DataLoad
+    mock_dl = Mock()
+    mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+    mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+    mock_dl.trusted_mask = np.ones((1, 100, 100), dtype=bool)
+    mock_dl.bbox = np.array([[10, 20, 10, 20]])
+    mock_dl.pids = np.array([0])
+    mock_dl.detector = [Mock()]
+    mock_dl.beam = Mock()
+    mock_dl.crystal = Mock()
+    mock_dl.Expt = Mock()
+
+    # Mock raw MTZ F
+    mock_F = Mock()
+    raw_indices = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.int32)
+    raw_amplitudes = np.array([50.0, 60.0], dtype=np.float32)
+    mock_F.indices.return_value = raw_indices
+    mock_F.data.return_value = raw_amplitudes
+    mock_dl.F = mock_F
+
+    # Mock refined MTZ loading (for refined case)
+    refined_indices = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.int32)
+    refined_amplitudes = np.array([100.0, 200.0, 300.0], dtype=np.float32)
+    mock_load_refined.return_value = (refined_indices, refined_amplitudes)
+
+    # Mock refinement inputs
+    mock_inputs = RefinementInputs(
+        target=np.zeros((1, 100, 100), dtype=np.float32),
+        loss_mask=np.ones((1, 100, 100), dtype=bool),
+        panel_slices=[(0, (10, 20, 10, 20))],
+        trusted_mask=np.ones((1, 100, 100), dtype=bool),
+        sigma_readout=np.zeros((1, 100, 100), dtype=np.float32)
+    )
+    mock_prepare.return_value = mock_inputs
+
+    # Mock structure factor grid
+    mock_hkl_grid = torch.zeros((3, 3, 3), dtype=torch.float32)
+    mock_hkl_metadata = {'grid_nonzero': 2, 'has_halo': False}  # Required by JobContext
+    mock_asu_map = torch.zeros((3, 3, 3), dtype=torch.int32)
+    mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata, mock_asu_map)
+
+    # Mock config objects
+    mock_detector_config.return_value = _make_detector_config(spixels=100, fpixels=100)
+    mock_beam_config.return_value = _make_beam_config(beamsize_mm=0.0)
+    mock_crystal_config.return_value = (_make_crystal_config(n_cells=(1, 1, 1)), False)
+
+    # Mock model instantiation
+    mock_Detector.return_value = Mock()
+    mock_Crystal.return_value = Mock()
+
+    # Mock simulator run output
+    mock_simulator_instance = Mock()
+    mock_simulator_instance.run.return_value = torch.ones((100, 100), dtype=torch.float32) * 1000.0
+    mock_Simulator.return_value = mock_simulator_instance
+
+    # Mock ROI scoring (to avoid scipy optimize issues)
+    from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+    mock_roi_payload = ROIAnalysisPayload(
+        triptych=ROITriptych(
+            panel_id=0,
+            bbox=(10, 20, 10, 20),
+            data=np.zeros((10, 10), dtype=np.float32),
+            background=np.ones((10, 10), dtype=np.float32) * -1,
+            bragg=np.zeros((10, 10), dtype=np.float32),
+        ),
+        score=0.85,
+        optimal_scale=1.0,
+        model=np.ones((10, 10), dtype=np.float32),
+        variance=np.ones((10, 10), dtype=np.float32),
+    )
+    mock_score_roi.return_value = [mock_roi_payload]
+
+    # === Test Case 1: No --refined-mtz (raw telemetry) ===
+    args_raw = Mock()
+    args_raw.outFile = 'test_raw.h5'
+    args_raw.spot_scale_override = None
+    args_raw.torch_config = None
+    args_raw.refined_mtz = None  # No refined MTZ
+    args_raw.adu_per_photon = None
+    args_raw.sigma_rdout = 3.0
+    args_raw.sigma_floor = 1.0
+    args_raw.device = "cpu"
+    args_raw.report_dir = None
+
+    from dbex.refine_one import run_nanobrag_backend
+    run_nanobrag_backend(args_raw, mock_dl)
+
+    # Verify raw telemetry
+    assert mock_write.call_count >= 1, "write_torch_outputs should be called for raw case"
+    raw_call_args = mock_write.call_args[0]
+    hkl_telemetry_raw = raw_call_args[5]  # 6th positional arg is hkl_telemetry
+    assert hkl_telemetry_raw["hkl_source"] == "raw", \
+        f"Expected hkl_source='raw' when --refined-mtz omitted, got {hkl_telemetry_raw['hkl_source']}"
+    assert hkl_telemetry_raw["hkl_n_reflections"] == len(raw_indices)
+    assert hkl_telemetry_raw["hkl_path"] == args_raw.mtzFile if hasattr(args_raw, 'mtzFile') else None
+
+    # Reset mocks for second case
+    mock_write.reset_mock()
+    mock_load_refined.reset_mock()
+
+    # === Test Case 2: With --refined-mtz (refined telemetry) ===
+    with tempfile.NamedTemporaryFile(mode='w', suffix='_refined.mtz', delete=False) as refined_file:
+        refined_mtz_path = refined_file.name
+
+    try:
+        args_refined = Mock()
+        args_refined.outFile = 'test_refined.h5'
+        args_refined.spot_scale_override = None
+        args_refined.torch_config = None
+        args_refined.refined_mtz = refined_mtz_path  # Provide refined MTZ
+        args_refined.adu_per_photon = None
+        args_refined.sigma_rdout = 3.0
+        args_refined.sigma_floor = 1.0
+        args_refined.device = "cpu"
+        args_refined.report_dir = None
+
+        run_nanobrag_backend(args_refined, mock_dl)
+
+        # Verify refined telemetry
+        assert mock_load_refined.call_count >= 1, "load_refined_mtz should be called when --refined-mtz provided"
+        assert mock_write.call_count >= 1, "write_torch_outputs should be called for refined case"
+        refined_call_args = mock_write.call_args[0]
+        hkl_telemetry_refined = refined_call_args[5]  # 6th positional arg is hkl_telemetry
+        assert hkl_telemetry_refined["hkl_source"] == "refined", \
+            f"Expected hkl_source='refined' when --refined-mtz provided, got {hkl_telemetry_refined['hkl_source']}"
+        assert hkl_telemetry_refined["hkl_n_reflections"] == len(refined_indices)
+        assert hkl_telemetry_refined["hkl_path"] == refined_mtz_path
+
+    finally:
+        import os
+        try:
+            os.unlink(refined_mtz_path)
+        except OSError:
+            pass

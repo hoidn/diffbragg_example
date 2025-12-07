@@ -23,6 +23,20 @@ This note defines the precedence and threading of calibration/scaling parameters
 - Preference: refined MTZ when `--refined-mtz` is provided (fail if unreadable); otherwise raw MTZ (`--mtzFile`).
 - HKL grid built once (optional halo for tricubic); HKL telemetry records source, count, mean amplitude, path.
 
+### ARCH-CONTRACT-CALIBRATION-001: Refined MTZ Enforcement
+**Owner**: `dbex/refine_one.py::run_nanobrag_backend` (lines 382-389)
+**Contract**: When `--refined-mtz` is provided, the CLI MUST fail fast if the refined MTZ cannot be loaded. No silent fallback to raw MTZ is permitted.
+**Normative Source**: `spec-db-workflow.md:47` — "fail if refined requested but missing"
+**Failure Modes Covered**:
+1. FileNotFoundError (refined MTZ path does not exist)
+2. ValueError (MTZ file cannot be parsed or lacks expected columns)
+3. ImportError (iotbx.mtz unavailable)
+
+**Error Contract**: RuntimeError raised with context (path, policy, guidance), not SystemExit (to preserve stack traces).
+**Telemetry Enforcement**: `hkl_source` field distinguishes "raw" vs "refined"; downstream analysis can verify refined calibration was applied.
+**Regression Coverage**: `tests/dbex/test_refine_one_cli.py::test_refined_mtz_missing_file_fails_fast` (error path), `::test_refined_mtz_telemetry_provenance` (telemetry validation).
+**Cross-References**: SCALE-007 (findings.md), MAP-SCALE-005 Phase B (fix_plan.md).
+
 ## Outputs and Checks
 - HDF5 attributes: `sigma_readout`, `sigma_floor` datasets plus calibration provenance and HKL telemetry under `/torch_diagnostics`.
 - Expected invariants: positive sigma tensors; gain > 0 when provided; spot_scale_override >= 0; refined MTZ either consumed or aborts (no silent fallback when flag is set).

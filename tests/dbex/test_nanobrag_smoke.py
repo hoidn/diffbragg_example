@@ -444,18 +444,15 @@ def smoke_artifacts(
         mask_roi = inputs.loss_mask[pid, y0:y1, x0:x1]
 
         triptych_path = artifacts_dir / "roi_triptych.png"
-        # Use Z-score style residuals for the visualization.
-        residual_z = compute_z_scores(
-            data_roi,
-            bragg_roi,
-            mask=mask_roi,
-        )
+        # Compute variance per spec-db-core.md (variance = model + sigma_readout^2)
+        sigma_readout_sq = 5.0 ** 2  # ADU, per spec-db-core.md:64
+        variance_roi = bragg_roi + sigma_readout_sq
+        # plot_triptych computes z-scores internally from data, model, variance
         plot_triptych(
             data_roi,
             bragg_roi,
-            residual_z,
-            out_path=triptych_path,
-            title=f"ROI 0 panel {pid}",
+            variance_roi,
+            filename=triptych_path,
         )
 
         print(f"[Smoke] ROI triptych saved to {triptych_path}")

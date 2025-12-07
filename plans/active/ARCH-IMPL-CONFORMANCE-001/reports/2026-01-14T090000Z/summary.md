@@ -1,3 +1,15 @@
+### Turn Summary (Loop i=114 Execution)
+
+**Timestamp**: 2025-12-06T19:53:00Z
+**Initiative**: ARCH-IMPL-CONFORMANCE-001 Phase B.5 (Evidence Collection)
+**Status**: Evidence collected, root cause localized, initiative BLOCKED pending architectural scope decision
+
+Executed Phase B.5 evidence-collection loop with diagnostic logging at 4 hops (test → config → reconstruction → apply_sqrt_spot_scale). Trace log proves calibration_metadata threading is **WORKING CORRECTLY** at all hops (spot_scale_override=4.786e17 present, sqrt_spot_scale=6.918e8 applied). Root cause is NOT threading break — it's simulator construction parity break between Stage A and reconstruction cold path. Stage A masked_mean=2.15, reconstruction cold masked_mean=75.74 (ratio 1:35). Reconstruction raw simulator output (9.90e-08) is ~2e7× smaller than Stage A's bragg_zero_iter before scaling, indicating different N_cells/beam_flux/baseline_alignment application order in simulator factories. Warm-cache regression PASSED. Initiative marked **BLOCKED** — exceeds bugfix/architecture scope; requires deep audit of Stage A vs cold-path simulator construction semantics, baseline_alignment_factor computation (C.14 warning shows telemetry_model_mean_masked=None), and legacy log_scale fallback.
+
+**Artifacts**: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/` (pytest_phase_b5_trace.log, pytest_warm_cache_regression.log, phase_b5_decision.md)
+
+---
+
 ### Turn Summary (Loop i=114 Planning)
 
 **Initiative**: ARCH-IMPL-CONFORMANCE-001 Phase B.5 (Evidence Collection)

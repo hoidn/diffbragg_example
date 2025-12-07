@@ -1,6 +1,6 @@
-# Input for Ralph — Loop i=133
+# Input for Ralph — Loop i=134
 
-**Summary**: DB-AT-SUITE-CARE-001 Phase B.1+B.2 — Verify DB-AT-010 status & execute centralized asset validation
+**Summary**: DB-AT-SUITE-CARE-001 Phase B.3 — Fix test harness import errors blocking DB-AT-010 verification
 
 **Mode**: none
 
@@ -15,98 +15,161 @@
 **Branch**: integration
 
 **Mapped tests**:
-- `env KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/db_at_010_verification NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests -k DB_AT_010 --smoke-detector-size=full`
-- Asset validation (no pytest; ls checks + checksum validation)
+- `env KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/db_at_010_verification NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010 --smoke-detector-size=full` (validation: 0 errors, ≥5 tests collected)
+- `env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_nanobrag_smoke.py` (regression check)
+- `env KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_vis_triptych_smoke.py` (regression check)
 
-**Artifacts**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/`
+**Artifacts**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/`
 
 **Findings Applied (Mandatory)**:
-- **TESTING-003** — Phase B asset validation confirms canonical refGeom presence before member plans advance to Phase A/B transition
-- **RUNTIME-001** — DB-AT-010 requires `NANOBRAGG_DISABLE_COMPILE=1` + `--smoke-detector-size=full` per workflow spec
-- **DIAGNOSTICS-001** — Centralized asset validation emits structured artifact (file existence checks + checksums + file sizes)
+- **TESTING-003** — Test harness broken imports violate ARCH-CONTRACT-TESTING-001; fixing imports restores test registry synchronization
+- **ARCH-BRIDGE-RESP-001** (via problems.md) — Architectural refactoring moved `prepare_refinement_inputs` to `dbex.refinement.inputs` per Phase C.6
+- **RUNTIME-001** — DB-AT-010 requires NANOBRAGG_DISABLE_COMPILE=1 + --smoke-detector-size=full per workflow spec
 
 **ARCH Contracts (mandatory)**:
 1. **ARCH-CONTRACT-TESTING-001** (Test registry synchronization)
-   - **Owner**: `docs/development/TEST_SUITE_INDEX.md`
-   - **Failure**: member_plan_status_audit.md classified DB-AT-010 as "blocked" but tests pass with correct flags
+   - **Owner**: `docs/development/TEST_SUITE_INDEX.md`, `tests/` module imports
+   - **Failure**: Implementation bug (test imports lag architectural refactoring)
+   - **Fix**: Update test imports to reflect current module structure
+
+2. **ARCH-CONTRACT-BRIDGE-001** (Bridge responsibility boundary)
+   - **Owner**: `dbex.refinement.inputs::prepare_refinement_inputs` (canonical location per ARCH-BRIDGE-RESP-001 Phase C)
+   - **Forbidden duplicates**: Old path `dbex.nanobrag_bridge.prepare_refinement_inputs` (moved in Phase C.6)
+   - **Enforcement**: This loop fixes import path violations; no mechanical enforcement test needed (standard Python import checking)
 
 **Do Now**:
 
-Execute Phase B.1 (DB-AT-010 status verification) and Phase B.2 (centralized asset validation) for DB-AT-SUITE-CARE-001.
+Fix test harness import errors blocking DB-AT-010 verification (Phase B.3 escalation from Loop i=133).
 
-**Context**: Loop i=131 delivered Phase A audit classifying DB-AT-010 as "blocked" per 2025-11-04T232350Z regression report, but 2025-11-05T000200Z verification shows all tests PASSING. Need fresh verification with canonical flags.
+**Context**: Loop i=133 (Ralph) discovered 2 collection errors when running DB-AT-010 verification:
+1. `tests/dbex/test_nanobrag_smoke.py:30` imports `prepare_refinement_inputs` from `dbex.nanobrag_bridge` (moved to `dbex.refinement.inputs` per ARCH-BRIDGE-RESP-001 Phase C.6)
+2. `tests/dbex/test_vis_triptych_smoke.py:7` imports `plot_z_scores` from `dbex.vis` (renamed to `compute_z_scores`)
 
-**B.1 — DB-AT-010 Status Verification**
+**Implementation**:
 
-```bash
-mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/db_at_010_verification
-
-env KMP_DUPLICATE_LIB_OK=TRUE \
-    DBAT010_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/db_at_010_verification \
-    NANOBRAGG_DISABLE_COMPILE=1 \
-    pytest -v tests -k DB_AT_010 --smoke-detector-size=full \
-    > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/pytest_db_at_010_verification.log 2>&1
-
-echo $? > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/db_at_010_exit_code.txt
-```
-
-Then create `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/db_at_010_status_verification.md` documenting:
-- Test execution (command, exit code, tests collected/passed/failed)
-- Status update (PASSING vs BLOCKED)
-- Resolution (update member_plan_status_audit.md classification if tests pass)
-
-**B.2 — Centralized Asset Validation**
-
-Check workspace root for 4 canonical refGeom assets (refGeom.expt, refGeom.refl, scaled.mtz, 747_mask.pkl):
+**Fix 1**: Update test_nanobrag_smoke.py import
 
 ```bash
-echo "=== Canonical refGeom Asset Availability Check ===" > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-echo "**Date**: 2025-12-07T084500Z" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-echo "" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
+# Read current import block
+# Lines 28-36 currently import from dbex.nanobrag_bridge
 
-for asset in refGeom.expt refGeom.refl scaled.mtz 747_mask.pkl; do
-  if [ -f "$asset" ]; then
-    size=$(stat -c%s "$asset" 2>/dev/null || stat -f%z "$asset" 2>/dev/null)
-    checksum=$(sha256sum "$asset" 2>/dev/null | awk '{print $1}' || shasum -a 256 "$asset" 2>/dev/null | awk '{print $1}')
-    echo "### \`$asset\`: ✅ FOUND" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-    echo "- Location: \`$(pwd)/$asset\`" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-    echo "- Size: $size bytes" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-    echo "- SHA256: \`$checksum\`" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-    echo "" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-  else
-    echo "### \`$asset\`: ❌ NOT FOUND" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-    echo "" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-  fi
-done
-
-echo "---" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
-echo "**Validation completed by**: Ralph (Loop i=133)" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md
+# Replace with correct imports:
+# - prepare_refinement_inputs: dbex.nanobrag_bridge → dbex.refinement.inputs
+# - Other bridge helpers (create_detector_config, create_beam_config, create_crystal_config, RefinementInputs) remain in dbex.nanobrag_bridge
 ```
 
-**Summary Report**
+Edit `tests/dbex/test_nanobrag_smoke.py`:
+- **old_string** (lines 28-36):
+  ```python
+  # DataLoad and bridge helpers
+  from dbex.data_load import DataLoad
+  from dbex.nanobrag_bridge import (
+      prepare_refinement_inputs,
+      create_detector_config,
+      create_beam_config,
+      create_crystal_config,
+      RefinementInputs
+  )
+  ```
 
-Create `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/summary.md` documenting:
-- Phase B.1 complete (DB-AT-010 status: PASSING/BLOCKED)
-- Phase B.2 complete (X/4 assets found)
-- Next steps (Phase B advancement ready vs escalation required)
+- **new_string**:
+  ```python
+  # DataLoad and bridge helpers
+  from dbex.data_load import DataLoad
+  from dbex.refinement.inputs import prepare_refinement_inputs, RefinementInputs
+  from dbex.nanobrag_bridge import (
+      create_detector_config,
+      create_beam_config,
+      create_crystal_config,
+  )
+  ```
+
+**Fix 2**: Update test_vis_triptych_smoke.py import
+
+Edit `tests/dbex/test_vis_triptych_smoke.py`:
+- **old_string** (line 7):
+  ```python
+  from dbex.vis import plot_triptych, plot_z_scores
+  ```
+
+- **new_string**:
+  ```python
+  from dbex.vis import plot_triptych, compute_z_scores
+  ```
+
+Also update the function call in the test body:
+- **old_string** (line 38):
+  ```python
+      result_path = plot_z_scores(
+  ```
+
+- **new_string**:
+  ```python
+      result_path = compute_z_scores(
+  ```
+
+And update the assertion message:
+- **old_string** (line 45):
+  ```python
+      assert result_path.exists(), "plot_z_scores must write an artifact"
+  ```
+
+- **new_string**:
+  ```python
+      assert result_path.exists(), "compute_z_scores must write an artifact"
+  ```
 
 **Validation**:
-- DB-AT-010 pytest completes (exit code 0 = PASS)
-- 4 asset checks complete (existence + checksums)
-- 3 markdown reports exist
+
+1. **Collection check** (must complete before committing):
+   ```bash
+   mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/
+
+   env KMP_DUPLICATE_LIB_OK=TRUE \
+       DBAT010_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/db_at_010_verification \
+       NANOBRAGG_DISABLE_COMPILE=1 \
+       pytest --collect-only tests -k DB_AT_010 --smoke-detector-size=full \
+       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/pytest_collect_only.log 2>&1
+
+   echo $? > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/collect_exit_code.txt
+   ```
+
+   **Exit criteria**: Exit code 0, "0 errors" in log, ≥5 tests collected
+
+2. **Regression checks** (both must PASS):
+   ```bash
+   env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+       pytest -v tests/dbex/test_nanobrag_smoke.py \
+       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/pytest_nanobrag_smoke_regression.log 2>&1
+
+   env KMP_DUPLICATE_LIB_OK=TRUE \
+       pytest -v tests/dbex/test_vis_triptych_smoke.py \
+       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/pytest_vis_triptych_regression.log 2>&1
+   ```
+
+**Summary Report**:
+
+Create `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T100000Z/summary.md` documenting:
+- Phase B.3 complete (test import fixes applied)
+- Collection check outcome (0 errors, N tests collected)
+- Regression check outcomes (test_nanobrag_smoke: PASS/FAIL, test_vis_triptych_smoke: PASS/FAIL)
+- Next steps (Phase B.4: Re-run DB-AT-010 full verification now that collection errors resolved)
 
 **Forbidden This Loop**:
-- No member plan Phase A/B tasks (defer to B.4-B.5)
-- No production code changes
-- No new tests or selector extensions
-- No asset provisioning (document missing files only)
+- No production code changes (harness fixes only)
+- No DB-AT-010 full pytest execution (defer to Phase B.4 after collection validation)
+- No member plan Phase A/B tasks beyond this harness fix
 
 **Pitfalls**:
-1. Missing `--smoke-detector-size=full` causes UsageError not test failure
-2. Update member_plan_status_audit.md if DB-AT-010 passes
-3. Check both workspace root AND tests/fixtures/ for assets
-4. Portable checksum: `sha256sum` (Linux) OR `shasum -a 256` (macOS)
+1. `prepare_refinement_inputs` moved to `dbex.refinement.inputs` but `RefinementInputs` dataclass also moved (import both from same module)
+2. Other bridge helpers (`create_detector_config`, `create_beam_config`, `create_crystal_config`) remain in `dbex.nanobrag_bridge` (do NOT change those imports)
+3. `plot_z_scores` was RENAMED to `compute_z_scores` (not moved), so only change the function name in import + 3 usage sites (line 7, 38, 45)
+4. Must update BOTH the import statement AND the function calls/assertions in test bodies
+5. Run `pytest --collect-only` before committing to ensure imports valid
 
 **If Blocked**:
-- DB-AT-010 fails: Document signature, mark B.1 blocked, escalate to Phase D loop
-- Assets missing: Document gaps, complete B.2 with mitigation options
+- If collect-only still shows errors: Document the signature, update summary.md with blocked status, escalate to Galph
+- If regression tests fail: Bisect to identify which fix caused the failure, document in summary.md, mark Phase B.3 partial complete
+
+**Doc Sync Plan (Conditional)**:
+Not applicable (no new tests added, existing test imports fixed). TEST_SUITE_INDEX.md unchanged.

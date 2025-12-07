@@ -1,0 +1,212 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance FAILED [100%]
+
+=================================== FAILURES ===================================
+______ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_detector_distance ______
+
+self = <tests.dbex.test_gradients.TestDB_AT_010_Gradcheck object at 0x7138d4a41610>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318, sigma_readout_provenance=None)
+geometry_objects = {'beam': <dxtbx_model_ext.Beam object at 0x7138e1436900>, 'crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object a...xtbx_model_ext.Detector object at 0x7138e1436a50>, 'experiment': <dxtbx_model_ext.Experiment object at 0x7138e1436970>}
+hkl_data = {'amplitudes': <scitbx_array_family_flex_ext.double object at 0x7138e14a8ac0>, 'indices': <cctbx_array_family_flex_ext.miller_index object at 0x7138e14a8640>}
+artifact_dir = PosixPath('plans/active/DB-AT-010/reports/default')
+
+    def test_db_at_010_gradcheck_detector_distance(
+        self,
+        refinement_inputs,
+        geometry_objects,
+        hkl_data,
+        artifact_dir
+    ):
+        """
+        DB-AT-010 (3/4): Verify gradients for detector distance_mm parameter.
+    
+        Tests that torch.autograd.gradcheck passes for detector distance changes.
+        """
+        from dbex.physics.forward import simulate_forward_torch
+        from dbex.physics.loss import compute_masked_mse_loss
+    
+        device = torch.device('cpu')
+        dtype = torch.float64
+    
+        # Convert inputs to torch
+        target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
+        loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+    
+        # Get base detector
+        base_detector = geometry_objects["detector"]
+        base_beam = geometry_objects["beam"]
+        base_crystal = geometry_objects["crystal"]
+        experiment = geometry_objects["experiment"]
+    
+        # For multi-panel detectors, we'll perturb the distance for all panels uniformly
+        # Get original distance (z-component of origin for panel 0)
+        base_panel = base_detector[0]
+        base_distance = abs(base_panel.get_origin()[2])  # Distance is -z typically
+    
+        # Create a loss function parameterized by distance
+        def loss_fn(distance_tensor):
+            # Use detector_overrides to preserve gradient flow (GRADIENT-001)
+            # This avoids .item() call that would detach the tensor from autograd graph
+            detector_overrides = {'distance_mm': distance_tensor}
+    
+            # Run forward simulation with distance override
+            bragg_torch = simulate_forward_torch(
+                inputs=refinement_inputs,
+                detector=base_detector,
+                beam=base_beam,
+                crystal=base_crystal,
+                experiment=experiment,
+                hkl_indices=hkl_data["indices"],
+                hkl_amplitudes=hkl_data["amplitudes"],
+                spot_scale_override=1.0,
+                device=device,
+                dtype=dtype,
+                detector_overrides=detector_overrides
+            )
+    
+            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
+            return loss
+    
+        # Create differentiable parameter tensor
+        distance_param = torch.tensor(base_distance, dtype=dtype, device=device, requires_grad=True)
+    
+        # Run gradcheck with slightly relaxed rtol for geometry parameters
+>       gradcheck_passed = gradcheck(
+            loss_fn,
+            (distance_param,),
+            eps=1e-6,
+            atol=1e-5,
+            rtol=0.05,
+            raise_exception=True
+        )
+
+tests/dbex/test_gradients.py:407: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+func = <function TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_detector_distance.<locals>.loss_fn at 0x7138e0f51af0>
+func_out = (tensor(3.6100e+09, dtype=torch.float64, grad_fn=<SumBackward0>),)
+tupled_inputs = (tensor(230.0682, dtype=torch.float64, requires_grad=True),)
+outputs = (tensor(3.6100e+09, dtype=torch.float64, grad_fn=<SumBackward0>),)
+eps = 1e-06, rtol = 0.05, atol = 1e-05, check_grad_dtypes = False
+nondet_tol = 0.0
+
+    def _slow_gradcheck(
+        func,
+        func_out,
+        tupled_inputs,
+        outputs,
+        eps,
+        rtol,
+        atol,
+        check_grad_dtypes,
+        nondet_tol,
+        *,
+        use_forward_ad=False,
+        complex_indices=None,
+        test_imag=False,
+        masked=False,
+    ):
+        func_out = _as_tuple(func_out)
+        if not outputs:
+            return _check_no_differentiable_outputs(
+                func, tupled_inputs, func_out, eps=eps, is_forward_ad=use_forward_ad
+            )
+        tupled_inputs_numerical = tupled_inputs if masked else _densify(tupled_inputs)
+    
+        numerical = _transpose(
+            _get_numerical_jacobian(
+                func,
+                tupled_inputs_numerical,
+                func_out,
+                eps=eps,
+                is_forward_ad=use_forward_ad,
+            )
+        )
+        # Note: [numerical vs analytical output length]
+        # The numerical path returns jacobian quantity for all outputs, even if requires_grad of that
+        # output is False. This behavior is necessary for _check_no_differentiable_outputs to work.
+        numerical = [nj for o, nj in zip(func_out, numerical) if o.requires_grad]
+        if use_forward_ad:
+            analytical_forward = _get_analytical_jacobian_forward_ad(
+                func, tupled_inputs, func_out, check_grad_dtypes=check_grad_dtypes
+            )
+    
+            for i, n_per_out in enumerate(numerical):
+                for j, n in enumerate(n_per_out):
+                    a = analytical_forward[j][i]
+                    if not _allclose_with_type_promotion(a, n.to(a.device), rtol, atol):
+                        raise GradcheckError(
+                            _get_notallclose_msg(
+                                a, n, i, j, complex_indices, test_imag, is_forward_ad=True
+                            )
+                        )
+        else:
+            for i, o in enumerate(outputs):
+                analytical = _check_analytical_jacobian_attributes(
+                    tupled_inputs, o, nondet_tol, check_grad_dtypes
+                )
+    
+                for j, (a, n) in enumerate(zip(analytical, numerical[i])):
+                    if not _allclose_with_type_promotion(a, n.to(a.device), rtol, atol):
+>                       raise GradcheckError(
+                            _get_notallclose_msg(a, n, i, j, complex_indices, test_imag)
+                        )
+E                       torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+E                       numerical:tensor([[2.3861e+12]], dtype=torch.float64)
+E                       analytical:tensor([[1.1066e+08]], dtype=torch.float64)
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1633: GradcheckError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 2-fold oversampling
+auto-selected 2-fold oversampling
+auto-selected 2-fold oversampling
+=============================== warnings summary ===============================
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:388: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Na_f64 = torch.tensor(Na, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:389: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nb_f64 = torch.tensor(Nb, dtype=torch.float64, device=h.device)
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py:390: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    Nc_f64 = torch.tensor(Nc, dtype=torch.float64, device=h.device)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance - torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+numerical:tensor([[2.3861e+12]], dtype=torch.float64)
+analytical:tensor([[1.1066e+08]], dtype=torch.float64)
+======================== 1 failed, 7 warnings in 48.24s ========================

@@ -1,3 +1,11 @@
+2025-12-07T084500Z focus=DB-AT-SUITE-CARE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/ next_action=phase_b1_b2_verification_and_asset_check
+- Loop i=133 (Galph): Selected DB-AT-SUITE-CARE-001 Phase B.1+B.2 from Tier 1 after MAP-SCALE-SYNC-001 closure
+- Phase A complete (i=131): member_plan_status_audit.md classified DB-AT-010 as "blocked" but 2025-11-05T000200Z report shows tests PASSING
+- Phase B.1 scoped: Re-run DB-AT-010 with canonical flags (--smoke-detector-size=full) to verify current status
+- Phase B.2 scoped: Centralized asset validation for refGeom.expt/refl/scaled.mtz/747_mask.pkl (dereferrests 5 downstream plans)
+- Next: Ralph executes DB-AT-010 verification + asset check, creates 3 reports (db_at_010_status_verification.md, asset_validation.md, summary.md)
+- DecisionStatus: patch_ready (stale audit data; fresh verification resolves classification)
+- Dwell: 0 (new Phase B focus; first implementation loop for Phase B tasks)
 2025-12-07T040000Z focus=MAP-SCALE-SYNC-001 state=closed dwell=0 action=review_or_housekeeping artifacts=plans/active/MAP-SCALE-SYNC-001/reports/2025-12-07T040000Z/ next_action=tier1_focus_selection
 - Loop i=132 (Ralph): Closed MAP-SCALE-SYNC-001 roll-up (5/5 member plans complete)
 - MAP-SCALE-005 Phase B completion validated (i=130): regression tests PASSED, ARCH-CONTRACT-CALIBRATION-001 formalized

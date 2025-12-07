@@ -81,7 +81,9 @@ def simulate_forward_torch(
     spot_scale_override: Optional[float] = None,
     device=None,
     dtype=None,
-    crystal_overrides: Optional[dict] = None
+    crystal_overrides: Optional[dict] = None,
+    detector_overrides: Optional[dict] = None,
+    beam_overrides: Optional[dict] = None
 ) -> "torch.Tensor":
     """
     Run forward simulation returning torch tensor for gradient testing.
@@ -107,6 +109,12 @@ def simulate_forward_torch(
         crystal_overrides: Optional dict of tensor-valued crystal parameter overrides
                           for gradcheck. Supports keys: 'cell_a', 'cell_b', 'cell_c',
                           'cell_alpha', 'cell_beta', 'cell_gamma'. Tensors must have
+                          requires_grad=True to preserve gradient flow (GRADIENT-001).
+        detector_overrides: Optional dict of tensor-valued detector parameter overrides
+                          for gradcheck. Supports keys: 'distance_mm'. Tensors must have
+                          requires_grad=True to preserve gradient flow (GRADIENT-001).
+        beam_overrides: Optional dict of tensor-valued beam parameter overrides
+                          for gradcheck. Supports keys: 'wavelength_A'. Tensors must have
                           requires_grad=True to preserve gradient flow (GRADIENT-001).
 
     Returns:
@@ -173,7 +181,12 @@ def simulate_forward_torch(
     # Note: sqrt_spot_scale_tensor now computed per-panel by factory
 
     # Prepare configs (shared across panels where applicable)
-    beam_config = create_beam_config(beam)
+    # Extract beam_overrides for wavelength tensor support (GRADIENT-001)
+    wavelength_override = None
+    if beam_overrides is not None and 'wavelength_A' in beam_overrides:
+        wavelength_override = beam_overrides['wavelength_A']
+    beam_config = create_beam_config(beam, wavelength_override=wavelength_override)
+
     # simulate_forward_torch doesn't use calibration, so apply_n_cells=True (default)
     # is fine for gradient testing; N_cells will be None anyway
     crystal_config, _ = create_crystal_config(crystal, experiment)
@@ -215,11 +228,17 @@ def simulate_forward_torch(
     for panel_id in range(n_panels):
         panel = detector[panel_id]
 
+        # Extract detector_overrides for distance tensor support (GRADIENT-001)
+        distance_override = None
+        if detector_overrides is not None and 'distance_mm' in detector_overrides:
+            distance_override = detector_overrides['distance_mm']
+
         # Create detector config for this panel
         detector_config = create_detector_config(
             panel=panel,
             beam=beam,
-            trusted_mask=inputs.trusted_mask[panel_id]
+            trusted_mask=inputs.trusted_mask[panel_id],
+            distance_mm_override=distance_override
         )
 
         # Use unified factory (Phase B2a: eliminates manual mask/HKL/simulator setup)

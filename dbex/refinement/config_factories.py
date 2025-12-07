@@ -231,7 +231,7 @@ def create_detector_config(
     )
 
 
-def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> BeamConfig:
+def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None, wavelength_override: Optional['torch.Tensor'] = None) -> BeamConfig:
     """
     Create BeamConfig from dxtbx beam with optional calibration overrides.
 
@@ -246,12 +246,18 @@ def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> Beam
         flux: Optional beam flux in photons/s (from calibration metadata)
         beamsize_mm: Optional beam size in mm (from calibration metadata)
         exposure: Optional exposure time in seconds (from calibration metadata)
+        wavelength_override: Optional torch.Tensor scalar for wavelength override (GRADIENT-001)
+                            If provided, replaces beam.get_wavelength() for gradcheck
 
     Returns:
         BeamConfig with wavelength, polarization, and optional calibration fields
     """
     # Wavelength (config_crosswalk.md:46)
-    wavelength_A = beam.get_wavelength()
+    # Allow gradcheck to override wavelength with differentiable tensor (GRADIENT-001)
+    if wavelength_override is not None:
+        wavelength_A = wavelength_override
+    else:
+        wavelength_A = beam.get_wavelength()
 
     # Polarization: try to extract metadata, fallback to defaults
     # (config_crosswalk.md:48-49, spec-db-core.md:44)

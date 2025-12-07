@@ -377,41 +377,14 @@ class TestDB_AT_010_Gradcheck:
 
         # Create a loss function parameterized by distance
         def loss_fn(distance_tensor):
-            from dxtbx.model import Detector as DxtbxDetector
-            from dxtbx.model import Panel as DxtbxPanel
+            # Use detector_overrides to preserve gradient flow (GRADIENT-001)
+            # This avoids .item() call that would detach the tensor from autograd graph
+            detector_overrides = {'distance_mm': distance_tensor}
 
-            new_distance = float(distance_tensor.item())
-            distance_delta = new_distance - base_distance
-
-            # Create new detector with updated distance
-            new_detector = DxtbxDetector()
-            for panel_idx in range(len(base_detector)):
-                panel = base_detector[panel_idx]
-                origin = panel.get_origin()
-                # Update z-component (assuming origin[2] is negative distance)
-                new_origin = (origin[0], origin[1], origin[2] - distance_delta)
-
-                # Create new panel with all attributes from base panel
-                new_panel = DxtbxPanel(
-                    panel.get_type(),
-                    panel.get_name(),
-                    panel.get_fast_axis(),
-                    panel.get_slow_axis(),
-                    new_origin,  # Updated origin with new distance
-                    panel.get_pixel_size(),
-                    panel.get_image_size(),
-                    panel.get_trusted_range(),
-                    panel.get_thickness(),
-                    panel.get_material(),
-                    panel.get_mu()
-                )
-                new_panel.set_px_mm_strategy(panel.get_px_mm_strategy())
-                new_detector.add_panel(new_panel)
-
-            # Run forward simulation
+            # Run forward simulation with distance override
             bragg_torch = simulate_forward_torch(
                 inputs=refinement_inputs,
-                detector=new_detector,
+                detector=base_detector,
                 beam=base_beam,
                 crystal=base_crystal,
                 experiment=experiment,
@@ -419,7 +392,8 @@ class TestDB_AT_010_Gradcheck:
                 hkl_amplitudes=hkl_data["amplitudes"],
                 spot_scale_override=1.0,
                 device=device,
-                dtype=dtype
+                dtype=dtype,
+                detector_overrides=detector_overrides
             )
 
             # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
@@ -491,26 +465,23 @@ class TestDB_AT_010_Gradcheck:
 
         # Create a loss function parameterized by wavelength
         def loss_fn(wavelength_tensor):
-            from dxtbx.model import Beam as DxtbxBeam
+            # Use beam_overrides to preserve gradient flow (GRADIENT-001)
+            # This avoids .item() call that would detach the tensor from autograd graph
+            beam_overrides = {'wavelength_A': wavelength_tensor}
 
-            new_wavelength = float(wavelength_tensor.item())
-
-            # Create new beam with updated wavelength
-            new_beam = DxtbxBeam(base_beam)  # Copy
-            new_beam.set_wavelength(new_wavelength)
-
-            # Run forward simulation
+            # Run forward simulation with wavelength override
             bragg_torch = simulate_forward_torch(
                 inputs=refinement_inputs,
                 detector=base_detector,
-                beam=new_beam,
+                beam=base_beam,
                 crystal=base_crystal,
                 experiment=experiment,
                 hkl_indices=hkl_data["indices"],
                 hkl_amplitudes=hkl_data["amplitudes"],
                 spot_scale_override=1.0,
                 device=device,
-                dtype=dtype
+                dtype=dtype,
+                beam_overrides=beam_overrides
             )
 
             # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)

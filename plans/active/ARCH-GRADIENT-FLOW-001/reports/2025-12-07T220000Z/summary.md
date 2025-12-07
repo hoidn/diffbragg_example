@@ -1,4 +1,20 @@
-# Loop Summary — Galph i=139
+# Loop Summary — Ralph i=139 (Implementation)
+
+**Date**: 2025-12-07T220000Z
+**Phase**: ARCH-GRADIENT-FLOW-001 Phase B.1 Implementation
+**Status**: ⚠️ **BLOCKED** — External dependency gradient break (nanobrag_torch.simulator.py:761)
+
+---
+
+## Turn Summary (Ralph i=139)
+
+Implemented tensor-valued detector_overrides and beam_overrides parameters in simulate_forward_torch and config factories (85 LOC across 3 modules). Detector distance test now shows gradient flow restored (analytical gradient non-zero) but Jacobian mismatch indicates magnitude error (~4590× off). Beam wavelength test BLOCKED by external nanobrag_torch.simulator.py:761 gradient break (`torch.tensor()` detaches autograd graph). Committed partial implementation; recommend next loop refactor to post-creation override pattern (match crystal_overrides) OR escalate beam blocker to nanobrag_torch maintainer.
+
+**Artifacts**: `phase_b1_analysis.md`, `pytest_detector_distance_post_fix.log`, `pytest_beam_wavelength_post_fix.log`
+
+---
+
+# Loop Summary — Galph i=139 (Planning)
 
 **Initiative**: ARCH-GRADIENT-FLOW-001 (Gradient Flow Restoration)
 **Phase**: B.1 Planning (Detector/Beam Test Harness Fix — Partial)

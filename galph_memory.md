@@ -1,3 +1,11 @@
+2025-12-07T000000Z focus=MAP-SCALE-005 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/MAP-SCALE-005/reports/2025-12-07T000000Z/ next_action=map_scale_005_phase_b_implementation
+- Loop i=130 (Galph): Transitioned MAP-SCALE-005 from Phase A (planning) → Phase B (implementation)
+- DecisionStatus: exploring → patch_ready (Phase A discovered guard exists, Phase B adds regression tests)
+- Phase A complete (i=129 Ralph): Enforcement already implemented at dbex/refine_one.py:382-389, Option A (test + doc) scoped
+- Key finding: CLI fails fast on refined MTZ load failure (no silent fallback), but regression test coverage missing per SCALE-007 requirement
+- Next: Ralph implements Phase B (add 2 regression tests, update ARCH-CONTRACT docs, capture pytest logs)
+- Mapped tests: test_refined_mtz_missing_file_fails_fast + test_refined_mtz_telemetry_provenance (new), test_torch_diagnostics_metadata (regression)
+- Dwell: 0 (second loop for MAP-SCALE-005, first implementation loop)
 2025-12-06T235959Z focus=MAP-SCALE-SYNC-001 state=planning dwell=0 action=planning artifacts=plans/active/MAP-SCALE-005/reports/2025-12-06T235959Z/ next_action=map_scale_005_phase_a_planning
 - Loop i=129 (Galph): Selected MAP-SCALE-005 Phase A (CLI refined telemetry enforcement guard design) from MAP-SCALE-SYNC-001 roll-up
 - Roll-up status: 4/5 member plans done (MAP-SCALE-001/002/003/004), 1/5 pending (MAP-SCALE-005)

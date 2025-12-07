@@ -225,7 +225,7 @@
 
 ### [DB-AT-SUITE-CARE-001] Acceptance Suite Upkeep (DB-AT-002/010/020—024)
 - Depends on: None (foundational test infrastructure)
-- Status: pending
+- Status: in_progress (Phase B.1 complete, Phase B.3-B.5 pending)
 - Type: harness
 - Priority: High (Core acceptance gates)
 - Tier: 1
@@ -237,8 +237,10 @@
   4. Determinism gates (DB-AT-023/024) pass with seed-locked runs
 - Working Plan: `plans/active/DB-AT-SUITE-CARE-001/implementation.md`
   5. Latest test reports captured under member plan directories with status documented in Attempts History below
+- Attempts History:
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
   * 2025-12-07T100000Z — see docs/fix_plan_archive.md for details.
+  * 2025-12-07T204336Z (Loop i=136) — Phase B.1 complete (second attempt): DB-AT-010 verification executed (5 tests, exit code 1, 0/5 passed). All gradcheck tests fail with GradcheckError: disconnected autograd graph. Harness stable (no collection errors, Phase B.3/B.4 fixes successful). Tier-0 blocker confirmed: gradient flow break in simulate_forward_torch or TorchCrystal bridge. Escalate to Tier-0. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/` (verification report, pytest log, summary).
   * ... (see docs/fix_plan_archive.md and plans/active/DB-AT-SUITE-CARE-001/reports/ for full Attempts History and metrics).
 
 ### [MAP-SCALE-SYNC-001] Calibration Ladder Synchronization (MAP-SCALE-001—005)

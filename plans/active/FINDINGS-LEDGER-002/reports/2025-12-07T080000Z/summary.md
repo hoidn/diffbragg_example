@@ -26,8 +26,10 @@
   - **Exit Criteria:** All stages use identical variance-weighted denominator per spec-db-core.md:57-68; telemetry persists both chi_squared + masked_mse; sigma-floor enforcement validated via unit tests; sigma-map/external_lookup ingestion contracts tested.
   - **Dependencies:** ARCH-REFACTOR-001
 
-**Tier 2 "Governed by" annotations added:**
+**Tier 0 "Governed by" annotations added (loop i=121 correction):**
 - [ARCH-REFACTOR-001]: REFINE-001, ARCH-ENGINE-002, ARCH-ENGINE-003, ARCH-FACTORY-001, ARCH-FACTORY-003
+
+**Tier 2 "Governed by" annotations added:**
 - [PERF-WARM-SIM-001]: PERF-WARM-001 through PERF-WARM-013, REFINE-007, REFINE-011, REFINE-012
 
 **NEW Tier 2 initiative created:**
@@ -84,7 +86,9 @@
 ## Metrics
 
 - **Files modified:** 2 (docs/fix_plan.md, docs/findings.md)
-- **Initiatives updated:** 7 (Tier 1 & Tier 2 roll-ups)
+- **Initiatives updated:** 8 (7 in loop i=120, 1 correction in i=121)
+  - Loop i=120: TORCH-REFINE-CLEANUP-001, MAP-SCALE-SYNC-001, TORCH-GEOMETRY-SYNC-001, DB-AT-SUITE-CARE-001, FORWARD-EQUIV-COVERAGE-001, PERF-WARM-SIM-001, plus 2 new initiatives
+  - Loop i=121: ARCH-REFACTOR-001 (Tier 0) — added missing "Governed by" line
 - **New initiatives created:** 2 (PHYSICS-LOSS-CONSISTENCY, ARCH-STAGE-CONTEXT-CONSOLIDATION)
 - **Findings annotated:** 58 (78.4% coverage)
 - **Scripts created:** 2 (add_consumers.py, update_findings_consumers.sh)

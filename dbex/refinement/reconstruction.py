@@ -474,20 +474,51 @@ def build_final_bragg_from_stage_a_telemetry(
                 # * baseline_alignment_factor (reconstruction.py:535).
                 # To match: raw * sqrt(spot) * baseline_alignment_factor = raw * sqrt(spot) * masked_mean_ratio
                 # Therefore: baseline_alignment_factor = masked_mean_ratio
-                masked_mean_ratio = effective_calibration_metadata.get("masked_mean_ratio")
-                if masked_mean_ratio is not None and masked_mean_ratio > 0 and np.isfinite(masked_mean_ratio):
-                    baseline_alignment_factor = masked_mean_ratio
-                    alignment_source = "calibration_masked_mean_ratio"
-                    print(f"[ARCH-CONTRACT-002 Phase B.7] Cold-path baseline alignment from calibration:")
-                    print(f"  masked_mean_ratio (from mapping): {masked_mean_ratio:.6e}")
-                    print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
-                    print(f"  source: {alignment_source}")
+                # ARCH-CONTRACT-002 Phase B.9 (ARCH-IMPL-CONFORMANCE-001):
+                # Compute baseline_alignment_factor from ACTUAL cold-path output and target
+                # to ensure reconstruction matches mapping's scaled intensity over loss_mask.
+                #
+                # Mapping computes: masked_mean_ratio = target_mean / bragg_mean_mapping
+                #                   bragg_final = bragg_mapping * masked_mean_ratio
+                #                   → mean(bragg_final[loss_mask]) = target_mean (by construction)
+                #
+                # Reconstruction must match: mean(bragg_recon[loss_mask]) = target_mean
+                # Therefore: baseline_alignment_factor = target_mean / cold_masked_mean
+                #           where cold_masked_mean = mean((raw_recon * sqrt(spot))[loss_mask])
+                #
+                # This differs from Phase B.7 (which reused masked_mean_ratio) because:
+                # - Phase B.7 assumed raw_recon = raw_mapping (simulator parity)
+                # - Observed: reconstruction simulator produces ~13% more intensity than mapping
+                # - Phase B.9 fix: compute alignment from actual cold-path output
+                #
+                # References:
+                # - dbex/vis/mapping.py:287-300 (mapping's masked_mean_ratio computation)
+                # - Phase B.8 root cause analysis (loop i=118, plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T052400Z/)
+
+                # Extract target mean over loss_mask
+                if hasattr(inputs, 'target') and inputs.target is not None:
+                    target_mean_masked = float(inputs.target[inputs.loss_mask].mean())
+
+                    # Validate: target_mean and cold_masked_mean must be finite/positive
+                    if (target_mean_masked > 0 and np.isfinite(target_mean_masked) and
+                        cold_masked_mean > 0 and np.isfinite(cold_masked_mean)):
+                        baseline_alignment_factor = target_mean_masked / cold_masked_mean
+                        alignment_source = "cold_path_actual_output"
+                        print(f"[ARCH-CONTRACT-002 Phase B.9] Cold-path baseline alignment from actual output:")
+                        print(f"  target_mean_masked: {target_mean_masked:.6e}")
+                        print(f"  cold_masked_mean (raw * sqrt(spot)): {cold_masked_mean:.6e}")
+                        print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
+                        print(f"  source: {alignment_source}")
+                    else:
+                        # Emit warning if alignment cannot be computed
+                        print(f"[ARCH-CONTRACT-002 Phase B.9 WARNING] Cannot compute baseline alignment:")
+                        print(f"  target_mean_masked: {target_mean_masked if hasattr(inputs, 'target') and inputs.target is not None else 'N/A'}")
+                        print(f"  cold_masked_mean: {cold_masked_mean}")
+                        baseline_alignment_factor = 1.0
+                        alignment_source = "default_fallback"
                 else:
-                    # Emit warning if alignment cannot be computed
-                    print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14 WARNING] Cannot compute baseline alignment:")
-                    print(f"  telemetry_model_mean_masked: {telemetry_model_mean}")
-                    print(f"  cold_masked_mean: {cold_masked_mean if inputs.loss_mask is not None else 'N/A (no loss_mask)'}")
-                    print(f"  calibration masked_mean_ratio: {effective_calibration_metadata.get('masked_mean_ratio')}")
+                    # No target available, cannot compute alignment
+                    print(f"[ARCH-CONTRACT-002 Phase B.9 WARNING] inputs.target not available; cannot compute baseline alignment")
                     baseline_alignment_factor = 1.0
                     alignment_source = "default_fallback"
             else:

@@ -1032,5 +1032,16 @@
         "fallback_reason": null
       }
     ]
+  },
+  {
+    "timestamp": "2025-12-07T05:42:11.091320Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9153269529342651,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
   }
 ]

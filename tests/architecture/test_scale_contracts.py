@@ -73,10 +73,11 @@ def test_stage_a_vs_reconstruction_scale(refgeom_dataload):
     bragg_stage_a = stage_a_ctx.bragg_zero_iter  # np.ndarray, shape [n_panels, slow, fast]
     inputs = stage_a_ctx.inputs  # RefinementInputs with panel_slices, trusted_mask
 
-    # Compute masked mean for Stage A (apply trusted mask)
-    # trusted_mask is already np.ndarray with shape [n_panels, slow, fast]
-    masked_sum_stage_a = (bragg_stage_a[trusted_mask]).sum()
-    masked_count_stage_a = trusted_mask.sum()
+    # Compute masked mean for Stage A (use inputs.loss_mask per spec-db-core.md:55 and ARCH-IMPL-CONFORMANCE-001 Phase B.8)
+    # loss_mask = (background >= 0) & trusted_mask (ROI pixels only, matching mapping.py:287-288 contract)
+    loss_mask = inputs.loss_mask
+    masked_sum_stage_a = (bragg_stage_a[loss_mask]).sum()
+    masked_count_stage_a = loss_mask.sum()
     masked_mean_stage_a = masked_sum_stage_a / masked_count_stage_a
 
     # Build reconstruction path (cold path, param_state="initial" forces zero deltas)
@@ -137,9 +138,9 @@ def test_stage_a_vs_reconstruction_scale(refgeom_dataload):
         param_state="initial",
     )
 
-    # Compute masked mean for reconstruction
-    masked_sum_reconstruction = (bragg_reconstruction[trusted_mask]).sum()
-    masked_count_reconstruction = trusted_mask.sum()
+    # Compute masked mean for reconstruction (use same loss_mask as Stage A measurement)
+    masked_sum_reconstruction = (bragg_reconstruction[loss_mask]).sum()
+    masked_count_reconstruction = loss_mask.sum()
     masked_mean_reconstruction = masked_sum_reconstruction / masked_count_reconstruction
 
     # Compute relative error
@@ -214,9 +215,11 @@ def test_stage_a_vs_reconstruction_scale_cold_path(refgeom_dataload):
     bragg_stage_a = stage_a_ctx.bragg_zero_iter  # np.ndarray, shape [n_panels, slow, fast]
     inputs = stage_a_ctx.inputs  # RefinementInputs with panel_slices, trusted_mask
 
-    # Compute masked mean for Stage A (apply trusted mask)
-    masked_sum_stage_a = (bragg_stage_a[trusted_mask]).sum()
-    masked_count_stage_a = trusted_mask.sum()
+    # Compute masked mean for Stage A (use inputs.loss_mask per spec-db-core.md:55 and ARCH-IMPL-CONFORMANCE-001 Phase B.8)
+    # loss_mask = (background >= 0) & trusted_mask (ROI pixels only, matching mapping.py:287-288 contract)
+    loss_mask = inputs.loss_mask
+    masked_sum_stage_a = (bragg_stage_a[loss_mask]).sum()
+    masked_count_stage_a = loss_mask.sum()
     masked_mean_stage_a = masked_sum_stage_a / masked_count_stage_a
 
     # Build cold-path reconstruction: force stage_a_ctx=None to bypass cache
@@ -280,9 +283,9 @@ def test_stage_a_vs_reconstruction_scale_cold_path(refgeom_dataload):
         param_state="initial",
     )
 
-    # Compute masked mean for cold-path reconstruction
-    masked_sum_reconstruction_cold = (bragg_reconstruction_cold[trusted_mask]).sum()
-    masked_count_reconstruction_cold = trusted_mask.sum()
+    # Compute masked mean for cold-path reconstruction (use same loss_mask as Stage A measurement)
+    masked_sum_reconstruction_cold = (bragg_reconstruction_cold[loss_mask]).sum()
+    masked_count_reconstruction_cold = loss_mask.sum()
     masked_mean_reconstruction_cold = masked_sum_reconstruction_cold / masked_count_reconstruction_cold
 
     # Compute relative error

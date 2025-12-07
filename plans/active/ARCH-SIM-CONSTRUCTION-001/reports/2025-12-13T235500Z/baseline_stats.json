@@ -2607,5 +2607,40 @@
       },
       "checksum_mismatch": false
     }
+  },
+  {
+    "timestamp": "2025-12-07T05:13:55.631843Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 98.24423217773438,
+      "mean_unmasked": 1.902497410774231
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 1.1277091214170334
+    },
+    "chi_squared": {
+      "per_pixel": 779217.6850241546,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 691816768.0,
+    "baseline_alignment_factor": 0.0277735275273019,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
   }
 ]

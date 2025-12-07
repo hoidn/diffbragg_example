@@ -372,6 +372,18 @@ def build_final_bragg_from_stage_a_telemetry(
         print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.7] log_scale_effective not found in telemetry; falling back to legacy computation")
         log_scale_baseline_value = param_deltas_a.get('log_scale_baseline', {}).get('final')
 
+        # ARCH-CONTRACT-002 (Phase B.6): If log_scale_baseline missing from telemetry but calibration
+        # metadata is present, compute baseline from spot_scale_override (matching stage_a.py:168-177)
+        if log_scale_baseline_value is None and hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
+            spot_scale_override = config.calibration_metadata.get("spot_scale_override")
+            if spot_scale_override is not None:
+                try:
+                    sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+                    log_scale_baseline_value = float(np.log(sqrt_spot_scale))
+                    print(f"[ARCH-CONTRACT-002 Phase B.6] Computed log_scale_baseline from calibration: {log_scale_baseline_value:.6f}")
+                except (TypeError, ValueError):
+                    log_scale_baseline_value = None
+
         # Apply Stage A's log-scale clamp logic (matching stage_a.py lines 1194-1202)
         # When calibration metadata is present:
         #   log_scale_baseline = log(sqrt(spot_scale_override)) is the fixed baseline
@@ -498,18 +510,31 @@ def build_final_bragg_from_stage_a_telemetry(
         # Apply scale_factor from telemetry and baseline_alignment_factor for cold-path alignment
         bragg_prescaled = bragg_panel * scale_factor * baseline_alignment_factor
 
-        # ARCH-CONTRACT-002 (Phase B.4, ARCH-IMPL-CONFORMANCE-001):
-        # Apply canonical spot_scale_override sqrt scaling
-        # For warm-path with full telemetry, log_scale_baseline incorporates sqrt_spot_scale,
-        # so this becomes identity (scale=1.0). For cold-path, this applies the missing sqrt factor.
-        bragg_prescaled_np = bragg_prescaled.cpu().numpy()
-        bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)
-        bragg_scaled = torch.from_numpy(bragg_scaled_np).to(
-            device=bragg_panel.device, dtype=bragg_panel.dtype
-        )
+        # ARCH-CONTRACT-002 (Phase B.6, ARCH-IMPL-CONFORMANCE-001):
+        # Apply canonical spot_scale_override sqrt scaling ONLY when log_scale_baseline is absent.
+        # When log_scale_baseline is present (calibrated path), scale_factor already incorporates
+        # sqrt(spot_scale) per stage_a.py:173, so applying it again would double-scale.
+        #
+        # Root cause (Phase B.5 analysis): Reconstruction cold path was applying sqrt twice:
+        #   1. scale_factor = exp(log_scale_baseline) = exp(log(sqrt(spot_scale))) = sqrt(spot_scale)
+        #   2. apply_sqrt_spot_scale multiplies by sqrt(spot_scale) again
+        #   Result: raw * sqrt * sqrt = raw * spot_scale (2× correct scaling, ~35× mismatch)
+        if log_scale_baseline_value is None:
+            # Uncalibrated path: scale_factor doesn't include sqrt, apply it separately
+            bragg_prescaled_np = bragg_prescaled.cpu().numpy()
+            bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)
+            bragg_scaled = torch.from_numpy(bragg_scaled_np).to(
+                device=bragg_panel.device, dtype=bragg_panel.dtype
+            )
+            scaling_path = "uncalibrated (scale_factor + apply_sqrt_spot_scale)"
+        else:
+            # Calibrated path: scale_factor = exp(log_scale_baseline) already includes sqrt(spot_scale)
+            # Do not apply sqrt scaling again to avoid double-scaling
+            bragg_scaled = bragg_prescaled
+            scaling_path = "calibrated (scale_factor only, no double-sqrt)"
 
         if pid == 0:
-            print(f"  bragg_scaled[0] mean (after scale_factor × baseline_alignment × sqrt_spot_scale): {bragg_scaled.mean().item():.6e}")
+            print(f"  bragg_scaled[0] mean ({scaling_path}): {bragg_scaled.mean().item():.6e}")
         bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 
     # DEBUG: final output summary

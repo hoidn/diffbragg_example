@@ -54,11 +54,21 @@ Goal: produce a complete, cited inventory of the current findings ledger.
 
 ### Phase B — Cross-Linking & Fix-Plan Integration
 Goal: ensure every active finding has a home in the fix-plan ledger and vice versa.
-- **B1 — Map Consumers:** For each active finding, list the fix-plan section(s) and plan directories it influences (roll-up IDs, Tier 0 items, etc.). Update `docs/fix_plan.md` entries to reference the relevant finding IDs.
-- **B2 — Reciprocal Annotations:** Update `docs/findings.md` entries with “Consumers” links (plan IDs, spec references) and mark resolved items with a pointer to the closing attempt.
-- **B3 — Archive / Retire:** Move obsolete findings into an “Archived” section (or `docs/fix_plan_archive.md` if they’re redundant) with rationale; ensure plan inventory no longer treats them as active blockers.
 
-**Artifacts:** `reports/<ts>/crosslink_matrix.md`, fix-plan updates citing artifact paths.
+**Status:** B.1 complete (2025-12-07T060000Z), B.2 ready
+
+- **B1 — Map Consumers (DONE 2025-12-07T060000Z):** For each active finding, list the fix-plan section(s) and plan directories it influences (roll-up IDs, Tier 0 items, etc.).
+  - **Result:** 9 of 74 Active findings (12.2%) have explicit fix-plan consumers; 64 findings (86.5%) are orphaned.
+  - **Artifacts:** `reports/2025-12-07T060000Z/{consumer_map.json, crosslink_matrix.md, planning_notes.md, map_consumers.py}`
+  - **Key insight:** Most orphans are pattern findings (GEOMETRY-*, CONFIG-*, TESTING-*, PERF-WARM-*) governing multiple initiatives implicitly or via plan-local docs rather than top-level fix_plan.md text.
+
+- **B2 — Reciprocal Annotations (READY):** Update `docs/fix_plan.md` initiative descriptions to cite governing findings (e.g., "Governed by: REFINE-001, REFINE-002, ..."), then update `docs/findings.md` entries with "Consumers" metadata. Target: ≥80% consumer coverage (59+ of 74 Active findings).
+  - **Scope:** Add explicit "Governed by" lines to roll-up initiatives (TORCH-REFINE-CLEANUP-001, MAP-SCALE-SYNC-001, PERF-WARM-SIM-001, TORCH-GEOMETRY-SYNC-001), create missing roll-ups (PHYSICS-LOSS-CONSISTENCY, ARCH-STAGE-CONTEXT-CONSOLIDATION), update findings.md table with consumer metadata.
+
+- **B3 — Archive / Retire (DEFERRED):** Move obsolete findings into an "Archived" section (or `docs/fix_plan_archive.md` if they're redundant) with rationale; ensure plan inventory no longer treats them as active blockers.
+  - **Candidates:** CLI-001/002, CONFIG-002/003, REFINE-014, SCALE-003 (validate via pytest before retiring).
+
+**Artifacts:** `reports/<ts>/crosslink_matrix.md`, `consumer_map.json`, fix-plan updates citing artifact paths.
 
 ### Phase C — Cadence, Tooling, and Working Agreements
 Goal: bake the maintenance workflow into documented guardrails.

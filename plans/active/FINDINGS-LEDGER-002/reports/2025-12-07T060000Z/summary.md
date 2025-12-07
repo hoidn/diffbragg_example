@@ -1,3 +1,11 @@
+### Turn Summary (Loop i=120, Ralph)
+
+Phase B.1 consumer mapping complete: mapped 74 Active findings → fix-plan consumers via automated grep extraction. Consumer coverage: 9 findings (12.2%) have explicit references, 64 orphaned (86.5% — mostly pattern findings governing multiple initiatives implicitly). Root causes: implicit governance, ledger structure mismatch, plan-local references, completed work, missing roll-ups. Phase B.2 strategy documented: update fix_plan roll-ups, create PHYSICS-LOSS-CONSISTENCY + ARCH-STAGE-CONTEXT-CONSOLIDATION initiatives, add reciprocal "Consumers" metadata to findings.md, target ≥80% coverage.
+
+**Artifacts:** `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T060000Z/{consumer_map.json, crosslink_matrix.md, planning_notes.md, map_consumers.py}`
+
+---
+
 ### Turn Summary (Loop i=120, Galph)
 
 **Focus Selection**: Selected [FINDINGS-LEDGER-002] Phase B.1 from Tier 1 after confirming all Tier 0 items are blocked or done.

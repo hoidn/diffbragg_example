@@ -1,0 +1,837 @@
+{
+  "GEOMETRY-001": {
+    "summary": "Bridge MUST derive beam center and detector vectors exactly per dxtbx mapping; r...",
+    "tags": [
+      "geometry",
+      "detector",
+      "dxtbx"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "GEOMETRY-002": {
+    "summary": "Torch bridge MUST recover DIALS XYZ rotation angles via analytic inversion of th...",
+    "tags": [
+      "geometry",
+      "detector",
+      "euler"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "GEOMETRY-003": {
+    "summary": "Stage\u2011A baseline misset is now derived from the dxtbx A* matrix relative to nano...",
+    "tags": [
+      "geometry",
+      "crystal",
+      "mapping"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "GEOMETRY-004": {
+    "summary": "Stage A incremental UB parameterization treats dxtbx crystal state (U\u2080, B\u2080) as a...",
+    "tags": [
+      "geometry",
+      "crystal",
+      "parameterization",
+      "ub-realign"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "RUNTIME-001": {
+    "summary": "Gradient tests require `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interferenc...",
+    "tags": [
+      "runtime",
+      "torch.compile",
+      "gradcheck"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "CONFORMANCE-001": {
+    "summary": "DB-AT parity and workflow profiles define canonical pytest selectors (`-k DB_AT_...",
+    "tags": [
+      "testing",
+      "acceptance",
+      "parity"
+    ],
+    "consumers": [
+      {
+        "initiative": "ARCH-IMPL-CONFORMANCE-001",
+        "line": 21,
+        "context": "- [ARCH-IMPL-CONFORMANCE-001] (Architecture / Implementation contract alignment) \u2014 **done** (2025-12"
+      },
+      {
+        "initiative": "RECOMMENDED",
+        "line": 943,
+        "context": "* 2026-01-13T200000Z (Lifecycle Decision \u2014 **MARKED BLOCKED**) \u2014 Galph lifecycle review after C.39 b"
+      }
+    ],
+    "consumer_count": 2
+  },
+  "DXTBX-001": {
+    "summary": "dxtbx `crystal.get_A()` returns 9-element tuple (row-major) not numpy array; res...",
+    "tags": [
+      "dxtbx",
+      "crystal",
+      "API"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "DIAGNOSTICS-001": {
+    "summary": "Torch backend emits `/torch_diagnostics` HDF5 group with standardized metadata (...",
+    "tags": [
+      "HDF5",
+      "diagnostics",
+      "torch",
+      "metrics"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "MASKING-001": {
+    "summary": "Loss mask coverage in Bragg peak refinement is typically <1% (e.g., 0.21% for 92...",
+    "tags": [
+      "masking",
+      "ROI",
+      "coverage",
+      "diagnostics"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "TESTING-002": {
+    "summary": "CLI integration tests use mocking to validate dispatch logic and bridge integrat...",
+    "tags": [
+      "testing",
+      "CLI",
+      "mocking",
+      "integration"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "CONFIG-001": {
+    "summary": "Config hydration from dxtbx to nanobrag_torch requires: (1) beam center swap (fa...",
+    "tags": [
+      "config",
+      "dxtbx",
+      "nanobrag",
+      "mapping",
+      "pitfalls"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PHYSICS-LOSS-004": {
+    "summary": "Calibrated sigma maps entered via `--sigma-map` must be `.npy/.npz` stacks or pi...",
+    "tags": [
+      "variance",
+      "sigma-map",
+      "CLI"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PHYSICS-LOSS-005": {
+    "summary": "When DIALS experiments embed calibrated readout-noise tiles via `Experiment.imag...",
+    "tags": [
+      "variance",
+      "sigma-map",
+      "metadata"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-003": {
+    "summary": "Even after hoisting Stage\u202fA `create_crystal_config`/`Crystal` construction and r...",
+    "tags": [
+      "performance",
+      "warm-cache"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-004": {
+    "summary": "Caching per-panel `nanobrag_torch.Simulator` instances inside `StageAContext` el...",
+    "tags": [
+      "performance",
+      "warm-cache"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-005": {
+    "summary": "ROI sampling is now tied to the warm cache (unless `allow_cold_stage_a_roi_mode`...",
+    "tags": [
+      "performance",
+      "roi-cache"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-006": {
+    "summary": "Stage B/C warm smokes must reuse Stage A detector configs/masks (and ROI metadat...",
+    "tags": [
+      "performance",
+      "warm-cache",
+      "stage-bc"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-007": {
+    "summary": "Canonical Stage\u202fB/C smokes now assert perf-counter invariants so warm-cache regr...",
+    "tags": [
+      "performance",
+      "telemetry",
+      "stage-bc"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-008": {
+    "summary": "Stage\u202fB now reuses `StageAContext.roi_entries` whenever Stage\u202fA ROI mode is acti...",
+    "tags": [
+      "performance",
+      "stage-b",
+      "roi-mode"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-009": {
+    "summary": "Stage\u202fB ROI-mode closures currently evaluate only the Stage\u202fA ROI subset\u2014even th...",
+    "tags": [
+      "performance",
+      "stage-b",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-010": {
+    "summary": "Even after forcing panel validations, canonical Stage\u202fB smokes still drive `shel...",
+    "tags": [
+      "performance",
+      "stage-b",
+      "roi-mode",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-011": {
+    "summary": "Canonical Stage\u202fB smokes now fail before the \u00b11\u202f% gate because the panel-mode LB...",
+    "tags": [
+      "performance",
+      "stage-b",
+      "gpu",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-013": {
+    "summary": "Even with `stage_a_ctx` available, Stage\u202fC still instantiates fresh `Detector`/`...",
+    "tags": [
+      "performance",
+      "stage-c",
+      "warm-cache"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-001": {
+    "summary": "Stage A LBFGS must warm-start the global scale from the calibration hint and bou...",
+    "tags": [
+      "refinement",
+      "lbfgs",
+      "scale"
+    ],
+    "consumers": [
+      {
+        "initiative": "ARCH-REFINE-001",
+        "line": 34,
+        "context": "- [ARCH-REFINE-001] (Refine Engine Modularization + Torch IO context) \u2014 **Done** (2025-12-01T161600Z"
+      },
+      {
+        "initiative": "TORCH-REFINE-CLEANUP-001",
+        "line": 40,
+        "context": "- [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003) \u2014 **"
+      }
+    ],
+    "consumer_count": 2
+  },
+  "REFINE-002": {
+    "summary": "Stage A nucleus on the canonical refGeom dataset produces only ~0.15% masked-MSE...",
+    "tags": [
+      "refinement",
+      "acceptance"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "MANIFEST-001": {
+    "summary": "Canonical manifest emission MUST verify `.npy` payloads exist in the same worksp...",
+    "tags": [
+      "manifest",
+      "fixtures",
+      "parity"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "SCALE-001": {
+    "summary": "Canonical capture MUST NOT multiply structure factors by `sqrt(scale_override)`;...",
+    "tags": [
+      "scaling",
+      "structure-factors",
+      "parity"
+    ],
+    "consumers": [
+      {
+        "initiative": "MAP-SCALE-SYNC-001",
+        "line": 37,
+        "context": "- [MAP-SCALE-SYNC-001] (Calibration ladder initiatives MAP-SCALE-001\u2014005) \u2014 **pending**. Plans live "
+      }
+    ],
+    "consumer_count": 1
+  },
+  "PHYSICS-LOSS-001": {
+    "summary": "Stage B/C refinements must consume the same variance-weighted denominator as Sta...",
+    "tags": [
+      "loss",
+      "telemetry",
+      "staging"
+    ],
+    "consumers": [
+      {
+        "initiative": "0",
+        "line": 631,
+        "context": "* 2025-12-03T235900Z (Phase C.1 implementation complete) \u2014 Extended `StageCTelemetryCollector.ensure"
+      }
+    ],
+    "consumer_count": 1
+  },
+  "PHYSICS-LOSS-002": {
+    "summary": "Variance-weighted chi-squared must enforce the sigma-floor guard `V = max(I_mode...",
+    "tags": [
+      "loss",
+      "variance",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PHYSICS-LOSS-003": {
+    "summary": "Stage A still reports chi-squared as `(\u03a3 (I_model-I_obs)^2) / (\u03a3 V)` while Stage...",
+    "tags": [
+      "loss",
+      "chi-squared",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "SCALE-002": {
+    "summary": "DiffBragg's `spot_scale_override` must be re-applied as a global post-simulation...",
+    "tags": [
+      "scaling",
+      "parity",
+      "global-scale"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "SCALE-003": {
+    "summary": "Zero-iteration torch helper must ingest DiffBragg-refined \u221aspot_scale (~5.6e8) *...",
+    "tags": [
+      "scaling",
+      "calibration",
+      "diffbragg"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "SCALE-005": {
+    "summary": "Injecting DiffBragg `N_cells` overrides into the torch bridge multiplies zero-it...",
+    "tags": [
+      "scaling",
+      "calibration",
+      "crystal"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "SCALE-008": {
+    "summary": "When `build_mapping_stage_a_context` multiplies `spot_scale_override` to cancel ...",
+    "tags": [
+      "scaling",
+      "stage_a",
+      "calibration"
+    ],
+    "consumers": [
+      {
+        "initiative": "NON-NORMATIVE",
+        "line": 204,
+        "context": "* 2025-12-17T010000Z (Phase C.12 implementation \u2014 **GEOMETRY MODE PARAMETERIZATION COMPLETE, DB-AT-0"
+      }
+    ],
+    "consumer_count": 1
+  },
+  "SCALE-009": {
+    "summary": "Reconstruction helpers (`build_final_bragg_from_stage_*_telemetry`) must apply `...",
+    "tags": [
+      "scaling",
+      "reconstruction",
+      "calibration",
+      "architecture"
+    ],
+    "consumers": [
+      {
+        "initiative": "NON-NORMATIVE",
+        "line": 204,
+        "context": "* 2025-12-17T010000Z (Phase C.12 implementation \u2014 **GEOMETRY MODE PARAMETERIZATION COMPLETE, DB-AT-0"
+      }
+    ],
+    "consumer_count": 1
+  },
+  "SCALE-006": {
+    "summary": "Nanobrag CLI runs must ingest DiffBragg `config_torch.json` metadata (spot_scale...",
+    "tags": [
+      "scaling",
+      "calibration",
+      "cli"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "SCALE-007": {
+    "summary": "Zero-iteration bridge (`simulate_forward_once`) must emit structure-factor telem...",
+    "tags": [
+      "telemetry",
+      "diagnostics",
+      "mapping"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "TESTING-003": {
+    "summary": "Selector status transitions to Active only after `pytest --collect-only` confirm...",
+    "tags": [
+      "testing",
+      "selectors",
+      "compliance",
+      "documentation"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PARITY-001": {
+    "summary": "First-divergence debugging workflow requires scanning tensors in deterministic (...",
+    "tags": [
+      "parity",
+      "diagnostics",
+      "first-divergence",
+      "tracing"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "POLICY-001": {
+    "summary": "Environment Freeze exception added: Targeted bugfixes to locally available sourc...",
+    "tags": [
+      "environment-freeze",
+      "bugfixes",
+      "policy"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "DIAG-UNIT-001": {
+    "summary": "**ROOT CAUSE (in progress)**: nanobrag_torch `Crystal` real-space vectors are st...",
+    "tags": [
+      "simulator",
+      "crystal",
+      "units",
+      "HKL",
+      "zero-output"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "HKL-ORIENT-001": {
+    "summary": "When running single-source nanoBragg2 captures, `Simulator` must cache the **sou...",
+    "tags": [
+      "hkl",
+      "beam",
+      "geometry",
+      "simulator"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "CONFIG-002": {
+    "summary": "nanobrag_torch DetectorConfig.detector_convention must use enum value (e.g., `De...",
+    "tags": [
+      "config",
+      "nanobrag",
+      "enum",
+      "detector-convention"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "CONFIG-003": {
+    "summary": "BeamConfig.polarization_axis must be a tuple (not numpy array); nanobrag_torch A...",
+    "tags": [
+      "config",
+      "nanobrag",
+      "beam",
+      "polarization",
+      "tuple"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "MODEL-001": {
+    "summary": "Roundtrip tests that instantiate Detector and Crystal models using bridge-produc...",
+    "tags": [
+      "testing",
+      "roundtrip",
+      "detector",
+      "crystal",
+      "instantiation"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ORCH-ROBUST-001": {
+    "summary": "Harden supervisor against submodule pointer drift by (1) detecting gitlinks via ...",
+    "tags": [
+      "orchestration",
+      "git",
+      "submodules"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "SCALE-004": {
+    "summary": "DiffBragg calibration metadata (spot_scale_override, beam flux/exposure) must be...",
+    "tags": [
+      "scaling",
+      "calibration",
+      "fixture",
+      "diffbragg"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "GRADIENT-001": {
+    "summary": "Production refinement and test harnesses must avoid `.item()`/`.numpy()` on diff...",
+    "tags": [
+      "gradients",
+      "autograd",
+      "testing",
+      "refinement"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-003": {
+    "summary": "Stage A orientation refinement via `orientation_vec` \u2192 quaternion \u2192 rotation mat...",
+    "tags": [
+      "refinement",
+      "orientation",
+      "crystal",
+      "a-star"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-006": {
+    "summary": "Even with haloed HKL grids and tricubic interpolation, canonical refGeom Stage A...",
+    "tags": [
+      "refinement",
+      "gate",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-007": {
+    "summary": "Canonical Stage C microslip tests inject \u00b10.25\u202fmm panel offsets and recover them...",
+    "tags": [
+      "refinement",
+      "detector",
+      "acceptance"
+    ],
+    "consumers": [
+      {
+        "initiative": "PERF-WARM-SIM-001",
+        "line": 62,
+        "context": "- [PERF-WARM-SIM-001] (Warm Simulator) \u2014 **blocked \u2014 Stage\u202fC panel-loss path diverges from Stage\u202fA, "
+      },
+      {
+        "initiative": "0",
+        "line": 631,
+        "context": "* 2025-12-03T235900Z (Phase C.1 implementation complete) \u2014 Extended `StageCTelemetryCollector.ensure"
+      }
+    ],
+    "consumer_count": 2
+  },
+  "CLI-001": {
+    "summary": "`create_detector_config` MUST convert trusted_mask to `torch.Tensor` before pass...",
+    "tags": [
+      "cli",
+      "bridge",
+      "mask",
+      "tensor"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "CLI-002": {
+    "summary": "HKL amplitude mean calculation in CLI telemetry emission fails when `DL.F.data()...",
+    "tags": [
+      "cli",
+      "flex",
+      "telemetry",
+      "hkl"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-008": {
+    "summary": "Per-reflection Fhkl modifiers mapped to unique ASU indices via cctbx.miller symm...",
+    "tags": [
+      "refinement",
+      "stage-b",
+      "per-reflection",
+      "asu-mapping",
+      "adam-optimizer",
+      "gradient-flow"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-009": {
+    "summary": "When a canonical baseline detector is available, Stage\u202fC must seed detector dist...",
+    "tags": [
+      "refinement",
+      "detector",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-010": {
+    "summary": "Stage A ROI-mode LBFGS on refGeom_small (29 ROIs) stalls at 0% improvement even ...",
+    "tags": [
+      "refinement",
+      "stage-a",
+      "roi-mode"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ORCH-CLAUDE-001": {
+    "summary": "Claude Code wrapper may fail with ENOENT when launched from Python if Node is no...",
+    "tags": [
+      "orchestration",
+      "cli",
+      "node"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-001": {
+    "summary": "Stage A warm simulator cache via `StageAContext` eliminates per-iteration Detect...",
+    "tags": [
+      "performance",
+      "refinement",
+      "lbfgs",
+      "cache",
+      "benchmarking",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "PERF-WARM-002": {
+    "summary": "Warm-mode still rebuilds `create_crystal_config` + `Crystal` (and per-panel `Sim...",
+    "tags": [
+      "performance",
+      "stage-a",
+      "caching"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "CONVERGENCE-001": {
+    "summary": "Stage A U-matrix refinement diagnostic scripts must detect when ALL parameter de...",
+    "tags": [
+      "refinement",
+      "convergence",
+      "code-path-divergence",
+      "u-matrix"
+    ],
+    "consumers": [
+      {
+        "initiative": "TORCH-GEOMETRY-SYNC-001",
+        "line": 39,
+        "context": "- [TORCH-GEOMETRY-SYNC-001] (Geometry convergence/parity/UB realign initiatives) \u2014 **pending**. Cove"
+      }
+    ],
+    "consumer_count": 1
+  },
+  "REFINE-011": {
+    "summary": "Stage\u202fC ROI-mode closures still evaluate only the sampled ROI subset\u2014even for \u201cf...",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-012": {
+    "summary": "After REFINE-FLOW-001 forced Stage\u202fA panel-mode validations whenever Stage\u202fB/C r...",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "roi-mode"
+    ],
+    "consumers": [
+      {
+        "initiative": "PERF-WARM-SIM-001",
+        "line": 62,
+        "context": "- [PERF-WARM-SIM-001] (Warm Simulator) \u2014 **blocked \u2014 Stage\u202fC panel-loss path diverges from Stage\u202fA, "
+      }
+    ],
+    "consumer_count": 1
+  },
+  "REFINE-013": {
+    "summary": "Stage\u202fC\u2019s LBFGS closure updates `best_loss_full_c`, `chi_squared_best_c`, `maske...",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-014": {
+    "summary": "Stage\u202fC wrapper reused Stage\u202fA telemetry\u2019s `misset_xyz_deg` (already expressed i...",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "orientation"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-015": {
+    "summary": "Stage\u202fC reuses Stage\u202fA\u2019s `log_scale` delta but ignores the calibrated baseline (...",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "scaling"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-016": {
+    "summary": "Stage\u202fA panel-mode validations intersect the ROI/loss mask with the per-panel DI...",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "masking"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ARCH-ENGINE-002": {
+    "summary": "StageC wrapper class (`dbex/refinement/stage_c.py`) successfully implements Refi...",
+    "tags": [
+      "architecture",
+      "engine",
+      "staging",
+      "wrapper-pattern",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ARCH-ENGINE-003": {
+    "summary": "Phase E telemetry enrichment (`engine_protocol`, `stage_modes` fields) must be i...",
+    "tags": [
+      "architecture",
+      "engine",
+      "phase-e",
+      "telemetry-enrichment"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "REFINE-007-EXT": {
+    "summary": "Stage C detector offset refinement wrapper (Phase D complete) extends REFINE-007...",
+    "tags": [
+      "refinement",
+      "detector",
+      "telemetry",
+      "wrapper",
+      "validation"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ARCH-STAGE-CTX-001": {
+    "summary": "Stage implementations still pass 10\u201315 positional arguments (`crystal`, `detecto...",
+    "tags": [
+      "architecture",
+      "context",
+      "telemetry"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ARCH-STAGE-CTX-002": {
+    "summary": "Stage\u202fB baseline parity guard (`_check_stage_b_baseline_parity`) still mutates t...",
+    "tags": [
+      "architecture",
+      "telemetry",
+      "stage-b"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ARCH-FACTORY-001": {
+    "summary": "Unified simulator factory (`create_unified_simulator` in dbex/refinement/helpers...",
+    "tags": [
+      "architecture",
+      "simulator",
+      "factory",
+      "autograd",
+      "scope"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  },
+  "ARCH-FACTORY-003": {
+    "summary": "ExperimentModel adapter Phase B3 BLOCKED by upstream nanobrag_torch single-pixel...",
+    "tags": [
+      "architecture",
+      "experiment-model",
+      "upstream-bug",
+      "parity",
+      "blocker"
+    ],
+    "consumers": [],
+    "consumer_count": 0
+  }
+}

@@ -1,0 +1,125 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 3 items
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow PASSED [ 33%]
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_masked_mse_and_shapes PASSED [ 66%]
+tests/dbex/test_nanobrag_smoke.py::test_artifact_generation ERROR        [100%]
+
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_artifact_generation __________________
+
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318, sigma_readout_provenance=None)
+stub_bragg_tensor = array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+ ...., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32)
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x799b25bdcc10>, _basetemp=PosixPath('/tmp/pytest-of-ollie/pytest-0'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def smoke_artifacts(
+        refinement_inputs,
+        stub_bragg_tensor,
+        tmp_path_factory
+    ):
+        """
+        Generate and persist ROI triptych artifact plus metrics JSON.
+    
+        Per Phase C checklist (C2):
+        - Render data/model/residual triptych for at least one ROI
+        - Persist summary metrics (smoke_metrics.json) alongside image artifact
+        - Store under plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/
+    
+        Returns path to artifacts directory.
+        """
+        inputs = refinement_inputs
+        bragg = stub_bragg_tensor
+    
+        # Artifacts directory (from input.md)
+        repo_root = Path(__file__).parent.parent.parent
+        artifacts_dir = repo_root / "plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z"
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+    
+        # Compute masked MSE
+        residual = bragg - inputs.target
+        masked_residual = residual[inputs.loss_mask]
+        masked_mse = np.mean(masked_residual ** 2)
+    
+        # Per-panel stats
+        n_panels = bragg.shape[0]
+        mean_intensity_per_panel = []
+        max_intensity_per_panel = []
+        for panel_id in range(n_panels):
+            panel_bragg = bragg[panel_id]
+            panel_mask = inputs.loss_mask[panel_id]
+            if np.any(panel_mask):
+                masked_bragg = panel_bragg[panel_mask]
+                mean_intensity_per_panel.append(float(np.mean(masked_bragg)))
+                max_intensity_per_panel.append(float(np.max(masked_bragg)))
+            else:
+                mean_intensity_per_panel.append(0.0)
+                max_intensity_per_panel.append(0.0)
+    
+        # Build and save metrics JSON
+        metrics = SmokeMetrics(
+            n_panels=n_panels,
+            n_rois=len(inputs.panel_slices),
+            target_shape=tuple(inputs.target.shape),
+            bragg_shape=tuple(bragg.shape),
+            masked_mse=float(masked_mse),
+            mean_intensity_per_panel=mean_intensity_per_panel,
+            max_intensity_per_panel=max_intensity_per_panel,
+            loss_mask_coverage=float(np.mean(inputs.loss_mask))
+        )
+    
+        metrics_path = artifacts_dir / "smoke_metrics.json"
+        with open(metrics_path, 'w') as f:
+            json.dump(metrics._asdict(), f, indent=2)
+    
+        # Generate ROI triptych for first ROI using dbex.vis
+        if len(inputs.panel_slices) > 0:
+            pid, bbox = inputs.panel_slices[0]
+            x0, x1, y0, y1 = bbox
+    
+            # Extract ROI slices
+            data_roi = inputs.target[pid, y0:y1, x0:x1]
+            bragg_roi = bragg[pid, y0:y1, x0:x1]
+            residual_roi = residual[pid, y0:y1, x0:x1]
+            mask_roi = inputs.loss_mask[pid, y0:y1, x0:x1]
+    
+            triptych_path = artifacts_dir / "roi_triptych.png"
+            # Use Z-score style residuals for the visualization.
+>           residual_z = compute_z_scores(
+                data_roi,
+                bragg_roi,
+                mask=mask_roi,
+            )
+E           TypeError: compute_z_scores() missing 1 required positional argument: 'variance'
+
+tests/dbex/test_nanobrag_smoke.py:448: TypeError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_nanobrag_smoke.py::test_artifact_generation - TypeError...
+==================== 2 passed, 4 warnings, 1 error in 2.52s ====================

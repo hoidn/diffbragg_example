@@ -1,10 +1,10 @@
-# Input for Ralph — Loop i=143
+# Input for Ralph — Loop i=144
 
-**Summary**: Execute DB-AT-SUITE-CARE-001 Phase B.2 centralized asset validation to unblock 5 downstream member plans.
+**Summary**: Execute DB-AT-SUITE-CARE-001 Phase B.3 FORWARD-EQUIV-002 artifact check to validate external dependency for DB-AT-002.
 
-**Mode**: none (asset validation, not test execution)
+**Mode**: none (evidence collection, external dependency validation)
 
-**ActionType**: implementation_ready
+**ActionType**: evidence_collection
 
 **DecisionStatus**: patch_ready
 
@@ -14,186 +14,154 @@
 
 **Branch**: integration
 
-**Mapped tests**: none — read-only asset validation loop; format sanity checks serve as validation
+**Mapped tests**: none — evidence-only (asset existence check, no pytest execution)
 
-**Artifacts**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/`
+**Artifacts**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/`
 
 **Findings Applied (Mandatory)**:
-- **TESTING-003** (Acceptance test registry maintenance): Asset validation enables TEST_SUITE_INDEX.md updates for 5 member plans (DB-AT-020/021/022/023/024). This loop confirms fixture availability as prerequisite for registry sync.
-  - Code: `docs/development/TEST_SUITE_INDEX.md`
-  - Adherence: Phase B.2 validates that canonical refGeom assets exist and are usable by downstream tests, unblocking registry updates.
+- **MANIFEST-001** (Canonical manifest emission): Generator must verify `.npy` payloads exist before writing checksums; otherwise DB_AT_001 falls back to synthetic tensors. This loop validates manifest + payload co-location.
+  - Code: `scripts/generate_simple_cubic_golden.py:620-717`
+  - Adherence: Phase B.3 checks manifest.json and cross-references `.npy` file paths to ensure no foreign paths per MANIFEST-001.
 
-- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Asset validation report (`asset_validation.md`) follows structured artifact pattern for cross-referencing by member plans.
-  - Code: `tests/dbex/test_stage_a_smoke_parity.py` (artifact writer precedent)
-  - Adherence: All 4 deliverables (asset_validation.md, asset_checksums.txt, format_check_logs.txt, summary.md) emitted under timestamped reports directory.
+- **DIAGNOSTICS-001** (Diagnostic artifact expectations): FORWARD-EQUIV-002 check report follows structured artifact pattern.
+  - Code: `docs/spec-db-tracing.md`, `dbex/refine_one.py:80-95`
+  - Adherence: All 4 deliverables emitted under timestamped reports directory.
 
 **Pointers**:
-- **Implementation Plan**: `plans/active/DB-AT-SUITE-CARE-001/implementation.md` lines 37-48 (Phase B.2 task definition)
-- **Planning Notes**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T010000Z/planning_notes.md` (detailed task breakdown)
-- **Dependency Chain**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/dependency_chain.md` (refGeom asset consumers: DB-AT-020/021/022/023/024)
-- **SPEC**: `docs/spec-db-conformance.md` §Workflow Integration Profile (acceptance criteria for 5 member plans depend on canonical fixtures)
-- **ARCH**: `docs/architecture/tests_mapping.md` (fixture paths and shared dependencies)
-- **TESTING_GUIDE**: `docs/TESTING_GUIDE.md` §1 (environment setup, may document asset paths)
+- **Implementation Plan**: `plans/active/DB-AT-SUITE-CARE-001/implementation.md` lines 38-39 (Phase B.3 task definition)
+- **Dependency Chain**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/dependency_chain.md` (DB-AT-002 depends on FORWARD-EQUIV-002 artifacts)
+- **Member Plan**: `plans/active/DB-AT-002/implementation.md` (Phase A1 depends on this check)
+- **FORWARD-EQUIV-002 Plan**: `plans/active/FORWARD-EQUIV-002/implementation.md` (escalation target if missing)
+- **SPEC**: `docs/spec-db-conformance.md` §DB-AT-002 (canonical tensors + metrics baselines)
+- **Testing Strategy**: `docs/development/testing_strategy.md` §2.1 (Golden dataset maintenance)
 
 ---
 
 ## ARCH Contracts (mandatory)
 
-**Relevant ARCH-CONTRACTs**: None directly applicable (asset validation task, not architecture change)
+**No ARCH-CONTRACT enforcement this loop** — Evidence collection only; no architecture boundaries touched.
 
-**Failure Classification**: N/A (this is a portfolio coordination task, not a conformance remediation)
-
-**Rationale**: DB-AT-SUITE-CARE-001 is a harness roll-up initiative for portfolio steering. This Phase B.2 task validates shared test fixtures to unblock member plan progression. No architecture contracts are created or modified.
+**Reference for context**:
+- **MANIFEST-001** (finding, not ARCH-CONTRACT): Canonical manifest generation must verify `.npy` payloads exist before writing checksums
+  - **Owner**: `scripts/generate_simple_cubic_golden.py`
+  - **Classification**: Implementation correctness (not conformance failure; generator tool issue if manifest broken)
 
 ---
 
 ## Do Now (hard validity contract)
 
-**Objective**: Validate canonical refGeom assets (existence, size, checksum, format) to unblock 5 downstream member plans.
+**Objective**: Validate `tests/fixtures/golden_data/simple_cubic/` artifact availability for DB-AT-002 Phase A1 prerequisite.
+
+**Implement**: **No production code changes** — Evidence collection only.
 
 **Tasks**:
 
-1. **Locate asset paths**: Search `tests/fixtures/`, `tests/dbex/`, `docs/TESTING_GUIDE.md`, and grep test files for `refGeom.expt` references to identify canonical paths for 4 assets:
-   - `refGeom.expt` (DIALS Experiment)
-   - `refGeom.refl` (DIALS Reflection table)
-   - `scaled.mtz` (Scaled structure factors)
-   - `747_mask.pkl` (Detector trusted mask)
+1. **Check directory existence**: Verify `tests/fixtures/golden_data/simple_cubic/` exists via `ls` command. Capture output to `ls_golden_data.txt`.
 
-2. **Execute file checks**: For each asset:
-   - Verify existence: `ls -lh <asset-path>`
-   - Compute checksum: `sha256sum <asset-path>`
-   - Record size and checksum (first 16 hex chars) in validation table
+2. **Manifest verification**: Check if `tests/fixtures/golden_data/simple_cubic/manifest.json` exists. If exists:
+   - Load manifest and extract expected checksum (should be `2d1f8d67…8567aee` per implementation.md:38)
+   - Verify `.npy` tensor payloads exist in same directory (no foreign paths per MANIFEST-001)
+   - Compute actual SHA256 checksum of manifest file
+   - Record comparison in `manifest_verification.txt`
 
-3. **Format sanity checks**: Run minimal Python commands to validate:
-   - `refGeom.expt`: JSON parseable, contains `"detector"`, `"beam"`, `"crystal"` keys
-   - `refGeom.refl`: DIALS reflection table loadable, has `"bbox"` column
-   - `scaled.mtz`: MTZ file readable, has structure factor columns
-   - `747_mask.pkl`: Pickle loadable, contains boolean mask array
-   - Capture command outputs in `format_check_logs.txt`
+3. **Tensor inventory**: List all `.npy` files in the directory. Note file sizes and timestamps. Append to `ls_golden_data.txt`.
 
-4. **Cross-reference with member plans**: Grep `plans/active/DB-AT-020/`, `.../DB-AT-021/`, `.../DB-AT-022/`, `.../DB-AT-023/`, `.../DB-AT-024/` for asset references to confirm these are the correct shared fixtures
+4. **Status classification**:
+   - **Case A (all valid)**: Manifest exists, checksum matches expected value, all referenced `.npy` files co-located → DB-AT-002 Phase A1 unblocked
+   - **Case B (manifest missing)**: Directory exists but no manifest → Escalate to FORWARD-EQUIV-002 owner; DB-AT-002 Phase A1 blocked
+   - **Case C (manifest broken)**: Manifest exists but checksum mismatch or foreign paths → Escalate to FORWARD-EQUIV-002 owner; recommend regeneration
+   - **Case D (directory missing)**: No `tests/fixtures/golden_data/simple_cubic/` → CRITICAL escalation; FORWARD-EQUIV-002 must regenerate golden suite
 
-5. **Author asset_validation.md**: Consolidate findings into canonical report with:
-   - Validation summary table (path/size/checksum/format/status for each asset)
-   - Format sanity check results
-   - Consumer plans cross-reference
-   - Recommendations (all valid → proceed to Phase B.3/B.4; any missing → escalate)
+5. **Write primary report**: Author `forward_equiv_002_check.md` with:
+   - Validation outcome (Case A/B/C/D)
+   - Manifest checksum comparison (if applicable)
+   - Tensor inventory (file count, sizes, timestamps)
+   - Recommendations: proceed to Phase B.4 (if Case A) OR escalate to FORWARD-EQUIV-002 owner (if Case B/C/D)
+   - Cross-references: DB-AT-002 implementation.md Phase A1, FORWARD-EQUIV-002 implementation.md
 
-**Implement**: None (read-only validation task, no production code changes)
+6. **Write summary.md**: Loop summary with validation outcome, artifacts list, and next milestone readiness assessment.
 
-**Validating pytest selector(s)**: none — format sanity checks serve as validation
+**Validating pytest selector(s)**: none — evidence-only
 
-**Artifacts path**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/`
+**Artifacts path**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/`
 
 **Deliverables** (all under artifacts path):
-1. `asset_validation.md` — Primary report (validation table, format checks, consumer cross-refs)
-2. `asset_checksums.txt` — Raw SHA256 output for all 4 assets
-3. `format_check_logs.txt` — Output from Python format sanity check commands
-4. `summary.md` — Loop summary with validation outcome and next action recommendation
+1. `forward_equiv_002_check.md` — Primary validation report
+2. `ls_golden_data.txt` — Directory listing
+3. `manifest_verification.txt` — SHA256 manifest check output (if manifest exists)
+4. `summary.md` — Loop summary
 
-**Initiative type consistency**: ✅ harness (portfolio coordination task per DB-AT-SUITE-CARE-001 charter)
+**Initiative type consistency**: ✅ harness (external dependency validation per DB-AT-SUITE-CARE-001 charter)
 
 ---
 
 ## Forbidden This Loop
 
-- **No new probes**: This is asset validation, not debugging; use existing file tools and Python imports only
-- **No plan-local diagnostic scripts**: Use inline Python commands via `python -c "..."` for format checks
-- **No production code changes**: Read-only validation task
-- **No test file modifications**: Member plans will consume asset_validation.md as reference artifact
+- **No new probes**: Evidence collection via shell commands only (`ls`, `sha256sum`, Python one-liner for manifest load)
+- **Do not extend plan-local diagnostic scripts**: Use shell commands directly per PROBE-FREEZE-001
+- **No production code changes**: Evidence collection only; no changes to `dbex/`, `tests/dbex/`, or fixture generation scripts
+- **Do not modify test files**: DB-AT-002 member plan owns test authoring in future Phase B loops
 
 ---
 
 ## How-To Map
 
-### Asset Location Discovery
+### Commands
+
+**Directory existence check**:
 ```bash
-# Search for refGeom.expt references in test files
-grep -r "refGeom.expt" tests/
-
-# Search for fixture path documentation
-grep -r "refGeom" docs/TESTING_GUIDE.md
-
-# List candidate fixture directories
-find tests/ -type d -name "fixtures" -o -name "refGeom"
+mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z
+ls -lah tests/fixtures/golden_data/simple_cubic/ > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/ls_golden_data.txt 2>&1
 ```
 
-### Asset Validation Commands
+**Manifest verification** (conditional on manifest existence):
 ```bash
-# For each asset, run:
-ls -lh <asset-path>
-sha256sum <asset-path> | tee -a asset_checksums.txt
+if [ -f tests/fixtures/golden_data/simple_cubic/manifest.json ]; then
+  echo "Manifest exists" > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/manifest_verification.txt
+  sha256sum tests/fixtures/golden_data/simple_cubic/manifest.json >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/manifest_verification.txt
+  python3 -c "import json; manifest = json.load(open('tests/fixtures/golden_data/simple_cubic/manifest.json')); print('Manifest keys:', list(manifest.keys())); [print(f'{k}: {v}') for k,v in manifest.items() if 'path' in str(v).lower()]" >> plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/manifest_verification.txt 2>&1
+else
+  echo "Manifest NOT FOUND" > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/manifest_verification.txt
+fi
 ```
 
-### Format Sanity Check Examples
-```bash
-# refGeom.expt (DIALS Experiment JSON)
-python -c "import json; f=open('<path>/refGeom.expt'); d=json.load(f); assert 'detector' in d; assert 'beam' in d; assert 'crystal' in d; print('VALID: contains detector/beam/crystal keys')"
-
-# refGeom.refl (DIALS Reflection table)
-python -c "from dials.array_family import flex; r=flex.reflection_table.from_file('<path>/refGeom.refl'); assert 'bbox' in r; print(f'VALID: {len(r)} reflections, bbox column present')"
-
-# scaled.mtz (MTZ structure factors)
-python -c "from iotbx import mtz; m=mtz.object(file_name='<path>/scaled.mtz'); cols=[c.label() for c in m.columns()]; print(f'VALID: columns={cols}')"
-
-# 747_mask.pkl (Detector mask)
-python -c "import pickle; m=pickle.load(open('<path>/747_mask.pkl', 'rb')); print(f'VALID: type={type(m).__name__}, shape={m.shape if hasattr(m, \"shape\") else \"non-array\"}')"
-```
-
-### Artifact Assembly
-```bash
-# Create timestamped report directory
-mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z
-
-# Write validation table to asset_validation.md
-# (Use Edit tool or Write tool to assemble markdown report)
-
-# Write summary.md with outcome
-# (Include validation status, next phase recommendation)
-```
+**No pytest this loop** — Evidence collection only.
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **Asset path assumptions**: Do NOT assume paths without searching; grep test files and docs to locate actual fixture locations
-2. **Checksum baseline**: If no golden checksums exist, that's OK — record current checksums as baseline for future regression detection
-3. **Format check dependencies**: If DIALS or iotbx imports fail (unlikely), note in format_check_logs.txt and defer to member plan Phase A reality checks
-4. **Consumer plan grep scope**: Search all 5 member plan directories (DB-AT-020 through DB-AT-024) to confirm asset usage
-5. **Type discipline**: This is harness (portfolio coordination), not bugfix or feature — do not change production code
-6. **Artifact emission**: All 4 deliverables must land under timestamped reports directory for cross-referencing
-7. **No test execution**: Do NOT run pytest this loop (format checks are Python imports, not test suite runs)
-8. **Summary.md clarity**: Must include clear next action (Phase B.3/B.4 if assets valid, escalation if missing/corrupt)
+1. **No production edits by Galph** — Evidence collection only; Ralph executes shell commands and writes reports
+2. **Type discipline** — This is harness initiative; stay in scope (asset validation). Do not implement DB-AT-002 test logic
+3. **Evidence→Action contract** — Must recommend concrete next action: proceed to Phase B.4 (if assets valid) OR escalate to FORWARD-EQUIV-002 owner (if broken/missing)
+4. **Scriptization policy** — Use shell commands directly (`ls`, `sha256sum`, Python one-liner). No plan-local `.py` scripts per PROBE-FREEZE-001
+5. **Parity-first interpretation** — Not applicable (no parity comparison this loop)
+6. **No stacking on a cliff** — Not applicable (no prior cliff detected)
+7. **Findings paydown** — Applied MANIFEST-001 (manifest validation protocol)
+8. **Implementation floor** — This is NOT a docs-only loop (evidence collection with concrete shell commands). Next loop may be implementation (Phase B.4) or continued evidence depending on outcome
 
 ---
 
 ## If Blocked
 
-**If assets not found**:
-- Record in `asset_validation.md` with status=MISSING
-- Recommend escalation to fixture regeneration or maintainer inquiry
-- Update `summary.md` with blocker status and next steps
+**Case B/C/D (manifest missing/broken/directory missing)**:
+- Mark DB-AT-SUITE-CARE-001 Phase B.3 **blocked_pending_forward_equiv_002**
+- Cross-link to FORWARD-EQUIV-002 owner plan in `forward_equiv_002_check.md`
+- Recommend regenerating golden suite via `scripts/generate_simple_cubic_golden.py` (if FORWARD-EQUIV-002 plan provides such script)
+- Update `docs/fix_plan.md` Attempts History with blocker classification and cross-ref
+- Switch focus to alternative Phase B task (e.g., Phase B.4 for DB-AT-020/021/023/024 which do NOT depend on FORWARD-EQUIV-002)
 
-**If format checks fail due to import errors**:
-- Note in `format_check_logs.txt` with error message
-- Assess whether this is environment issue (unlikely) or corrupt asset
-- Recommend investigation in next loop or defer to member plan Phase A
-
-**If checksums unavailable (no golden reference)**:
-- Record current checksums in `asset_checksums.txt`
-- Mark as "BASELINE RECORDED" in validation table
-- Proceed with validation (absence of golden checksums is not a blocker)
+**Case A (all valid)**:
+- Proceed to Phase B.4 (member plan Phase A coordination) in next loop
+- No blocker; DB-AT-002 Phase A1 prerequisite satisfied
 
 ---
 
-## Doc Sync Plan
-
-**Not required this loop** — this is asset validation, not test authoring.
-
-Future Phase C (portfolio-wide registry sync) will update TEST_SUITE_INDEX.md based on member plan Phase C completion. This Phase B.2 task validates prerequisites only.
+## Doc Sync Plan (Conditional)
+**Not applicable this loop** — No tests added/renamed; evidence collection only.
 
 ---
 
 **Issued by**: Galph (supervisor)
-**Loop**: i=142 → i=143
-**Next milestone**: Phase B.3 (FORWARD-EQUIV-002 artifact check) OR Phase B.4 (member plan Phase A coordination) after asset validation complete
+**Loop**: i=143 → i=144
+**Next milestone**: Phase B.4 (member plan Phase A coordination) if Case A; escalation to FORWARD-EQUIV-002 owner if Case B/C/D

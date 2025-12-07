@@ -1,6 +1,6 @@
-# Input for Ralph — Loop i=135
+# Input for Ralph — Loop i=136
 
-**Summary**: DB-AT-SUITE-CARE-001 Phase B.4 — Fix pre-existing test signature bugs exposed by Phase B.3 import fixes
+**Summary**: Re-run DB-AT-010 full verification (harness now clean after Phase B.3/B.4 fixes) to determine current test status and unblock portfolio advancement.
 
 **Mode**: none
 
@@ -10,219 +10,201 @@
 
 **InitiativeType**: harness
 
-**Focus**: [DB-AT-SUITE-CARE-001] — Acceptance Suite Upkeep (DB-AT-002/010/020—024)
+**Focus**: [DB-AT-SUITE-CARE-001] — Acceptance Suite Upkeep (DB-AT-002/010/020/021/022/023/024)
 
 **Branch**: integration
 
-**Mapped tests**:
-- `env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_nanobrag_smoke.py::test_nanobrag_smoke_tensor_output` (must PASS after variance fix)
-- `env KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_vis_triptych_smoke.py::test_triptych_from_roi_slice` (must PASS after kwarg fix)
-- `env KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_vis_triptych_smoke.py::test_compute_z_scores_array_output` (test 3: renamed, must PASS after redesign)
+**Mapped tests**: `tests -k DB_AT_010` (5 tests expected, canonical flags: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests -k DB_AT_010 --smoke-detector-size=full`)
 
-**Artifacts**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/`
+**Artifacts**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/`
 
-**Findings Applied (Mandatory)**:
-- **TESTING-003** — Test harness fixes must validate with pytest before marking Phase B.4 complete
-- **PHYSICS-LOSS-002** — Variance computation per spec-db-core.md (variance = model + sigma_readout^2)
+---
 
-**ARCH Contracts (mandatory)**:
-1. **ARCH-CONTRACT-VIS-001** (Visualization function signatures)
-   - **Owner**: `dbex.vis.residuals::compute_z_scores`, `dbex.vis.triptych::plot_triptych`
-   - **Failure**: Test contract bugs (tests call vis functions with incorrect signatures)
-   - **Fix**: Update test calls to match actual function signatures
+## Findings Applied (Mandatory)
 
-**Do Now**:
+- **TESTING-003** (Acceptance test registry maintenance): Normative requirement for TEST_SUITE_INDEX.md updates when acceptance tests change status. This verification determines DB-AT-010's current status for registry sync.
+  - Adherence: Document test status (PASSING/FAILING) in verification report; use for Phase C registry update.
 
-Fix 3 pre-existing test signature bugs exposed by Phase B.3 import fixes.
+- **RUNTIME-001** (Runtime execution guardrails): Acceptance tests must respect canonical environment flags per TESTING_GUIDE.md.
+  - Code: `docs/TESTING_GUIDE.md` (canonical flags: `NANOBRAGG_DISABLE_COMPILE=1`, `--smoke-detector-size=full`)
+  - Adherence: Use exact flags in pytest command; validate in verification report.
 
-**Context**: Loop i=134 (Ralph) Phase B.3 fixed imports successfully (collection check PASSED), but regression checks revealed pre-existing bugs where tests were calling vis functions with wrong signatures:
+---
 
-1. **test_nanobrag_smoke.py:448** — Missing required `variance` argument to `compute_z_scores()`
-2. **test_vis_triptych_smoke.py:19** — Using `out_path=` kwarg instead of `filename=` for `plot_triptych()`
-3. **test_vis_triptych_smoke.py:38** — Calling `compute_z_scores()` with rendering kwargs (`out_path`, `title`) that don't exist in the signature
+## ARCH Contracts (mandatory)
 
-**Implementation**:
+1. **ARCH-CONTRACT-TESTING-001** (Test harness import stability)
+   - **Owner module/API**: `dbex.refinement.inputs::prepare_refinement_inputs`, `dbex.vis::compute_z_scores`
+   - **Classification**: Implementation bug (Phase B.3/B.4 fixed import/signature drift)
+   - **Pointers**: `docs/architecture.md` §Test Stability (test imports must match current API)
 
-**Fix 1**: test_nanobrag_smoke.py — Add missing variance argument
+2. **ARCH-CONTRACT-REFGEOM-001** (Canonical refGeom asset locations)
+   - **Owner module/API**: Workspace root assets (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`)
+   - **Classification**: Implementation conformance (Phase B.2 validated all 4 assets exist)
+   - **Pointers**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T084500Z/asset_validation.md`
 
-Edit `tests/dbex/test_nanobrag_smoke.py`:
-- Find line 448 (or nearby) where `compute_z_scores` is called
-- **old_string** (approximate):
-  ```python
-      residual_z = compute_z_scores(
-          data_roi,
-          bragg_roi,
-          mask=mask_roi,
-      )
-  ```
+3. **ARCH-CONTRACT-DB-AT-010** (Gradcheck crystal_cell_a acceptance)
+   - **Owner module/API**: `tests/dbex/test_gradcheck_smoke.py::DB_AT_010` (selector contract)
+   - **Classification**: TBD (this verification determines: implementation bug OR gradcheck contract relaxation needed)
+   - **Pointers**: `docs/spec-db-conformance.md` §Gradient-Safe Profile, `plans/active/DB-AT-010/implementation.md` Phase D
 
-- **new_string**:
-  ```python
-      # Compute variance per spec-db-core.md (variance = model + sigma_readout^2)
-      sigma_readout_sq = 5.0 ** 2  # ADU, per spec-db-core.md:64
-      variance_roi = bragg_roi + sigma_readout_sq
-      residual_z = compute_z_scores(
-          data_roi,
-          bragg_roi,
-          variance_roi,
-          mask=mask_roi,
-      )
-  ```
+---
 
-**Fix 2**: test_vis_triptych_smoke.py — Change `out_path=` to `filename=`
+## Pointers
 
-Edit `tests/dbex/test_vis_triptych_smoke.py`:
-- Find line 19 where `plot_triptych` is called with `out_path=`
-- **old_string** (approximate):
-  ```python
-      plot_triptych(
-          data_roi=data_roi,
-          model_roi=bragg_roi,
-          mask=mask_roi,
-          out_path=out_path,
-          title="Test Triptych"
-      )
-  ```
+### SPEC
+- **docs/spec-db-conformance.md** — DB-AT-010 acceptance criteria (gradcheck contract)
+- **docs/TESTING_GUIDE.md:45-78** — Canonical environment flags and selector patterns
 
-- **new_string**:
-  ```python
-      plot_triptych(
-          data_roi=data_roi,
-          model_roi=bragg_roi,
-          mask=mask_roi,
-          filename=out_path,
-          title="Test Triptych"
-      )
-  ```
+### ARCH
+- **plans/active/DB-AT-SUITE-CARE-001/implementation.md** — Phase B.1 task definition
+- **plans/active/DB-AT-010/implementation.md** — Member plan details (Phase D gradcheck regression)
+- **plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/planning_notes.md** — Loop context and validation criteria
 
-**Fix 3**: test_vis_triptych_smoke.py — Fix compute_z_scores test (redesign for actual API)
+### TESTING
+- **docs/TESTING_GUIDE.md** — Canonical commands and artifact expectations
+- **docs/development/TEST_SUITE_INDEX.md** — DB-AT-010 registry row (will be updated based on this verification)
 
-The second test (`test_compute_z_scores_smoke` around line 38) is **fundamentally broken** — it calls `compute_z_scores()` expecting it to render/save plots, but `compute_z_scores()` only computes z-scores (returns ndarray, doesn't save files).
+---
 
-**Solution**: Rename test to reflect actual behavior and remove rendering expectations
+## Do Now (hard validity contract)
 
-Edit `tests/dbex/test_vis_triptych_smoke.py`:
-- Find the second test function (around line 30-50)
-- **old_string** (approximate function signature and call):
-  ```python
-  def test_compute_z_scores_smoke(tmp_path, data_roi, bragg_roi, mask_roi):
-      """Smoke test for compute_z_scores function."""
-      out_path = tmp_path / "z_scores.png"
+**Phase B.1 — DB-AT-010 Full Verification (Second Attempt)**
 
-      result_path = compute_z_scores(
-          data_roi,
-          bragg_roi,
-          mask=mask_roi,
-          out_path=out_path,
-          title="Z-Score Map"
-      )
+1. **Execute DB-AT-010 test suite** with canonical flags:
+   ```bash
+   env KMP_DUPLICATE_LIB_OK=TRUE \
+       DBAT010_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/db_at_010_verification/ \
+       NANOBRAGG_DISABLE_COMPILE=1 \
+       pytest -v tests -k DB_AT_010 --smoke-detector-size=full \
+       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/pytest_db_at_010_verification.log 2>&1
+   ```
 
-      assert result_path.exists(), "compute_z_scores must write an artifact"
-  ```
+   Capture exit code:
+   ```bash
+   echo $? > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/db_at_010_exit_code.txt
+   ```
 
-- **new_string**:
-  ```python
-  def test_compute_z_scores_array_output(data_roi, bragg_roi, mask_roi):
-      """Smoke test for compute_z_scores function (returns z-score array, does not render)."""
-      # Compute variance per spec-db-core.md
-      sigma_readout_sq = 5.0 ** 2  # ADU
-      variance_roi = bragg_roi + sigma_readout_sq
+2. **Classify test status** based on exit code:
+   - Exit code 0: DB-AT-010 **PASSING** (gradcheck regression resolved)
+   - Exit code 1: DB-AT-010 **FAILING** (extract failure signature from pytest log)
+   - Exit code 2: **HARNESS ISSUE** (new collection errors, escalate)
 
-      z_scores = compute_z_scores(
-          data_roi,
-          bragg_roi,
-          variance_roi,
-          mask=mask_roi,
-      )
+3. **Extract failure signature** (if exit code 1):
+   - Failing test name(s)
+   - Assertion/error message
+   - Gradcheck parameter (expect `crystal_cell_a`)
+   - Tolerance exceedance value
 
-      # Validate z-score array properties
-      assert z_scores.shape == data_roi.shape, "Z-scores must match input data shape"
-      assert not np.all(np.isnan(z_scores)), "Z-scores should contain valid values where mask is True"
-  ```
+4. **Create verification report** `db_at_010_status_verification.md`:
+   - Test execution details (command, exit code, tests collected/selected/deselected)
+   - Classification (PASSING / FAILING / HARNESS ISSUE)
+   - Failure signature (if FAILING)
+   - Conformance analysis (RUNTIME-001: canonical flags used, TESTING-003: refGeom assets referenced)
+   - Next action recommendation:
+     - IF PASSING: Proceed to Phase B.3-B.5 (member plan audit), Tier-0 blocker resolved
+     - IF FAILING: Escalate to Tier-0 (TorchCrystal bridge audit per implementation.md Phase B.1)
+     - IF HARNESS ISSUE: Extend Phase B.3/B.4 (new import errors)
+
+5. **Create loop summary** `summary.md`:
+   - Phase B.1 outcome (second attempt)
+   - Key findings (test status, failure signature if any)
+   - Portfolio implications (blocker resolved OR still blocking)
+   - Artifacts list
+   - Next steps
 
 **Validation**:
+- Exit code captured (0, 1, or 2)
+- Pytest log exists in artifacts directory
+- Verification report classifies test status
+- Summary recommends next action
 
-1. **Run all 3 fixed tests individually** (before committing):
+**Artifacts Path**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/`
+
+---
+
+## Forbidden This Loop
+
+- No new probes (verification run only)
+- No production code changes (harness verification, not implementation)
+- Do not modify test files (Phase B.3/B.4 complete, treat as frozen)
+
+---
+
+## How-To Map
+
+1. Change to repo root: `cd /home/ollie/Documents/diffbragg_example`
+
+2. Execute DB-AT-010 verification command (single shell invocation with output redirect + exit code capture):
    ```bash
-   mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/
-
-   # Test 1: variance fix
-   env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-       pytest -vv tests/dbex/test_nanobrag_smoke.py::test_nanobrag_smoke_tensor_output \
-       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/pytest_nanobrag_variance_fix.log 2>&1
-
-   # Test 2: filename kwarg fix
    env KMP_DUPLICATE_LIB_OK=TRUE \
-       pytest -vv tests/dbex/test_vis_triptych_smoke.py::test_triptych_from_roi_slice \
-       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/pytest_triptych_filename_fix.log 2>&1
-
-   # Test 3: compute_z_scores array output test
-   env KMP_DUPLICATE_LIB_OK=TRUE \
-       pytest -vv tests/dbex/test_vis_triptych_smoke.py::test_compute_z_scores_array_output \
-       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/pytest_z_scores_array_fix.log 2>&1
+       DBAT010_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/db_at_010_verification/ \
+       NANOBRAGG_DISABLE_COMPILE=1 \
+       pytest -v tests -k DB_AT_010 --smoke-detector-size=full \
+       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/pytest_db_at_010_verification.log 2>&1; \
+   echo $? > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/db_at_010_exit_code.txt
    ```
 
-   **Exit criteria**: All 3 tests PASS
+3. Read exit code and pytest log to classify status
 
-2. **Full file regression check** (after individual tests pass):
-   ```bash
-   env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-       pytest -v tests/dbex/test_nanobrag_smoke.py \
-       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/pytest_nanobrag_full.log 2>&1
+4. Write `db_at_010_status_verification.md` with classification and findings
 
-   env KMP_DUPLICATE_LIB_OK=TRUE \
-       pytest -v tests/dbex/test_vis_triptych_smoke.py \
-       > plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/pytest_vis_triptych_full.log 2>&1
-   ```
+5. Write `summary.md` with Phase B.1 outcome and next action recommendation
 
-   **Exit criteria**: Both files PASS completely (no errors, no failures)
+**Expected Runtime**: ~5-10 minutes (5 tests, full detector size, no compile)
 
-**Summary Report**:
+---
 
-Create `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/summary.md` documenting:
-- Phase B.4 complete (pre-existing test signature bugs fixed)
-- All 3 fixes applied with rationale (variance per spec, kwarg name correction, test redesign for actual API)
-- Test outcomes for each fix (individual + full file regression)
-- Next steps (Phase B.1: Re-run DB-AT-010 full verification now that harness is clean)
+## Pitfalls To Avoid
 
-**Forbidden This Loop**:
-- No production code changes to `dbex.vis` or other modules (test fixes only)
-- No DB-AT-010 full pytest execution (defer to Phase B.1 after harness validation)
-- No additional test refactoring beyond the 3 identified signature bugs
+1. **Don't trust old member plan audit** — i=133 classification was based on collection errors, not actual test status. This loop determines real status.
 
-**DMI Section**: Not applicable (harness fixes, not parity work)
+2. **Capture exact failure signature** — If FAILING, document exact parameter, tolerance, observed vs expected values for upstream escalation.
 
-**ARCH Conformance Remediation**: Not applicable (no ARCH-CONTRACT violations found)
+3. **Validate canonical flags** — Ensure `NANOBRAGG_DISABLE_COMPILE=1` and `--smoke-detector-size=full` are used per TESTING_GUIDE.md.
 
-**SYNC Closure**: Not applicable (no SYNC mid-air)
+4. **Don't confuse exit codes**:
+   - 0 = all tests PASSED
+   - 1 = tests FAILED (expected for known gradcheck regression)
+   - 2 = collection errors (unexpected, Phase B.3/B.4 should have fixed)
 
-**Pitfalls**:
-1. `compute_z_scores()` requires exactly 3 positional args (data, model, variance) plus optional mask/sigma_floor — missing variance triggers TypeError
-2. `plot_triptych()` uses `filename=` not `out_path=` — wrong kwarg name causes "unexpected keyword argument" error
-3. Test 3 name mismatch: the old test was called `test_compute_z_scores_smoke` but tested rendering behavior that `compute_z_scores()` doesn't provide — new name `test_compute_z_scores_array_output` reflects actual function behavior
-4. `sigma_readout_sq` must be squared before adding to model (variance = model + sigma²), per spec-db-core.md:64
-5. If Fix 3 pytest fails with missing fixtures, add back only the fixtures that are actually used (remove tmp_path since no file writing)
-6. Import numpy if not already imported in test_vis_triptych_smoke.py (for `np.all` and `np.isnan` in Fix 3 assertions)
+5. **No implementation work this loop** — This is verification only. No code changes, no new tests, no probes.
 
-**How-To Map**:
+6. **Follow parity-first interpretation** — If gradcheck fails, document signature but don't attempt fix. Escalate to Tier-0 per implementation.md Phase B.1 task.
 
-All commands are shell-direct pytest invocations with artifacts routed to `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/`.
+7. **Respect type discipline** — DB-AT-010 gradcheck failure is a harness issue (test tolerance) or upstream issue (TorchCrystal bridge). Don't retype to spec_change without supervisor approval.
 
-Environment flags:
-- `KMP_DUPLICATE_LIB_OK=TRUE`: Required for PyTorch tests (TESTING_GUIDE.md §1.1)
-- `NANOBRAGG_DISABLE_COMPILE=1`: Required for test_nanobrag_smoke.py (gradient/torch safety, RUNTIME-001)
+8. **No stacking on cliffs** — If exit code 2 (new collection errors), stop immediately and escalate. Don't attempt workarounds.
 
-Artifact structure:
-- Individual test logs: `pytest_<test_area>_<fix_type>.log`
-- Full file logs: `pytest_<file>_full.log`
-- Summary: `summary.md` (Phase B.4 completion status)
+9. **Environment freeze** — No pip installs, no package upgrades. Treat missing imports as blockers per CLAUDE.md.
 
-**If Blocked**:
-- If Fix 1 fails: Check actual line number for `compute_z_scores` call in test_nanobrag_smoke.py, may differ from line 448
-- If Fix 2 fails: Verify `plot_triptych` signature in `dbex/vis/triptych.py` hasn't changed
-- If Fix 3 fails with fixture errors: Check test function signature, may need to keep some fixtures for data_roi setup
-- If Fix 3 fails with NameError for np: Add `import numpy as np` to test file imports
-- If any test still fails after signature fix: Document the actual error in summary.md, mark Phase B.4 blocked, escalate to Galph
+10. **Document, don't speculate** — Report test status factually. Avoid hypothesizing why gradcheck might fail. Upstream diagnosis is separate initiative.
 
-**Doc Sync Plan (Conditional)**:
-Not applicable (no new tests added, existing tests fixed). TEST_SUITE_INDEX.md unchanged.
+---
+
+## If Blocked
+
+If exit code 2 (new collection errors):
+- Record collection error details in verification report
+- Mark Phase B.1 BLOCKED (harness issue)
+- Recommend extending Phase B.3/B.4 to debug new import errors
+- Do NOT attempt fixes this loop
+
+If tests hang (>10 minutes):
+- Kill pytest process
+- Document timeout in verification report
+- Mark Phase B.1 BLOCKED (test hang)
+- Recommend separate debugging initiative
+
+If pytest command fails to execute (e.g., environment issues):
+- Document error in verification report
+- Mark Phase B.1 BLOCKED (environment issue)
+- Escalate to supervisor per CLAUDE.md environment freeze policy
+
+---
+
+## Doc Sync Plan (Conditional)
+
+Not applicable this loop (verification only, no test changes).
+
+Future: Phase C.3 will sync TEST_SUITE_INDEX.md based on this verification's test status classification.

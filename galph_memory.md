@@ -205,3 +205,10 @@ Action State: lifecycle_decision_complete
 - DecisionStatus: exploring (audit 7 member plan implementation.md files for status/dependencies/blockers)
 - Next: Ralph executes Phase A planning deliverables (5 artifacts: member_plan_status_audit.md, dependency_chain.md, exit_criteria.md, implementation.md, summary.md)
 - Dwell: 0 (new Tier 1 focus selected, first planning loop for this initiative)
+2025-12-07T140000Z focus=DB-AT-SUITE-CARE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T140000Z/ next_action=phase_b4_test_signature_fixes
+- Loop i=135 (Galph): Selected DB-AT-SUITE-CARE-001 Phase B.4 (fix pre-existing test signature bugs) after i=134 Ralph completed Phase B.3
+- Phase B.3 COMPLETE (i=134 Ralph): Import fixes applied (collection check PASSED with 0 errors), but regression checks exposed 3 pre-existing test signature bugs
+- Root causes identified: (1) test_nanobrag_smoke.py:448 missing variance argument to compute_z_scores(), (2) test_vis_triptych_smoke.py:19 using out_path= instead of filename= for plot_triptych(), (3) test_vis_triptych_smoke.py:38 calling compute_z_scores() with rendering kwargs that don't exist
+- DecisionStatus: patch_ready (exact fix locations known, confidence=1.0 for all 3 fixes)
+- Next: Ralph fixes 3 test signature bugs (variance addition, kwarg rename, test redesign), validates with 3 individual pytest runs + 2 full file regressions, creates summary.md
+- Dwell: 0 (continuing same focus DB-AT-SUITE-CARE-001, transitioning from Phase B.3 to Phase B.4)

@@ -1,84 +1,199 @@
-# Input for Ralph — Loop i=141
+# Input for Ralph — Loop i=143
 
-## Summary
-Portfolio lifecycle review + environment blocker escalation documentation after ARCH-GRADIENT-FLOW-001 Phase B.1 Option C hypothesis rejection.
+**Summary**: Execute DB-AT-SUITE-CARE-001 Phase B.2 centralized asset validation to unblock 5 downstream member plans.
 
-## Metadata
-- **Mode**: Docs
-- **ActionType**: review_or_housekeeping
-- **DecisionStatus**: exploring
-- **InitiativeType**: architecture
-- **Focus**: ARCH-GRADIENT-FLOW-001 — Gradient Flow Restoration (DB-AT-010 Unblock)
-- **Branch**: integration
-- **Mapped tests**: none — documentation-only loop
-- **Artifacts**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T000000Z/`
+**Mode**: none (asset validation, not test execution)
 
-## Findings Applied (Mandatory)
-- **GRADIENT-001** (Gradient test patterns): Phase B.1 Option C correctly avoided `.item()` coercion in production code paths, but detector/beam tests remain blocked by suspected nanobrag_torch internal gradient handling issues (DetectorConfig.distance_mm field assignment OR simulator.py:761 torch.tensor() detachment). Adherence: No production code changes violate GRADIENT-001; blocker is external.
-- **RUNTIME-001** (Runtime execution guardrails): All gradcheck test commands use `NANOBRAGG_DISABLE_COMPILE=1` per canonical flags. Adherence: Test execution follows TESTING_GUIDE.md selectors.
-- **TESTING-003** (Acceptance test registry): TEST_SUITE_INDEX.md will require update post-fix. Adherence: Deferred to Phase B.4 per implementation.md.
+**ActionType**: implementation_ready
+
+**DecisionStatus**: patch_ready
+
+**InitiativeType**: harness
+
+**Focus**: `DB-AT-SUITE-CARE-001 — Acceptance Suite Upkeep (DB-AT-002/010/020—024)`
+
+**Branch**: integration
+
+**Mapped tests**: none — read-only asset validation loop; format sanity checks serve as validation
+
+**Artifacts**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/`
+
+**Findings Applied (Mandatory)**:
+- **TESTING-003** (Acceptance test registry maintenance): Asset validation enables TEST_SUITE_INDEX.md updates for 5 member plans (DB-AT-020/021/022/023/024). This loop confirms fixture availability as prerequisite for registry sync.
+  - Code: `docs/development/TEST_SUITE_INDEX.md`
+  - Adherence: Phase B.2 validates that canonical refGeom assets exist and are usable by downstream tests, unblocking registry updates.
+
+- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Asset validation report (`asset_validation.md`) follows structured artifact pattern for cross-referencing by member plans.
+  - Code: `tests/dbex/test_stage_a_smoke_parity.py` (artifact writer precedent)
+  - Adherence: All 4 deliverables (asset_validation.md, asset_checksums.txt, format_check_logs.txt, summary.md) emitted under timestamped reports directory.
+
+**Pointers**:
+- **Implementation Plan**: `plans/active/DB-AT-SUITE-CARE-001/implementation.md` lines 37-48 (Phase B.2 task definition)
+- **Planning Notes**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T010000Z/planning_notes.md` (detailed task breakdown)
+- **Dependency Chain**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/dependency_chain.md` (refGeom asset consumers: DB-AT-020/021/022/023/024)
+- **SPEC**: `docs/spec-db-conformance.md` §Workflow Integration Profile (acceptance criteria for 5 member plans depend on canonical fixtures)
+- **ARCH**: `docs/architecture/tests_mapping.md` (fixture paths and shared dependencies)
+- **TESTING_GUIDE**: `docs/TESTING_GUIDE.md` §1 (environment setup, may document asset paths)
+
+---
 
 ## ARCH Contracts (mandatory)
-1. **ARCH-CONTRACT-GRADIENT-HYGIENE** (Gradient flow preservation in physics/refinement):
-   - **Owner**: `dbex/physics/forward.py::simulate_forward_torch`, `dbex/geometry/crystallography.py::TorchCrystal`
-   - **Forbidden duplicates**: `.item()` / `.detach()` calls on tensors with `requires_grad=True` in production refinement paths
-   - **Failure classification**: **external_dependency_blocker** — Production code audit (Phase A.2, i=138) found 0 UNSAFE patterns. Test harness gradient breaks identified but involve dxtbx geometry construction requirements (.item() extraction for scalar distances/wavelengths). Phase B.1 Options A/B/C all attempted to preserve gradient flow via tensor-valued overrides, but detector Jacobian numerical/analytical mismatch (~21,556×) persists and beam test remains blocked by nanobrag_torch.simulator.py:761 external detachment. Hypothesis: nanobrag_torch DetectorConfig field handling OR simulator gradient chain issue.
+
+**Relevant ARCH-CONTRACTs**: None directly applicable (asset validation task, not architecture change)
+
+**Failure Classification**: N/A (this is a portfolio coordination task, not a conformance remediation)
+
+**Rationale**: DB-AT-SUITE-CARE-001 is a harness roll-up initiative for portfolio steering. This Phase B.2 task validates shared test fixtures to unblock member plan progression. No architecture contracts are created or modified.
+
+---
 
 ## Do Now (hard validity contract)
 
-**Context**: Loop i=140 (Ralph) rejected Phase B.1 Option C hypothesis. Post-creation override pattern (detector/beam fields assigned AFTER config construction, symmetrical to crystal_overrides) produced IDENTICAL detector Jacobian mismatch signature as i=139 pre-creation approach (numerical 2.39e+12, analytical 1.11e8, ~21,556× off). Both detector AND beam tests now blocked_pending_environment. ARCH-GRADIENT-FLOW-001 exceeds implementation budget (3 loops: i=138 evidence, i=139 Option A/B, i=140 Option C) without successful gradient flow restoration.
-
-**Decision**: Mark ARCH-GRADIENT-FLOW-001 as **blocked_pending_environment** and prepare maintainer escalation artifacts.
+**Objective**: Validate canonical refGeom assets (existence, size, checksum, format) to unblock 5 downstream member plans.
 
 **Tasks**:
-1. **Read** `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/option_c_implementation_summary.md` to confirm Option C rejection evidence
-2. **Author** lifecycle decision document at `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T000000Z/lifecycle_decision.md` with:
-   - Hypothesis timeline (Options A/B/C)
-   - Evidence summary (detector Jacobian mismatch signature unchanged, beam external blocker persists)
-   - Blocker classification: external_dependency (nanobrag_torch DetectorConfig / simulator gradient handling)
-   - Three unblock paths: (A) maintainer investigation with reproducer [RECOMMENDED], (B) spec_change to relax gradcheck tolerances / mark DB-AT-010 xfail, (C) defer gradient-safe profile to future release
-   - Artifacts inventory (pytest logs, implementation summaries for i=138/139/140)
-3. **Update** `docs/fix_plan.md` line 22: change status from `in_progress` to `blocked_pending_environment`, append blocker summary to Attempts History
-4. **Update** `galph_memory.md` line 1: record focus=ARCH-GRADIENT-FLOW-001, state=lifecycle_decision, action=review_or_housekeeping, next_action=tier1_focus_selection
-5. **Author** `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T000000Z/summary.md` summarizing this loop's lifecycle decision
-6. **Commit** all changes with message prefix `ARCH-GRADIENT-FLOW-001 lifecycle:`
+
+1. **Locate asset paths**: Search `tests/fixtures/`, `tests/dbex/`, `docs/TESTING_GUIDE.md`, and grep test files for `refGeom.expt` references to identify canonical paths for 4 assets:
+   - `refGeom.expt` (DIALS Experiment)
+   - `refGeom.refl` (DIALS Reflection table)
+   - `scaled.mtz` (Scaled structure factors)
+   - `747_mask.pkl` (Detector trusted mask)
+
+2. **Execute file checks**: For each asset:
+   - Verify existence: `ls -lh <asset-path>`
+   - Compute checksum: `sha256sum <asset-path>`
+   - Record size and checksum (first 16 hex chars) in validation table
+
+3. **Format sanity checks**: Run minimal Python commands to validate:
+   - `refGeom.expt`: JSON parseable, contains `"detector"`, `"beam"`, `"crystal"` keys
+   - `refGeom.refl`: DIALS reflection table loadable, has `"bbox"` column
+   - `scaled.mtz`: MTZ file readable, has structure factor columns
+   - `747_mask.pkl`: Pickle loadable, contains boolean mask array
+   - Capture command outputs in `format_check_logs.txt`
+
+4. **Cross-reference with member plans**: Grep `plans/active/DB-AT-020/`, `.../DB-AT-021/`, `.../DB-AT-022/`, `.../DB-AT-023/`, `.../DB-AT-024/` for asset references to confirm these are the correct shared fixtures
+
+5. **Author asset_validation.md**: Consolidate findings into canonical report with:
+   - Validation summary table (path/size/checksum/format/status for each asset)
+   - Format sanity check results
+   - Consumer plans cross-reference
+   - Recommendations (all valid → proceed to Phase B.3/B.4; any missing → escalate)
+
+**Implement**: None (read-only validation task, no production code changes)
+
+**Validating pytest selector(s)**: none — format sanity checks serve as validation
+
+**Artifacts path**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/`
+
+**Deliverables** (all under artifacts path):
+1. `asset_validation.md` — Primary report (validation table, format checks, consumer cross-refs)
+2. `asset_checksums.txt` — Raw SHA256 output for all 4 assets
+3. `format_check_logs.txt` — Output from Python format sanity check commands
+4. `summary.md` — Loop summary with validation outcome and next action recommendation
+
+**Initiative type consistency**: ✅ harness (portfolio coordination task per DB-AT-SUITE-CARE-001 charter)
+
+---
 
 ## Forbidden This Loop
-- No production code edits (docs/planning only)
-- No new probe/instrumentation scripts
-- No pytest execution (evidence already exists from i=138-140)
 
-## How‑To Map
+- **No new probes**: This is asset validation, not debugging; use existing file tools and Python imports only
+- **No plan-local diagnostic scripts**: Use inline Python commands via `python -c "..."` for format checks
+- **No production code changes**: Read-only validation task
+- **No test file modifications**: Member plans will consume asset_validation.md as reference artifact
+
+---
+
+## How-To Map
+
+### Asset Location Discovery
 ```bash
-# No test execution this loop
-# Artifacts directory creation only
-mkdir -p plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T000000Z/
+# Search for refGeom.expt references in test files
+grep -r "refGeom.expt" tests/
+
+# Search for fixture path documentation
+grep -r "refGeom" docs/TESTING_GUIDE.md
+
+# List candidate fixture directories
+find tests/ -type d -name "fixtures" -o -name "refGeom"
 ```
 
+### Asset Validation Commands
+```bash
+# For each asset, run:
+ls -lh <asset-path>
+sha256sum <asset-path> | tee -a asset_checksums.txt
+```
+
+### Format Sanity Check Examples
+```bash
+# refGeom.expt (DIALS Experiment JSON)
+python -c "import json; f=open('<path>/refGeom.expt'); d=json.load(f); assert 'detector' in d; assert 'beam' in d; assert 'crystal' in d; print('VALID: contains detector/beam/crystal keys')"
+
+# refGeom.refl (DIALS Reflection table)
+python -c "from dials.array_family import flex; r=flex.reflection_table.from_file('<path>/refGeom.refl'); assert 'bbox' in r; print(f'VALID: {len(r)} reflections, bbox column present')"
+
+# scaled.mtz (MTZ structure factors)
+python -c "from iotbx import mtz; m=mtz.object(file_name='<path>/scaled.mtz'); cols=[c.label() for c in m.columns()]; print(f'VALID: columns={cols}')"
+
+# 747_mask.pkl (Detector mask)
+python -c "import pickle; m=pickle.load(open('<path>/747_mask.pkl', 'rb')); print(f'VALID: type={type(m).__name__}, shape={m.shape if hasattr(m, \"shape\") else \"non-array\"}')"
+```
+
+### Artifact Assembly
+```bash
+# Create timestamped report directory
+mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z
+
+# Write validation table to asset_validation.md
+# (Use Edit tool or Write tool to assemble markdown report)
+
+# Write summary.md with outcome
+# (Include validation status, next phase recommendation)
+```
+
+---
+
 ## Pitfalls To Avoid
-1. **Type discipline**: This is an architecture initiative; do not retype to bugfix/harness
-2. **Blocker escalation**: Document THREE unblock paths (maintainer/spec_change/defer), recommend maintainer investigation
-3. **Portfolio steering**: After marking ARCH-GRADIENT-FLOW-001 blocked, Tier 0 is exhausted (all items done/archived/blocked); next loop must select Tier 1 focus or perform roll-up scoping
-4. **Evidence-driven**: Lifecycle decision MUST cite concrete evidence from i=138/139/140 (Jacobian mismatch unchanged, beam external blocker)
-5. **Dwell tracking**: Reset dwell counters for this selector+signature when switching focus next loop
-6. **No probe saturation violation**: Do not extend Phase A.3 gradient probe; implementation budget exhausted
-7. **ARCH conformance**: Blocker classification is external_dependency_blocker, NOT implementation_bug_within_architecture
-8. **Dominant-hypothesis lock violation**: After 3 implementation loops (i=138 evidence, i=139 partial fix, i=140 Option C refactor), cannot plan additional implementation work until external blocker resolved
+
+1. **Asset path assumptions**: Do NOT assume paths without searching; grep test files and docs to locate actual fixture locations
+2. **Checksum baseline**: If no golden checksums exist, that's OK — record current checksums as baseline for future regression detection
+3. **Format check dependencies**: If DIALS or iotbx imports fail (unlikely), note in format_check_logs.txt and defer to member plan Phase A reality checks
+4. **Consumer plan grep scope**: Search all 5 member plan directories (DB-AT-020 through DB-AT-024) to confirm asset usage
+5. **Type discipline**: This is harness (portfolio coordination), not bugfix or feature — do not change production code
+6. **Artifact emission**: All 4 deliverables must land under timestamped reports directory for cross-referencing
+7. **No test execution**: Do NOT run pytest this loop (format checks are Python imports, not test suite runs)
+8. **Summary.md clarity**: Must include clear next action (Phase B.3/B.4 if assets valid, escalation if missing/corrupt)
+
+---
 
 ## If Blocked
-If lifecycle decision authoring discovers missing evidence, stop and explicitly note the gap in summary.md rather than inventing findings. All required evidence exists in i=138/139/140 artifacts.
+
+**If assets not found**:
+- Record in `asset_validation.md` with status=MISSING
+- Recommend escalation to fixture regeneration or maintainer inquiry
+- Update `summary.md` with blocker status and next steps
+
+**If format checks fail due to import errors**:
+- Note in `format_check_logs.txt` with error message
+- Assess whether this is environment issue (unlikely) or corrupt asset
+- Recommend investigation in next loop or defer to member plan Phase A
+
+**If checksums unavailable (no golden reference)**:
+- Record current checksums in `asset_checksums.txt`
+- Mark as "BASELINE RECORDED" in validation table
+- Proceed with validation (absence of golden checksums is not a blocker)
+
+---
 
 ## Doc Sync Plan
-Not applicable this loop (no test collection changes).
 
-## Pointers
-- **ARCH-GRADIENT-FLOW-001 implementation.md**: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md` (Phases A-C, Phase B.1 tasks)
-- **Evidence artifacts**:
-  - i=138: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/` (call graph, suspect audit)
-  - i=139: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/` (Option A/B planning, tensor-valued overrides)
-  - i=140: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T230000Z/` (Option C implementation, hypothesis rejection)
-- **Fix plan ledger**: `docs/fix_plan.md` line 22 (ARCH-GRADIENT-FLOW-001 status)
-- **Galph memory**: `galph_memory.md` line 1 (focus tracking)
-- **SPEC references**: `docs/spec-db-conformance.md` §Gradient-Safe Profile, `docs/spec-db-runtime.md` §Gradient Hygiene
-- **ARCH references**: `docs/architecture.md` §13 Common Pitfalls (to be updated Phase B.4 when unblocked)
-- **Testing docs**: `docs/TESTING_GUIDE.md` §1.4 DB-AT-010 selector, `docs/development/TEST_SUITE_INDEX.md` DB-AT-010 row
+**Not required this loop** — this is asset validation, not test authoring.
+
+Future Phase C (portfolio-wide registry sync) will update TEST_SUITE_INDEX.md based on member plan Phase C completion. This Phase B.2 task validates prerequisites only.
+
+---
+
+**Issued by**: Galph (supervisor)
+**Loop**: i=142 → i=143
+**Next milestone**: Phase B.3 (FORWARD-EQUIV-002 artifact check) OR Phase B.4 (member plan Phase A coordination) after asset validation complete

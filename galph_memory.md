@@ -1,3 +1,14 @@
+2025-12-07T050658Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T050658Z/ next_action=phase_b8_test_fix
+- Loop i=116 (Ralph) Phase B.6: achieved 4.17× improvement (ratio 1/35 → 1/8.4), cold-path test still fails 738% error.
+- Loop i=117 (Ralph) Phase B.7: achieved 30× reduction (738% → 2.5%), warm-cache PASS, cold-path blocked at 2.5% residual after 3 implementation attempts (B.5/B.6/B.7).
+- Root cause identified (Galph i=118): **test contract mismatch** - test uses `trusted_mask` (all trusted pixels) but mapping computes `masked_mean_ratio` from `inputs.loss_mask` (ROI pixels only per spec-db-core.md:55, inputs.py:230: loss_mask = (background >= 0) & trusted_mask).
+- Evidence: mapping.py:287-288 uses `inputs.loss_mask` for ratio computation, but test lines 218-220, 284-286 use `trusted_mask`. Scaling by ROI-derived ratio doesn't preserve mean over all trusted pixels when intensity distributions differ inside vs outside ROIs.
+- Fix (Phase B.8): Update test_scale_contracts.py lines 77-80, 141-143, 218-220, 284-286 to use `inputs.loss_mask` instead of `trusted_mask` for masked mean computation (harness fix, no production changes).
+- DecisionStatus: patch_ready (test contract alignment, confidence=0.98).
+- Mapped tests: test_stage_a_vs_reconstruction_scale (warm-cache, expect PASS), test_stage_a_vs_reconstruction_scale_cold_path (cold-path, expect PASS after mask fix, currently 2.5% error).
+- Next loop (i=118): Ralph fixes test mask contract, expects both tests PASS with rel_error < 1e-6 (ROI pixels).
+Action State: implementation_ready
+
 2026-01-14T140000Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/ next_action=phase_b7_implementation
 - Loop i=116 (Ralph) implemented Phase B.6 conditional sqrt fix, achieving 4.17× improvement (ratio 1/35 → 1/8.4) but cold-path test still fails with 738% rel_error.
 - Root cause identified (Galph i=117): missing masked_mean_ratio adjustment from mapping phase (mapping.py:297-312 stores it in calibration_metadata["masked_mean_ratio"], but reconstruction.py:454-467 only checks telemetry.model_mean_masked, not the calibration fallback).

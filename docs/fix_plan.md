@@ -33,19 +33,34 @@
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
 - [ARCH-REFINE-001] (Refine Engine Modularization + Torch IO context) — **Done** (2025-12-01T161600Z: Phase A-E code landed; 2025-12-01T170500Z docs/finding wrap complete. Ready to archive once downstream initiatives pick up.)
 - [ARCH-ENGINE-ARTIFACTS-001] (Engine artifact channel & Bragg unification) — *pending*
-- [DB-AT-SUITE-CARE-001] (Acceptance suite upkeep for DB-AT-002/010/020/021/022/023/024) — **pending**. The plan directories under `plans/active/DB-AT-002/`, `.../DB-AT-010/`, and `.../DB-AT-020` through `.../DB-AT-024/` already contain implementation plans, but none were represented in this ledger. Scope: keep the DB-AT selectors mapped to fix-plan items, document status per selector, and surface artifacts/blocked states in the Attempts History. Classification reference: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`.
-- [MAP-SCALE-SYNC-001] (Calibration ladder initiatives MAP-SCALE-001—005) — **pending**. Plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports; ledger coverage will capture their goals (sigma provenance, spot-scale alignment) and unblock downstream physics/loss work.
+- [DB-AT-SUITE-CARE-001] (Acceptance suite upkeep for DB-AT-002/010/020/021/022/023/024) — **pending**.
+  - **Governed by:** TESTING-003, RUNTIME-001, DIAGNOSTICS-001, MASKING-001
+  - The plan directories under `plans/active/DB-AT-002/`, `.../DB-AT-010/`, and `.../DB-AT-020` through `.../DB-AT-024/` already contain implementation plans, but none were represented in this ledger. Scope: keep the DB-AT selectors mapped to fix-plan items, document status per selector, and surface artifacts/blocked states in the Attempts History. Classification reference: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`.
+- [MAP-SCALE-SYNC-001] (Calibration ladder initiatives MAP-SCALE-001—005) — **pending**.
+  - **Governed by:** SCALE-001, SCALE-002, SCALE-003, SCALE-004, SCALE-005, SCALE-006, SCALE-007
+  - Plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports; ledger coverage will capture their goals (sigma provenance, spot-scale alignment) and unblock downstream physics/loss work.
 - [PHYSICS-LOSS-001] (Variance-weighted loss parity and telemetry fixes) — **pending**. Plan exists under `plans/active/PHYSICS-LOSS-001/implementation.md`; add ledger tracking so variance, sigma-floor, and telemetry corrections remain visible.
-- [TORCH-GEOMETRY-SYNC-001] (Geometry convergence/parity/UB realign initiatives) — **pending**. Covers `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/`, `.../TORCH-GEOMETRY-PARITY-002/`, `.../TORCH-GEOMETRY-PARITY-003/`, and `.../TORCH-GEOMETRY-UB-REALIGN-001/`.
-- [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003) — **pending**. Ledger entry will consolidate their status and dependencies so portfolio steering can decide which Phase C/D tasks to revive.
+- [PHYSICS-LOSS-CONSISTENCY] (Physics Loss Function Alignment) — **pending**.
+  - **Governed by:** PHYSICS-LOSS-001, PHYSICS-LOSS-002, PHYSICS-LOSS-003, PHYSICS-LOSS-004, PHYSICS-LOSS-005
+  - **Goal:** Align Stage A/B/C chi-squared computation, enforce sigma-floor guard, unify sigma-map ingestion contract, harvest DIALS external_lookup metadata.
+  - **Exit Criteria:** All stages use identical variance-weighted denominator per spec-db-core.md:57-68; telemetry persists both chi_squared + masked_mse; sigma-floor enforcement validated via unit tests; sigma-map/external_lookup ingestion contracts tested.
+  - **Dependencies:** ARCH-REFACTOR-001 (Stage A/B/C context + observer pattern provides hooks for unified loss computation).
+- [TORCH-GEOMETRY-SYNC-001] (Geometry convergence/parity/UB realign initiatives) — **pending**.
+  - **Governed by:** GEOMETRY-001, GEOMETRY-002, GEOMETRY-003, GEOMETRY-004, CONFIG-001, DXTBX-001, HKL-ORIENT-001, CONVERGENCE-001
+  - Covers `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/`, `.../TORCH-GEOMETRY-PARITY-002/`, `.../TORCH-GEOMETRY-PARITY-003/`, and `.../TORCH-GEOMETRY-UB-REALIGN-001/`.
+- [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003) — **pending**.
+  - **Governed by:** REFINE-001, REFINE-002, REFINE-003, REFINE-006, REFINE-009, REFINE-010, GRADIENT-001, REFINE-016
+  - Ledger entry will consolidate their status and dependencies so portfolio steering can decide which Phase C/D tasks to revive.
 - [TORCH-CLI-BRIDGE-ROLLUP-001] (CLI + bridge backlog TORCH-CLI-003/004 and TORCH-BRIDGE-001) — **pending**. Ensures CLI/backend features and bridge refactors remain on the roadmap with artifact pointers.
-- [FORWARD-EQUIV-COVERAGE-001] (Forward-equivalence harness + parity scaffolding) — **pending**. Covers `plans/active/FORWARD-EQUIV-001/`, `.../FORWARD-EQUIV-002/`, and `plans/active/PARITY-HARNESS-002/`.
+- [FORWARD-EQUIV-COVERAGE-001] (Forward-equivalence harness + parity scaffolding) — **pending**.
+  - **Governed by:** PARITY-001, MANIFEST-001
+  - Covers `plans/active/FORWARD-EQUIV-001/`, `.../FORWARD-EQUIV-002/`, and `plans/active/PARITY-HARNESS-002/`.
 - [TOOLING-VIS-001] (Mapping-aligned visualization tooling) — **pending**. Plan exists with recent reports; ledger coverage will document progress on canonical visuals.
 - [DOCS-ROADMAP-001] (Roadmap documentation refresh) — **pending**. Needs ledger visibility so doc graph changes are tracked alongside implementation.
 - [RUNTIME-VEC-001] (Runtime vectorization checklist enforcement) — **pending**. Adds ledger coverage for performance guardrails already planned under `plans/active/RUNTIME-VEC-001/`.
 - [REPORT-NANOBRAG-STATUS-001] (Status reporting scripts) — **pending**. Keeps the reporting automation plan on the roadmap.
 - [NANOBRAG-GOLDEN-001] (Golden dataset capture + maintenance) — **pending**. Ledger entry will document refresh cadence and outstanding action items.
-- [FINDINGS-LEDGER-002] (Findings ledger upkeep and knowledge base maintenance) — **Phase A complete; Phase B ready**. Full implementation plan authored 2025-12-03: Phase A (ledger audit + citation fixes + inventory), Phase B (cross-linking findings ↔ fix-plan), Phase C (cadence/automation). **Phase A.2 complete (2025-12-03T120250Z)**: Fixed REFINE-005 duplicate entry to include code citations; achieved **100% path:line coverage (86/86 findings)**. Status breakdown: Active=74, Resolved=10, Deferred=1, Retracted=1. Duplicate IDs (REFINE-005 ×2) documented but retained per "do not renumber" policy; table structure false-positives (embedded pipes in Summary) resolved via improved parser. Artifacts: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-03T120250Z/{findings_audit.md,findings_inventory.json}`. **Phase A Exit Criteria**: ✅ SATISFIED. **Next**: Phase B cross-linking to map active findings → fix-plan consumers and establish reciprocal references. See `plans/active/FINDINGS-LEDGER-002/implementation.md`.
+- [FINDINGS-LEDGER-002] (Findings ledger upkeep and knowledge base maintenance) — **Phase A complete; Phase B.2 complete; Phase C pending**. Full implementation plan authored 2025-12-03: Phase A (ledger audit + citation fixes + inventory), Phase B (cross-linking findings ↔ fix-plan), Phase C (cadence/automation). **Phase A.2 complete (2025-12-03T120250Z)**: Fixed REFINE-005 duplicate entry to include code citations; achieved **100% path:line coverage (86/86 findings)**. Status breakdown: Active=74, Resolved=10, Deferred=1, Retracted=1. **Phase B.2 complete (2025-12-07T080000Z)**: Established reciprocal cross-links between `docs/findings.md` and `docs/fix_plan.md`. Updated 7 existing Tier 1 & Tier 2 initiatives with "Governed by" lines. Created 2 new initiatives: [PHYSICS-LOSS-CONSISTENCY] (Tier 1, 5 findings), [ARCH-STAGE-CONTEXT-CONSOLIDATION] (Tier 2, 2 findings). Annotated 58/74 Active findings (78.4%) with "**Consumers:** [INITIATIVE-ID]." metadata. **Coverage target met:** ≥78% ✅. Artifacts: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T080000Z/{summary.md,consumer_map_v2.json,add_consumers.py}`. **Phase B.3 DEFERRED** (archive/retire candidates require pytest validation). **Next**: Phase C (Cadence & Automation). See `plans/active/FINDINGS-LEDGER-002/implementation.md`.
 
 ### Tier 2: Architectural Maturity
 **Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
@@ -59,8 +74,16 @@
 
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
-- [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — Stage C panel-loss path diverges from Stage A, forcing +0.067 % χ² regression** (2025-12-01T214200Z: Full-detector telemetry shows `stage_a_final_chi2=2.10706464e+08` while every Stage C validation records `2.10848512e+08` even with zero detector offsets. Trusted-mask parity, ROI wiring, and best-snapshot persistence are now correct; the remaining drift comes from Stage C’s duplicated panel-mode loss computation. Stage A’s panel branch keeps evolving (trusted-mask intersection, mask ordering, telemetry), but Stage C’s forked copy lagged behind. Until Stage C reuses the exact Stage A helper for panel-mode loss, REFINE-007 can’t pass because Stage C effectively measures a different pixel population before detector offsets change. Phase F instrumentation (2025-12-02T173000Z) confirmed ROI simulators retarget correctly yet ROI-mode closures still run even when Stage A forces panel validations, so REFINE-012 remains unmet; next action is to disable ROI closures whenever `validation_scope=\"panel\"`, update smoketest assertions, and rerun Stage C small/full smokes under the new artifact set.)
+- [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — Stage C panel-loss path diverges from Stage A, forcing +0.067 % χ² regression**.
+  - **Governed by:** PERF-WARM-001, PERF-WARM-002, PERF-WARM-003, PERF-WARM-004, PERF-WARM-005, PERF-WARM-006, PERF-WARM-007, PERF-WARM-008, PERF-WARM-009, PERF-WARM-010, PERF-WARM-011, PERF-WARM-012, PERF-WARM-013, REFINE-007, REFINE-011, REFINE-012
+  - (2025-12-01T214200Z: Full-detector telemetry shows `stage_a_final_chi2=2.10706464e+08` while every Stage C validation records `2.10848512e+08` even with zero detector offsets. Trusted-mask parity, ROI wiring, and best-snapshot persistence are now correct; the remaining drift comes from Stage C’s duplicated panel-mode loss computation. Stage A’s panel branch keeps evolving (trusted-mask intersection, mask ordering, telemetry), but Stage C’s forked copy lagged behind. Until Stage C reuses the exact Stage A helper for panel-mode loss, REFINE-007 can’t pass because Stage C effectively measures a different pixel population before detector offsets change. Phase F instrumentation (2025-12-02T173000Z) confirmed ROI simulators retarget correctly yet ROI-mode closures still run even when Stage A forces panel validations, so REFINE-012 remains unmet; next action is to disable ROI closures whenever `validation_scope=\"panel\"`, update smoketest assertions, and rerun Stage C small/full smokes under the new artifact set.)
 - [ARCH-STAGE-CONTEXT-001] (Stage context + engine artifact boundary) — **done** (2025-12-02T160500Z: Phase E telemetry dataclass enforcement landed, Stage A/B/C smokes passed, and artifacts/writer consumers now rely solely on typed contexts; see `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T160500Z/`). Stage helpers now own their closures/telemetry, RefinementEngine traffics typed artifacts, and the problems-ledger design-debt item is resolved.
+- [ARCH-STAGE-CONTEXT-CONSOLIDATION] (Stage Context Parameter Consolidation) — **pending**.
+  - **Governed by:** ARCH-STAGE-CTX-001, ARCH-STAGE-CTX-002
+  - **Depends on:** ARCH-REFACTOR-001 (Phases A-C complete — Stage A/B/C helpers now own their logic)
+  - **Goal:** Replace 10–15 positional arguments in Stage helper signatures with single typed `context` parameter (extend StageAContext/StageBContext/StageCContext dataclasses); eliminate telemetry dict mutations in Stage B baseline parity guard by exposing typed setter methods.
+  - **Exit Criteria:** Stage A/B/C `_build_*_params` and `_run_*_lbfgs` accept single context parameter; telemetry updates use dataclass property assignment or setter methods; enforcement test validates context immutability guarantees.
+  - **Working Plan:** to be created under `plans/active/ARCH-STAGE-CONTEXT-CONSOLIDATION/implementation.md`
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -80,6 +103,7 @@
 ## Active / Pending Initiatives
 
 ### [ARCH-REFACTOR-001] Refinement Engine Modularization & Physics Separation
+- **Governed by:** REFINE-001, ARCH-ENGINE-002, ARCH-ENGINE-003, ARCH-FACTORY-001, ARCH-FACTORY-003
 - Depends on: ARCH-REFINE-FLOW-001, ARCH-REFINE-001, ARCH-STAGE-CONTEXT-001
 - Status: blocked_pending_architecture (Phase D.3 blocked by ARCH-SIM-CONSTRUCTION-001; Phases A-C complete)
 - Priority: Highest

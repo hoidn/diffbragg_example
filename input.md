@@ -1,211 +1,245 @@
-# Input for Ralph — Loop i=116
+# Loop i=117 — ARCH-IMPL-CONFORMANCE-001 Phase B.7 Implementation
 
 ## Summary
-Fix double-sqrt scaling bug in reconstruction cold path by making `apply_sqrt_spot_scale` conditional on `log_scale_baseline` absence.
+Fix residual 8.4× scale mismatch in reconstruction cold path by applying masked_mean_ratio from calibration_metadata when telemetry lacks model_mean_masked.
 
 ## Mode
-`none` (production bugfix, not test-first)
+none
 
 ## ActionType
-`implementation_ready`
+implementation_ready
 
 ## DecisionStatus
-`patch_ready`
+patch_ready
 
 ## InitiativeType
-`architecture` (ARCH-CONTRACT enforcement)
+architecture
 
 ## Focus
-`ARCH-IMPL-CONFORMANCE-001` — Architecture / Implementation Contract Alignment (Phase B.6)
+ARCH-IMPL-CONFORMANCE-001 — Architecture / Implementation Contract Alignment (Phase B.7: masked_mean_ratio fallback)
 
 ## Branch
-`integration`
+integration
 
 ## Mapped Tests
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale \
-  tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path
-```
+- `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale` (warm-cache regression, expect PASS)
+- `tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path` (cold-path enforcement, expect PASS after fix, currently 738% rel_error)
 
 ## Artifacts
-`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/`
+`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/`
 
 ## Findings Applied (Mandatory)
-- **SCALE-008**: Stage A warm-cache authority and masked-intensity baseline
-- **SCALE-009**: Reconstruction scaling provenance (to be updated post-fix with double-scaling root cause)
-- **ARCH-CONTRACT-001**: Stage A vs reconstruction scaling alignment (enforced via conditional sqrt application)
-- **ARCH-CONTRACT-002**: Post-run scaling pattern (canonical `apply_sqrt_spot_scale` API, conditional usage)
+- **SCALE-008** (warm-cache authority, masked-intensity baseline for Stage A) — adhered: warm-cache test already passes per Phase A.1
+- **SCALE-009** (reconstruction scaling provenance) — **correction in progress**: Phase B.6 fixed double-sqrt (35× → 8.4×), Phase B.7 fixes masked_mean_ratio omission (8.4× → ~1.0)
+- **ARCH-FACTORY-001** (unified simulator factory responsibilities) — adhered: reconstruction cold path uses create_unified_simulator per factory contract
+- **PROBE-FREEZE-001** (probe freeze & logging consolidation) — adhered: no new plan-local probes, implementation changes production code only
 
 ## Pointers
-- Planning doc: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/phase_b6_planning.md`
-- Evidence: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/phase_b5_decision.md`
-- Stage A scaling logic: `dbex/refinement/stage_a.py:172-177, 500-514, 1275-1290`
-- Reconstruction cold path: `dbex/refinement/reconstruction.py:88-223, 373-395, 499-513`
-- Canonical API: `dbex/refinement/scaling_utils.py:35-111`
-- Enforcement tests: `tests/architecture/test_scale_contracts.py:24-302`
+- **Spec**: `docs/spec-db-core.md` §§20-40 (simulator construction, calibration threading)
+- **Architecture**: `docs/architecture/calibration_scaling.md` (masked_mean_ratio provenance, baseline_alignment_factor semantics)
+- **Implementation**:
+  - `dbex/vis/mapping.py:297-312` (masked_mean_ratio computation and storage in calibration dict)
+  - `dbex/refinement/reconstruction.py:418-471` (baseline_alignment_factor computation, currently telemetry-only)
+  - `dbex/refinement/reconstruction.py:511` (scale application site)
+- **Test**: `tests/architecture/test_scale_contracts.py:165-290` (cold-path enforcement test, minimal telemetry fixture)
+- **Evidence**: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/blocked_analysis.md` (Ralph's Phase B.6 analysis)
 
-## ARCH Contracts (mandatory)
+## ARCH Contracts (Mandatory)
 
 ### ARCH-CONTRACT-001: Stage A vs Reconstruction Scaling Alignment
-- **Owner API**: `dbex.refinement.scaling_utils.apply_sqrt_spot_scale`
-- **Owner Module**: `dbex/refinement/scaling_utils.py`
-- **Duplicates Being Removed**: Unconditional `apply_sqrt_spot_scale` call in reconstruction.py:506 (will be conditional)
-- **Failure Classification**: **Implementation bug within architecture** (reconstruction cold path incorrectly applies sqrt twice when log_scale_baseline present)
+- **Owner module**: `dbex.refinement.scaling_utils` (canonical `apply_sqrt_spot_scale` function)
+- **Owner API**: `apply_sqrt_spot_scale(bragg_np, calibration_metadata)` — applies sqrt(spot_scale_override) when present
+- **Contract**: Given identical geometry, calibration_metadata, and param_state="initial", Stage A warm-cache forward and reconstruction cold path must agree on scale and trusted-mask handling within 1e-6 relative tolerance.
+- **Failure classification**: **Implementation bug** (architectural contract is correct, reconstruction cold path missing masked_mean_ratio application from calibration_metadata)
+- **Enforcement**: `tests/architecture/test_scale_contracts.py` (Phase A.1 warm-cache, Phase A.2 cold-path)
+- **Current status**: Phase A.1 PASS (warm-cache parity via cache optimization), Phase A.2 FAIL (738% rel_error, 8.4× ratio after Phase B.6 partial fix)
 
-### ARCH-CONTRACT-002: Post-Run Scaling Pattern
-- **Owner API**: `dbex.refinement.scaling_utils.apply_sqrt_spot_scale`
-- **Owner Module**: `dbex/refinement/scaling_utils.py`
-- **Usage Rule**: Apply ONLY when `log_scale_baseline` is absent (uncalibrated path); skip when `log_scale_baseline` present (calibrated path already includes sqrt in `scale_factor`)
-- **Failure Classification**: **Implementation bug** (conditional logic missing)
+### ARCH-CONTRACT-002: Calibration Metadata Threading & Scaling Pattern
+- **Owner module**: `dbex.vis.mapping` (builds MappingStageAContext with masked_mean_ratio adjustment)
+- **Owner API**: `build_mapping_stage_a_context(dataload, ...)` — produces bragg_zero_iter with masked_mean_ratio applied (mapping.py:297-300)
+- **Contract**: masked_mean_ratio from mapping phase must be persisted in calibration_metadata and applied by all downstream consumers (Stage A warm-cache, reconstruction cold path) to maintain target-to-bragg alignment.
+- **Failure classification**: **Implementation bug** (contract defined correctly in mapping.py:312, but reconstruction cold path doesn't consume it as fallback when telemetry lacks model_mean_masked)
+- **Remediation**: Add masked_mean_ratio fallback extraction from calibration_metadata at reconstruction.py:454-467 (before baseline_alignment_factor computation)
 
 ## Do Now (hard validity contract)
 
-### Focus Item
-ARCH-IMPL-CONFORMANCE-001 Phase B.6 — Fix double-sqrt scaling in reconstruction cold path
+### Context
+Loop i=116 (Ralph) implemented Phase B.6 conditional sqrt scaling fix, achieving 4.17× improvement (ratio 1/35 → 1/8.4) but cold-path test still fails with 738% relative error.
 
-### Implement
-**File**: `dbex/refinement/reconstruction.py`
-**Function**: `build_final_bragg_from_stage_a_telemetry` (lines 501-513)
+**Root cause analysis** (Galph i=117):
+1. Ralph's fix correctly eliminated double-sqrt scaling (Phase B.5 → B.6)
+2. Residual 8.4× mismatch is due to **missing masked_mean_ratio adjustment** from mapping phase
+3. `build_mapping_stage_a_context` applies `masked_mean_ratio = target_mean_masked / bragg_mean_masked` at mapping.py:297-300
+4. This ratio is stored in `calibration_metadata["masked_mean_ratio"]` at mapping.py:312
+5. Stage A warm-cache path uses cached `bragg_zero_iter` which already has this ratio baked in
+6. Reconstruction cold path computes `baseline_alignment_factor` from telemetry at reconstruction.py:454-467, BUT test provides minimal telemetry without `model_mean_masked`
+7. When `telemetry_model_mean_masked` is None, `baseline_alignment_factor` defaults to 1.0, skipping the adjustment
+8. **Expected outcome**: reconstruction should fall back to `calibration_metadata["masked_mean_ratio"]` when telemetry lacks complete scaling provenance
 
-**Change**: Wrap `apply_sqrt_spot_scale` call in conditional to prevent double-scaling when `log_scale_baseline` is present.
+**Evidence**:
+- Phase B.6 test log (pytest_phase_b6_fix.log:37-40): `masked_mean_stage_a=0.999`, `masked_mean_reconstruction_cold=8.377`, `rel_error=7.38`, `ratio=0.119`
+- Mapping code (mapping.py:297-312): computes and stores `masked_mean_ratio` in calibration dict
+- Reconstruction code (reconstruction.py:454-467): only checks `telemetry_a.model_mean_masked`, doesn't fall back to calibration_metadata
+- Test fixture (test_scale_contracts.py:226-239): creates minimal telemetry with zero_deltas only, no `model_mean_masked` field
 
-**Before** (lines 501-513):
+### Implementation Steps
+
+**Implement**: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry`
+
+**Change**: Add masked_mean_ratio fallback extraction from calibration_metadata in baseline_alignment_factor computation logic (lines 454-467)
+
+**Before** (lines 448-467):
 ```python
-# ARCH-CONTRACT-002 (Phase B.4, ARCH-IMPL-CONFORMANCE-001):
-# Apply canonical spot_scale_override sqrt scaling
-# For warm-path with full telemetry, log_scale_baseline incorporates sqrt_spot_scale,
-# so this becomes identity (scale=1.0). For cold-path, this applies the missing sqrt factor.
-bragg_prescaled_np = bragg_prescaled.cpu().numpy()
-bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)
-bragg_scaled = torch.from_numpy(bragg_scaled_np).to(
-    device=bragg_panel.device, dtype=bragg_panel.dtype
-)
+# Step 3: Extract telemetry model_mean_masked
+telemetry_model_mean = None
+if telemetry_a is not None:
+    if hasattr(telemetry_a, 'model_mean_masked'):
+        telemetry_model_mean = float(telemetry_a.model_mean_masked) if telemetry_a.model_mean_masked is not None else None
 
-if pid == 0:
-    print(f"  bragg_scaled[0] mean (after scale_factor × baseline_alignment × sqrt_spot_scale): {bragg_scaled.mean().item():.6e}")
-bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+# Step 4: Compute baseline_alignment_factor when both are finite/positive
+if (telemetry_model_mean is not None and telemetry_model_mean > 0 and
+    cold_masked_mean > 0 and np.isfinite(telemetry_model_mean) and np.isfinite(cold_masked_mean)):
+    baseline_alignment_factor = telemetry_model_mean / cold_masked_mean
+    print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14] Cold-path baseline alignment:")
+    print(f"  telemetry_model_mean_masked: {telemetry_model_mean:.6e}")
+    print(f"  cold_masked_mean (before alignment): {cold_masked_mean:.6e}")
+    print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
+else:
+    # Emit warning if alignment cannot be computed
+    print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14 WARNING] Cannot compute baseline alignment:")
+    print(f"  telemetry_model_mean_masked: {telemetry_model_mean}")
+    print(f"  cold_masked_mean: {cold_masked_mean if inputs.loss_mask is not None else 'N/A (no loss_mask)'}")
+    baseline_alignment_factor = 1.0
 ```
 
-**After** (lines 501-520, expanded):
+**After** (lines 448-480, expanded):
 ```python
-# ARCH-CONTRACT-002 (Phase B.6, ARCH-IMPL-CONFORMANCE-001):
-# Apply canonical spot_scale_override sqrt scaling ONLY when log_scale_baseline is absent.
-# When log_scale_baseline is present (calibrated path), scale_factor already incorporates
-# sqrt(spot_scale) per stage_a.py:173, so applying it again would double-scale.
-#
-# Root cause (Phase B.5 analysis): Reconstruction cold path was applying sqrt twice:
-#   1. scale_factor = exp(log_scale_baseline) = exp(log(sqrt(spot_scale))) = sqrt(spot_scale)
-#   2. apply_sqrt_spot_scale multiplies by sqrt(spot_scale) again
-#   Result: raw * sqrt * sqrt = raw * spot_scale (2× correct scaling, ~35× mismatch)
-if log_scale_baseline_value is None:
-    # Uncalibrated path: scale_factor doesn't include sqrt, apply it separately
-    bragg_prescaled_np = bragg_prescaled.cpu().numpy()
-    bragg_scaled_np = apply_sqrt_spot_scale(bragg_prescaled_np, effective_calibration_metadata)
-    bragg_scaled = torch.from_numpy(bragg_scaled_np).to(
-        device=bragg_panel.device, dtype=bragg_panel.dtype
-    )
-    scaling_path = "uncalibrated (scale_factor + apply_sqrt_spot_scale)"
-else:
-    # Calibrated path: scale_factor = exp(log_scale_baseline) already includes sqrt(spot_scale)
-    # Do not apply sqrt scaling again to avoid double-scaling
-    bragg_scaled = bragg_prescaled
-    scaling_path = "calibrated (scale_factor only, no double-sqrt)"
+# Step 3: Extract telemetry model_mean_masked
+telemetry_model_mean = None
+if telemetry_a is not None:
+    if hasattr(telemetry_a, 'model_mean_masked'):
+        telemetry_model_mean = float(telemetry_a.model_mean_masked) if telemetry_a.model_mean_masked is not None else None
 
-if pid == 0:
-    print(f"  bragg_scaled[0] mean ({scaling_path}): {bragg_scaled.mean().item():.6e}")
-bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+# Step 4: Compute baseline_alignment_factor when both are finite/positive
+if (telemetry_model_mean is not None and telemetry_model_mean > 0 and
+    cold_masked_mean > 0 and np.isfinite(telemetry_model_mean) and np.isfinite(cold_masked_mean)):
+    baseline_alignment_factor = telemetry_model_mean / cold_masked_mean
+    alignment_source = "telemetry_model_mean_masked"
+    print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14] Cold-path baseline alignment:")
+    print(f"  telemetry_model_mean_masked: {telemetry_model_mean:.6e}")
+    print(f"  cold_masked_mean (before alignment): {cold_masked_mean:.6e}")
+    print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
+    print(f"  source: {alignment_source}")
+elif effective_calibration_metadata is not None and "masked_mean_ratio" in effective_calibration_metadata:
+    # ARCH-CONTRACT-002 Phase B.7: Use masked_mean_ratio from mapping phase as fallback
+    # When telemetry doesn't provide model_mean_masked (e.g., minimal test fixtures),
+    # fall back to masked_mean_ratio from build_mapping_stage_a_context (mapping.py:297-312).
+    # This ensures reconstruction cold path aligns with mapping's target-to-bragg adjustment.
+    masked_mean_ratio = effective_calibration_metadata.get("masked_mean_ratio")
+    if masked_mean_ratio is not None and masked_mean_ratio > 0 and np.isfinite(masked_mean_ratio):
+        baseline_alignment_factor = masked_mean_ratio
+        alignment_source = "calibration_masked_mean_ratio"
+        print(f"[ARCH-CONTRACT-002 Phase B.7] Cold-path baseline alignment from calibration:")
+        print(f"  masked_mean_ratio (from mapping): {masked_mean_ratio:.6e}")
+        print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
+        print(f"  source: {alignment_source}")
+    else:
+        # Emit warning if alignment cannot be computed
+        print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14 WARNING] Cannot compute baseline alignment:")
+        print(f"  telemetry_model_mean_masked: {telemetry_model_mean}")
+        print(f"  cold_masked_mean: {cold_masked_mean if inputs.loss_mask is not None else 'N/A (no loss_mask)'}")
+        print(f"  calibration masked_mean_ratio: {effective_calibration_metadata.get('masked_mean_ratio')}")
+        baseline_alignment_factor = 1.0
+        alignment_source = "default_fallback"
+else:
+    # Emit warning if alignment cannot be computed
+    print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14 WARNING] Cannot compute baseline alignment:")
+    print(f"  telemetry_model_mean_masked: {telemetry_model_mean}")
+    print(f"  cold_masked_mean: {cold_masked_mean if inputs.loss_mask is not None else 'N/A (no loss_mask)'}")
+    baseline_alignment_factor = 1.0
+    alignment_source = "default_fallback"
 ```
 
 ### Validating Pytest Nodes
-```
-tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale
-tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale \
+            tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path \
+    > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/pytest_phase_b7_fix.log 2>&1
 ```
 
-### Artifacts Path
-`plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/`
+### Expected Outcomes
+1. Phase A.1 (warm-cache) test: PASS with rel_error=0.0 (no code changes, early return unchanged)
+2. Phase A.2 (cold-path) test: PASS with rel_error < 1e-6 and ratio ≈ 1.0
+3. Log evidence: `alignment_source = "calibration_masked_mean_ratio"` for cold path
+4. Improvement metrics: rel_error from 738% (Phase B.6) to <0.0001% (Phase B.7)
 
-### Initiative Type Consistency
-✓ `architecture` initiative requesting implementation of ARCH-CONTRACT conditional logic (fixing implementation bug within architecture)
+### Commit Artifacts
+Write `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/summary.md` with:
+- Context: Phase B.6 partial fix (35× → 8.4× improvement)
+- Root cause: missing masked_mean_ratio from mapping phase
+- Implementation: fallback extraction from calibration_metadata
+- Test results: Phase A.1 PASS, Phase A.2 PASS (expected)
+- Metrics progression: B.5 (3520%) → B.6 (738%) → B.7 (<0.0001%)
+- Next: Phase B.8 (update docs/findings.md SCALE-009)
 
 ## Forbidden This Loop
-- No new probes or diagnostic scripts
-- Do not extend plan-local helpers
-- Do not modify `apply_sqrt_spot_scale` API (already correct, just misused)
-- Do not change Stage A scaling logic (already correct)
-- Do not modify warm-cache fast-path (lines 96-99, already correct)
+- no new probes
+- do not extend plan-local diagnostic scripts
+- do not modify `tests/architecture/test_scale_contracts.py` (test fixture is correct, reconstruction code needs fixing)
+- do not change warm-cache path (reconstruction.py:83-86) — early return is working correctly
+- do not modify `apply_sqrt_spot_scale` API (already correct from Phase B.1-B.4)
+- do not add additional scaling beyond masked_mean_ratio fallback
 
 ## How-To Map
 
-### Step 1: Edit reconstruction.py
-Apply the code change described above to `dbex/refinement/reconstruction.py` lines 501-520.
-
-### Step 2: Run enforcement tests
+### Environment Setup
 ```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -xvs tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale \
-  tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path \
-  > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/pytest_phase_b6_fix.log 2>&1
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
 ```
 
-### Step 3: Expected outcomes
-- **Phase A.1** (warm-cache): PASS (regression check, no code changes)
-- **Phase A.2** (cold-path): PASS with rel_error < 1e-6 (currently FAILING with 3420% error)
-
-### Step 4: Commit artifacts
+### Test Execution
 ```bash
-git add plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/pytest_phase_b6_fix.log
-git add plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/phase_b6_summary.md
+pytest -vv tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale \
+            tests/architecture/test_scale_contracts.py::test_stage_a_vs_reconstruction_scale_cold_path \
+    > plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/pytest_phase_b7_fix.log 2>&1
 ```
 
-Write `phase_b6_summary.md` with:
-- Test results (both PASS expected)
-- Metrics: Phase A.2 rel_error before (64.6%) vs after (<0.0001%)
-- Next phase: B.7 (findings update) then C.1 (DB-AT-027/028/029 alignment)
+### Success Criteria
+1. Phase A.1 (warm-cache) test PASS with rel_error=0.0
+2. Phase A.2 (cold-path) test PASS with rel_error < 1e-6
+3. Log shows `alignment_source = "calibration_masked_mean_ratio"` for cold path
+4. No regression in warm-cache behavior (early return unchanged)
+
+### Artifact Destinations
+- Test logs: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/pytest_phase_b7_fix.log`
+- Summary: `plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/summary.md`
 
 ## Pitfalls To Avoid
-
-1. **Type Discipline**: This is `architecture` initiative (ARCH-CONTRACT enforcement), not `bugfix`. The bug is an implementation failure to follow the architecture contract.
-
-2. **No Stacking**: Phase B.5 proved calibration threading works. Do not add more threading code.
-
-3. **Parity-First**: Warm-cache path already has parity (Phase A.1 PASS). This fix brings cold-path into parity with it.
-
-4. **Shadow-Pipeline Guard**: Do not create new diagnostic scripts. Use existing enforcement tests only.
-
-5. **Evidence→Action**: Phase B.5 evidence identified exact root cause (double-sqrt) and exact fix location (conditional at line 506). Implement exactly that.
-
-6. **Dominant-Hypothesis Lock**: Confidence=0.9 for double-sqrt hypothesis. No additional probes allowed.
-
-7. **ARCH Conformance Enforcement**: Phase B.6 fix must bring both enforcement tests to PASS. Next loop will add enforcement for uncalibrated path if needed.
-
-8. **No Environment Changes**: All changes to dbex code only, no nanobrag_torch patches.
-
-9. **Preserve Debug Logs**: Keep existing debug logging but update messages to reflect conditional logic.
-
-10. **Test Both Paths**: Run both warm-cache and cold-path tests to ensure no regressions.
+1. **Type discipline**: This is architecture conformance remediation, not bugfix or spec_change — maintain initiative type
+2. **No stacking**: Do not add additional scaling logic beyond masked_mean_ratio fallback
+3. **Parity-first**: Validate warm-cache regression (Phase A.1) before celebrating cold-path fix
+4. **Shadow-pipeline guard**: No new diagnostic scripts, instrument inside real reconstruction.py if needed (but current logging is sufficient)
+5. **Probe saturation**: Phase B.6 already added conditional sqrt logging, do not add more diagnostics beyond alignment_source tracking
+6. **Evidence→Action**: This loop MUST produce both tests PASSING or document specific blocking issue (no more planning loops allowed)
+7. **ARCH conformance requirement**: Update docs/findings.md SCALE-009 after tests pass to document masked_mean_ratio fallback pattern
+8. **Enforcement test**: Both Phase A.1 and A.2 must PASS to satisfy ARCH-CONTRACT-001 enforcement requirement
 
 ## If Blocked
+1. If Phase A.2 still fails with different ratio/error, capture exact metrics (masked_mean_stage_a, masked_mean_reconstruction_cold, masked_mean_ratio from calibration, baseline_alignment_factor computed)
+2. Check if `effective_calibration_metadata` is None or missing "masked_mean_ratio" key — add defensive logging
+3. If calibration_metadata doesn't contain masked_mean_ratio, investigate whether test fixture properly loads refGeom_small's torch_config.json calibration
+4. Do NOT open new architecture initiative — mark ARCH-IMPL-CONFORMANCE-001 Phase B.7 blocked and escalate to Galph with evidence
+5. Possible root cause if still blocked: test fixture uses different HKL data or geometry than what build_mapping_stage_a_context used, breaking the "identical inputs" assumption
 
-If Phase A.2 test still fails after fix:
-1. Capture exact metrics: `masked_mean_stage_a`, `masked_mean_reconstruction_cold`, `rel_error`, `ratio`
-2. Check pytest log for which scaling path was used (calibrated vs uncalibrated)
-3. Verify `log_scale_baseline_value` is NOT None for refGeom fixture (should be ~20.14)
-4. Write `blocked_analysis.md` with evidence and hypothesis for next root cause
-5. Do NOT attempt more fixes this loop; return to Galph for re-planning
+## Doc Sync Plan
+**Not required this loop** — tests already exist, no new selectors added. Phase B.8 (next loop) will update:
+- `docs/findings.md` (SCALE-009 correction with masked_mean_ratio fallback pattern)
+- `docs/TESTING_GUIDE.md` §2 (note enforcement tests for ARCH-CONTRACT-001/002)
+- `docs/development/TEST_SUITE_INDEX.md` (mark test_scale_contracts Phase A.1/A.2 as Active/PASS)
 
-## Doc Sync Plan (Conditional)
-Not applicable (no new tests added this loop; enforcement tests already exist from Phase A.0-A.2)
-
----
-
-**Galph's Assessment**: Phase B.5 evidence is conclusive. This is a straightforward conditional fix with high confidence. Ralph should implement exactly as specified and expect both tests to PASS. If not, escalate with detailed metrics rather than debugging further.
+No `pytest --collect-only` runs needed this loop since tests already registered.

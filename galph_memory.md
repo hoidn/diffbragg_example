@@ -1,3 +1,12 @@
+2026-01-14T140000Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T140000Z/ next_action=phase_b7_implementation
+- Loop i=116 (Ralph) implemented Phase B.6 conditional sqrt fix, achieving 4.17× improvement (ratio 1/35 → 1/8.4) but cold-path test still fails with 738% rel_error.
+- Root cause identified (Galph i=117): missing masked_mean_ratio adjustment from mapping phase (mapping.py:297-312 stores it in calibration_metadata["masked_mean_ratio"], but reconstruction.py:454-467 only checks telemetry.model_mean_masked, not the calibration fallback).
+- Fix: Add elif branch at reconstruction.py:454-467 to extract masked_mean_ratio from effective_calibration_metadata and use it as baseline_alignment_factor when telemetry lacks model_mean_masked.
+- DecisionStatus: patch_ready (exact fix location known, high confidence=0.95).
+- Mapped tests: test_stage_a_vs_reconstruction_scale (warm-cache regression, expect PASS), test_stage_a_vs_reconstruction_scale_cold_path (cold-path enforcement, expect PASS after fix, currently 738% error).
+- Next loop (i=117): Ralph implements masked_mean_ratio fallback at reconstruction.py:454-467, expects both enforcement tests to PASS (rel_error < 1e-6, ratio ≈ 1.0).
+Action State: implementation_ready
+
 2026-01-14T120000Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T120000Z/ next_action=phase_b6_implementation
 - Loop i=114 evidence collection (Ralph) proved calibration threading works correctly at all 4 hops (test→config→reconstruction→apply_sqrt_spot_scale).
 - Phase B.5 analysis (Galph i=115) identified root cause: double-sqrt scaling in reconstruction cold path when log_scale_baseline present.

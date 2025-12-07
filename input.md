@@ -1,144 +1,154 @@
-# Input for Ralph (Loop i=130)
+# Input for Ralph (Loop i=131)
 
 ## Summary
-Complete MAP-SCALE-005 Phase B (Option A): Add regression test validating CLI refined MTZ enforcement + update ARCH-CONTRACT documentation to reflect existing guard implementation.
+DB-AT-SUITE-CARE-001 Phase A — Acceptance suite roll-up scoping and implementation plan authoring.
 
 ## Mode
-none
+Docs
 
 ## ActionType
-implementation_ready
+planning
 
 ## DecisionStatus
-patch_ready
+exploring
 
 ## InitiativeType
-spec_change
+harness
 
 ## Focus
-[MAP-SCALE-005] — CLI refined telemetry enforcement
+**DB-AT-SUITE-CARE-001** — Acceptance Suite Upkeep (DB-AT-002/010/020—024)
+
+**Context**: Tier 1 initiative selected after MAP-SCALE-SYNC-001 closure (5/5 member plans complete). Seven DB-AT acceptance test initiatives exist with individual implementation.md files but lack ledger coverage in fix_plan.md. This Phase A loop will audit member plan status, analyze dependencies, define roll-up exit criteria, and create the canonical DB-AT-SUITE-CARE-001 implementation.md to enable portfolio steering visibility.
 
 ## Branch
 integration
 
-## Mapped Tests
-- `tests/dbex/test_refine_one_cli.py::test_refined_mtz_missing_file_fails_fast` (new test, expect PASS)
-- `tests/dbex/test_refine_one_cli.py::test_refined_mtz_telemetry_provenance` (new test, expect PASS)
-- `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` (regression check, expect PASS)
+## Mapped tests
+None (planning loop, docs-only deliverables)
 
 ## Artifacts
-`plans/active/MAP-SCALE-005/reports/2025-12-07T000000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/`
 
 ## Findings Applied (Mandatory)
-- **SCALE-007** (Active): "Zero-iteration bridge must emit structure-factor telemetry and DB_AT_024 must fail when refined assets present but telemetry reports raw or missing."
-  - **Adherence**: Phase B implements regression tests ensuring CLI guard at `refine_one.py:382-389` is validated and cannot be silently removed.
-  - **Gap closed**: Phase A discovered guard exists; Phase B adds automated enforcement per SCALE-007 requirement.
+- **TESTING-003** (Acceptance test registry maintenance) — Normative requirement for TEST_SUITE_INDEX.md updates when acceptance tests change status; this roll-up initiative coordinates member plan registry sync tasks.
+  - Code: `docs/development/TEST_SUITE_INDEX.md` (status table rows for DB-AT-XXX selectors)
+  - Adherence: Phase A audit will identify registry drift; Phase C (future loop) will execute sync.
 
-- **TESTING-003** (Active): "Selector status transitions to Active only after pytest --collect-only confirms >0 tests collected."
-  - **Adherence**: Phase B will capture `pytest --collect-only` logs for new test selectors and update TEST_SUITE_INDEX.md.
+- **RUNTIME-001** (Runtime execution guardrails) — Acceptance tests must respect determinism flags (CUDA_VISIBLE_DEVICES, TORCHDYNAMO_DISABLE, NANOBRAGG_DISABLE_COMPILE) per spec-db-runtime.md.
+  - Code: `docs/TESTING_GUIDE.md` (canonical environment flags)
+  - Adherence: Member plan Phase B implementations must follow TESTING_GUIDE.md selector patterns; Phase A audit will note deviations.
 
-## ARCH Contracts (Mandatory)
+- **DIAGNOSTICS-001** (Diagnostic artifact expectations) — Acceptance tests must emit structured artifacts (metrics JSON, env snapshots, command logs) to initiative reports/ directories.
+  - Code: `tests/dbex/test_stage_a_smoke_parity.py` (artifact writer patterns)
+  - Adherence: Member plan Phase C tasks include artifact emission; Phase A audit will verify artifact policy compliance.
 
-### ARCH-CONTRACT-CALIBRATION-001
-- **Owner**: `dbex/refine_one.py::run_nanobrag_backend` (lines 375-393)
-- **Current State**: Guard implemented (fail-fast on refined MTZ load failure)
-- **Documentation Drift**: ARCH-CONTRACT-CALIBRATION-001 currently states "falls back silently" (incorrect per Phase A evidence)
-- **Failure Classification**: Documentation bug (implementation correct, docs wrong)
-- **Phase B Action**: Update ARCH-CONTRACT-CALIBRATION-001 description from "falls back silently" to "fails fast per spec-db-workflow.md:47"
+- **MASKING-001** (Mask handling contracts) — Acceptance tests touching ROI/mask logic must use canonical mask precedence (trusted_mask ∩ ROI ∩ background >= 0) per spec-db-core.md:47.
+  - Code: `dbex/data_load.py`, `dbex/refinement/inputs.py` (loss_mask construction)
+  - Adherence: DB-AT-021 (Mask Application) member plan must validate canonical mask precedence; Phase A audit will cross-reference.
 
-### SCALE-007 (Enforcement via tests)
-- **Owner**: `dbex/refine_one.py::run_nanobrag_backend` (CLI guard) + `tests/dbex/test_refine_one_cli.py` (test enforcement)
-- **Current State**: CLI guard exists, test coverage missing
-- **Failure Classification**: Implementation bug within architecture (guard exists, tests missing)
-- **Phase B Action**: Add regression tests ensuring guard behavior is validated
+## Pointers
 
-## Do Now (Hard Validity Contract)
+### SPEC
+- **docs/spec-db-conformance.md** — Normative acceptance criteria for DB-AT-XXX selectors
+- **docs/development/testing_strategy.md** §2 — Acceptance test philosophy
 
-**Focus**: MAP-SCALE-005 Phase B - Regression Test Addition + ARCH-CONTRACT Update
+### ARCH
+- **docs/architecture/tests_mapping.md** — Selector → module coverage map
+- **docs/development/TEST_SUITE_INDEX.md** — Current DB-AT selector status table
+
+### Testing Docs
+- **docs/TESTING_GUIDE.md** — Canonical selector patterns, environment flags, artifact expectations
+
+### Member Plan Directories
+- **plans/active/DB-AT-002/implementation.md** — Determinism Acceptance Harness
+- **plans/active/DB-AT-010/implementation.md** — Gradcheck Acceptance Harness
+- **plans/active/DB-AT-020/implementation.md** — Data Ingestion
+- **plans/active/DB-AT-021/implementation.md** — Mask Application
+- **plans/active/DB-AT-022/implementation.md** — Background Subtraction
+- **plans/active/DB-AT-023/implementation.md** — Structure Factor Loading
+- **plans/active/DB-AT-024/implementation.md** — Mapping Smoke
+
+## ARCH Contracts (mandatory)
+**N/A** — DB-AT-SUITE-CARE-001 is a harness roll-up initiative coordinating member plan test authoring. No production code ARCH-CONTRACTs are modified this loop.
+
+**Failure Classification**: Implementation alignment (harness initiative ensuring acceptance tests align with SPEC/ARCH, not a conformance failure).
+
+## Do Now (hard validity contract)
 
 **Implement**:
-1. **Test Module** (`tests/dbex/test_refine_one_cli.py`):
-   - Add `test_refined_mtz_missing_file_fails_fast`: Verify RuntimeError raised when `--refined-mtz` points to missing file, no HDF5 output written
-   - Add `test_refined_mtz_telemetry_provenance`: Verify `hkl_source="raw"` when flag omitted, `hkl_source="refined"` when valid refined MTZ provided
-   - Reuse existing fixtures/mocks from test_torch_diagnostics_metadata
+- **Docs-only**: Audit 7 member plan implementation.md files and author DB-AT-SUITE-CARE-001 roll-up implementation.md
 
-2. **Documentation Updates**:
-   - Update ARCH-CONTRACT-CALIBRATION-001 (location TBD - check `docs/architecture_contracts.md` or inline code comments)
-   - Add cross-reference from guard code (`refine_one.py:382-389`) to spec-db-workflow.md:47
-   - Update `docs/findings.md`: Add note that SCALE-007 CLI enforcement validated by test coverage
+**Validating pytest selector(s)**:
+None (planning loop, no test execution)
 
-3. **Test Registry Updates**:
-   - Update `docs/TESTING_GUIDE.md` with new selector descriptions
-   - Update `docs/development/TEST_SUITE_INDEX.md` with test status
+**Artifacts path**:
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/`
 
-**Validating pytest**:
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-KMP_DUPLICATE_LIB_OK=TRUE \
-pytest -vv tests/dbex/test_refine_one_cli.py::test_refined_mtz_missing_file_fails_fast \
-              tests/dbex/test_refine_one_cli.py::test_refined_mtz_telemetry_provenance \
-              tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
-```
+**Initiative type consistency**:
+✅ harness (test infrastructure maintenance via roll-up coordination)
 
-**Artifacts**:
-- Pytest logs (targeted + collect-only) → `plans/active/MAP-SCALE-005/reports/2025-12-07T000000Z/`
-- Phase B summary documenting test coverage + doc updates
-- Updated ARCH-CONTRACT text (quote before/after)
+### Detailed Tasks
 
-**Initiative Type Consistency**: `spec_change` (validating/documenting normative CLI behavior per spec-db-workflow.md:47)
+#### Task 1: Member Plan Status Audit
+**File to create**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/member_plan_status_audit.md`
+
+For each of 7 member plans:
+1. Read `plans/active/DB-AT-{ID}/implementation.md`
+2. Extract phase checklist status, dependencies, test file location
+3. Check for recent reports/ directory evidence
+4. Classify status: pending / in_progress / blocked / done
+
+**Output format**: Table with columns: Plan ID, Title, Phases (done/total), Dependencies, Test File Status, Status, Blocker
+
+#### Task 2: Dependency Chain Analysis
+**File to create**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/dependency_chain.md`
+
+1. Map inter-initiative dependencies
+2. Identify critical path
+3. Note external dependencies
+4. Recommend priority ordering
+
+#### Task 3: Exit Criteria Definition
+**File to create**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/exit_criteria.md`
+
+Define 4-5 completion criteria for roll-up initiative.
+
+#### Task 4: Create Roll-up Implementation Plan
+**File to create**: `plans/active/DB-AT-SUITE-CARE-001/implementation.md`
+
+Author canonical implementation.md with Phases A/B/C/D structure.
+
+#### Task 5: Loop Summary
+**File to create**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T024500Z/summary.md`
+
+Write concise summary of Phase A deliverables.
 
 ## Forbidden This Loop
-- No new probes or instrumentation
-- No production code changes to guard (already correct at refine_one.py:382-389)
-- Do not implement Option C (reimplementing existing guard)
+- **No test execution** (planning loop, docs-only)
+- **No production code changes**
+- **No test authoring** (deferred to member plan phases)
+- **No fix_plan.md edits yet** (Phase B task)
 
-## How-To Map
-1. **Author Tests** (~50 lines total):
-   - `test_refined_mtz_missing_file_fails_fast`: Mock `load_refined_mtz` to raise FileNotFoundError, assert pytest.raises(RuntimeError, match="refined")
-   - `test_refined_mtz_telemetry_provenance`: Run with/without `--refined-mtz`, assert HDF5 `/torch_diagnostics` attrs
+## Pitfalls To Avoid
 
-2. **Run Targeted Pytest**:
-   ```bash
-   pytest -vv tests/dbex/test_refine_one_cli.py::test_refined_mtz_missing_file_fails_fast \
-                tests/dbex/test_refine_one_cli.py::test_refined_mtz_telemetry_provenance \
-     > plans/active/MAP-SCALE-005/reports/2025-12-07T000000Z/pytest_targeted.log 2>&1
-   ```
-
-3. **Collect-Only Evidence**:
-   ```bash
-   pytest --collect-only tests/dbex/test_refine_one_cli.py \
-     > plans/active/MAP-SCALE-005/reports/2025-12-07T000000Z/pytest_collect_only.log 2>&1
-   ```
-
-4. **Update Docs**:
-   - Locate ARCH-CONTRACT-CALIBRATION-001 (grep for it in docs/)
-   - Update description text, add code reference
-   - Update findings.md with SCALE-007 validation note
-   - Update TESTING_GUIDE.md + TEST_SUITE_INDEX.md
-
-5. **Write Phase B Summary**:
-   - Document test coverage added
-   - Quote ARCH-CONTRACT before/after text
-   - Link to SCALE-007 compliance
-   - Mark Phase B complete
-
-## Pitfalls to Avoid
-1. **Type Discipline**: This is `spec_change` (documenting/validating normative behavior), not `bugfix` (no production code changes needed)
-2. **No Stacking**: Guard already correct; only add test coverage
-3. **Findings Paydown**: SCALE-007 explicitly requires test enforcement - must deliver regression coverage
-4. **Evidence→Action**: Tests must fail if guard is removed (validates SCALE-007 intent)
-5. **Environment Freeze**: Use existing pytest framework, no package changes
-6. **Backward Compatibility**: Tests codify existing behavior, zero risk
-7. **Implementation Floor**: This is implementation (test code), not docs-only
-8. **Probe Saturation**: N/A (no probes, pure test addition)
-9. **Shadow Pipeline Guard**: N/A (no plan-local scripts)
-10. **ARCH Conformance**: Documentation alignment, not structural change
+1. **Type discipline**: This is a `harness` initiative (test infrastructure). Do not author production code changes.
+2. **No stacking on assumptions**: If member plan files appear stale, note it but don't assume status.
+3. **Evidence→Action contract**: Phase A output is implementation.md + audit artifacts.
+4. **Findings paydown**: TESTING-003, RUNTIME-001, DIAGNOSTICS-001, MASKING-001 applied.
 
 ## If Blocked
-- If ARCH-CONTRACT-CALIBRATION-001 doesn't exist: Create it inline as code comment at refine_one.py:382 with spec citation
-- If test mocking proves complex: Use tmp_path fixture to create actual missing file instead of mocking
-- If HDF5 telemetry assertions fail: Check that torch_diagnostics group structure matches existing test patterns
-- Mark blocked with reason, switch focus to PHYSICS-LOSS-001 Tier 1 cleanup or DB-AT-SUITE-CARE-001 scoping
 
-## Doc Sync Plan (Conditional)
-**Not Required** - Existing test module being extended, no new files or test discovery changes needed. Collect-only run validates test discovery but TEST_SUITE_INDEX.md update is a doc hygiene step, not a collection sync requirement.
+If member plan implementation.md files are missing:
+1. Note the gap in audit with status "missing_plan"
+2. Recommend creating stub implementation.md in Phase B
+3. Phase A completion not blocked
+
+---
+
+**Galph's Notes**:
+- Tier 1 harness initiative selected after MAP-SCALE-SYNC-001 closure
+- Phase A is pure scoping (audit + planning docs)
+- Deliverables: 4 report artifacts + 1 implementation.md file
+- Next loop (Phase B) will integrate member plan status into fix_plan.md
+
+**Validation**: File existence checks (no pytest required)

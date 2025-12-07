@@ -121,3 +121,9 @@ Action State: implementation_ready
 - Lifecycle decision: ARCH-SIM-CONSTRUCTION-001 exceeds loop budget (C.1-C.39 = 39 loops, >6 loop hard limit) without validated first-divergence or monotonic improvement. Marking as blocked_pending_environment per non-negotiables.
 - Portfolio steering: switch focus to next unblocked Tier 0 item. ARCH-IMPL-CONFORMANCE-001 (pending, architecture type) is ready to start.
 Action State: lifecycle_decision_complete
+
+2025-12-07T124500Z focus=FINDINGS-LEDGER-002 state=closed dwell=N/A action=review_or_housekeeping artifacts=plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/ next_action=tier1_focus_selection
+- Loop i=124: Closed FINDINGS-LEDGER-002 (all 4/4 exit criteria satisfied)
+- Fixed ARCH-ENGINE-ARTIFACTS-001 ledger discrepancy (line 37 now matches archive status)
+- Tier 0 status: all items done/archived/blocked (ARCH-SIM-CONSTRUCTION-001 blocked_pending_environment, ARCH-REFACTOR-001 blocked_pending_architecture)
+- Portfolio steering: next loop must select Tier 1 focus (candidates: DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, or roll-up scoping)

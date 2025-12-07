@@ -1,276 +1,201 @@
-# Input — Ralph Loop i=138
+# Input for Ralph — Loop i=139
 
-**Summary**: Execute ARCH-GRADIENT-FLOW-001 Phase A.1-A.2 — call graph trace and suspect module audit to identify gradient flow break root cause.
+**Summary**: Fix detector and beam test harness gradient breaks by implementing tensor-valued override mechanisms in config factories.
 
-**Mode**: none (evidence collection)
+**Mode**: none (production fix)
 
-**ActionType**: planning
+**ActionType**: implementation_ready
 
-**DecisionStatus**: exploring
+**DecisionStatus**: patch_ready
 
 **InitiativeType**: architecture
 
-**Focus**: [ARCH-GRADIENT-FLOW-001] — Gradient Flow Restoration (DB-AT-010 Unblock)
+**Focus**: ARCH-GRADIENT-FLOW-001 — Gradient Flow Restoration (DB-AT-010 Unblock)
 
 **Branch**: integration
 
-**Mapped tests**: none — Phase A evidence collection (no test execution required)
+**Mapped tests**:
+- `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance` (expect PASS post-fix)
+- `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength` (expect PASS post-fix)
+- `pytest -v tests -k DB_AT_010 --smoke-detector-size=full` (full suite regression check)
 
-**Artifacts**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/`
+**Artifacts**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/`
 
----
+**Findings Applied (Mandatory)**:
 
-## Findings Applied (Mandatory)
+- **GRADIENT-001** (Gradient test patterns): Tests must inject differentiable parameters via override dicts to preserve autograd graph.
+  - Code: `tests/dbex/test_gradients.py` (existing crystal_overrides pattern)
+  - Adherence: Implement `distance_mm_override` and `wavelength_override` following same pattern.
 
-### GRADIENT-001 (Gradient test patterns)
-**Reference**: `docs/findings.md::GRADIENT-001`
-**Relevance**: Tests use `crystal_overrides` dict to inject differentiable parameters (correct pattern verified). Production code must preserve gradient flow.
-**Code**: `tests/dbex/test_gradients.py` (test harness)
-**Adherence**: Phase A audit will identify production code breaking gradient despite correct test pattern.
+- **RUNTIME-001** (Runtime execution guardrails): DB-AT-010 requires `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference.
+  - Code: `docs/TESTING_GUIDE.md:161`
+  - Adherence: Use canonical flags for all pytest runs.
 
-### RUNTIME-001 (Runtime execution guardrails)
-**Reference**: `docs/findings.md::RUNTIME-001`, `docs/pytorch_runtime_checklist.md:26`
-**Relevance**: DB-AT-010 requires `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference (already confirmed in Phase B.1 verification).
-**Adherence**: Not directly applicable to Phase A audit (no test execution this loop).
+- **ARCH-ENGINE-002** (Config factory ownership): Geometry construction logic lives in config factories; overrides must flow through public API.
+  - Code: `dbex/refinement/config_factories.py`
+  - Adherence: Add override parameters to `create_detector_config` / `create_beam_config`, no test-specific backdoors.
 
-### TESTING-003 (Acceptance test registry maintenance)
-**Reference**: `docs/findings.md::TESTING-003`, `docs/development/TEST_SUITE_INDEX.md`
-**Relevance**: DB-AT-010 status will update from FAILING → PASSING after fix (deferred to Phase B.4).
-**Adherence**: Not applicable to Phase A (doc updates conditional on fix completion).
-
----
-
-## ARCH Contracts (Mandatory)
-
-### ARCH-CONTRACT-GRADIENT-FLOW (Implicit, to be formalized Phase B.3)
-**Owner module/API**: `dbex/physics/forward.py::simulate_forward_torch` (primary entry point for differentiable forward simulation)
-**Forbidden duplicates**: N/A (forward simulation is centralized)
-**Classification**: **Implementation bug** — gradient flow break in production code, not architecture violation
-**Evidence**: Ralph's i=136 verification shows 5/5 gradcheck tests fail with identical signature: `GradcheckError: Numerical gradient for function expected to be zero` (disconnected autograd graph).
-**Hypothesis**: `.item()` coercion or `.detach()` call breaks gradient propagation from loss → refined parameters.
 **Pointers**:
-- `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/db_at_010_status_verification.md` (failure signature)
-- `docs/spec-db-runtime.md` §Gradient Hygiene (differentiability requirements)
 
-### ARCH-CONTRACT-TESTING-001 (Test harness import stability)
-**Owner module/API**: `tests/dbex/` (test suite structure)
-**Status**: **CONFORMING** — Ralph's i=136 verification had 0 collection errors (harness stable after Phase B.3/B.4 fixes).
-**Relevance**: Confirms problem is NOT in test harness (production code issue).
+- **Evidence artifacts**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/` (Phase A.1-A.2 complete)
+  - `suspect_audit.md` — Root cause analysis (test_gradients.py:383, :496)
+  - `call_graph_trace.md` — Execution path from gradcheck → forward → loss
+- **Implementation plan**: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md` (Phase B.1 tasks)
+- **Planning notes**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/planning_notes.md`
+- **SPEC**: `docs/spec-db-conformance.md` §DB-AT-010 (gradcheck acceptance criteria)
+- **ARCH**: `docs/architecture.md` §13 Common Pitfalls (gradient hygiene)
+- **Testing docs**: `docs/TESTING_GUIDE.md` §1.4 (DB-AT-010 selector pattern)
 
-### ARCH-CONTRACT-FORWARD-SIMULATION (Implicit)
-**Owner module/API**: `dbex/physics/forward.py::simulate_forward_torch`
-**Responsibility**: Differentiable forward simulation preserving autograd graph from refined parameters → loss output.
-**Classification**: **Implementation bug** — contract currently violated (gradient flow broken).
-**Phase A objective**: Identify exact violation point (file:line where gradient graph disconnects).
+**ARCH Contracts (mandatory)**:
 
----
+1. **GRADIENT-001** (Test gradient preservation):
+   - **Owner module/API**: Test harness must use tensor-valued override mechanisms (e.g., `crystal_overrides` dict pattern)
+   - **Failure classification**: Implementation bug within architecture (test harness violates gradient hygiene by calling `.item()`)
+   - **Spec/Doc pointer**: `docs/spec-db-runtime.md` §Gradient Hygiene, `tests/dbex/test_gradients.py` existing crystal tests
 
-## Pointers
+2. **ARCH-ENGINE-002** (Config factory ownership):
+   - **Owner module/API**: `dbex/refinement/config_factories.py` owns geometry config construction
+   - **Failure classification**: Implementation bug within architecture (config factories lack tensor override parameters)
+   - **Spec/Doc pointer**: `docs/architecture/module_map.md` (config_factories.py responsibility)
 
-### Evidence Artifacts (DB-AT-SUITE-CARE-001 Phase B.1, i=136)
-- **Verification report**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/db_at_010_status_verification.md`
-- **Pytest log**: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-07T204336Z/pytest_db_at_010_verification.log`
-- **Failure signature**: GradcheckError at `torch/autograd/gradcheck.py:981` (disconnected graph)
-- **Loss magnitude**: ~3.66e+09 (consistent across all 5 tests, proving forward simulation executes)
+3. **RUNTIME-001** (Gradient execution environment):
+   - **Owner module/API**: PyTorch runtime checklist (`NANOBRAGG_DISABLE_COMPILE=1` for gradcheck)
+   - **Failure classification**: Implementation bug within architecture (test harness uses correct flags per TESTING_GUIDE.md)
+   - **Spec/Doc pointer**: `docs/pytorch_runtime_checklist.md:26`, `docs/TESTING_GUIDE.md:161`
 
-### SPEC
-- **docs/spec-db-conformance.md** §Gradient-Safe Profile — DB-AT-010 acceptance criteria (eps=1e-6, atol=1e-5, rtol≈0.05)
-- **docs/spec-db-core.md** §Objective Function — Variance-weighted loss definition (lines 57-68)
-- **docs/spec-db-runtime.md** §Gradient Hygiene — Differentiability requirements for refinement parameters
+**Do Now (hard validity contract)**:
 
-### ARCH
-- **docs/architecture.md** §13 Common Pitfalls — Device/dtype neutrality, square-pixel enforcement (to be extended Phase B.4: gradient flow preservation)
-- **docs/architecture/module_map.md** — Physics/geometry module ownership (forward.py, crystallography.py)
-- **docs/architecture/data_telemetry_flow.md** — Forward simulation → loss computation path
+1. **Implement: `dbex/refinement/config_factories.py::create_detector_config`**
+   - Add `distance_mm_override: Optional[torch.Tensor] = None` parameter
+   - Conditional logic: if override provided and is tensor, use it; else extract scalar from dxtbx Detector
+   - Estimated: 20-30 LOC
+   - Pattern reference: `dbex/physics/forward.py:158-163` (existing `crystal_overrides` mechanism)
 
-### Testing Docs
-- **docs/TESTING_GUIDE.md** §1.4 — DB-AT-010 selector pattern, canonical flags, gradcheck scope note (lines 175-177)
-- **docs/development/TEST_SUITE_INDEX.md** — DB-AT-010 status row (currently FAILING)
+2. **Implement: `dbex/refinement/config_factories.py::create_beam_config`**
+   - Add `wavelength_override: Optional[torch.Tensor] = None` parameter
+   - Conditional logic: if override provided and is tensor, use it; else extract scalar from dxtbx Beam
+   - Estimated: 15-25 LOC
+   - Alternative: Modify test to use BeamConfig constructor directly (if simpler)
 
-### Implementation Plan
-- **plans/active/ARCH-GRADIENT-FLOW-001/implementation.md** — Full Phases A/B/C structure with tasks, validation, exit criteria
-- **plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T210000Z/planning_notes.md** — Context, objectives, Phase A design, risks, expected flow
+3. **Update: `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance`**
+   - Lines 379-427: Replace `float(distance_tensor.item())` pattern
+   - Call `create_detector_config(..., distance_mm_override=distance_tensor)`
+   - Remove manual Detector construction workaround
+   - Estimated: 5-10 LOC
 
----
+4. **Update: `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength`**
+   - Lines 493-518: Replace `float(wavelength_tensor.item())` pattern
+   - Call `create_beam_config(..., wavelength_override=wavelength_tensor)` or equivalent
+   - Estimated: 5-10 LOC
 
-## Do Now
-
-### Phase A.1 — Call Graph Trace
-
-**Objective**: Map full execution path from test → forward → loss → backward to identify module boundaries and tensor flow points.
-
-**Steps**:
-
-1. **Start from test entry point**:
-   - File: `tests/dbex/test_gradients.py`
-   - Function: `test_db_at_010_gradcheck_crystal_cell_a` (line ~230 per verification report)
-   - Review test fixture setup, config assembly, parameter injection pattern
-
-2. **Trace forward simulation path**:
-   - Follow `simulate_forward_torch` call (likely in test helper or inline)
-   - Map imports: `test → dbex/physics/forward.py → dbex/geometry/crystallography.py`
-   - Document each function crossing with file:line references
-   - Note where `crystal_overrides` dict is consumed (TorchCrystal instantiation?)
-
-3. **Trace loss computation**:
-   - Find masked MSE computation (likely `dbex/physics/loss.py::_compute_variance_weighted_loss`)
-   - Document how target/model tensors flow into loss
-   - Note variance/sigma handling (potential `.item()` risk in denominator)
-
-4. **Trace backward pass**:
-   - Find gradcheck invocation (likely `torch.autograd.gradcheck` at test line ~230)
-   - Document gradcheck config (eps, atol, rtol per spec)
-
-5. **Create call graph diagram**:
+5. **Validate: Run primary tests** (with canonical flags):
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_gradients.py::test_db_at_010_gradcheck_detector_distance
    ```
-   test_gradients.py::test_db_at_010_gradcheck_crystal_cell_a (line X)
-     → [helper or inline call]
-     → dbex/physics/forward.py::simulate_forward_torch (line Y)
-       → dbex/geometry/crystallography.py::TorchCrystal (line Z)
-         → [crystal_overrides consumption, cell parameter hydration]
-       → nanobrag_torch.Simulator (external, assume gradient-safe)
-     → dbex/physics/loss.py::_compute_variance_weighted_loss (line W)
-     → torch.autograd.gradcheck (line X)
+   - Capture log: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_detector_distance_post_fix.log`
+   - Expected: PASSED
+
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_gradients.py::test_db_at_010_gradcheck_beam_wavelength
    ```
+   - Capture log: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_beam_wavelength_post_fix.log`
+   - Expected: PASSED
 
-6. **Write output artifact**:
-   - File: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/call_graph_trace.md`
-   - Contents: Diagram + ≥5 call stack levels with file:line references + tensor flow notes
+6. **Validate: Run full DB-AT-010 suite** (regression check):
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests -k DB_AT_010 --smoke-detector-size=full
+   ```
+   - Capture log: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/pytest_db_at_010_full_suite_post_fix.log`
+   - Expected: 2/5 PASSED (detector + beam), 3/5 status TBD (crystal tests)
 
-**Validation**: ≥5 module/function boundaries documented, tensor flow points identified (where `requires_grad=True` tensors pass between functions).
+7. **Deliverables: Create analysis report**
+   - File: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/phase_b1_analysis.md`
+   - Contents:
+     - Implementation summary (LOC changed, modules touched)
+     - Test results (detector PASS/FAIL, beam PASS/FAIL, crystal status)
+     - Crystal test failure signature (if still failing)
+     - Next action recommendation (Phase A.3 probe OR Phase B.2-B.3 enforcement test)
+   - File: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T220000Z/summary.md`
+   - Contents: Loop summary for galph_memory.md (focus, deliverables, test metrics, next action)
 
----
+**Forbidden This Loop**:
+- No new plan-local diagnostic scripts (Phase B.1 is production fix only)
+- Do not attempt to fix crystal tests (defer to Phase A.3 probe if needed)
+- Do not write enforcement test yet (defer to Phase B.2 after status clear)
+- Do not update docs/findings.md or TEST_SUITE_INDEX.md (defer to Phase B.4 after all tests passing)
 
-### Phase A.2 — Suspect Module Audit
+**How-To Map**:
 
-**Objective**: Search high-risk gradient break patterns in 4 key production modules.
+1. Read existing code for patterns:
+   - `dbex/physics/forward.py:158-163` — `crystal_overrides` pattern
+   - `dbex/refinement/config_factories.py` — detector/beam config factory signatures
 
-**Modules to Audit**:
-1. `dbex/physics/forward.py` (primary suspect: simulate_forward_torch entry point)
-2. `dbex/geometry/crystallography.py` (TorchCrystal parameter hydration)
-3. `dbex/physics/loss.py` (variance-weighted loss computation)
-4. `dbex/refinement/inputs.py` (RefinementInputs assembly, config hydration)
+2. Implement config factory overrides:
+   - Add optional tensor parameters to function signatures
+   - Add conditional branches: `if override is not None and isinstance(override, torch.Tensor): ...`
+   - Preserve backward compatibility: if override not provided, use existing scalar extraction path
 
-**High-Risk Patterns to Search**:
-1. `.item()` — Converts tensor to Python scalar (breaks autograd)
-2. `.detach()` or `.data` — Explicitly removes gradient tracking
-3. `.numpy()` — Moves to NumPy (non-differentiable)
-4. In-place ops on leaf tensors: `*=`, `+=`, `.copy_()` when `requires_grad=True`
-5. `.cpu()` without grad retention — Device move losing gradient
+3. Update test harness:
+   - Remove `float(tensor.item())` calls
+   - Pass tensor directly via new override parameters
+   - Ensure rest of test logic unchanged (same loss_fn closure pattern)
 
-**Grep Commands** (execute from repo root):
-```bash
-# Create artifact directory
-mkdir -p plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z
+4. Run tests sequentially (not parallel):
+   - First: detector test alone
+   - Second: beam test alone
+   - Third: full suite (assess crystal test status)
 
-# Search for .item() calls
-grep -n '\.item()' dbex/physics/forward.py dbex/geometry/crystallography.py dbex/physics/loss.py dbex/refinement/inputs.py > plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/grep_item.txt
+5. Write analysis report:
+   - Document exact LOC changed
+   - Copy-paste pytest output (PASSED/FAILED lines, gradcheck tolerances if applicable)
+   - For crystal tests: copy full error traceback if still failing
 
-# Search for .detach() calls
-grep -n '\.detach()' dbex/physics/forward.py dbex/geometry/crystallography.py dbex/physics/loss.py dbex/refinement/inputs.py > plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/grep_detach.txt
+**Pitfalls To Avoid**:
 
-# Search for .numpy() calls
-grep -n '\.numpy()' dbex/physics/forward.py dbex/geometry/crystallography.py dbex/physics/loss.py dbex/refinement/inputs.py > plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/grep_numpy.txt
+1. **Type discipline**: This is `architecture` (gradient hygiene enforcement), not `bugfix` (semantic change)
+2. **No stacking**: Production code is clean; only fix test harness + config factory API
+3. **Parity-first**: Not applicable (gradient flow, not numerical parity)
+4. **No shadow-pipeline**: Do not create probe scripts; Phase B.1 is production code only
+5. **Thin wrapper budget**: Not applicable this loop (production fix, not probe)
+6. **No test weakening**: Do not relax gradcheck tolerances or skip tests
+7. **Backward compat**: Config factory changes must not break existing call sites (optional parameters)
+8. **Symmetric patterns**: Detector and beam overrides should follow same pattern for maintainability
+9. **Minimal scope**: Fix only detector + beam this loop; crystal tests investigated separately if needed
+10. **Evidence-based next action**: If crystal tests still fail, recommend Phase A.3 probe with concrete hypothesis
 
-# Search for in-place ops
-grep -n '\*=' dbex/physics/forward.py dbex/geometry/crystallography.py dbex/physics/loss.py dbex/refinement/inputs.py > plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/grep_inplace_mul.txt
-grep -n '+=' dbex/physics/forward.py dbex/geometry/crystallography.py dbex/physics/loss.py dbex/refinement/inputs.py > plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/grep_inplace_add.txt
+**If Blocked**:
 
-# Search for .cpu() calls
-grep -n '\.cpu()' dbex/physics/forward.py dbex/geometry/crystallography.py dbex/physics/loss.py dbex/refinement/inputs.py > plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/grep_cpu.txt
-```
+- **If config factory override implementation complex** (>30 LOC per function):
+  - Document complexity, propose alternative (e.g., test-side BeamConfig construction)
+  - Continue with detector override only, defer beam to next loop
 
-**Analysis Steps** (for each grep result):
-1. Open file at reported line number
-2. Read surrounding context (±5 lines)
-3. Classify as **SAFE** (pattern on non-grad tensor) or **UNSAFE** (pattern on `requires_grad=True` tensor or parameter)
-4. For UNSAFE matches: document exact line, surrounding code, hypothesis (e.g., "loss.py:145 uses `.item()` on variance denominator, likely breaking gradient")
+- **If detector/beam tests still fail post-fix**:
+  - Capture full pytest traceback in analysis report
+  - Mark Phase B.1 as blocked, recommend deeper call graph audit or pivot to spec_change
 
-**Write output artifact**:
-- File: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/suspect_audit.md`
-- Contents:
-  - Summary table: `| Module | .item() | .detach() | .numpy() | inplace | .cpu() | Total Unsafe |`
-  - Detailed analysis: For each UNSAFE match, document file:line, code snippet, classification, hypothesis
-  - Top candidate: Single most likely root cause based on grep evidence
+- **If crystal tests mysteriously pass**:
+  - Great! Proceed to Phase B.2-B.3 next loop (enforcement test + docs)
+  - Update planning_notes.md with surprise success scenario
 
-**Validation**: ≥4 modules audited, ≥10 grep matches analyzed (SAFE vs UNSAFE classification), top candidate identified.
+- **If environment issues** (e.g., nanobrag_torch import errors):
+  - Treat as blocker per Environment Freeze policy
+  - Do not attempt local patches; mark ARCH-GRADIENT-FLOW-001 blocked_pending_environment
 
----
-
-### Deliverables (This Loop)
-
-1. **call_graph_trace.md** — Execution path diagram with ≥5 call stack levels
-2. **grep_*.txt** — 6 grep output files (item, detach, numpy, inplace_mul, inplace_add, cpu)
-3. **suspect_audit.md** — Analysis of grep results with SAFE/UNSAFE classification, top candidate hypothesis
-4. **summary.md** — Loop summary with Phase A.1-A.2 completion status, preliminary hypothesis, next action (Phase A.3 gradient probe OR Phase B.1 fix if evidence strong)
-
----
-
-## Pitfalls To Avoid
-
-1. **Do not execute tests this loop** — Phase A is evidence collection only (call graph + grep audit). Test execution deferred to Phase B.2 (gradcheck verification after fix).
-
-2. **Do not implement fixes this loop** — Phase A objective is localization only. Fix implementation in Phase B.1 after hypothesis ranking (A.4).
-
-3. **Environment freeze** — No package installs/upgrades. If grep reveals issues in nanobrag_torch (external), mark as blocked_pending_environment.
-
-4. **Type discipline** — This is architecture (gradient flow contract enforcement), not bugfix. Classification correct because enforcement test (Phase B.3) required.
-
-5. **Thin wrapper guardrail** — Phase A.3 gradient probe (next loop) must stay <400 LOC. Phase A.1-A.2 are grep/read only (no script creation).
-
-6. **Parity-first not applicable** — DB-AT-010 is gradcheck (correctness), not numerical parity. No parity metrics needed.
-
-7. **Evidence→Action contract** — This loop's output (call graph + grep audit) must enable Phase B.1 fix identification. If not, Phase A.3 gradient probe required (next loop).
-
-8. **Do not speculate on fix** — Grep audit should classify patterns as SAFE/UNSAFE based on code context, not implement patch. Phase B.1 will handle fix.
-
-9. **Cliff avoidance not applicable** — DB-AT-010 gradcheck failure is deterministic (not numerical instability). No cliff risk.
-
-10. **Probe saturation not applicable yet** — This is first evidence loop. Budget: 2 probes allowed before fix required.
+**Doc Sync Plan**: Not applicable this loop (no test renames, no registry changes)
 
 ---
 
-## If Blocked
+**Galph's confidence in this plan**: 0.9 (high confidence detector/beam fixes work; low confidence crystal tests self-resolve)
 
-### Scenario 1: Grep finds no obvious .item()/.detach() calls
-**Action**: Proceed to Phase A.3 (gradient probe) next loop to isolate which module breaks gradient empirically.
-**Rationale**: Gradient break may be in nanobrag_torch upstream or hidden in property getter/setter.
+**Estimated effort**: 1 loop (40-60 LOC implementation + 3 pytest runs)
 
-### Scenario 2: Grep finds >10 unsafe patterns across multiple modules
-**Action**: Rank by proximity to test entry point (call graph order). Fix top-ranked candidate first (Phase B.1), re-run gradcheck, iterate if needed.
-**Rationale**: Multiple gradient breaks possible; incremental fixes required.
-
-### Scenario 3: Call graph trace reveals gradient break in nanobrag_torch (external)
-**Action**: Mark ARCH-GRADIENT-FLOW-001 as blocked_pending_environment. Document in problems.md for maintainer escalation. Consider spec_change to relax gradcheck tolerances as contingency.
-**Rationale**: External gradient breaks outside dbex scope; requires upstream fix or acceptance criteria adjustment.
-
-### Scenario 4: Grep audit takes >2 hours (manual analysis bottleneck)
-**Action**: Complete grep commands, defer detailed analysis to partial deliverable. Note which modules remain unaudited in summary.md. Continue Phase A.2 next loop if needed.
-**Rationale**: Phase A.1-A.2 can split across 2 loops if grep results extensive.
-
----
-
-## Expected Runtime
-
-- **Call graph trace (A.1)**: ~30-45 min (file reads, import chain following, diagram authoring)
-- **Grep commands (A.2)**: ~5 min (6 commands, redirect to files)
-- **Grep analysis (A.2)**: ~60-90 min (10-20 matches, context reads, SAFE/UNSAFE classification)
-- **Artifact writing (summary.md)**: ~15 min
-
-**Total**: ~2-2.5 hours
-
----
-
-## Success Criteria
-
-- ✅ **call_graph_trace.md exists** with ≥5 call stack levels documented
-- ✅ **6 grep output files exist** (grep_item.txt, grep_detach.txt, grep_numpy.txt, grep_inplace_mul.txt, grep_inplace_add.txt, grep_cpu.txt)
-- ✅ **suspect_audit.md exists** with ≥10 matches analyzed, SAFE/UNSAFE classification, top candidate hypothesis
-- ✅ **summary.md exists** with Phase A.1-A.2 completion status, preliminary hypothesis, next action recommendation
-
----
-
-**Prepared by**: Galph (Loop i=137)
-**For**: Ralph (Loop i=138)
-**Focus**: ARCH-GRADIENT-FLOW-001 Phase A.1-A.2 — Call graph trace + suspect module audit
-**Next**: Phase A.3 (gradient probe, loop i=139) OR Phase B.1 (fix, loop i=139 if A.1-A.2 evidence conclusive)
+**Next loop decision tree**:
+- If 2/5 PASS (detector+beam), 3/5 FAIL (crystal) → Phase A.3 probe
+- If 5/5 PASS → Phase B.2-B.3 enforcement test + docs
+- If 0/5 or 1/5 PASS → Deeper audit or blocked

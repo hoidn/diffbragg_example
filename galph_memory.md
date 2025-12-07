@@ -1,3 +1,13 @@
+2026-01-14T090000Z focus=ARCH-IMPL-CONFORMANCE-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T090000Z/ next_action=phase_b5_root_cause_analysis
+- Loop i=113 investigation complete: Phase A.2 cold-path test revealed fundamental simulator construction mismatch, not just calibration threading issue.
+- Ralph's i=112 fix threaded `calibration_metadata` to RefinementConfig (test_scale_contracts.py:258-262) BUT cold-path still produces 2.83× scale factor mismatch (64.6% rel_error).
+- Diagnostic evidence (pytest log lines 13-15): raw simulator output 6.9e-01 ≈ scaled output 6.9e-01, proving apply_sqrt_spot_scale received None calibration despite threading.
+- Hypothesis: effective_calibration_metadata defaulting logic (reconstruction.py:219) fails because `calibration_metadata` parameter not threaded through call chain OR config.calibration_metadata not hydrated properly for cold path.
+- DecisionStatus: exploring (requires code audit to confirm whether calibration reaches apply_sqrt_spot_scale).
+- Mapped tests: test_stage_a_vs_reconstruction_scale_cold_path (diagnostic), test_stage_a_vs_reconstruction_scale (warm-cache regression).
+- Next loop (i=114): Audit reconstruction.py:216-221 threading, trace calibration_metadata from test→config→effective_calibration_metadata→apply_sqrt_spot_scale, emit detailed logging at each hop, confirm whether None or correctly threaded.
+Action State: planning
+
 2026-01-14T060000Z focus=ARCH-IMPL-CONFORMANCE-001 state=debug dwell=0 action=debug artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T060000Z/ next_action=phase_b5_debug_cold_path_hang
 - Phase B.3-B.4 implementation complete (loop i=112): canonical API refactor shipped (Stage A + reconstruction delegate to apply_sqrt_spot_scale).
 - Warm-cache regression PASSED (Phase A.1: 9.57s), but cold-path validation HUNG (Phase A.2: >2.5min timeout).

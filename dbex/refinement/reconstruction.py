@@ -455,16 +455,48 @@ def build_final_bragg_from_stage_a_telemetry(
             if (telemetry_model_mean is not None and telemetry_model_mean > 0 and
                 cold_masked_mean > 0 and np.isfinite(telemetry_model_mean) and np.isfinite(cold_masked_mean)):
                 baseline_alignment_factor = telemetry_model_mean / cold_masked_mean
+                alignment_source = "telemetry_model_mean_masked"
                 print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14] Cold-path baseline alignment:")
                 print(f"  telemetry_model_mean_masked: {telemetry_model_mean:.6e}")
                 print(f"  cold_masked_mean (before alignment): {cold_masked_mean:.6e}")
                 print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
+                print(f"  source: {alignment_source}")
+            elif effective_calibration_metadata is not None and "masked_mean_ratio" in effective_calibration_metadata:
+                # ARCH-CONTRACT-002 Phase B.7: Use masked_mean_ratio from mapping phase as fallback
+                # When telemetry doesn't provide model_mean_masked (e.g., minimal test fixtures),
+                # fall back to masked_mean_ratio from build_mapping_stage_a_context (mapping.py:297-312).
+                # This ensures reconstruction cold path aligns with mapping's target-to-bragg adjustment.
+                #
+                # Mapping path: simulate_forward_once applies sqrt(spot_scale) to raw output (nanobrag_bridge.py:1457),
+                # computes masked_mean_ratio = target_mean / bragg_mean from that scaled output (mapping.py:297),
+                # then applies it: bragg *= masked_mean_ratio (mapping.py:300).
+                # Reconstruction calibrated path: raw output * scale_factor (where scale_factor = sqrt(spot_scale))
+                # * baseline_alignment_factor (reconstruction.py:535).
+                # To match: raw * sqrt(spot) * baseline_alignment_factor = raw * sqrt(spot) * masked_mean_ratio
+                # Therefore: baseline_alignment_factor = masked_mean_ratio
+                masked_mean_ratio = effective_calibration_metadata.get("masked_mean_ratio")
+                if masked_mean_ratio is not None and masked_mean_ratio > 0 and np.isfinite(masked_mean_ratio):
+                    baseline_alignment_factor = masked_mean_ratio
+                    alignment_source = "calibration_masked_mean_ratio"
+                    print(f"[ARCH-CONTRACT-002 Phase B.7] Cold-path baseline alignment from calibration:")
+                    print(f"  masked_mean_ratio (from mapping): {masked_mean_ratio:.6e}")
+                    print(f"  baseline_alignment_factor: {baseline_alignment_factor:.6f}")
+                    print(f"  source: {alignment_source}")
+                else:
+                    # Emit warning if alignment cannot be computed
+                    print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14 WARNING] Cannot compute baseline alignment:")
+                    print(f"  telemetry_model_mean_masked: {telemetry_model_mean}")
+                    print(f"  cold_masked_mean: {cold_masked_mean if inputs.loss_mask is not None else 'N/A (no loss_mask)'}")
+                    print(f"  calibration masked_mean_ratio: {effective_calibration_metadata.get('masked_mean_ratio')}")
+                    baseline_alignment_factor = 1.0
+                    alignment_source = "default_fallback"
             else:
                 # Emit warning if alignment cannot be computed
                 print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14 WARNING] Cannot compute baseline alignment:")
                 print(f"  telemetry_model_mean_masked: {telemetry_model_mean}")
                 print(f"  cold_masked_mean: {cold_masked_mean if inputs.loss_mask is not None else 'N/A (no loss_mask)'}")
                 baseline_alignment_factor = 1.0
+                alignment_source = "default_fallback"
         else:
             # No loss_mask, cannot compute alignment
             print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.14] No loss_mask available; skipping baseline alignment")

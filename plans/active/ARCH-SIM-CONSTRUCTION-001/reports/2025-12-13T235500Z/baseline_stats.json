@@ -2397,5 +2397,215 @@
       },
       "checksum_mismatch": false
     }
+  },
+  {
+    "timestamp": "2025-12-07T04:47:08.716458Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 96.12823486328125,
+      "mean_unmasked": 1.861551284790039
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 1.1034203726578615
+    },
+    "chi_squared": {
+      "per_pixel": 788940.4289855072,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 691816768.0,
+    "baseline_alignment_factor": 0.027175826811837136,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-07T04:49:47.101002Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 1.4228908185032196e-07,
+      "mean_unmasked": 2.755468742066114e-09
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 1.6332836231074847e-09
+    },
+    "chi_squared": {
+      "per_pixel": 1888496.9120772947,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 691816768.0,
+    "baseline_alignment_factor": 4.0225668903947174e-11,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-07T04:51:50.684196Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 1.461932299662294e-07,
+      "mean_unmasked": 2.8310735977754575e-09
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 1.6780978920378675e-09
+    },
+    "chi_squared": {
+      "per_pixel": 1888496.9120772947,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 691816768.0,
+    "baseline_alignment_factor": 4.1329386507477744e-11,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-07T04:55:12.048830Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 96.70044708251953,
+      "mean_unmasked": 1.8726322650909424
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 1.10998858459985
+    },
+    "chi_squared": {
+      "per_pixel": 786256.077294686,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 691816768.0,
+    "baseline_alignment_factor": 0.027337589110870537,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-07T04:57:51.856361Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 1.687072992324829
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 1.0
+    },
+    "chi_squared": {
+      "per_pixel": 835858.0560386473,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 691816768.0,
+    "baseline_alignment_factor": 0.02462871348204137,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
+  },
+  {
+    "timestamp": "2025-12-07T05:00:22.095624Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 98.1942138671875,
+      "mean_unmasked": 1.9015588760375977
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": NaN,
+      "model_mean_masked": NaN
+    },
+    "ratios": {
+      "bragg_vs_telem_model": NaN,
+      "bragg_vs_target": 1.1271349797723664
+    },
+    "chi_squared": {
+      "per_pixel": 779395.7101449275,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 691816768.0,
+    "baseline_alignment_factor": 0.02775988104087195,
+    "cache_status": "cold_path",
+    "mask_metadata": {
+      "telemetry": null,
+      "reconstruction": {
+        "loss_mask_pixel_count": 4140,
+        "mask_checksum": "6305df21a223636fe1f82f9c00f9041e7def78a0"
+      },
+      "checksum_mismatch": false
+    }
   }
 ]

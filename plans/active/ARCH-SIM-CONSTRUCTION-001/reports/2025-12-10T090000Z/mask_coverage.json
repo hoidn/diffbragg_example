@@ -944,5 +944,71 @@
         "fallback_reason": null
       }
     ]
+  },
+  {
+    "timestamp": "2025-12-07T04:47:08.714290Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-07T04:49:47.098851Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-07T04:51:50.681668Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-07T04:55:12.046657Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-07T04:57:51.854133Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-07T05:00:22.093408Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
   }
 ]

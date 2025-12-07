@@ -1,0 +1,83 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 176 items / 2 errors / 171 deselected / 5 selected
+
+==================================== ERRORS ====================================
+______________ ERROR collecting tests/dbex/test_nanobrag_smoke.py ______________
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_nanobrag_smoke.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/dbex/test_nanobrag_smoke.py:30: in <module>
+    from dbex.nanobrag_bridge import (
+E   ImportError: cannot import name 'prepare_refinement_inputs' from 'dbex.nanobrag_bridge' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/nanobrag_bridge.py)
+____________ ERROR collecting tests/dbex/test_vis_triptych_smoke.py ____________
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_vis_triptych_smoke.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/dbex/test_vis_triptych_smoke.py:7: in <module>
+    from dbex.vis import plot_triptych, plot_z_scores
+E   ImportError: cannot import name 'plot_z_scores' from 'dbex.vis' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/vis/__init__.py)
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_stage_a_adam_tooling.py:304
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_adam_tooling.py:304: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/dbex/test_stage_a_mapping_equiv.py:160
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_mapping_equiv.py:160: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_027 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_027
+
+tests/dbex/test_stage_b_cpu_fallback.py:389
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_b_cpu_fallback.py:389: PytestUnknownMarkWarning: Unknown pytest.mark.mini - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mini
+
+tests/dbex/test_ub_parameterization_roundtrip.py:51
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:104
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:150
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:150: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:213
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:213: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_nanobrag_smoke.py
+ERROR tests/dbex/test_vis_triptych_smoke.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+================ 171 deselected, 13 warnings, 2 errors in 2.26s ================

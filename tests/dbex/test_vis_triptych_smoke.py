@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from dbex.vis import plot_triptych, plot_z_scores
+from dbex.vis import plot_triptych, compute_z_scores
 
 
 def test_plot_triptych_smoke(tmp_path: Path) -> None:
@@ -35,12 +35,12 @@ def test_plot_z_scores_smoke(tmp_path: Path) -> None:
     model_roi = data_roi * 0.9
 
     out_file = tmp_path / "triptych_z.png"
-    result_path = plot_z_scores(
+    result_path = compute_z_scores(
         data_roi,
         model_roi,
         out_path=out_file,
         title="Z-score residuals",
     )
 
-    assert result_path.exists(), "plot_z_scores must write an artifact"
+    assert result_path.exists(), "compute_z_scores must write an artifact"
     assert result_path.stat().st_size > 0, "Z-score PNG artifact should not be empty"

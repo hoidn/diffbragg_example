@@ -27,14 +27,13 @@ from argparse import Namespace
 
 # DataLoad and bridge helpers
 from dbex.data_load import DataLoad
-from dbex.nanobrag_bridge import (
-    prepare_refinement_inputs,
+from dbex.refinement.inputs import prepare_refinement_inputs, RefinementInputs
+from dbex.refinement.config_factories import (
     create_detector_config,
     create_beam_config,
     create_crystal_config,
-    RefinementInputs
 )
-from dbex.vis import compute_z_scores, save_triptych
+from dbex.vis import compute_z_scores, plot_triptych
 
 
 class SmokeMetrics(NamedTuple):
@@ -451,7 +450,7 @@ def smoke_artifacts(
             bragg_roi,
             mask=mask_roi,
         )
-        save_triptych(
+        plot_triptych(
             data_roi,
             bragg_roi,
             residual_z,

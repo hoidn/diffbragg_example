@@ -49,7 +49,6 @@ def create_detector_config(
     panel,
     beam,
     trusted_mask: Optional[np.ndarray] = None,
-    distance_mm_override: Optional['torch.Tensor'] = None,
     roi_bbox: Optional[Tuple[int, int, int, int]] = None,
     oversample: int = -1,
 ) -> DetectorConfig:
@@ -71,8 +70,6 @@ def create_detector_config(
         panel: dxtbx Panel object
         beam: dxtbx Beam object
         trusted_mask: Optional boolean mask [slow, fast], True=include
-        distance_mm_override: Optional torch.Tensor scalar for distance override (TORCH-REFINE-003)
-                             If provided, replaces panel.get_directed_distance() for Stage C
         roi_bbox: Optional tuple (x0, x1, y0, y1) with exclusive upper bounds specifying a cropped
                   ROI. When provided, the detector's fpixels/spixels and beam center are adjusted
                   so pixel (0,0) maps to the ROI's top-left corner, and the trusted mask is sliced.
@@ -111,13 +108,7 @@ def create_detector_config(
         slow_px = y1 - y0
 
     # Distance (config_crosswalk.md:28)
-    # Allow Stage C to override distance with differentiable tensor (TORCH-REFINE-003)
-    if distance_mm_override is not None:
-        # distance_mm_override is a torch.Tensor; extract scalar value or use directly
-        # DetectorConfig expects a Python float, so we need to handle tensor→scalar conversion
-        distance_mm = distance_mm_override
-    else:
-        distance_mm = panel.get_directed_distance()
+    distance_mm = panel.get_directed_distance()
 
     # Beam center swap: dxtbx returns (fast_mm, slow_mm), torch expects (s, f)
     # (config_crosswalk.md:29, docs/nanobrag_api.md:28)
@@ -231,7 +222,7 @@ def create_detector_config(
     )
 
 
-def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None, wavelength_override: Optional['torch.Tensor'] = None) -> BeamConfig:
+def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> BeamConfig:
     """
     Create BeamConfig from dxtbx beam with optional calibration overrides.
 
@@ -246,18 +237,12 @@ def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None, wavelen
         flux: Optional beam flux in photons/s (from calibration metadata)
         beamsize_mm: Optional beam size in mm (from calibration metadata)
         exposure: Optional exposure time in seconds (from calibration metadata)
-        wavelength_override: Optional torch.Tensor scalar for wavelength override (GRADIENT-001)
-                            If provided, replaces beam.get_wavelength() for gradcheck
 
     Returns:
         BeamConfig with wavelength, polarization, and optional calibration fields
     """
     # Wavelength (config_crosswalk.md:46)
-    # Allow gradcheck to override wavelength with differentiable tensor (GRADIENT-001)
-    if wavelength_override is not None:
-        wavelength_A = wavelength_override
-    else:
-        wavelength_A = beam.get_wavelength()
+    wavelength_A = beam.get_wavelength()
 
     # Polarization: try to extract metadata, fallback to defaults
     # (config_crosswalk.md:48-49, spec-db-core.md:44)

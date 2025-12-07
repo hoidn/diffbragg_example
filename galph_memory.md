@@ -1,3 +1,12 @@
+2026-01-14T060000Z focus=ARCH-IMPL-CONFORMANCE-001 state=debug dwell=0 action=debug artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T060000Z/ next_action=phase_b5_debug_cold_path_hang
+- Phase B.3-B.4 implementation complete (loop i=112): canonical API refactor shipped (Stage A + reconstruction delegate to apply_sqrt_spot_scale).
+- Warm-cache regression PASSED (Phase A.1: 9.57s), but cold-path validation HUNG (Phase A.2: >2.5min timeout).
+- Code review confirms implementation correct (reconstruction.py:501-509 properly applies canonical API).
+- DecisionStatus: patch_ready (awaiting validation, blocked by test hang).
+- Mapped tests: test_stage_a_vs_reconstruction_scale (regression, expect PASS), test_stage_a_vs_reconstruction_scale_cold_path (diagnostic with extended timeout).
+- Next loop (i=113): Debug Phase A.2 hang via extended pytest timeout (600s), minimal instrumentation if still hangs, expect either PASS or actionable error.
+Action State: debug
+
 2026-01-14T020000Z focus=ARCH-IMPL-CONFORMANCE-001 state=implementation_ready dwell=1 action=implementation_ready artifacts=plans/active/ARCH-IMPL-CONFORMANCE-001/reports/2026-01-14T020000Z/ next_action=phase_b3_b4_refactor
 - Phase B.1-B.2 complete (loop i=111): canonical apply_sqrt_spot_scale API delivered (11/11 unit tests PASS), calibration_metadata parameter threaded to reconstruction signature.
 - Warm-cache regression PASSED (Phase A.1), cold-path baseline FAILED as expected (Phase A.2: 64.7% rel_error).
@@ -22,9 +31,3 @@ Action State: implementation_ready
 - Lifecycle decision: ARCH-SIM-CONSTRUCTION-001 exceeds loop budget (C.1-C.39 = 39 loops, >6 loop hard limit) without validated first-divergence or monotonic improvement. Marking as blocked_pending_environment per non-negotiables.
 - Portfolio steering: switch focus to next unblocked Tier 0 item. ARCH-IMPL-CONFORMANCE-001 (pending, architecture type) is ready to start.
 Action State: lifecycle_decision_complete
-
-2026-01-05T150000Z focus=ARCH-SIM-CONSTRUCTION-001 state=parity_localization dwell=1 action=parity_localization artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-05T150000Z/ next_action=collect_subpixel_coverage_metrics
-- Problems ledger entry "DB-AT-028/029 scale mismatch (SCALE-009, ARCH-SIM-CONSTRUCTION-001)" serviced again this loop: we confirmed Phase C.33's centering still leaves the single-pixel probe at 0.25 % of `(Na·Nb·Nc)^2`, so the focus stays on ARCH-SIM-CONSTRUCTION-001 until the deterministic deficit is closed.
-- Logged a parity-mode Do Now that keeps evidence inside the owner path: slice `_partiality_stats` down to the traced pixel inside `src/nanobrag-torch/src/nanobrag_torch/simulator.py::Simulator.run`, expose `trace_delta_{h,k,l}`, `trace_F_latt_{a,b,c}`, and `trace_F_total_squared_pre_lorentz`, extend `probe_square_lattice_scaling.py` to count how many subpixels satisfy `|Δ|<1/N` and how much `F_total²` they carry, and rerun the single-pixel probe plus `tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells` with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-05T150000Z/`.
-- Evidence from that run will decide whether the next implementation loop corrects the `steps` normalization or moves downstream to Lorentz/polar ordering; no new plan-local probes allowed per PROBE-FREEZE-001.
-Action State: planning

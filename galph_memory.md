@@ -5,6 +5,13 @@
 - Planning artifacts: cadence_checklist.md template (147-231 lines), doc update targets (index.md:51, fix_plan.md:11)
 - Next: Ralph implements cadence definition docs, validates cross-references, commits with FINDINGS-LEDGER-002 prefix
 
+2025-12-07T100000Z focus=FINDINGS-LEDGER-002 state=implementation_ready dwell=0 action=implementation_ready artifacts=plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T100000Z/ next_action=phase_c1_c3_implementation
+- Loop i=123: Tier 0 all done/blocked (ARCH-SIM-CONSTRUCTION-001 blocked_pending_environment, ARCH-REFACTOR-001 blocked_pending_architecture)
+- Selected Tier 1 focus FINDINGS-LEDGER-002 Phase C (C.1 + C.3 implementation), C.2 automation deferred
+- DecisionStatus: patch_ready (5-phase cadence checklist template designed, doc update targets identified)
+- Deliverables: cadence_checklist.md (quarterly maintenance workflow), index.md cadence sentence, fix_plan.md Working Agreements bullet, implementation.md Phase C completion notes
+- Next: Ralph creates cadence_checklist.md, updates index.md + fix_plan.md + implementation.md, validates cross-refs, commits Phase C artifacts
+
 2025-12-07T080000Z focus=FINDINGS-LEDGER-002 state=implementation_ready dwell=1 action=implementation_ready artifacts=plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T080000Z/ next_action=phase_b2_reciprocal_annotations
 - Phase B.1 complete (loop i=119): consumer mapping delivered (9/74 findings have consumers, 12.2% coverage), crosslink_matrix.md + planning_notes.md authored
 - Phase B.2 scoped: update fix_plan.md with "Governed by" lines (10 initiatives), update findings.md with Consumer metadata (58 findings), create 2 new roll-up initiatives (PHYSICS-LOSS-CONSISTENCY, ARCH-STAGE-CONTEXT-CONSOLIDATION), target ≥78% coverage (58/74)

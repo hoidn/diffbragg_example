@@ -1,5 +1,57 @@
 # SPEC-SQUARE-PARTIALITY-001 Loop i=162 Summary
 
+## Ralph Implementation Turn (i=162)
+
+**Actor**: Ralph
+**Date**: 2025-12-08
+**Mode**: Parity
+**ActionType**: implementation_ready
+**DecisionStatus**: patch_ready
+
+### Implementation Completed
+
+#### B7.1 — Detector Size Update
+- **File**: `tests/architecture/test_nanobrag_partiality.py:61-62`
+- **Before**: `spixels=10, fpixels=10`
+- **After**: `spixels=400, fpixels=400`
+- **Rationale**: Full solid-angle integration per Phase B.6 investigation
+
+#### B7.2 — Tolerance Update
+- **File**: `tests/architecture/test_nanobrag_partiality.py:52`
+- **Before**: `tolerance = 0.05`
+- **After**: `tolerance = 0.07`
+- **Rationale**: Oscillatory convergence at 400×400+ per Phase B.6
+
+#### B7.3 — Docstring Update
+- Added note about 400×400 detector requirement for full solid-angle integration
+- References Phase B.6 for finite-detector analysis
+
+### Test Results (B7.4, B7.5)
+
+```
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu] PASSED [ 50%]
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cuda] PASSED [100%]
+============================== 2 passed in 12.24s ==============================
+```
+
+### Phase B Status
+
+**Phase B complete.** All tasks B1-B7 done. Linear Na×Nb×Nc scaling validated.
+
+### Next Steps
+
+Phase C — Ledger Closure (C1-C4)
+
+---
+
+### Turn Summary
+Loop i=162 (Ralph): Implemented SPEC-SQUARE-PARTIALITY-001 Phase B.7 final test configuration. Updated detector to 400×400 and tolerance to 7% in `test_nanobrag_partiality.py`. Both CPU and CUDA tests PASS (12.24s), validating linear Na×Nb×Nc scaling. Phase B now complete; Phase C (ledger closure) is next.
+Artifacts: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/pytest_final.log`, `summary.md`
+
+---
+
+# Galph Planning Turn (i=162)
+
 **Loop**: i=162 (Galph)
 **Date**: 2025-12-08T110000Z
 **Mode**: Parity

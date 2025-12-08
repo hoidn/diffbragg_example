@@ -138,13 +138,18 @@
 
 ## Phase B.7 — Final Test Configuration
 ### Checklist
-- [ ] B7.1: Update detector size to 400×400 (from 10×10) for full solid-angle integration
-- [ ] B7.2: Update tolerance to 7% (from 5%) to accommodate oscillatory convergence
-- [ ] B7.3: Update docstring with finite-detector note
-- [ ] B7.4: Run pytest and capture logs
-- [ ] B7.5: Verify test passes (expected: relative_error < 7%)
-- [ ] B7.6: Update implementation.md
-- [ ] B7.7: Create summary.md
+- [x] B7.1: Update detector size to 400×400 (from 10×10) for full solid-angle integration **(Done 2025-12-08)**
+- [x] B7.2: Update tolerance to 7% (from 5%) to accommodate oscillatory convergence **(Done 2025-12-08)**
+- [x] B7.3: Update docstring with finite-detector note **(Done 2025-12-08)**
+- [x] B7.4: Run pytest and capture logs **(Done 2025-12-08)**
+  - Both CPU and CUDA tests PASSED in 12.24s
+  - Logs: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/pytest_final.log`
+- [x] B7.5: Verify test passes (expected: relative_error < 7%) **(Done 2025-12-08)**
+  - `test_square_lattice_applies_ncells[cpu]` PASSED
+  - `test_square_lattice_applies_ncells[cuda]` PASSED
+- [x] B7.6: Update implementation.md **(Done 2025-12-08 — this update)**
+- [x] B7.7: Create summary.md **(Done 2025-12-08)**
+  - `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/summary.md`
 
 ### Rationale
 Phase B.6 investigation confirmed:

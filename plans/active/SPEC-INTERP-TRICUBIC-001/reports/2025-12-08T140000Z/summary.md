@@ -115,10 +115,11 @@ Since the nanobrag maintainer denies an upstream issue, the magnitude mismatch m
 
 ## Next Steps
 
-1. Mark SPEC-INTERP-TRICUBIC-001 as `partial` (Phase A/B done, Phase C blocked upstream)
-2. Update ARCH-GRADIENT-FLOW-001 to note tricubic successfully restored graph connectivity
-3. Await upstream `nanobrag_torch` response to gradient magnitude escalation
-4. Once upstream fix lands, re-run DB-AT-010 to complete Phase C validation
+1. Mark SPEC-INTERP-TRICUBIC-001 as `partial` (Phase A/B done, Phase C blocked pending investigation)
+2. Send clarification request to nanobrag_torch maintainers about crystal cell parameter gradients (see `inbox/to_nanobrag_cell_gradient_clarification_2025_12_08.md`)
+3. Update ARCH-GRADIENT-FLOW-001 status based on maintainer response
+4. If DBEX issue confirmed, create DBEX-GRADIENT-TRACE-001 initiative
+5. Once investigation complete, re-run DB-AT-010 to complete Phase C validation
 
 ---
 

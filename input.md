@@ -1,86 +1,112 @@
-# Input — Loop i=188 (Ralph)
+# Input — Loop i=190 (Ralph)
 
 ## Summary
-Execute TORCH-REFINE-CLEANUP-001 Phase C: run smoke tests, archive artifacts, mark roll-up done.
+Verify TORCH-REFINE-003 status: run Stage C microslip test to determine if implementation is complete; update checkboxes if PASS.
 
 ## Focus
-TORCH-REFINE-CLEANUP-001 — Stage A/B/C Refinement Probes Consolidation Roll-up
+TORCH-REFINE-003 — Stage C Detector Microslip (Scope Verification)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py` (6 tests: Stage A expansion, Stage B modifiers, Stage C microslip)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (primary — expect PASS if implementation complete)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
 
 ## Artifacts
-`plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T091543Z/`
+`plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/`
 
 ---
 
 ## Do Now
 
-**Focus:** TORCH-REFINE-CLEANUP-001 — Phase C closure
+**Focus:** TORCH-REFINE-003 — Scope Verification
 
-**Implement:** `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md::Phase_C` (C1-C3 checkboxes)
+**Implement:** `plans/active/TORCH-REFINE-003/implementation.md` Phase 0-4 checkbox sync (if test passes)
 
-**Validating selector:** `tests/dbex/test_torch_refine_smoke.py` (expect 6/6 PASS or 6/6 collected with minimal skip)
+**Validating selector:** `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
 
-**Artifacts path:** `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T091543Z/`
+**Artifacts path:** `plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/`
+
+### Background
+
+The TORCH-REFINE-CLEANUP-001 Phase A member plan audit (i=186) classified TORCH-REFINE-003 as "blocked" because:
+1. It depended on TORCH-REFINE-002D (Stage A gate restoration) — **NOW RESOLVED** (002D confirmed done, November 2025)
+2. It depended on TORCH-REFINE-002E (gradient flow) — **NOT a hard blocker** (Stage C uses detector offsets, not crystal gradients)
+
+**DISCOVERY (i=189 Galph)**: The test `test_stage_c_detector_microslip` already exists and collects (1 test). The implementation.md checkboxes are ALL unchecked, but the test code is present. This suggests the implementation work may be complete with only checklist hygiene remaining.
 
 ### Tasks
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| C1 | Run Stage A/B smoke tests | `pytest_refine_smoke.log` with PASS/FAIL status |
-| C2 | Archive Phase C artifacts | Log + summary files in reports directory |
-| C3 | Mark roll-up done | Update fix_plan.md (Execution Roadmap line 55 + detailed section status) |
-| C4 | Update implementation.md | Mark Phase C checkboxes complete |
-| C5 | Author summary.md | Turn Summary block for this loop |
+| V1 | Run collect-only for Stage C test | `collect_stage_c.log` confirming 1 test collected |
+| V2 | Run Stage C test | `pytest_stage_c.log` with PASS/FAIL status |
+| V3 | If PASS: Update implementation.md | Mark all applicable Phase 0-4 checkboxes complete |
+| V4 | If PASS: Update fix_plan.md | Add Attempts History entry, update status |
+| V5 | If FAIL: Document failure | Capture failure mode, identify remaining work |
+| V6 | Author summary.md | Turn Summary block for this loop |
 
 ---
 
 ## How-To Map
 
-### C1: Run smoke tests
+### V1: Collect-only
 ```bash
-KMP_DUPLICATE_LIB_OK=TRUE \
-  DBEX_SMOKE_DETECTOR_SIZE=small \
-  pytest -v tests/dbex/test_torch_refine_smoke.py \
-  2>&1 | tee plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T091543Z/pytest_refine_smoke.log
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  2>&1 | tee plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/collect_stage_c.log
 ```
 
-Expected: 6/6 PASS (or 6 collected with minimal skips due to environment). The archive operation (moving TORCH-REFINE-004) should not affect test execution since tests import from `dbex/` and `tests/`, not from `plans/active/`.
+### V2: Run Stage C test
+```bash
+mkdir -p plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z
 
-### C3: fix_plan.md updates
-1. Execution Roadmap line ~55: Change status from `in_progress` to `done`
-2. Detailed section (~line 388): Update status from `in_progress (Phase B complete)` to `done (Phase C complete)`
-3. Add Attempts History entry for this loop
+KMP_DUPLICATE_LIB_OK=TRUE \
+  DBEX_SMOKE_DETECTOR_SIZE=small \
+  pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --maxfail=1 \
+  2>&1 | tee plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/pytest_stage_c.log
+```
 
-### C4: implementation.md updates
-Mark checkboxes:
-- [x] C1: Run relevant test selectors (Stage A/B smoke)
-- [x] C2: Archive artifacts under reports directory
-- [x] C3: Mark roll-up done if no actionable work remains
+**Expected outcomes:**
+- **PASS**: Implementation complete; proceed with V3-V4 (checkbox sync + ledger update)
+- **FAIL with OOM**: Environment resource limit (same as i=188 smoke tests); document as environment caveat, not code issue
+- **FAIL with assertion error**: Identify which exit criterion fails; scope remaining work
+
+### V3: Implementation.md updates (if PASS)
+Review test code and mark checkboxes in `plans/active/TORCH-REFINE-003/implementation.md`:
+- Phase 0 (P0.1-P0.2): Baseline reality check — VERIFY test exercises deterministic detector offsets
+- Phase 1 (P1.1-P1.3): Config plumbing — VERIFY `RefinementConfig` has Stage C toggles, per-panel distance params exist
+- Phase 2 (P2.1-P2.3): LBFGS integration — VERIFY Stage C runs post-Stage A with detector distance optimization
+- Phase 3 (P3.1-P3.3): Telemetry — VERIFY Stage C telemetry emitted with per-panel deltas
+- Phase 4 (P4.1-P4.3): Validation — VERIFY test asserts improvement + telemetry completeness
+
+### V4: fix_plan.md updates (if PASS)
+Add Attempts History entry under TORCH-REFINE-CLEANUP-001 detailed section (~line 404):
+```
+  * 2025-12-08T104000Z (Loop i=190, Ralph) — **TORCH-REFINE-003 scope verification**: Ran test_stage_c_detector_microslip (PASS/FAIL). Implementation status: (complete if PASS / partial if FAIL). Updated implementation.md checkboxes. Artifacts: plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/
+```
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO** use `DBEX_SMOKE_DETECTOR_SIZE=small` for quick smoke validation (full-detector is not required for regression check)
-2. **DO** capture pytest output to log file in artifacts directory
-3. **DO NOT** modify test files or production code — this is docs/ledger closure only
-4. **DO NOT** run gradcheck tests — only smoke selectors needed
-5. **DO** verify 6 tests collected before concluding
-6. **DO** update BOTH Execution Roadmap AND detailed section in fix_plan.md
-7. **Environment Freeze:** No package installs. If tests fail due to import errors, document the failure and mark as regression to investigate.
+1. **DO** use `DBEX_SMOKE_DETECTOR_SIZE=small` for faster execution (full-detector requires more GPU memory)
+2. **DO** capture test output to log file in artifacts directory
+3. **DO NOT** modify production code — this is scope verification only
+4. **DO NOT** modify test files — test already exists
+5. **DO** verify test actually exercises Stage C (not just Stage A) by checking for `StageC` usage in test code
+6. **Environment Freeze:** If OOM occurs, document it as environment caveat (not code regression) per i=188 precedent
+7. **DO** check that Stage A also passes (regression guard) if time permits
 
 ---
 
 ## If Blocked
 
-1. If smoke tests fail with regressions, capture the failure log and do NOT mark as done
-2. Document the regression in summary.md and update fix_plan.md with blocked status
-3. Create a follow-on item in the Revive Priority Queue if needed
+1. If test fails with OOM: Document in summary.md as `environment_resource_limit`, not a code failure
+2. If test fails with assertion: Capture the specific failure, identify which exit criterion is unmet, scope the fix
+3. If test fails with import error: Document the missing dependency and mark as environment blocker
 
 ---
 
@@ -88,22 +114,23 @@ Mark checkboxes:
 
 - **TESTING-003**: Use canonical pytest selectors from TESTING_GUIDE.md
 - **PROBE-FREEZE-001**: No new probe scripts — use existing test infrastructure
-- **REFINE-001/002**: Stage A nucleus telemetry and baseline gates are in scope for smoke validation
+- **REFINE-007**: Stage C strict gates key off telemetry (≥80% offset reduction, ≤0.05% chi² regression)
+- **REFINE-009**: Stage C must seed detector distance offsets from known geometry for telemetry accuracy
 
 ---
 
 ## Pointers
 
-- implementation.md: `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md:59-63` (Phase C checklist)
-- fix_plan.md Execution Roadmap: `docs/fix_plan.md:55` (TORCH-REFINE-CLEANUP-001 status)
-- fix_plan.md detailed section: `docs/fix_plan.md:386-408`
-- Phase B summary: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/summary.md`
-- Member plan audit: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/member_plan_status_audit.md`
+- TORCH-REFINE-003 implementation.md: `plans/active/TORCH-REFINE-003/implementation.md:18-37` (Phase checklist)
+- Test code: `tests/dbex/test_torch_refine_smoke.py:1044-1364` (test_stage_c_detector_microslip)
+- Prior Stage C summary: `plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json` (if exists)
+- REFINE-007 finding: `docs/findings.md:67` (Stage C gate calibration)
+- REFINE-009 finding: `docs/findings.md:71` (baseline detector seeding)
 
 ---
 
 ## Next Up (optional)
 
-If Phase C completes successfully and time permits:
-1. **TORCH-REFINE-002D** (HIGH priority revive): P2.1 xfail removal work
-2. **DB-AT-SUITE-CARE-001** Phase D.2: Next regression cadence check
+If Stage C test passes and time permits:
+1. Run Stage A regression guard: `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+2. If both pass: Consider marking TORCH-REFINE-003 as `done` in fix_plan.md

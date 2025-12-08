@@ -398,9 +398,9 @@
 - Working Plan: `plans/active/TORCH-REFINE-001/`, `plans/active/TORCH-REFINE-002/`, `plans/active/TORCH-REFINE-002D/`, `plans/active/TORCH-REFINE-002E/`, `plans/active/TORCH-REFINE-003/`
 - Spec References: `docs/spec-db-workflow.md` §Stage B/C, `docs/spec-db-runtime.md` §Vectorization
 - Working Plan: `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md`
-- Revive Priority Queue:
-  * **TORCH-REFINE-002D:** Priority HIGH — Remove xfail, restore ≥0.2% Stage A gate (remaining: P2.1-P2.2, P3.1-P3.2)
-  * **TORCH-REFINE-001:** Priority MEDIUM — Phase B full-trace telemetry, Phase C CLI wiring (remaining: B1-B2, C1-C2)
+- Revive Priority Queue: **EMPTY** (2025-12-08T100000Z: Status drift corrected)
+  * **TORCH-REFINE-002D:** ~~Priority HIGH~~ → **DONE** (2025-11-05T093000Z: All phases complete. Phase A audit (i=186) had stale checklist; November 2025 summary shows all exit criteria satisfied — REFINE-004/005 Resolved, test PASSED with ~0.206% improvement, deterministic misset validated)
+  * **TORCH-REFINE-001:** ~~Priority MEDIUM~~ → **Substantial progress** (Phase A complete; Phases B-C scope largely superseded by downstream TORCH-REFINE-002/002D implementation — `loss_trace_full` implemented/tested, Stage A expansion operational, nanobrag backend exposed via CLI)
 - Attempts History:
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
   * 2025-12-08T150000Z (Loop i=186, Galph) — Phase A complete. Audited 6 member plans: 001 (substantial), 002 (done→002D), 002D (in_progress), 002E (blocked), 003 (blocked), 004 (done). Classification: revive (002D, 001), blocked (002E, 003), archive (004). Artifacts: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/`.

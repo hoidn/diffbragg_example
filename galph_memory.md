@@ -1,3 +1,16 @@
+2025-12-08T103000Z focus=TORCH-REFINE-CLEANUP-001 state=housekeeping dwell=0 action=review_or_housekeeping artifacts=plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T103000Z/ next_action=select_next_focus
+- Loop i=189 (Galph): **STATUS DRIFT CORRECTION** (Housekeeping). Prior loop (i=188 Ralph) closed TORCH-REFINE-CLEANUP-001 Phase C with revive queue: TORCH-REFINE-002D (HIGH), TORCH-REFINE-001 (MEDIUM). **DISCOVERY**: Revive queue was based on stale implementation.md checkboxes. **Reality Check Evidence**:
+  - TORCH-REFINE-002D: November 2025 summary.md (`reports/2025-11-05T093000Z/summary.md`) shows ALL exit criteria satisfied — test PASSED with ~0.206% improvement, REFINE-004/005 marked Resolved in findings.md. **002D is DONE, not revive.**
+  - TORCH-REFINE-003: Test `test_stage_c_detector_microslip` exists and collects (1 test), implementation likely complete but checkboxes unchecked. No longer blocked (002D dependency resolved).
+  - TORCH-REFINE-001: Phase B/C scope largely superseded by downstream 002/002D work — `loss_trace_full` implemented/tested, Stage A expansion operational.
+  **CORRECTIONS APPLIED**:
+  1. Updated TORCH-REFINE-002D implementation.md Phase 2-3 checkboxes to [x] COMPLETE
+  2. Updated fix_plan.md revive queue to EMPTY with explanation
+  3. Updated member_plan_status_audit.md classification summary
+  4. Updated TORCH-REFINE-003 status note (no longer blocked, needs scope review)
+  **Portfolio impact**: Revive queue emptied; TORCH-REFINE-003 now actionable (test exists, run to verify); TORCH-REFINE-001 needs scope review vs superseded work.
+  ActionType: review_or_housekeeping. DecisionStatus: N/A (hygiene). Next: Select next implementation focus (TORCH-REFINE-003 test verification or DB-AT-SUITE-CARE-001 Phase D.2 maintenance).
+
 2025-12-08T091543Z focus=TORCH-REFINE-CLEANUP-001 state=done dwell=2 action=closure artifacts=plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T091543Z/ next_action=none
 - Loop i=188 (Ralph): **TORCH-REFINE-CLEANUP-001 Phase C COMPLETE** (Closure). Executed C1-C5: ran smoke tests (6/6 collected, execution hit CUDA OOM — environment resource limit, not code regression; prior loops did collect-only so no established execution baseline), archived artifacts, updated fix_plan.md + implementation.md, authored summary. **Roll-up marked done**. **Environment observation**: Smoke tests require more GPU memory than currently available (~23GB allocated, OOM at tricubic interpolation during final Bragg reconstruction). This is NOT a code regression — prior loops only did collect-only verification. Revive priority queue preserved: TORCH-REFINE-002D (HIGH), TORCH-REFINE-001 (MEDIUM). **Initiative CLOSED**. Next: TORCH-REFINE-002D or DB-AT-SUITE-CARE-001 Phase D.2.
 

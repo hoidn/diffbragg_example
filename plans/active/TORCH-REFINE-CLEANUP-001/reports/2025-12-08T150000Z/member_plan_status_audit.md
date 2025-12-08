@@ -12,7 +12,7 @@
 |---------|---------------|-----------------|------------------|----------------|
 | TORCH-REFINE-001 | substantial_progress | A1-A3 | B1-B2, C1-C2 | **revive** |
 | TORCH-REFINE-002 | done (delegated) | P1.1-P3.2 | P4.1-P4.3 → 002D | N/A (see 002D) |
-| TORCH-REFINE-002D | in_progress | P0.1, P1.1-P1.3 | P2.1-P2.2, P3.1-P3.2 | **revive** |
+| TORCH-REFINE-002D | **done** | P0.1, P1.1-P1.3, P2.1-P2.2, P3.1-P3.2 | None | **done** (2025-12-08T100000Z: Status drift corrected; November 2025 summary shows all phases complete) |
 | TORCH-REFINE-002E | in_progress | A0, A2-A3, B1 | B2-B5, C1-C3 | **blocked** |
 | TORCH-REFINE-003 | pending | None | P0-P4 (all) | **blocked** |
 | TORCH-REFINE-004 | done | All phases | None | **archive** |
@@ -62,21 +62,20 @@
 
 **Source:** `plans/active/TORCH-REFINE-002D/implementation.md`
 
-**Phases Verified:**
+**Phases Verified:** *(CORRECTED 2025-12-08T100000Z — status drift fixed)*
 - [x] P0.1: HKL metadata probe — COMPLETE (hkl_probe.json captured)
 - [x] P1.1: ±1 halo support in `build_structure_factor_grid` — COMPLETE
 - [x] P1.2: Interpolation toggle in Stage A config — COMPLETE
 - [x] P1.3: Smoke harness with haloed grid — COMPLETE
-- [ ] P2.1: Remove `pytest.xfail`, assert ≥0.2% improvement — PENDING
-- [ ] P2.2: Verify orientation telemetry with interpolation — PENDING
-- [ ] P3.1: Update REFINE-004/005 findings — PENDING
-- [ ] P3.2: Refresh fix_plan + test registry sync — PENDING
+- [x] P2.1: Remove `pytest.xfail`, assert ≥0.2% improvement — COMPLETE (2025-11-05T093000Z: test PASSED with ~0.206% improvement)
+- [x] P2.2: Verify orientation telemetry with interpolation — COMPLETE (2025-11-05T093000Z: deterministic misset validated)
+- [x] P3.1: Update REFINE-004/005 findings — COMPLETE (2025-11-05T093000Z: both marked Resolved in findings.md)
+- [x] P3.2: Refresh fix_plan + test registry sync — COMPLETE (2025-11-05T093000Z: fix_plan updated)
 
-**Classification:** `revive`
-- No direct Tier 0 blocker
-- REFINE-004/005 findings need resolution as exit criteria
-- Can proceed with xfail removal once HKL grid coverage is confirmed
-- Low complexity remaining (test gate update, docs sync)
+**Classification:** `done` *(was incorrectly classified as `revive` due to stale implementation.md checkboxes)*
+- All exit criteria satisfied per `plans/active/TORCH-REFINE-002D/reports/2025-11-05T093000Z/summary.md`
+- REFINE-004/005 findings marked Resolved in docs/findings.md
+- Phase A audit missed November 2025 completion evidence
 
 ---
 
@@ -189,20 +188,21 @@ TORCH-REFINE-004 (archive) ----------> standalone complete
 
 | Classification | Plans | Description |
 |----------------|-------|-------------|
-| **revive** | 001, 002D | Actionable now — no Tier 0 blockers, low-to-moderate complexity |
+| **done** | 002D | *(CORRECTED 2025-12-08T100000Z)* All phases complete per November 2025 summary; status drift corrected |
+| **revive** | 001 | Actionable — Phase A complete; Phases B-C scope largely superseded by downstream work |
 | **blocked** | 002E, 003 | Requires Tier 0 resolution (ARCH-GRADIENT-FLOW-001) first |
-| **done/delegated** | 002 | Work complete; Phase 4 tracked in 002D |
+| **done/delegated** | 002 | Work complete; Phase 4 tracked in 002D (also done) |
 | **archive** | 004 | All phases complete; ready for archive move |
 
 ---
 
 ## Recommendations for Phase B
 
-1. **Archive TORCH-REFINE-004** — Move to `archive/plans/` with closure summary
-2. **Revive TORCH-REFINE-002D** — Priority: remove xfail, restore ≥0.2% Stage A gate
-3. **Revive TORCH-REFINE-001** — Priority: Phase B full-trace telemetry (can run in parallel with 002D)
+1. **Archive TORCH-REFINE-004** — Move to `archive/plans/` with closure summary ✅ DONE (Phase B, i=187)
+2. ~~**Revive TORCH-REFINE-002D**~~ — **ALREADY DONE** (2025-12-08T100000Z: Status drift corrected; November 2025 work complete)
+3. **Revive TORCH-REFINE-001** — Priority: Phase B/C scope review needed; much of this work may be superseded
 4. **Keep TORCH-REFINE-002E blocked** — Document escalation dependency on ARCH-GRADIENT-FLOW-001
-5. **Keep TORCH-REFINE-003 pending** — Will unblock once 002D restores Stage A gate
+5. **Keep TORCH-REFINE-003 pending** — Stage A gate is live (002D done); can proceed when resources available
 6. **Close TORCH-REFINE-002** — Mark as `done (delegated to 002D)` in roll-up
 
 ---

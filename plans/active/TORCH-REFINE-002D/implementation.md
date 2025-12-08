@@ -23,11 +23,11 @@ Rebuild the structure-factor grid (or generate a derivative dataset) that remain
   - [x] P1.2: Extend Stage A refinement config to toggle interpolation; update `run_nanobrag_refinement` to honor the flag while preserving nearest-neighbor fallback for datasets lacking a halo.
   - [x] P1.3: Rebuild the Stage A smoke harness (`test_stage_a_expansion`) to request the haloed grid, enable interpolation, and log the new HKL metadata for regression triage.
 - Phase 2 — Stage A Gate Restoration
-  - [ ] P2.1: Remove the interim `pytest.xfail`, assert ≥0.2% masked-MSE improvement (matching probe baseline), and record the achieved improvement + iteration count in telemetry artifacts (`plans/active/TORCH-REFINE-002D/bin/probe_stage_a_improvement.py` metrics).
-  - [ ] P2.2: Verify orientation telemetry remains deterministic (initial misset ≈ [0,0,1.5]°) with interpolation enabled; update acceptance messaging if tolerances change and capture the new limit (orientation_vec norm ≈0 due to simulator bounds).
+  - [x] P2.1: Remove the interim `pytest.xfail`, assert ≥0.2% masked-MSE improvement (matching probe baseline), and record the achieved improvement + iteration count in telemetry artifacts (`plans/active/TORCH-REFINE-002D/bin/probe_stage_a_improvement.py` metrics). ✅ COMPLETE (2025-11-05T093000Z: test passed with ~0.206% improvement, 13 iterations, status=early_stop)
+  - [x] P2.2: Verify orientation telemetry remains deterministic (initial misset ≈ [0,0,1.5]°) with interpolation enabled; update acceptance messaging if tolerances change and capture the new limit (orientation_vec norm ≈0 due to simulator bounds). ✅ COMPLETE (2025-11-05T093000Z: deterministic misset telemetry validated)
 - Phase 3 — Docs & Findings
-  - [ ] P3.1: Update `docs/findings.md` entries REFINE-004/005 with resolution notes and artifact links.
-  - [ ] P3.2: Refresh `docs/fix_plan.md` Attempts History and, if selectors change, sync `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md`.
+  - [x] P3.1: Update `docs/findings.md` entries REFINE-004/005 with resolution notes and artifact links. ✅ COMPLETE (2025-11-05T093000Z: both findings marked Resolved with artifact pointers)
+  - [x] P3.2: Refresh `docs/fix_plan.md` Attempts History and, if selectors change, sync `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md`. ✅ COMPLETE (2025-11-05T093000Z: fix_plan updated, selector unchanged)
 
 ## Mapped Tests (planned)
 - `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` — must pass without `xfail`, assert ≥0.2% improvement, and keep deterministic misset telemetry coverage.

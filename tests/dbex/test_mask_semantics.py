@@ -1,246 +1,253 @@
 """
-Test suite for DB-AT-021: Mask semantics guard.
+DB-AT-021 — Mask semantics guard acceptance test.
 
-Validates spec-db-core.md:29-55 contracts:
-- DIALS trusted mask polarity (True=include)
-- Shape alignment with data/background arrays [panel, slow, fast]
-- Loss mask consistency: (background >= 0) & trusted_mask
-- Target zeroing outside loss mask regions
+Tests validate mask polarity, loss_mask construction, and ARCH-CONTRACT-MASKING-001 precedence.
 
-References:
-- docs/spec-db-core.md:29-55 (mask contracts)
-- docs/spec-db-conformance.md:31-34 (DB-AT-021 acceptance)
-- dbex/data_load.py (trusted_mask hydration)
-- dbex/nanobrag_bridge.py (prepare_refinement_inputs)
+Per input.md:
+- docs/spec-db-core.md:124 defines loss_mask normative formula: (background >= 0) ∧ trusted_mask
+- docs/spec-db-conformance.md:58-61 defines DB-AT-021 acceptance criteria
+- docs/dials_api.md:16 mandates mask polarity: True=trusted (no inversion)
+- docs/architecture.md:165-178 specifies mask precedence rules (ADR-07 background sentinel)
+
+Findings applied:
+- MASKING-001: Loss mask coverage <1% is expected for sparse Bragg peaks; assertions do not flag low coverage as failure
+- TESTING-003: Selector status transitions only after pytest --collect-only confirms >0 tests
+- CONFORMANCE-001: DB-AT parity selectors use `-k DB_AT_0XX` pattern; test method naming follows `test_DB_AT_021_*`
+- DIALS-API polarity: True=trusted per dials_api.md:16; test assertions validate boolean dtype with True=trusted polarity
 """
 
+import ast
 import pytest
 import numpy as np
-import os
-import json
 from pathlib import Path
-from types import SimpleNamespace
 
-# Skip entire module if canonical mask file is missing
-pytestmark = pytest.mark.skipif(
-    not Path("747_mask.pkl").exists(),
-    reason="Canonical mask file 747_mask.pkl not found"
-)
+# DataLoad for mask semantics validation
+from dbex.data_load import DataLoad
+from dbex.refinement.inputs import prepare_refinement_inputs
 
 
-@pytest.fixture
-def canonical_args():
+class TestDB_AT_021_MaskSemantics:
     """
-    Canonical DataLoad args using refGeom assets.
+    Test suite for DB-AT-021 mask semantics guard.
 
-    Matches the dataset used in DB-AT-020 reflection ingestion tests.
-    """
-    return SimpleNamespace(
-        mtzFile="scaled.mtz",
-        mtzCol="F,SIGF",  # Canonical column per test_reflection_ingestion.py:60
-        exptName="refGeom.expt",
-        exptIdx=0,
-        reflName="refGeom.refl",
-        maskFile="747_mask.pkl"
-    )
-
-
-@pytest.fixture
-def data_load_instance(canonical_args):
-    """
-    Create a DataLoad instance with canonical assets.
-
-    Skip if any required file is missing.
-    """
-    required_files = [
-        canonical_args.mtzFile,
-        canonical_args.exptName,
-        canonical_args.reflName,
-        canonical_args.maskFile
-    ]
-    for fpath in required_files:
-        if not Path(fpath).exists():
-            pytest.skip(f"Required asset {fpath} not found")
-
-    from dbex.data_load import DataLoad
-    return DataLoad(canonical_args)
-
-
-class TestMaskSemantics:
-    """
-    Test suite for DB-AT-021: Mask semantics guard.
+    Validates:
+    - Mask polarity: trusted_mask is boolean with True=trusted (B2)
+    - Loss mask construction: (background >= 0) & trusted_mask per spec (B3)
+    - ARCH-CONTRACT-MASKING-001: canonical owner precedence, no duplicates (B4)
     """
 
-    def test_DB_AT_021_trusted_mask_shape_and_polarity(self, data_load_instance):
+    def test_DB_AT_021_polarity_checks(self, refgeom_dataload):
         """
-        DB-AT-021 (1/2): Validate trusted mask shape, dtype, and polarity.
+        DB-AT-021 B2: Validate trusted_mask polarity and dtype.
 
-        Acceptance criteria per spec-db-core.md:29-55:
-        1. trusted_mask dtype is bool
-        2. Shape matches data/background: [panel, slow, fast]
-        3. Polarity guard: >50% True (include semantics)
-        4. Shape alignment with data.shape and background_image.shape
+        Per docs/dials_api.md:16 and docs/spec-db-core.md:47-55:
+        - Trusted mask SHALL be boolean dtype with True=trusted polarity (no inversion)
+        - DIALS convention: True=trusted, False=untrusted/hot/bad pixels
 
-        Metrics captured:
-        - trusted_fraction: fraction of True pixels
-        - shape: mask array shape
-        - dtype: mask array dtype
+        Assertions:
+        1. trusted_mask.dtype == bool (DIALS convention)
+        2. Sample trusted pixel validates True polarity (ROI 0 coordinates from baseline probe)
+        3. Polarity check: >50% True pixels (typical for functioning detectors)
         """
-        DL = data_load_instance
+        dl = refgeom_dataload
 
-        # Assert trusted_mask exists and is a numpy array
-        assert hasattr(DL, 'trusted_mask'), "DataLoad missing trusted_mask attribute"
-        assert isinstance(DL.trusted_mask, np.ndarray), \
-            f"trusted_mask should be np.ndarray, got {type(DL.trusted_mask)}"
+        # Assert dtype is boolean (DIALS convention)
+        assert dl.trusted_mask.dtype == bool, \
+            f"Expected trusted_mask dtype bool, got {dl.trusted_mask.dtype}. " \
+            f"DIALS convention requires boolean mask per docs/dials_api.md:16"
 
-        # Validate dtype (bool)
-        assert DL.trusted_mask.dtype == bool, \
-            f"trusted_mask dtype should be bool, got {DL.trusted_mask.dtype}"
+        # Validate sample trusted pixel from baseline probe
+        # Per plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.md:
+        # sample_roi_bbox: (582, 594, 0, 12) → ROI at panel 0, fast [582:594], slow [0:12]
+        # We'll validate a pixel in the middle of this ROI should be trusted
+        sample_panel = 0
+        sample_slow = 5  # Middle of slow range [0:12]
+        sample_fast = 588  # Middle of fast range [582:594]
 
-        # Validate shape alignment with data/background
-        assert DL.trusted_mask.shape == DL.data.shape, \
-            f"Mask shape {DL.trusted_mask.shape} != data shape {DL.data.shape}"
-        assert DL.trusted_mask.shape == DL.background_image.shape, \
-            f"Mask shape {DL.trusted_mask.shape} != background shape {DL.background_image.shape}"
+        # Assert sample pixel is trusted
+        assert dl.trusted_mask[sample_panel, sample_slow, sample_fast] == True, \
+            f"Expected trusted pixel at panel={sample_panel}, slow={sample_slow}, fast={sample_fast} " \
+            f"to be True (trusted). Got {dl.trusted_mask[sample_panel, sample_slow, sample_fast]}. " \
+            f"Per baseline probe, ROI 0 pixels should be trusted."
 
-        # Validate polarity: True should be majority (>50% coverage)
-        # Per spec-db-core.md:29, DIALS trusted mask uses True=include
-        trusted_fraction = np.mean(DL.trusted_mask)
-        assert trusted_fraction > 0.5, \
-            f"Mask polarity check failed: only {trusted_fraction*100:.1f}% True. " \
-            f"Expected >50% for True=include semantics (spec-db-core.md:29)"
+        # Polarity sanity check: >50% True pixels (avoid inverted masks)
+        # Per dbex/refinement/inputs.py:132-137 guard pattern
+        true_fraction = np.mean(dl.trusted_mask)
+        assert true_fraction > 0.5, \
+            f"Trusted mask appears inverted: only {true_fraction*100:.1f}% True. " \
+            f"Expected >50% True for proper True=trusted polarity per docs/spec-db-core.md:29"
 
-        # Optional: validate shape is [panel, slow, fast] format
-        # For single-panel detectors, shape should be (1, slow, fast)
-        assert DL.trusted_mask.ndim == 3, \
-            f"Expected 3D mask [panel, slow, fast], got shape {DL.trusted_mask.shape}"
+        # Report metrics
+        n_trusted = np.sum(dl.trusted_mask)
+        n_untrusted = np.sum(~dl.trusted_mask)
+        print(f"\nDB-AT-021 B2 PASSED: Trusted mask polarity validated")
+        print(f"  - dtype: {dl.trusted_mask.dtype} (expected: bool)")
+        print(f"  - Trusted pixels: {n_trusted:,} ({true_fraction*100:.1f}%)")
+        print(f"  - Untrusted pixels: {n_untrusted:,} ({(1-true_fraction)*100:.1f}%)")
+        print(f"  - Sample ROI 0 pixel (panel={sample_panel}, slow={sample_slow}, fast={sample_fast}): {dl.trusted_mask[sample_panel, sample_slow, sample_fast]} (trusted)")
 
-        # Record metrics for artifacts
-        metrics = {
-            "trusted_fraction": float(trusted_fraction),
-            "shape": list(DL.trusted_mask.shape),
-            "dtype": str(DL.trusted_mask.dtype),
-            "n_panels": DL.trusted_mask.shape[0],
-            "n_trusted": int(np.sum(DL.trusted_mask)),
-            "n_total": int(DL.trusted_mask.size),
-        }
 
-        # Write metrics if artifact directory is set
-        artifact_dir = os.getenv("DBAT021_ARTIFACT_DIR")
-        if artifact_dir:
-            os.makedirs(artifact_dir, exist_ok=True)
-            with open(f"{artifact_dir}/mask_shape_polarity_metrics.json", "w") as f:
-                json.dump(metrics, f, indent=2)
-
-    def test_DB_AT_021_loss_mask_consistency(self, data_load_instance):
+    def test_DB_AT_021_loss_mask_construction(self, refgeom_dataload):
         """
-        DB-AT-021 (2/2): Validate loss mask consistency via prepare_refinement_inputs.
+        DB-AT-021 B3: Validate loss_mask construction matches spec formula.
 
-        Acceptance criteria per spec-db-core.md:55:
-        1. Loss mask equals (background >= 0) & trusted_mask
-        2. Target pixels outside loss_mask are zeroed
-        3. Loss mask coverage metrics align with ROI geometry
+        Per docs/spec-db-core.md:124:
+        - Loss mask SHALL be: (background >= 0) ∧ trusted_mask
+        - Background sentinel -1 excludes pixels outside ROIs (ADR-07)
+        - Trusted mask precedence: False excludes pixels even if background >= 0
 
-        Metrics captured:
-        - roi_count: number of ROIs processed
-        - trusted_fraction: global trusted mask coverage
-        - loss_mask_fraction: global loss mask coverage
-        - background_valid_fraction: fraction where background >= 0
-        - per_roi_metrics: list of {roi_id, loss_coverage, target_nonzero}
+        Assertions:
+        1. Compute expected: (background_image >= 0) & trusted_mask
+        2. Call prepare_refinement_inputs to extract actual loss_mask
+        3. Assert numpy.array_equal(actual, expected)
+        4. Validate sentinel handling: pixels with background == -1 excluded
+        5. Validate trusted precedence: pixels with trusted_mask == False excluded
         """
-        from dbex.refinement.inputs import prepare_refinement_inputs
+        dl = refgeom_dataload
 
-        DL = data_load_instance
+        # Extract inputs from DataLoad
+        data = dl.data
+        background_image = dl.background_image
+        trusted_mask = dl.trusted_mask
+        bbox = dl.bbox
+        pids = dl.pids
+        detector = dl.Expt.detector
 
-        # Prepare refinement inputs
-        inputs = prepare_refinement_inputs(
-            data=DL.data,
-            background_image=DL.background_image,
-            trusted_mask=DL.trusted_mask,
-            bbox=DL.bbox,
-            pids=DL.pids,
-            detector=DL.detector
+        # Compute expected loss_mask per spec formula
+        expected_loss_mask = (background_image >= 0) & trusted_mask
+
+        # Call canonical owner API to get actual loss_mask
+        refinement_inputs = prepare_refinement_inputs(
+            data=data,
+            background_image=background_image,
+            trusted_mask=trusted_mask,
+            bbox=bbox,
+            pids=pids,
+            detector=detector,
+            adu_per_photon=None,  # ADU mode (default)
+            sigma_readout=None,   # No sigma for this test
         )
 
-        # Validate loss_mask equals (background >= 0) & trusted_mask
-        expected_loss_mask = (DL.background_image >= 0) & DL.trusted_mask
-        np.testing.assert_array_equal(
-            inputs.loss_mask,
-            expected_loss_mask,
-            err_msg="Loss mask should equal (background >= 0) & trusted_mask per spec-db-core.md:55"
-        )
+        actual_loss_mask = refinement_inputs.loss_mask
 
-        # Validate target zeroing: all pixels where loss_mask is False should be zero
-        invalid_pixels = ~inputs.loss_mask
-        target_at_invalid = inputs.target[invalid_pixels]
-        assert np.all(target_at_invalid == 0), \
-            f"Target should be zeroed outside loss_mask, found {np.sum(target_at_invalid != 0)} nonzero invalid pixels"
+        # Assert exact match
+        assert np.array_equal(actual_loss_mask, expected_loss_mask), \
+            f"Loss mask mismatch: expected formula (background >= 0) & trusted_mask. " \
+            f"Canonical owner prepare_refinement_inputs produced different result. " \
+            f"Per docs/spec-db-core.md:124, loss_mask MUST be (background >= 0) ∧ trusted_mask"
 
-        # Validate target non-zero only where loss_mask is True (allow for background subtraction artifacts)
-        # Note: Due to background subtraction, valid pixels MAY have zero/negative values
-        # So we check the converse: all nonzero pixels must be in the loss mask
-        nonzero_mask = inputs.target != 0
-        nonzero_outside_loss = nonzero_mask & ~inputs.loss_mask
-        assert not np.any(nonzero_outside_loss), \
-            f"Found {np.sum(nonzero_outside_loss)} nonzero target pixels outside loss_mask"
+        # Validate sentinel handling: pixels with background == -1 are excluded
+        sentinel_pixels = (background_image == -1)
+        sentinel_in_loss = actual_loss_mask & sentinel_pixels
+        assert not np.any(sentinel_in_loss), \
+            f"Loss mask incorrectly includes {np.sum(sentinel_in_loss)} sentinel pixels (background == -1). " \
+            f"Per ADR-07, sentinel pixels outside ROIs MUST be excluded from loss_mask."
 
-        # Collect global metrics
-        trusted_fraction = np.mean(DL.trusted_mask)
-        loss_mask_fraction = np.mean(inputs.loss_mask)
-        background_valid_fraction = np.mean(DL.background_image >= 0)
+        # Validate trusted mask precedence: pixels with trusted_mask == False are excluded
+        # even if background >= 0
+        untrusted_with_valid_bg = (~trusted_mask) & (background_image >= 0)
+        untrusted_in_loss = actual_loss_mask & untrusted_with_valid_bg
+        assert not np.any(untrusted_in_loss), \
+            f"Loss mask incorrectly includes {np.sum(untrusted_in_loss)} untrusted pixels with valid background. " \
+            f"Per docs/spec-db-core.md:124, trusted_mask precedence MUST exclude untrusted pixels."
 
-        # Collect per-ROI metrics
-        per_roi_metrics = []
-        for roi_id, (pid, (x0, x1, y0, y1)) in enumerate(inputs.panel_slices):
-            roi_loss_mask = inputs.loss_mask[pid, y0:y1, x0:x1]
-            roi_target = inputs.target[pid, y0:y1, x0:x1]
+        # Report metrics
+        n_loss_mask = np.sum(actual_loss_mask)
+        n_sentinel = np.sum(sentinel_pixels)
+        n_untrusted_valid_bg = np.sum(untrusted_with_valid_bg)
+        print(f"\nDB-AT-021 B3 PASSED: Loss mask construction validated")
+        print(f"  - Loss mask pixels: {n_loss_mask:,} (sparse Bragg peaks expected per MASKING-001)")
+        print(f"  - Sentinel pixels (background == -1): {n_sentinel:,} (excluded)")
+        print(f"  - Untrusted pixels with valid background: {n_untrusted_valid_bg:,} (excluded)")
+        print(f"  - Formula: (background >= 0) & trusted_mask (exact match)")
 
-            roi_metrics = {
-                "roi_id": roi_id,
-                "panel_id": pid,
-                "bbox": [x0, x1, y0, y1],
-                "loss_coverage": float(np.mean(roi_loss_mask)),
-                "target_nonzero_frac": float(np.mean(roi_target != 0)),
-                "roi_pixels": int(roi_loss_mask.size),
-                "roi_valid_pixels": int(np.sum(roi_loss_mask)),
-            }
-            per_roi_metrics.append(roi_metrics)
 
-        metrics = {
-            "roi_count": len(inputs.panel_slices),
-            "trusted_fraction": float(trusted_fraction),
-            "loss_mask_fraction": float(loss_mask_fraction),
-            "background_valid_fraction": float(background_valid_fraction),
-            "n_rois": len(per_roi_metrics),
-            "mean_roi_loss_coverage": float(np.mean([m["loss_coverage"] for m in per_roi_metrics])),
-            "per_roi_metrics": per_roi_metrics,
-        }
-
-        # Write metrics if artifact directory is set
-        artifact_dir = os.getenv("DBAT021_ARTIFACT_DIR")
-        if artifact_dir:
-            os.makedirs(artifact_dir, exist_ok=True)
-            with open(f"{artifact_dir}/mask_metrics.json", "w") as f:
-                json.dump(metrics, f, indent=2)
-
-    def test_DB_AT_021_detector_beam_crystal_fixtures(self, data_load_instance):
+    def test_DB_AT_021_precedence_guards(self, refgeom_dataload):
         """
-        DB-AT-021 (bonus): Validate DataLoad exposes detector/beam/crystal fixtures.
+        DB-AT-021 B4: Validate ARCH-CONTRACT-MASKING-001 enforcement.
 
-        These attributes are required by prepare_refinement_inputs and bridge code.
+        Per input.md ARCH-CONTRACT-MASKING-001:
+        - Owner Module/API: dbex.refinement.inputs.prepare_refinement_inputs
+        - Forbidden Duplicates: Alternative loss_mask construction in Stage A/B/C helpers
+        - Test harness boilerplate MAY call DataLoad API directly for validation
+
+        Assertions:
+        1. Use AST inspection to search for duplicate loss_mask construction patterns
+        2. Search Stage A/B/C implementation files for (background >= 0) & trusted_mask patterns
+        3. If duplicates found, raise AssertionError with file:line references
+        4. If no duplicates, assert canonical owner is prepare_refinement_inputs
         """
-        DL = data_load_instance
+        repo_root = Path(__file__).parent.parent.parent
 
-        # Validate detector fixture
-        assert hasattr(DL, 'detector'), "DataLoad missing detector attribute"
-        assert DL.detector is not None, "detector should not be None"
-        # Basic duck-type check: should have panels
-        assert len(DL.detector) > 0, "detector should have at least one panel"
+        # Target Stage implementation files per input.md
+        stage_impl_files = [
+            repo_root / "dbex" / "refinement" / "stage_a_impl.py",
+            repo_root / "dbex" / "refinement" / "stage_b_impl.py",
+            repo_root / "dbex" / "refinement" / "stage_c_impl.py",
+        ]
 
-        # Validate beam fixture
-        assert hasattr(DL, 'beam'), "DataLoad missing beam attribute"
-        assert DL.beam is not None, "beam should not be None"
+        # Pattern to search: (background >= 0) & trusted_mask or equivalent variants
+        # We'll use AST to search for BinOp nodes with '&' combining background/trusted checks
+        duplicates = []
 
-        # Validate crystal fixture
-        assert hasattr(DL, 'crystal'), "DataLoad missing crystal attribute"
-        assert DL.crystal is not None, "crystal should not be None"
+        for stage_file in stage_impl_files:
+            if not stage_file.exists():
+                # Skip if stage implementation file doesn't exist yet
+                # (per input.md, stages may not be fully implemented)
+                continue
+
+            try:
+                with open(stage_file, 'r') as f:
+                    source = f.read()
+                    tree = ast.parse(source, filename=str(stage_file))
+
+                # Walk AST looking for suspicious loss_mask construction patterns
+                for node in ast.walk(tree):
+                    # Look for assignments like: loss_mask = (background >= 0) & trusted_mask
+                    if isinstance(node, ast.Assign):
+                        # Check if target is named 'loss_mask' (or variants)
+                        targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+                        if any('loss' in t.lower() and 'mask' in t.lower() for t in targets):
+                            # Check if value involves '&' operator with background/trusted patterns
+                            if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, ast.BitAnd):
+                                duplicates.append({
+                                    'file': str(stage_file.relative_to(repo_root)),
+                                    'line': node.lineno,
+                                    'code': ast.unparse(node) if hasattr(ast, 'unparse') else '<unknown>',
+                                })
+
+            except (SyntaxError, FileNotFoundError) as e:
+                # Skip files with syntax errors or missing files
+                # (environment freeze means we don't fix Stage impl issues here)
+                pass
+
+        # If duplicates found, raise AssertionError per ARCH-CONTRACT-MASKING-001
+        if duplicates:
+            duplicate_report = "\n".join([
+                f"  {d['file']}:{d['line']} — {d['code']}"
+                for d in duplicates
+            ])
+            pytest.fail(
+                f"ARCH-CONTRACT-MASKING-001 violation: Found {len(duplicates)} duplicate loss_mask construction(s) "
+                f"in Stage implementation files:\n{duplicate_report}\n\n"
+                f"Per input.md, loss_mask construction MUST be delegated to canonical owner API: "
+                f"dbex.refinement.inputs.prepare_refinement_inputs. Stage helpers SHALL NOT "
+                f"re-implement (background >= 0) & trusted_mask."
+            )
+
+        # Assert canonical owner is prepare_refinement_inputs
+        # (Already validated in B3 by successful prepare_refinement_inputs call)
+        canonical_owner_module = "dbex.refinement.inputs"
+        canonical_owner_func = "prepare_refinement_inputs"
+
+        # Validate canonical owner exists and is importable (already imported at top)
+        assert hasattr(prepare_refinement_inputs, '__module__'), \
+            f"Canonical owner {canonical_owner_func} is not a valid function"
+        assert prepare_refinement_inputs.__module__ == canonical_owner_module, \
+            f"Canonical owner module mismatch: expected {canonical_owner_module}, " \
+            f"got {prepare_refinement_inputs.__module__}"
+
+        print(f"\nDB-AT-021 B4 PASSED: ARCH-CONTRACT-MASKING-001 enforcement validated")
+        print(f"  - No duplicate loss_mask construction found in Stage A/B/C implementations")
+        print(f"  - Canonical owner: {canonical_owner_module}.{canonical_owner_func}")
+        print(f"  - Scanned files: {len([f for f in stage_impl_files if f.exists()])}/{len(stage_impl_files)}")

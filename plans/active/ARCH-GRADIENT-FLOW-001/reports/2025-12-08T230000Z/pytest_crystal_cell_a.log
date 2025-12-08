@@ -1,0 +1,52 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a FAILED [100%]
+
+=================================== FAILURES ===================================
+_______ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a ________
+tests/dbex/test_gradients.py:230: in test_db_at_010_gradcheck_crystal_cell_a
+    gradcheck_passed = gradcheck(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1633: in _slow_gradcheck
+    raise GradcheckError(
+E   torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+E   numerical:tensor([[2.4165e+10]], dtype=torch.float64)
+E   analytical:tensor([[69825184.0697]], dtype=torch.float64)
+----------------------------- Captured stdout call -----------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217639/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217593/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217644/24896004 (97.28%)
+=============================== warnings summary ===============================
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a - torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+numerical:tensor([[2.4165e+10]], dtype=torch.float64)
+analytical:tensor([[69825184.0697]], dtype=torch.float64)
+======================== 1 failed, 4 warnings in 32.06s ========================

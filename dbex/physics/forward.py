@@ -193,7 +193,7 @@ def simulate_forward_torch(
 
     # simulate_forward_torch doesn't use calibration, so apply_n_cells=True (default)
     # is fine for gradient testing; N_cells will be None anyway
-    crystal_config, _ = create_crystal_config(crystal, experiment)
+    crystal_config, _ = create_crystal_config(crystal, experiment, crystal_overrides=crystal_overrides)
 
     # Apply crystal_overrides if provided (GRADIENT-001)
     # This allows tensor-valued parameters to flow through without .item() detaching

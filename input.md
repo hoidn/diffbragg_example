@@ -1,188 +1,194 @@
-# Input for Ralph (Loop i=178)
+# Input for Ralph (Loop i=179)
 
 ## Summary
-Execute TORCH-CLI-BRIDGE-ROLLUP-001 Phase A — Member Plan Reality Check and Inventory.
+Execute TORCH-CLI-BRIDGE-ROLLUP-001 Phase B — TORCH-BRIDGE-001 Closeout (D1-D4).
 
 ## BindingForRalph
-- **ActionType:** evidence_collection
-- **DecisionStatus:** exploring
-- **InitiativeType:** roll-up
+- **ActionType:** implementation_ready
+- **DecisionStatus:** patch_ready
+- **InitiativeType:** roll-up member closeout
 
 ## SupervisorMode
-Docs (roll-up inventory and roadmap drafting — no production code changes)
+Implementation (test execution + registry sync)
 
 ## Focus
-TORCH-CLI-BRIDGE-ROLLUP-001 — CLI & Bridge Infrastructure Roll-up — Phase A (Member Plan Inventory)
+TORCH-CLI-BRIDGE-ROLLUP-001 — CLI & Bridge Infrastructure Roll-up — Phase B (TORCH-BRIDGE-001 Closeout)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- None — this is an evidence-collection/docs-only loop; validation deferred to Phase B
+- `tests/dbex/test_nanobrag_bridge.py` (5 tests)
+- `tests/dbex/test_nanobrag_bridge_configs.py` (20 tests)
+- `tests/dbex/test_nanobrag_smoke.py` (3 tests)
+- **Total:** 28 tests
 
 ## Artifacts
-`plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/`
+`plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T083000Z/`
 
 ## Findings Applied (Mandatory)
-- **PROBE-FREEZE-001** (Plan-local probe policy): No new persistent scripts; use existing tests and inline Python only
-  - Adherence: Evidence collection only; no new bin/ scripts
-- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Artifacts follow established JSON/markdown patterns
-  - Adherence: Artifacts routed to `reports/2025-12-08T073000Z/`
-- No other findings directly applicable to this inventory task
+- **PROBE-FREEZE-001** (Plan-local probe policy): No new persistent scripts
+  - Adherence: Using existing tests only, no new scripts
+- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Artifacts follow established patterns
+  - Adherence: Pytest logs + collect-only logs routed to reports directory
+- **TESTING-003** (Test registry synchronization): Update TESTING_GUIDE.md and TEST_SUITE_INDEX.md after test execution
+  - Adherence: D3 task updates registries after tests pass
+- No other findings directly applicable
 
 ## Pointers
-- Roll-up entry: `docs/fix_plan.md` lines 405-422
-- Member plan TORCH-BRIDGE-001: `plans/active/TORCH-BRIDGE-001/implementation.md` (Phase A-C done, Phase D pending)
-- Member plan TORCH-CLI-003: `plans/active/TORCH-CLI-003/implementation.md`
-- Member plan TORCH-CLI-004: `plans/active/TORCH-CLI-004/implementation.md` (all phases pending)
-- Exit criteria: `docs/fix_plan.md` lines 412-416
+- Roll-up implementation.md: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md` (Phase B checklist lines 79-96)
+- TORCH-BRIDGE-001 implementation.md: `plans/active/TORCH-BRIDGE-001/implementation.md` (Phase D checklist lines 61-66)
+- fix_plan.md TORCH-BRIDGE-001: Not currently a dedicated section (tracked via roll-up)
+- Exit criteria: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md` lines 22-28
 
 ---
 
 ## ARCH Contracts (mandatory)
-- **Environment Freeze**: No package installs; read-only evidence collection
+- **Environment Freeze**: No package installs
   - Owner: CLAUDE.md
-  - Classification: Roll-up Phase A — inventory and reality check only
+  - Classification: Test execution + docs/ledger updates only
+- **Test Registry Sync**: Required after test execution
+  - Owner: TESTING-003
+  - Classification: Update TESTING_GUIDE.md §2 and TEST_SUITE_INDEX.md with bridge/config/smoke entries
 
 ---
 
 ## Do Now
 
-**Focus:** TORCH-CLI-BRIDGE-ROLLUP-001 Phase A — Member Plan Inventory
+**Focus:** TORCH-CLI-BRIDGE-ROLLUP-001 Phase B — TORCH-BRIDGE-001 Closeout
 
-**Implement:** `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md::phase_a_inventory`
+**Implement:** `plans/active/TORCH-BRIDGE-001/implementation.md::phase_d_closeout` + ledger/registry updates
 
-**Validating Pytest Selector:** None (evidence-collection loop)
+**Validating Pytest Selector:** `tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py`
 
 ### Background
-TORCH-CLI-BRIDGE-ROLLUP-001 depends on REPORT-NANOBRAG-STATUS-001 (output schema), which is now **done**. The roll-up covers 3 member plans:
-1. **TORCH-BRIDGE-001** (Bridge DataLoad to nanobrag_torch): Phase A-C complete, Phase D (closeout) pending
-2. **TORCH-CLI-003** (implementation.md exists)
-3. **TORCH-CLI-004** (Torch diagnostics ROI score coercion): All phases pending
+TORCH-BRIDGE-001 has Phases A-C complete (scaffolding, config hydration, smoke harness). Phase D is closeout: re-run tests, update ledgers, sync registries. All 28 tests should pass (last verified ~6 weeks ago per Phase A inventory).
 
-The roll-up `implementation.md` is currently a stub. This Phase A builds the real roadmap.
+### Phase B Tasks (TORCH-BRIDGE-001 D1-D4)
 
-### Phase A Tasks
+#### D1 — Re-run Bridge + Smoke Tests
+Execute all 28 bridge/config/smoke tests with fresh logs:
 
-#### A1 — Member Plan Reality Check
-For each member plan, verify:
-- Current implementation.md status vs reality
-- Which phases are truly complete (check if tests pass, code exists)
-- Which phases are pending/blocked
+```bash
+cd /home/ollie/Documents/diffbragg_example
+export ART=plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T083000Z
+mkdir -p "$ART"
+KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py 2>&1 | tee "$ART/pytest_bridge.log"
+```
 
-Member plans to audit:
-1. `plans/active/TORCH-BRIDGE-001/implementation.md` — Phase A-C marked complete; Phase D (D1-D4) pending closeout
-2. `plans/active/TORCH-CLI-003/implementation.md` — Status unknown, read and assess
-3. `plans/active/TORCH-CLI-004/implementation.md` — All phases pending per implementation.md
+**Expected:** 28/28 PASS
 
-#### A2 — Inventory Remaining Work
-Compile a work breakdown:
-- Count remaining tasks across all member plans
-- Identify dependencies between member plans
-- Estimate scope (docs-only vs code changes)
+#### D2 — Update Ledgers
+1. Update `plans/active/TORCH-BRIDGE-001/implementation.md`:
+   - Mark Phase D (D1-D4) checklist items as checked
+   - Add **Completed:** timestamp and **Artifacts:** path
+   - Update Status: `in_progress` → `done`
 
-Output: `member_plan_inventory.md` with:
-- Table of member plans with status/remaining phases
-- Dependency graph (if any)
-- Total remaining task count
+2. Update roll-up `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md`:
+   - Update member plan table: TORCH-BRIDGE-001 → "Phases A-D complete" / "Complete"
+   - Mark Phase B checklist items (B1-B5) as checked
+   - Add Phase B artifacts reference
 
-#### A3 — Draft Roll-up Roadmap
-Create a roadmap for the roll-up:
-- Sequence member plan closeouts (TORCH-BRIDGE-001 Phase D first if quickest)
-- Identify which exit criteria (EC1-EC4) each member plan addresses
-- Note any blockers or prerequisites
+#### D3 — Update Test Registries
+1. Check `docs/TESTING_GUIDE.md` §2 for bridge/config/smoke test entries
+   - If missing or outdated, add/update rows
+   - Format: `| TORCH-BRIDGE-001 | tests/dbex/test_nanobrag_bridge*.py, test_nanobrag_smoke.py | 28 | PASS | 2025-12-08 |`
 
-Output: `roadmap_draft.md` with:
-- Phased approach for roll-up completion
-- Exit criteria mapping to member plans
-- Estimated loop count per phase
+2. Check `docs/development/TEST_SUITE_INDEX.md` for TORCH-BRIDGE-001 row
+   - If missing, add row in appropriate section
+   - Include test counts and status
 
-#### A4 — Update Roll-up implementation.md
-Replace the stub `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md` with a real plan:
-- Phase A: Member Plan Inventory (this loop)
-- Phase B: TORCH-BRIDGE-001 closeout
-- Phase C: TORCH-CLI-003 completion
-- Phase D: TORCH-CLI-004 completion
-- Phase E: Roll-up closure
+#### D4 — Capture Collect-Only Logs
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py 2>&1 | tee "$ART/collect_bridge.log"
+```
 
-#### A5 — Author Summary
-Create `reports/2025-12-08T073000Z/summary.md` with:
-- Member plan status overview
-- Key findings from reality check
-- Recommended next focus (likely TORCH-BRIDGE-001 Phase D)
+Save to artifacts directory for registry verification.
+
+#### D5 — Author Summary
+Create `$ART/summary.md` with:
+- Test execution results (28/X PASS)
+- Ledger updates made
+- Registry sync status
+- Phase B completion status
 
 ---
 
 ## How-To Map
 
 ```bash
-# Set environment
+# Environment setup
 cd /home/ollie/Documents/diffbragg_example
-export ARTIFACT_DIR=plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z
+export ART=plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T083000Z
+mkdir -p "$ART"
 
-# A1: Read member plan implementation.md files
-# Use Read tool on:
-#   - plans/active/TORCH-BRIDGE-001/implementation.md
-#   - plans/active/TORCH-CLI-003/implementation.md
-#   - plans/active/TORCH-CLI-004/implementation.md
+# D1: Run tests
+KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py 2>&1 | tee "$ART/pytest_bridge.log"
 
-# A2: Check test status for TORCH-BRIDGE-001 (completed phases)
-# Optional: verify tests still pass
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py 2>&1 | head -30
+# D4: Collect-only
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py 2>&1 | tee "$ART/collect_bridge.log"
 
-# A3-A5: Create artifacts using Write tool
+# D2-D3: Use Edit tool for ledger/registry updates
+# D5: Use Write tool for summary.md
 ```
 
 ---
 
 ## Forbidden This Loop
-- **No production code changes** — Inventory/docs only
+- **No production code changes** — Closeout is test verification + docs only
 - **No package installs** — Environment Freeze
-- **No new persistent scripts** — Use inline Python per PROBE-FREEZE-001
+- **No new persistent scripts** — PROBE-FREEZE-001
 
 ## Pitfalls To Avoid
-1. **Don't run full test suites** — Only collect-only or targeted verification
-2. **Don't modify member plan implementation.md files** — Only read and inventory
-3. **Focus on reality check** — Verify claimed status matches actual state
-4. **Cross-reference fix_plan.md** — Ensure ledger consistency
+1. **Don't skip test execution** — Fresh verification required for closeout
+2. **Don't assume tests pass** — Verify 28/28 before marking done
+3. **Check registry before updating** — Avoid duplicate entries
+4. **Use correct artifacts path** — `2025-12-08T083000Z` not Phase A's `2025-12-08T073000Z`
+5. **Mark both implementation.md files** — TORCH-BRIDGE-001 AND roll-up
 
 ## If Blocked
-If member plan files are missing:
-1. Document the gap in `reports/2025-12-08T073000Z/error.md`
-2. Recommend creating missing implementation.md files as Phase B prerequisite
-3. Note limitation in summary
+If tests fail:
+1. Document failure in `$ART/error.md` with test name, error message, and stack trace
+2. Do NOT mark Phase D complete
+3. Note regression requires separate debugging loop
+4. Update summary with "BLOCKED" status
 
 ---
 
-## Exit Criteria Validation (Phase A)
+## Exit Criteria Validation (Phase B)
 
 | Criterion | Expected | Validation |
 |-----------|----------|------------|
-| Member plan inventory | All 3 plans audited | member_plan_inventory.md |
-| Roadmap drafted | Phased approach documented | roadmap_draft.md |
-| Roll-up implementation.md | Stub replaced with real plan | implementation.md diff |
-| Summary authored | Phase A closure | summary.md |
+| Tests pass | 28/28 PASS | pytest_bridge.log |
+| TORCH-BRIDGE-001 done | Status updated | implementation.md diff |
+| Roll-up Phase B done | Checklist updated | roll-up implementation.md diff |
+| Registry sync | TESTING_GUIDE + INDEX updated | File diffs |
+| Collect-only captured | Log saved | collect_bridge.log exists |
+| Summary authored | Phase B closure | summary.md |
 
 ---
 
 ## Output Artifacts Expected
 
-1. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/member_plan_inventory.md`
-2. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/roadmap_draft.md`
-3. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/summary.md`
-4. Updated `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md`
+1. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T083000Z/pytest_bridge.log`
+2. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T083000Z/collect_bridge.log`
+3. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T083000Z/summary.md`
+4. Updated `plans/active/TORCH-BRIDGE-001/implementation.md` (Phase D marked complete)
+5. Updated `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md` (Phase B marked complete)
+6. Updated `docs/TESTING_GUIDE.md` §2 (if needed)
+7. Updated `docs/development/TEST_SUITE_INDEX.md` (if needed)
 
 ---
 
 ## Implement Target
-`plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md::phase_a_inventory` (docs update)
+`plans/active/TORCH-BRIDGE-001/implementation.md::phase_d_closeout` + ledger/registry sync
 
 ## Validating Pytest Selectors
-None — evidence-collection loop
+`tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py`
 
 ---
 
 ## Next Up (optional)
-If Phase A completes successfully:
-- Proceed to Phase B: TORCH-BRIDGE-001 Phase D closeout (D1-D4: re-run tests, update ledgers, registry sync)
-- TORCH-BRIDGE-001 Phase D is docs-heavy and quickest path to partial roll-up progress
+If Phase B completes successfully:
+- Proceed to Phase C: TORCH-CLI-003 Synchronization (C1-C4: re-run CLI tests, update checklists)
+- Can potentially combine with Phase D (TORCH-CLI-004) for efficiency

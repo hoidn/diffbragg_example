@@ -81,10 +81,10 @@
 
 **Objective**: Monitor member plan regressions, coordinate future DB-AT selector additions (DB-AT-025+), and maintain portfolio health.
 
-**Status**: ⏳ Not started (deferred until Phase C complete)
+**Status**: ⏳ In progress (D1 complete 2025-12-07T213000Z, Loop i=172)
 
 ### Tasks (Phase D)
-- [ ] **D1 — Regression monitoring**: Establish monthly/quarterly pytest sweep across all DB-AT selectors to detect regressions (e.g., gradcheck failures, bbox/mask semantic drift). Archive sweep logs under `reports/<timestamp>/regression_sweeps/`.
+- [x] **D1 — Regression monitoring**: Established regression monitoring cadence. Baseline sweep executed: 14 PASSED, 1 SKIPPED (DB-AT-024 artifact dir unset, expected). Cadence document authored: `plans/active/DB-AT-SUITE-CARE-001/regression_cadence.md`. Sweep logs archived: `reports/2025-12-07T213000Z/regression_sweeps/sweep_2025_12_07.log`. ✅ 2025-12-07 (Loop i=172)
 - [ ] **D2 — Future DB-AT onboarding**: When new DB-AT selectors are proposed (e.g., DB-AT-025 HKL interpolation halo, DB-AT-030 sigma precedence, DB-AT-031+ Stage B/C profiles), create member plan implementation.md under `plans/active/DB-AT-<NNN>/`, add to portfolio progress dashboard, and coordinate Phase A/B/C execution.
 - [ ] **D3 — Conformance profile evolution**: As spec-db-conformance.md adds new profiles (e.g., CUDA Conformance Profile, Tracing & VIS Profile), update Phase C conformance certification tasks with new profile-level pytest commands.
 - [ ] **D4 — TEST_SUITE_INDEX.md hygiene**: Quarterly audit of TEST_SUITE_INDEX.md to remove stale selectors, update artifact paths, refresh runtime estimates, and sync with TESTING_GUIDE.md §2.

@@ -1,7 +1,7 @@
-# Input — Loop i=203 (Ralph)
+# Input — Loop i=205 (Ralph)
 
 ## Summary
-Portfolio maintenance mode continues — no upstream response received. All Tier 0 initiatives blocked. Housekeeping completed (fix_plan.md archival: 107KB → 66KB).
+Portfolio maintenance mode continues — no upstream response received. All Tier 0 initiatives blocked. No implementation work available.
 
 ## Focus
 DB-AT-SUITE-CARE-001 — Maintenance Mode (Awaiting Upstream)
@@ -13,7 +13,7 @@ integration
 - `none` — No actionable work; portfolio in maintenance mode
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T113318Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T114433Z/`
 
 ---
 
@@ -27,6 +27,7 @@ integration
 | 0 | ARCH-SIM-CONSTRUCTION-001 | blocked_pending_environment | SQUARE scaling resolved; other issues pending |
 | 0 | ARCH-REFACTOR-001 | blocked_pending_architecture | Blocked by ARCH-SIM-CONSTRUCTION-001 |
 | 1 | DB-AT-SUITE-CARE-001 | in_progress | D.1-D.4 complete; D.5 optional |
+| 1 | ROI-MAPPING-ALIGN-001 | pending | Blocked by ARCH-SIM-CONSTRUCTION-001 |
 
 **Upstream escalation status:**
 - Escalation filed: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md` (Dec 7 21:24)
@@ -86,5 +87,5 @@ No relevant findings — maintenance mode only.
 
 - Escalation file: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`
 - ARCH-GRADIENT-FLOW-001 implementation.md: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md`
-- galph_memory.md: Loop i=203 entry
-- **Housekeeping note:** fix_plan.md compacted from 107KB to 66KB (38% reduction). Done initiatives' verbose Attempts History replaced with archive pointers.
+- galph_memory.md: Loop i=204 entry
+- **Dwell observation:** Maintenance mode persists for 20+ loops — escalation outstanding since Dec 7

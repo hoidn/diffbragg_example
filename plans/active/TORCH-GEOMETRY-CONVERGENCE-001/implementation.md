@@ -5,7 +5,7 @@
 - Title: Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
 - Owner: Unassigned
 - Spec Owner: docs/spec-db-workflow.md, docs/spec-db-runtime.md, docs/spec-db-core.md
-- Status: pending
+- Status: done
 
 ## Goals
 - Diagnose why the current quaternion U-matrix parameterization (PARITY-002) achieves near-perfect parity at the mapping zero point but catastrophically fails during optimization (χ²→1.43B, CC→-0.045), and determine whether this parameterization is conceptually compatible with the now‑normative UB/A* rules in `spec-db-core.md` and `spec-db-workflow.md`.

@@ -1,3 +1,9 @@
+**Status:** superseded (by TORCH-GEOMETRY-UB-REALIGN-001)
+**Reason:** The det(U)≠1 issue discovered in PARITY-002 was bypassed by the incremental UB approach using dxtbx U₀/B₀ as baseline with quaternion ΔR increments.
+**Date:** 2025-12-08
+
+---
+
 # Implementation Plan: TORCH-GEOMETRY-PARITY-003
 
 ## Initiative

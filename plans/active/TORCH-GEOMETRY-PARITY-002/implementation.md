@@ -1,3 +1,9 @@
+**Status:** superseded (by TORCH-GEOMETRY-UB-REALIGN-001)
+**Reason:** The incremental UB parameterization approach achieved parity goals without requiring det(U)=1 enforcement or hybrid parameterization.
+**Date:** 2025-12-08
+
+---
+
 # Implementation Plan: TORCH-GEOMETRY-PARITY-002
 
 ## Initiative

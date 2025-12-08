@@ -5,7 +5,7 @@
 - Title: Stage A UB Parameterization Realignment
 - Owner: Unassigned
 - Spec Owner: docs/spec-db-core.md, docs/spec-db-workflow.md, docs/spec-db-runtime.md
-- Status: pending
+- Status: done
 
 ## Goals
 - Design and implement a Stage-A geometry parameterization that treats the dxtbx/DIALS crystal state (`U₀ = crystal.get_U()`, `B₀ = crystal.get_B()`, `A*_mapping = U₀ @ B₀`) as authoritative and conforms to the Baseline Crystal State and Parameterization rules in `spec-db-core.md`.

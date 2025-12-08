@@ -356,7 +356,7 @@
 
 ### [TORCH-GEOMETRY-SYNC-001] Geometry Convergence & Parity Alignment
 - Depends on: ARCH-REFINE-001 (Stage helpers stabilized)
-- Status: pending
+- Status: done (2025-12-08T200000Z: Roll-up complete. 2/4 member plans done (CONVERGENCE-001, UB-REALIGN-001 with 5/5 exit criteria each), 2/4 superseded (PARITY-002, PARITY-003 absorbed by incremental UB approach). Artifacts: plans/active/TORCH-GEOMETRY-SYNC-001/reports/2025-12-08T200000Z/)
 - Type: architecture
 - Priority: High (zero-point correctness)
 - Tier: 1
@@ -372,6 +372,7 @@
 - Attempts History:
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
   * 2025-12-08T190000Z (Ralph, Loop i=167) — Phase A Reality Check COMPLETE. Inventoried 4 member plans: CONVERGENCE-001 (done, 5/5), UB-REALIGN-001 (done, 5/5), PARITY-002 (superseded), PARITY-003 (superseded). All exit criteria satisfied via CONVERGENCE-001 + UB-REALIGN-001. Recommended: Close roll-up. Artifacts: `plans/active/TORCH-GEOMETRY-SYNC-001/reports/2025-12-08T190000Z/`.
+  * 2025-12-08T200000Z (Loop i=168, Ralph) — Phase B closure: Marked roll-up done. Updated 4 member plan status fields. Created closure_summary.md. Artifacts: plans/active/TORCH-GEOMETRY-SYNC-001/reports/2025-12-08T200000Z/.
   * ... (see docs/fix_plan_archive.md and plans/active/TORCH-GEOMETRY-SYNC-001/reports/ for full Attempts History and metrics).
 
 ### [TORCH-REFINE-CLEANUP-001] Stage A/B/C Refinement Cleanup (TORCH-REFINE-001/002/002D/002E/003)

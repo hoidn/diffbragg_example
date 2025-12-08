@@ -11,6 +11,6 @@
 - [ ] **B3 — Precedence guards**: Test background sentinel handling (`background == -1` excluded from loss_mask); validate trusted=False pixels excluded even if background >= 0; cross-check with reflection table `flags` column (Flags.integrated bitmask).
 
 ## Phase C — Documentation & Registry Sync
-- [ ] **C1 — Evidence capture**: Run `pytest -v tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021` and `pytest --collect-only tests -k DB_AT_021`, archiving logs under this initiative.
-- [ ] **C2 — Docs update**: Promote DB_AT_021 rows in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to Active with artifact paths, command selectors, and referenced findings (e.g., MASKING-001, TESTING-003, CONFORMANCE-001).
-- [ ] **C3 — Ledger sync**: Append Attempts History entries to `docs/fix_plan.md` with metrics/commands/artifacts, update `docs/findings.md` if new mask handling pitfalls emerge, and mark the initiative ready for closure once exit criteria are met.
+- [x] **C1 — Evidence capture**: Run `pytest -v tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021` and `pytest --collect-only tests -k DB_AT_021`, archiving logs under this initiative. ✅ 2025-12-08 (Loop i=150)
+- [x] **C2 — Docs update**: Promote DB_AT_021 rows in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to Active with artifact paths, command selectors, and referenced findings (e.g., MASKING-001, TESTING-003, CONFORMANCE-001). ✅ 2025-12-08 (Loop i=150)
+- [x] **C3 — Ledger sync**: Append Attempts History entries to `docs/fix_plan.md` with metrics/commands/artifacts, update `docs/findings.md` if new mask handling pitfalls emerge, and mark the initiative ready for closure once exit criteria are met. ✅ 2025-12-08 (Loop i=150)

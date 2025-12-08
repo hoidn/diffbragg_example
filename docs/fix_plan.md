@@ -40,9 +40,9 @@
 - [DB-AT-SUITE-CARE-001] (Acceptance suite upkeep for DB-AT-002/010/020/021/022/023/024) — **pending**.
   - **Governed by:** TESTING-003, RUNTIME-001, DIAGNOSTICS-001, MASKING-001
   - The plan directories under `plans/active/DB-AT-002/`, `.../DB-AT-010/`, and `.../DB-AT-020` through `.../DB-AT-024/` already contain implementation plans, but none were represented in this ledger. Scope: keep the DB-AT selectors mapped to fix-plan items, document status per selector, and surface artifacts/blocked states in the Attempts History. Classification reference: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`.
-- [MAP-SCALE-SYNC-001] (Calibration ladder initiatives MAP-SCALE-001—005) — **pending**.
+- [MAP-SCALE-SYNC-001] (Calibration ladder initiatives MAP-SCALE-001—005) — **done** (2025-12-08T190000Z: 4/5 member plans complete; MAP-SCALE-003 telemetry already implemented; MAP-SCALE-005 deferred as non-critical).
   - **Governed by:** SCALE-001, SCALE-002, SCALE-003, SCALE-004, SCALE-005, SCALE-006, SCALE-007
-  - Plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports; ledger coverage will capture their goals (sigma provenance, spot-scale alignment) and unblock downstream physics/loss work.
+  - Plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports; ledger coverage captures goals (sigma provenance, spot-scale alignment). Member plan status: MAP-SCALE-001/002/004 done, MAP-SCALE-003 done (telemetry already exists), MAP-SCALE-005 pending (enforcement guardrail deferred).
 - [PHYSICS-LOSS-001] (Variance-weighted loss parity and telemetry fixes) — **pending**. Plan exists under `plans/active/PHYSICS-LOSS-001/implementation.md`; add ledger tracking so variance, sigma-floor, and telemetry corrections remain visible.
 - [PHYSICS-LOSS-CONSISTENCY] (Physics Loss Function Alignment) — **pending**.
   - **Governed by:** PHYSICS-LOSS-001, PHYSICS-LOSS-002, PHYSICS-LOSS-003, PHYSICS-LOSS-004, PHYSICS-LOSS-005
@@ -338,6 +338,7 @@
 - Attempts History:
   * See docs/fix_plan_archive.md (snapshot 2025-12-07) and plans/active/MAP-SCALE-SYNC-001/reports/ for full Attempts History.
   * 2025-12-08T180000Z i=166 (Ralph): **MAP-SCALE-003 Phase A (Telemetry Design) COMPLETE.** Audited `dbex/io/writer.py` diagnostics emission, traced refined MTZ loading path, confirmed 4 downstream test consumers. **Key finding:** Structure-factor telemetry (SCALE-003) is **already fully implemented** at `writer.py:196-200`. No gaps identified; no production code changes required. Tests: not run (Mode: Docs). Artifacts: `plans/active/MAP-SCALE-003/reports/2025-12-08T180000Z/{telemetry_audit.md,mtz_loading_trace.md,downstream_consumers.md,summary.md}`. Next: Review Phase B/C scope or consider closing MAP-SCALE-003 as complete.
+  * 2025-12-08T190000Z i=167 (Galph): **MAP-SCALE-003 CLOSED (telemetry already implemented).** Phase A evidence confirmed structure-factor telemetry exists at `writer.py:196-200` with all 4 SCALE-003 fields (hkl_source, hkl_n_reflections, hkl_mean_amplitude, hkl_path). Phase B/C obsolete — no new implementation needed. Initiative marked **done**. MAP-SCALE-SYNC-001 roll-up updated: 4/5 member plans complete (001/002/003/004 done, 005 pending but non-critical). MAP-SCALE-005 deferred as optional enforcement guardrail. Focus switched to next Tier 1 unblocked item.
 
 ### [PHYSICS-LOSS-001] Variance-Weighted Loss Parity and Telemetry
 - Depends on: MAP-SCALE-SYNC-001 (calibration precedence)

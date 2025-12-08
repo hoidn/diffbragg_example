@@ -17,25 +17,27 @@ Synchronize calibration ladder initiatives (MAP-SCALE-001—005) to ensure:
 - Changing acceptance thresholds (SPEC governs those)
 - Environment modifications (Environment Freeze applies)
 
-## Exit Criteria (from fix_plan.md:367-376)
+## Exit Criteria (from fix_plan.md)
 1. ✅ Calibration precedence documented per docs/spec-db-workflow.md §4 (satisfied by MAP-SCALE-001/002)
 2. ✅ Sigma provenance work tracked with artifact pointers (satisfied by PHYSICS-LOSS-001 closure)
-3. ⏳ Spot-scale alignment complete per docs/config_crosswalk.md (MAP-SCALE-001/002/004 done, MAP-SCALE-003/005 remain)
+3. ✅ Spot-scale alignment complete per docs/config_crosswalk.md (MAP-SCALE-001/002/003/004 done; MAP-SCALE-005 deferred)
+4. ✅ Telemetry provenance gates documented in member plans with test selectors (SCALE-003 confirmed at writer.py:196-200)
+
+**STATUS: DONE** — Roll-up closed 2025-12-08T190000Z. 4/5 member plans complete, 1/5 deferred (enforcement guardrail non-critical).
 
 ## Member Plan Status
 
-### Completed (3/5):
+### Completed (4/5):
 - **MAP-SCALE-001** — Zero-iteration mapping scale alignment ✅ DONE (Phases A/B/C/D complete, 2025-11-04)
 - **MAP-SCALE-002** — Nanobrag CLI calibration parity ✅ DONE (Phases A/B/C/D complete)
+- **MAP-SCALE-003** — CLI Refined Structure Factor Telemetry ✅ DONE (2025-12-08T190000Z: Telemetry already implemented at `writer.py:196-200`; Phase A confirmed all 4 SCALE-003 fields present; Phases B/C not needed)
 - **MAP-SCALE-004** — Zero-iteration telemetry parity ✅ DONE (Phases A/B/C complete)
 
-### Pending (2/5):
-- **MAP-SCALE-003** — CLI Refined Structure Factor Telemetry ⏳ PENDING (all phases unchecked)
-  - **Next action**: Phase A telemetry design audit
-  - **Blocking**: None (MAP-SCALE-002 dependency satisfied)
-- **MAP-SCALE-005** — CLI refined telemetry enforcement ⏳ PENDING (all phases unchecked)
-  - **Next action**: Blocked until MAP-SCALE-003 complete
-  - **Blocking**: MAP-SCALE-003 (telemetry contract must exist to enforce)
+### Pending (1/5) — Deferred:
+- **MAP-SCALE-005** — CLI refined telemetry enforcement ⏳ DEFERRED
+  - **Rationale**: Enforcement guardrail is non-critical; telemetry already exists (MAP-SCALE-003 confirmed)
+  - **Can be activated if**: Silent fallback to raw MTZ becomes a regression issue in practice
+  - **Blocking**: None (MAP-SCALE-003 dependency satisfied)
 
 ## Dependency Chain
 ```

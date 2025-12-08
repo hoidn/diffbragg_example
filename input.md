@@ -1,163 +1,98 @@
-# input.md — Loop i=210
+# input.md — Loop i=212
 
 ## Summary
-Profile GPU memory allocation during Stage A/reconstruction to identify optimization targets for OOM fix.
+Portfolio in maintenance mode — all actionable Tier 0-3 initiatives are blocked pending upstream nanobrag_torch responses.
 
 ## Focus
-**PERF-GPU-MEM-001** — GPU Memory Usage Analysis and Optimization (Phase A)
+**DB-AT-SUITE-CARE-001** — Acceptance Suite Upkeep (Maintenance Mode)
 
 ## Branch
 `integration`
 
 ## Mapped Tests
-None — evidence-only profiling loop (no code changes).
+None — maintenance mode, no implementation delegation possible.
 
 ## Artifacts
-`plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T000000Z/`
 
 ---
 
-## Do Now (Implementation Delegation)
+## Do Now (Maintenance Mode)
 
-**Focus Item:** PERF-GPU-MEM-001 Phase A (Memory Profiling)
+**Focus Item:** Portfolio-wide maintenance (no implementation targets available)
 
-**Implement:** Memory profiling probe + instrumentation (evidence collection only, no production edits)
+**Action Type:** Review/Housekeeping
 
 **Tasks:**
-1. **A0 — Create profiling probe** (`plans/active/PERF-GPU-MEM-001/bin/profile_gpu_memory.py`):
-   - Script to track `torch.cuda.memory_allocated()` and `torch.cuda.max_memory_allocated()` at key points
-   - Capture: before/after Crystal creation, before/after Simulator.run(), before/after reconstruction
-   - Output JSON metrics to artifacts directory
-   - Must be <400 LOC per PROBE-FREEZE-001
+1. **Check inbox** for upstream responses:
+   - `~/Documents/nanoBragg/outbox/` for responses to:
+     - `mosaic_gradient_bug_2025_12_08.md` (HIGH — blocks ARCH-GRADIENT-FLOW-001)
+     - `chunked_interpolation_request_2025_12_09.md` (MEDIUM — blocks PERF-GPU-MEM-001)
 
-2. **A1-A2 — Profile Stage A closure execution**:
-   - Run profiling against `test_stage_a_expansion` fixture path
-   - Capture memory at: HKL grid allocation, mosaic domain setup, tricubic interpolation entry/exit
-   - Use small detector (512x512) to avoid actual OOM during profiling
+2. **Check local inbox**:
+   - `./inbox/` for any new upstream communications
 
-3. **A3-A4 — Profile reconstruction path**:
-   - Profile `build_final_bragg_from_stage_a_telemetry` if accessible
-   - Focus on tricubic interpolation memory footprint (`Crystal._tricubic_interpolation`)
-   - Document which call creates the ~4GB intermediates
+3. **If upstream response found**:
+   - Process response immediately
+   - Update relevant initiative status
+   - Generate input.md with implementation Do Now
 
-4. **A5 — Document findings**:
-   - Create `reports/2025-12-08T224000Z/memory_profile.md` with:
-     - Memory breakdown by component (table)
-     - Peak allocation location (file:line)
-     - Scaling observations (memory vs detector size)
-   - Create `reports/2025-12-08T224000Z/summary.md`
-
-**Validating Test:** None (evidence-only loop). Validation is completion of profiling artifacts.
+4. **If no response**:
+   - Log maintenance loop in artifacts
+   - Verify portfolio status unchanged
 
 ---
 
-## How-To Map
+## Portfolio Status Summary
 
-### Environment
-```bash
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
-export CUDA_VISIBLE_DEVICES=0  # Single GPU profiling
-```
+| Initiative | Status | Tier | Blocker |
+|------------|--------|------|---------|
+| ARCH-GRADIENT-FLOW-001 | blocked_pending_upstream | 0 | mosaic gradient bug |
+| SPEC-INTERP-TRICUBIC-001 | done | 0 | — |
+| ARCH-SIM-CONSTRUCTION-001 | blocked_pending_environment | 0 | SQUARE resolved; other issues |
+| PERF-GPU-MEM-001 | blocked_pending_upstream | 3 | tricubic memory issue |
+| DB-AT-SUITE-CARE-001 | in_progress | 1 | blocked by ARCH-GRADIENT-FLOW-001 |
+| Tier 4 items | pending | 4 | — |
 
-### Memory profiling snippet pattern
-```python
-import torch
-
-def log_gpu_memory(label):
-    if torch.cuda.is_available():
-        alloc = torch.cuda.memory_allocated() / 1e9
-        max_alloc = torch.cuda.max_memory_allocated() / 1e9
-        print(f"[MEMORY] {label}: allocated={alloc:.2f} GB, max={max_alloc:.2f} GB")
-        return {"label": label, "allocated_gb": alloc, "max_allocated_gb": max_alloc}
-    return {"label": label, "allocated_gb": 0, "max_allocated_gb": 0}
-
-# Reset peak stats at start
-torch.cuda.reset_peak_memory_stats()
-```
-
-### Key instrumentation points
-- `nanobrag_torch/models/crystal.py:404` — tricubic interpolation (OOM location)
-- `Crystal.__init__` — HKL grid allocation
-- `Simulator.run()` — forward simulation entry/exit
-- Reconstruction helpers in `dbex/physics/`
-
-### Artifact output
-```bash
-# Metrics JSON
-plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/memory_metrics.json
-
-# Profile markdown
-plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/memory_profile.md
-```
-
----
-
-## Pitfalls To Avoid
-
-1. **DO NOT modify production code** — Phase A is evidence collection only
-2. **DO NOT run full-detector profiles** — Use small detector (512x512) to avoid OOM during profiling
-3. **DO NOT install packages** — Environment Freeze policy
-4. **DO reset peak memory stats** before each measurement with `torch.cuda.reset_peak_memory_stats()`
-5. **DO use NANOBRAGG_DISABLE_COMPILE=1** — Avoid Dynamo compilation overhead
-6. **DO keep probe <400 LOC** — Per PROBE-FREEZE-001
-7. **DO use device='cuda' if available** — Profile actual GPU memory, not CPU
-8. **DO document with file:line references** — Trace exact OOM source location
+**Outstanding Upstream Requests:**
+1. `~/Documents/nanoBragg/inbox/mosaic_gradient_bug_2025_12_08.md` — HIGH priority
+2. `~/Documents/nanoBragg/inbox/chunked_interpolation_request_2025_12_09.md` — MEDIUM priority
 
 ---
 
 ## If Blocked
 
-1. If CUDA not available: Profile on CPU with memory_profiler; document as CPU-only evidence
-2. If fixture loading fails: Use synthetic test data (simple cubic crystal)
-3. If OOM during profiling: Reduce detector size further (256x256) or chunk queries
-4. Document block in `galph_memory.md` and Attempts History with error signature
+Since this is already a maintenance loop for a blocked portfolio:
+1. Log the maintenance check in artifacts
+2. Update galph_memory.md with maintenance status
+3. Do not delegate implementation to Ralph (no viable targets)
 
 ---
 
 ## Findings Applied (Mandatory)
 
-- **RUNTIME-001** (Runtime execution guardrails): Use `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference with memory profiling
-  - Code: `docs/TESTING_GUIDE.md:161`, `docs/pytorch_runtime_checklist.md:26`
-  - Adherence: All profiling runs use canonical environment flags
-
-- **PROBE-FREEZE-001** (Plan-local script policy): Profiling probe must stay <400 LOC, be a thin wrapper calling existing APIs
-  - Code: `docs/findings.md`, `prompts/supervisor.md::diagnostic_script_policy`
-  - Adherence: Phase A.0 probe is instrumentation only, no new pipelines
-
-- **DIAGNOSTICS-001** (Artifact patterns): Use timestamped artifacts directory with JSON metrics + markdown summary
-  - Adherence: Artifacts go to `plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/`
+No relevant findings — maintenance mode only.
 
 ---
 
 ## Pointers
 
-### Implementation Plan
-- `plans/active/PERF-GPU-MEM-001/implementation.md` — Full Phase A-D checklist
+### Upstream Inbox/Outbox
+- nanoBragg inbox: `~/Documents/nanoBragg/inbox/`
+- nanoBragg outbox: `~/Documents/nanoBragg/outbox/`
+- DBEX inbox: `./inbox/`
 
-### OOM Evidence
-- `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/pytest_stage_a.log` — Original OOM stack trace
-- Root cause: `nanobrag_torch/models/crystal.py:404` — tricubic interpolation batched gather
+### Initiative References
+- ARCH-GRADIENT-FLOW-001: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md`
+- PERF-GPU-MEM-001: `plans/active/PERF-GPU-MEM-001/implementation.md`
 
-### Key Source Files
-- `nanobrag_torch/models/crystal.py:350-450` — Tricubic interpolation implementation
-- `dbex/physics/forward.py::simulate_forward_torch` — Forward simulation entry
-- `dbex/physics/reconstruction.py` (if exists) — Reconstruction helpers
-
-### Spec References
-- `docs/spec-db-runtime.md` Device/Dtype Neutrality — Optimization constraints
-- `docs/pytorch_runtime_checklist.md` Memory hygiene — Memory management patterns
+### Fix Plan
+- `docs/fix_plan.md` — Execution Roadmap and Active/Pending Initiatives
 
 ---
 
-## Next Up (optional)
+## Implementation Floor Exemption
 
-If Phase A completes early:
-- **Phase B.1**: Calculate theoretical memory requirements for each component
-- **Phase B.2**: Identify memory scaling laws (linear vs quadratic in detector size)
+Portfolio is in maintenance mode. All Tier 0-1 actionable initiatives are blocked pending upstream nanobrag_torch responses. Per loop_discipline, implementation floor does not apply when no viable implementation targets exist.
 
----
-
-## Doc Sync Plan (Conditional)
-
-N/A — No tests added this loop. Test registry sync not required for evidence-only Phase A.
+This is a docs-only / maintenance loop. Dwell tracking: dwell=1 for PERF-GPU-MEM-001 (previous loop filed upstream request).

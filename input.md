@@ -1,136 +1,110 @@
-# Input — Loop i=190 (Ralph)
+# Input — Loop i=192 (Ralph)
 
 ## Summary
-Verify TORCH-REFINE-003 status: run Stage C microslip test to determine if implementation is complete; update checkboxes if PASS.
+Execute DB-AT-SUITE-CARE-001 Phase D.2 exploratory scoping: inventory any proposed future DB-AT selectors and assess onboarding readiness.
 
 ## Focus
-TORCH-REFINE-003 — Stage C Detector Microslip (Scope Verification)
+DB-AT-SUITE-CARE-001 — Phase D.2 Future DB-AT Onboarding (Scoping)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (primary — expect PASS if implementation complete)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
+- `none` — Phase D.2 is scoping/planning, no test execution required
 
 ## Artifacts
-`plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T112000Z/`
 
 ---
 
 ## Do Now
 
-**Focus:** TORCH-REFINE-003 — Scope Verification
+**Focus:** DB-AT-SUITE-CARE-001 — Phase D.2 Scoping
 
-**Implement:** `plans/active/TORCH-REFINE-003/implementation.md` Phase 0-4 checkbox sync (if test passes)
+**Implement:** `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T112000Z/future_db_at_inventory.md`
 
-**Validating selector:** `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
+**Validating selector:** `none` — evidence-only loop
 
-**Artifacts path:** `plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/`
+**Artifacts path:** `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T112000Z/`
 
 ### Background
 
-The TORCH-REFINE-CLEANUP-001 Phase A member plan audit (i=186) classified TORCH-REFINE-003 as "blocked" because:
-1. It depended on TORCH-REFINE-002D (Stage A gate restoration) — **NOW RESOLVED** (002D confirmed done, November 2025)
-2. It depended on TORCH-REFINE-002E (gradient flow) — **NOT a hard blocker** (Stage C uses detector offsets, not crystal gradients)
+DB-AT-SUITE-CARE-001 Phase D is ongoing maintenance. D1 (regression monitoring cadence) is complete. D2 tasks scope future DB-AT selector onboarding. Per implementation.md:
+> **D2 — Future DB-AT onboarding**: When new DB-AT selectors are proposed (e.g., DB-AT-025 HKL interpolation halo, DB-AT-030 sigma precedence, DB-AT-031+ Stage B/C profiles), create member plan implementation.md under `plans/active/DB-AT-<NNN>/`, add to portfolio progress dashboard, and coordinate Phase A/B/C execution.
 
-**DISCOVERY (i=189 Galph)**: The test `test_stage_c_detector_microslip` already exists and collects (1 test). The implementation.md checkboxes are ALL unchecked, but the test code is present. This suggests the implementation work may be complete with only checklist hygiene remaining.
+This loop inventories any proposed/documented future DB-AT selectors and assesses which (if any) have specification support ready for implementation.
 
 ### Tasks
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| V1 | Run collect-only for Stage C test | `collect_stage_c.log` confirming 1 test collected |
-| V2 | Run Stage C test | `pytest_stage_c.log` with PASS/FAIL status |
-| V3 | If PASS: Update implementation.md | Mark all applicable Phase 0-4 checkboxes complete |
-| V4 | If PASS: Update fix_plan.md | Add Attempts History entry, update status |
-| V5 | If FAIL: Document failure | Capture failure mode, identify remaining work |
-| V6 | Author summary.md | Turn Summary block for this loop |
+| D2.1 | Search docs/spec-db-conformance.md for DB-AT selectors beyond 024 | List of proposed selectors with spec status |
+| D2.2 | Check docs/findings.md for any findings referencing new DB-AT selectors | Findings→selector mapping |
+| D2.3 | Check problems.md for any entries requesting new acceptance tests | Problems→selector mapping |
+| D2.4 | Assess onboarding readiness (spec exists, test scaffold possible) | Readiness matrix |
+| D2.5 | Author future_db_at_inventory.md | Inventory document |
+| D2.6 | Author summary.md | Turn Summary block |
 
 ---
 
 ## How-To Map
 
-### V1: Collect-only
+### D2.1: Search spec-db-conformance.md
 ```bash
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only \
-  tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-  2>&1 | tee plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/collect_stage_c.log
+grep -n "DB-AT-0[2-9][5-9]\|DB-AT-03" docs/spec-db-conformance.md 2>/dev/null || echo "No matches"
 ```
 
-### V2: Run Stage C test
+### D2.2: Search findings.md
 ```bash
-mkdir -p plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z
-
-KMP_DUPLICATE_LIB_OK=TRUE \
-  DBEX_SMOKE_DETECTOR_SIZE=small \
-  pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-  --maxfail=1 \
-  2>&1 | tee plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/pytest_stage_c.log
+grep -n "DB-AT-0[2-9][5-9]\|DB-AT-03" docs/findings.md 2>/dev/null || echo "No matches"
 ```
 
-**Expected outcomes:**
-- **PASS**: Implementation complete; proceed with V3-V4 (checkbox sync + ledger update)
-- **FAIL with OOM**: Environment resource limit (same as i=188 smoke tests); document as environment caveat, not code issue
-- **FAIL with assertion error**: Identify which exit criterion fails; scope remaining work
-
-### V3: Implementation.md updates (if PASS)
-Review test code and mark checkboxes in `plans/active/TORCH-REFINE-003/implementation.md`:
-- Phase 0 (P0.1-P0.2): Baseline reality check — VERIFY test exercises deterministic detector offsets
-- Phase 1 (P1.1-P1.3): Config plumbing — VERIFY `RefinementConfig` has Stage C toggles, per-panel distance params exist
-- Phase 2 (P2.1-P2.3): LBFGS integration — VERIFY Stage C runs post-Stage A with detector distance optimization
-- Phase 3 (P3.1-P3.3): Telemetry — VERIFY Stage C telemetry emitted with per-panel deltas
-- Phase 4 (P4.1-P4.3): Validation — VERIFY test asserts improvement + telemetry completeness
-
-### V4: fix_plan.md updates (if PASS)
-Add Attempts History entry under TORCH-REFINE-CLEANUP-001 detailed section (~line 404):
+### D2.3: Check problems.md
+```bash
+grep -n "acceptance\|DB-AT" docs/problems.md 2>/dev/null || echo "No matches"
 ```
-  * 2025-12-08T104000Z (Loop i=190, Ralph) — **TORCH-REFINE-003 scope verification**: Ran test_stage_c_detector_microslip (PASS/FAIL). Implementation status: (complete if PASS / partial if FAIL). Updated implementation.md checkboxes. Artifacts: plans/active/TORCH-REFINE-003/reports/2025-12-08T104000Z/
-```
+
+### D2.4-D2.6: Author artifacts
+Create `future_db_at_inventory.md` with:
+- Selector ID, Proposed Purpose, Spec Status (documented/draft/none), Test Status (exists/scaffold/none), Readiness (ready/needs_spec/blocked)
+- Recommendation: which selectors to prioritize if any
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO** use `DBEX_SMOKE_DETECTOR_SIZE=small` for faster execution (full-detector requires more GPU memory)
-2. **DO** capture test output to log file in artifacts directory
-3. **DO NOT** modify production code — this is scope verification only
-4. **DO NOT** modify test files — test already exists
-5. **DO** verify test actually exercises Stage C (not just Stage A) by checking for `StageC` usage in test code
-6. **Environment Freeze:** If OOM occurs, document it as environment caveat (not code regression) per i=188 precedent
-7. **DO** check that Stage A also passes (regression guard) if time permits
+1. **DO NOT** create new DB-AT plan directories — this loop is scoping only
+2. **DO NOT** author tests — inventory only
+3. **DO** check multiple sources (spec, findings, problems, existing comments in tests)
+4. **DO** note any selectors mentioned in code comments (e.g., `# TODO: DB-AT-025`)
+5. **Environment Freeze:** No package installs, no production code changes
 
 ---
 
 ## If Blocked
 
-1. If test fails with OOM: Document in summary.md as `environment_resource_limit`, not a code failure
-2. If test fails with assertion: Capture the specific failure, identify which exit criterion is unmet, scope the fix
-3. If test fails with import error: Document the missing dependency and mark as environment blocker
+1. If no future DB-AT selectors are documented: Report "No proposed selectors found" in inventory.md and recommend Phase D.2 as complete (no onboarding needed)
+2. If selectors are documented but lack specs: Note as "needs_spec" and recommend spec authoring as prerequisite
 
 ---
 
 ## Findings Applied
 
-- **TESTING-003**: Use canonical pytest selectors from TESTING_GUIDE.md
-- **PROBE-FREEZE-001**: No new probe scripts — use existing test infrastructure
-- **REFINE-007**: Stage C strict gates key off telemetry (≥80% offset reduction, ≤0.05% chi² regression)
-- **REFINE-009**: Stage C must seed detector distance offsets from known geometry for telemetry accuracy
+- **TESTING-003**: Use canonical selector patterns when assessing new DB-AT proposals
+- **PROBE-FREEZE-001**: No new probe scripts — inventory existing documentation only
 
 ---
 
 ## Pointers
 
-- TORCH-REFINE-003 implementation.md: `plans/active/TORCH-REFINE-003/implementation.md:18-37` (Phase checklist)
-- Test code: `tests/dbex/test_torch_refine_smoke.py:1044-1364` (test_stage_c_detector_microslip)
-- Prior Stage C summary: `plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json` (if exists)
-- REFINE-007 finding: `docs/findings.md:67` (Stage C gate calibration)
-- REFINE-009 finding: `docs/findings.md:71` (baseline detector seeding)
+- DB-AT-SUITE-CARE-001 implementation.md: `plans/active/DB-AT-SUITE-CARE-001/implementation.md:86-91` (Phase D tasks)
+- spec-db-conformance.md: `docs/spec-db-conformance.md` (DB-AT acceptance criteria)
+- TEST_SUITE_INDEX.md: `docs/development/TEST_SUITE_INDEX.md` (existing selector status)
 
 ---
 
 ## Next Up (optional)
 
-If Stage C test passes and time permits:
-1. Run Stage A regression guard: `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
-2. If both pass: Consider marking TORCH-REFINE-003 as `done` in fix_plan.md
+If inventory shows no actionable selectors:
+1. Mark D2 as "scoped — no immediate onboarding needed" in implementation.md
+2. Consider D4 (TEST_SUITE_INDEX.md hygiene audit) as alternative maintenance task

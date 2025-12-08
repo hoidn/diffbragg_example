@@ -17,10 +17,10 @@
 |---------|---------------|-----------------|----------------|
 | TORCH-REFINE-001 | substantial_progress | A1-A3 ✅ | B1-B2, C1-C2 (stage scheduling, CLI wiring) |
 | TORCH-REFINE-002 | substantial_progress | P1.1-P3.2 ✅ | P4.1-P4.3 (HKL perturbation) → delegated to 002D |
-| TORCH-REFINE-002D | in_progress | P0.1, P1.1-P1.3 ✅ | P2.1-P2.2, P3.1-P3.2 (xfail removal, docs sync) |
-| TORCH-REFINE-002E | in_progress | A0, A2-A3, B1 ✅ | B2-B5, C1-C3 (gradient probe, action & revalidation) |
-| TORCH-REFINE-003 | pending | None | P0-P4 (Stage C detector microslip) |
-| TORCH-REFINE-004 | done | All phases ✅ | None (cleanup tasks already done) |
+| TORCH-REFINE-002D | done | All phases ✅ | None (2025-11-05: all exit criteria satisfied, ~0.206% improvement) |
+| TORCH-REFINE-002E | blocked | A0, A2-A3, B1 ✅ | B2-B5, C1-C3 (gradient probe blocked by ARCH-GRADIENT-FLOW-001) |
+| TORCH-REFINE-003 | done | P0-P4 ✅ | None (2025-12-08T104000Z i=190: test PASSED, all phases verified complete) |
+| TORCH-REFINE-004 | done | All phases ✅ | None (archived to archive/plans/) |
 
 ## Exit Criteria
 1. Member plan status matrix validated against implementation.md checklists

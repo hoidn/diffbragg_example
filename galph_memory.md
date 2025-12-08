@@ -1,3 +1,12 @@
+2025-12-08T110000Z focus=TORCH-REFINE-CLEANUP-001 state=housekeeping dwell=0 action=review_or_housekeeping artifacts=plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T110000Z/ next_action=select_next_focus
+- Loop i=191 (Galph): **TORCH-REFINE-003 VERIFICATION CONFIRMED** (Post-Ralph Housekeeping). Prior loop (i=190 Ralph) verified TORCH-REFINE-003 Stage C implementation is complete — `test_stage_c_detector_microslip` PASSED (22.78s). Ralph updated all Phase 0-4 checkboxes in implementation.md and added Attempts History entry in fix_plan.md. **This loop**: Updated TORCH-REFINE-CLEANUP-001 member plan status table to reflect current reality:
+  - TORCH-REFINE-003: `pending` → **done** (test PASSED, all phases verified)
+  - TORCH-REFINE-002D: `in_progress` → **done** (November 2025 exit criteria satisfied)
+  - TORCH-REFINE-002E: `in_progress` → **blocked** (gradient probe blocked by ARCH-GRADIENT-FLOW-001)
+  **Portfolio summary (refinement probes)**: 4/6 done (002D, 003, 004 fully complete; 001/002 substantial but not critical path), 1 blocked (002E), 1 substantial (001/002 scope superseded by downstream work).
+  **Next focus candidates**: DB-AT-SUITE-CARE-001 Phase D.2+ (maintenance), TOOLING-VIS-001 (pending, blocked by Tier 0). No urgent Tier 1 work — portfolio is in maintenance mode until Tier 0 blockers resolve.
+  ActionType: review_or_housekeeping. DecisionStatus: N/A (hygiene). Next: Select next focus — likely DB-AT-SUITE-CARE-001 Phase D.2 or wait for Tier 0 unblock.
+
 2025-12-08T103000Z focus=TORCH-REFINE-CLEANUP-001 state=housekeeping dwell=0 action=review_or_housekeeping artifacts=plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T103000Z/ next_action=select_next_focus
 - Loop i=189 (Galph): **STATUS DRIFT CORRECTION** (Housekeeping). Prior loop (i=188 Ralph) closed TORCH-REFINE-CLEANUP-001 Phase C with revive queue: TORCH-REFINE-002D (HIGH), TORCH-REFINE-001 (MEDIUM). **DISCOVERY**: Revive queue was based on stale implementation.md checkboxes. **Reality Check Evidence**:
   - TORCH-REFINE-002D: November 2025 summary.md (`reports/2025-11-05T093000Z/summary.md`) shows ALL exit criteria satisfied — test PASSED with ~0.206% improvement, REFINE-004/005 marked Resolved in findings.md. **002D is DONE, not revive.**

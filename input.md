@@ -1,192 +1,194 @@
-# Input for Ralph (Loop i=181)
+# Input for Ralph (Loop i=182)
 
 ## Summary
-Complete TORCH-CLI-BRIDGE-ROLLUP-001 Phases D+E combined: sync TORCH-CLI-004 checklist (work already done) and close roll-up.
+Execute FORWARD-EQUIV-COVERAGE-001 Phase A: Reality check member plans (FORWARD-EQUIV-001, FORWARD-EQUIV-002, PARITY-HARNESS-002) and validate DB_AT_001 tests.
 
 ## BindingForRalph
-- **ActionType:** implementation_ready
-- **DecisionStatus:** patch_ready
-- **InitiativeType:** roll-up closure (docs/ledger only)
+- **ActionType:** evidence_collection
+- **DecisionStatus:** exploring
+- **InitiativeType:** roll-up reality check
 
 ## SupervisorMode
-Implementation (checklist sync + closure)
+Evidence Collection (first Phase A for roll-up)
 
 ## Focus
-TORCH-CLI-BRIDGE-ROLLUP-001 — CLI & Bridge Infrastructure Roll-up — Phases D+E Combined
+FORWARD-EQUIV-COVERAGE-001 — Forward Equivalence & Parity Harness — Phase A
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` (2 tests)
-- **Pre-verified:** 2/2 PASS (Galph verification this loop)
+- `tests/dbex/test_db_at_001_parity.py` (DB_AT_001)
+- `tests/dbex/test_forward_equivalence_complete.py`
+- `tests/dbex/test_forward_equivalence.py`
 
 ## Artifacts
-`plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T100000Z/`
+`plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T110000Z/`
 
 ## Findings Applied (Mandatory)
 - **PROBE-FREEZE-001**: No new persistent scripts
-  - Adherence: Docs/ledger updates only
-- No other findings directly applicable
+  - Adherence: Evidence collection only, use inline python -c for probe work
+- **TESTING-003**: Use canonical selectors from TESTING_GUIDE.md
+  - Adherence: Use DB_AT_001 selector per docs/TESTING_GUIDE.md
+- **DIAGNOSTICS-001**: Artifact directory structure
+  - Adherence: Store artifacts under `reports/2025-12-08T110000Z/`
 
 ## Pointers
-- Roll-up implementation.md: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md` (Phases D+E checklist)
-- TORCH-CLI-004 implementation.md: `plans/active/TORCH-CLI-004/implementation.md`
-- TORCH-CLI-004 completed work evidence: `plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/summary.md`
-- Exit criteria evidence locations:
-  - EC1: `docs/spec-db-interfaces.md:7-11`
-  - EC2: `docs/config_crosswalk.md:5-155` (torch mapping sections)
-  - EC3: `docs/architecture.md:33,141` (bridge responsibility)
-  - EC4: Already satisfied (REPORT-NANOBRAG-STATUS-001 done 2025-12-08)
+- Roll-up implementation.md: `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md` (Phase A checklist)
+- Member plans:
+  - `plans/active/FORWARD-EQUIV-001/implementation.md` (Phases A-C complete)
+  - `plans/active/FORWARD-EQUIV-002/implementation.md` (All phases complete)
+  - `plans/active/PARITY-HARNESS-002/implementation.md` (Phases A-D complete, E pending)
+- Spec refs:
+  - `docs/forward_equivalence.md` (harness requirements)
+  - `docs/spec-db-conformance.md` DB-AT-001 acceptance criteria
+- Test files:
+  - `tests/dbex/test_db_at_001_parity.py`
+  - `tests/dbex/test_forward_equivalence_complete.py`
+  - `tests/dbex/test_forward_equivalence.py`
 
 ---
 
 ## ARCH Contracts (mandatory)
 - **Environment Freeze**: No package installs
   - Owner: CLAUDE.md
-  - Classification: Docs/ledger updates only
-- **Test Registry Sync**: Not needed (entries exist)
+  - Classification: Evidence collection only
+- **Test Registry Sync**: Update TESTING_GUIDE.md if tests fail/change
   - Owner: TESTING-003
-  - Classification: Verification only
+  - Classification: Document status
 
 ---
 
 ## Do Now
 
-**Focus:** TORCH-CLI-BRIDGE-ROLLUP-001 Phases D+E (Combined Closure)
+**Focus:** FORWARD-EQUIV-COVERAGE-001 Phase A (Member Plan Reality Check)
 
-**Implement:** Checklist sync for TORCH-CLI-004 + roll-up closure documentation
+**Implement:** Evidence collection — run tests, verify checklists, identify gaps
 
-**Validating Pytest Selector:** `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` (already verified by Galph: 2/2 PASS)
+**Validating Pytest Selector:** `pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py tests/dbex/test_forward_equivalence.py -k DB_AT_001`
 
 ### Background
-- Phase C (TORCH-CLI-003 sync) completed successfully in prior loop (15/15 CLI tests pass)
-- TORCH-CLI-004 work was completed November 2025 (see `reports/2025-11-04T222435Z/summary.md`)
-- Tests already pass: 2/2 diagnostics tests confirmed this loop
-- Only remaining work: update unchecked checklists and close roll-up
+- Dependency satisfied: NANOBRAG-GOLDEN-001 done
+- Member plan analysis from implementation.md review:
+  - **FORWARD-EQUIV-001**: Phases A-C complete (D1-D3 optional/deferred)
+  - **FORWARD-EQUIV-002**: All phases complete
+  - **PARITY-HARNESS-002**: Phases A-D complete, E1-E3 pending
+- Roll-up likely ready for closure but needs validation
 
-### Phase D Tasks (TORCH-CLI-004 Synchronization)
+### Phase A Tasks
 
-#### D1 — Verify Tests (PRE-VERIFIED)
-Tests already verified by Galph:
+#### A1 — Run DB_AT_001 Tests
+Execute test suite with artifact capture:
+```bash
+cd /home/ollie/Documents/diffbragg_example
+export ART=plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T110000Z
+KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py tests/dbex/test_forward_equivalence.py -k DB_AT_001 2>&1 | tee $ART/pytest_db_at_001.log
 ```
-tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0] PASSED
-tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0] PASSED
-```
-**ACTION:** Note verification in artifacts, no re-run needed.
+Record: pass/fail status, test count, runtime, any errors
 
-#### D2 — Update TORCH-CLI-004 Implementation.md
-Mark all checklist items as complete (work done Nov 2025):
-- [ ] → [x] A1, A2, A3 (Phase A)
-- [ ] → [x] B1, B2, B3 (Phase B)
-- [ ] → [x] C1, C2, C3 (Phase C)
-- Add **Completed:** 2025-11-04T222435Z
-- Update Status: (none currently) → `done`
+#### A2 — Verify Member Plan Checklists
+Cross-reference each member plan's implementation.md against test files:
 
-#### D3 — Update Roll-up Implementation.md Member Table
-Update TORCH-CLI-004 row:
-- Implementation Status: "Work complete" (already there)
-- Checklist Status: "Checklist stale" → "Complete"
+| Member Plan | Claimed Status | Verify |
+|-------------|----------------|--------|
+| FORWARD-EQUIV-001 | A-C complete | `test_forward_equivalence_complete.py` exists |
+| FORWARD-EQUIV-002 | All complete | `test_db_at_001_parity.py` exists with canonical fixtures |
+| PARITY-HARNESS-002 | A-D complete | Parity harness utilities in tests/fixtures/parity_loader.py |
 
-#### D4 — Mark Roll-up Phase D Complete
-- [x] D1: Diagnostics test verified (2/2 PASS)
-- [x] D2: TORCH-CLI-004 implementation.md updated
-- [x] D3: Member table updated
+Tasks:
+- Verify test files exist and reference golden data
+- Confirm DB-AT-001 thresholds (correlation >= 0.2, localization >= 0.90) are enforced
+- Check that manifest.json checksum validation is present
 
-### Phase E Tasks (Roll-up Closure)
+#### A3 — Identify Gaps
+Document any discrepancies between claimed completion and reality:
+- Missing test coverage
+- Stale documentation references
+- Pending items that should be resolved before closure
 
-#### E1-E4 — Verify Exit Criteria
+Focus areas:
+- PARITY-HARNESS-002 Phase E (E1-E3) — closure validation unchecked
+- Optional items in FORWARD-EQUIV-001 Phase D — assess if needed
 
-| EC | Description | Evidence | Status |
-|----|-------------|----------|--------|
-| EC1 | CLI backend flag | `docs/spec-db-interfaces.md:7-11` | ✅ Verified |
-| EC2 | Telemetry schema | `docs/config_crosswalk.md` torch sections | ✅ Verified |
-| EC3 | Bridge responsibility | `docs/architecture.md:33,141` | ✅ Verified |
-| EC4 | REPORT-NANOBRAG-STATUS-001 | Dependency done 2025-12-08 | ✅ Satisfied |
-
-**ACTION:** Document verification in closure summary.
-
-#### E5 — Update fix_plan.md
-1. Update Execution Roadmap (line 58): `in_progress` → `done`
-2. Add Attempts History entry with Phase D+E closure
-
-#### E6 — Author Closure Summary
-Create `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T100000Z/closure_summary.md`:
-- Roll-up overview (3 member plans)
-- Exit criteria matrix with evidence paths
-- Phase completion timeline
-- Final member plan status
-
-#### E7 — Update Roll-up Implementation.md
-- Mark Phase E checklist complete
-- Update Status: `in_progress` → `done`
-- Update artifacts index with Phase D-E paths
+#### A4 — Author Summary
+Create `$ART/summary.md` with:
+1. Member plan status matrix (verified)
+2. Test results summary
+3. Gap analysis
+4. Recommendation: proceed to Phase B closure OR address gaps first
 
 ---
 
 ## How-To Map
 
 ```bash
-# Artifacts directory
+# Set environment
 cd /home/ollie/Documents/diffbragg_example
-export ART=plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T100000Z
+export ART=plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T110000Z
 
-# D2: Update TORCH-CLI-004 implementation.md via Edit tool
-# D3: Update roll-up member table via Edit tool
-# D4: Mark Phase D complete via Edit tool
+# A1: Run DB_AT_001 tests
+KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py tests/dbex/test_forward_equivalence.py -k DB_AT_001 2>&1 | tee $ART/pytest_db_at_001.log
 
-# E5: Update fix_plan.md via Edit tool
-# E6: Write closure_summary.md via Write tool
-# E7: Update roll-up implementation.md via Edit tool
+# A1: Capture collect-only evidence
+pytest --collect-only tests/dbex/ -k "DB_AT_001 or forward_equiv" 2>&1 | tee $ART/collect_db_at_001.log
+
+# A2: Read member plan implementation.md files (already analyzed by Galph)
+# Verify test file existence:
+ls -la tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence*.py
+ls -la tests/fixtures/parity_loader.py 2>/dev/null || echo "No parity_loader.py"
+
+# A3: Check golden data manifest
+ls -la tests/fixtures/golden_data/simple_cubic/
+
+# A4: Write summary to $ART/summary.md via Write tool
 ```
 
 ---
 
 ## Forbidden This Loop
-- **No code changes** — Docs/ledger only
+- **No production code changes** — Evidence collection only
 - **No package installs** — Environment Freeze
 - **No new persistent scripts** — PROBE-FREEZE-001
-- **No test execution** — Already verified by Galph
 
 ## Pitfalls To Avoid
-1. **Don't skip TORCH-CLI-004 checklist update** — Implementation was done Nov 2025 but checklist never updated
-2. **Use correct artifacts timestamp** — `2025-12-08T100000Z` (not Phase C's `090000Z`)
-3. **Update BOTH implementation.md files** — TORCH-CLI-004 AND roll-up
-4. **Include evidence paths in closure** — All EC must cite specific line numbers
+1. **Don't skip test execution** — We need fresh validation even though member plans claim completion
+2. **Check for golden data** — `tests/fixtures/golden_data/simple_cubic/` must exist for tests to pass
+3. **Note any xfail markers** — Some tests may have conditional xfail; document current status
+4. **Use KMP_DUPLICATE_LIB_OK=TRUE** — Required for torch tests
+5. **Document test metrics** — Record correlation/localization values from output if available
 
 ## If Blocked
-This is purely docs/ledger work. If any file access fails:
-1. Document the error
-2. Continue with remaining files
-3. Note incomplete items in summary
+If tests fail or golden data is missing:
+1. Document the specific failure/missing resource
+2. Check if NANOBRAG-GOLDEN-001 artifacts exist at expected locations
+3. Record block reason in summary.md
+4. Recommend remediation in gap analysis
 
 ---
 
-## Exit Criteria Validation (Phases D+E)
+## Exit Criteria Validation (Phase A)
 
 | Criterion | Expected | Validation |
 |-----------|----------|------------|
-| D1 Test verified | 2/2 PASS | Galph pre-verified |
-| D2 CLI-004 updated | All [x] | implementation.md diff |
-| D3 Member table updated | Complete | roll-up impl diff |
-| E1-E4 EC verified | 4/4 ✅ | closure_summary.md |
-| E5 fix_plan updated | done | fix_plan.md diff |
-| E6 Closure authored | exists | closure_summary.md |
-| E7 Roll-up done | Status=done | roll-up impl diff |
+| A1 Tests run | Pass/fail captured | pytest_db_at_001.log |
+| A2 Checklists verified | 3/3 member plans | Summary matrix |
+| A3 Gaps identified | Document or "none" | Gap analysis section |
+| A4 Summary authored | Exists | summary.md |
 
 ---
 
 ## Output Artifacts Expected
 
-1. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T100000Z/closure_summary.md`
-2. Updated `plans/active/TORCH-CLI-004/implementation.md` (all phases marked complete)
-3. Updated `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md` (Phases D+E complete, Status=done)
-4. Updated `docs/fix_plan.md` (roll-up status → done)
+1. `$ART/pytest_db_at_001.log` — Test execution output
+2. `$ART/collect_db_at_001.log` — Test collection evidence
+3. `$ART/summary.md` — Phase A analysis with:
+   - Member plan status matrix
+   - Test results summary (count, pass/fail, metrics)
+   - Gap analysis
+   - Recommendation for Phase B
 
 ---
 
 ## Next Up (optional)
-If Phases D+E complete successfully, the roll-up is fully closed. Next focus candidates:
-- DB-AT-SUITE-CARE-001 Phase D.2+ (regression monitoring)
-- PERF-WARM-SIM-001 (if upstream Stage C path resolves)
-- ARCH-STAGE-CONTEXT-CONSOLIDATION (Tier 2)
+If Phase A shows all member plans complete with passing tests:
+- Proceed to Phase B (Closure Validation) which includes completing PARITY-HARNESS-002 E1-E3

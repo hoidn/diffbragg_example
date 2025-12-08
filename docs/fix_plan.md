@@ -404,7 +404,7 @@
 
 ### [TORCH-CLI-BRIDGE-ROLLUP-001] CLI & Bridge Infrastructure (TORCH-BRIDGE-001, TORCH-CLI-003/004)
 - Depends on: REPORT-NANOBRAG-STATUS-001 (output schema) — **DONE**
-- Status: in_progress (Phase A complete, Phases B-E pending)
+- Status: **done** (2025-12-08T100000Z: All Phases A-E complete; all 3 member plans verified + checklists synced; all 4 exit criteria satisfied. Closure artifacts: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T100000Z/`)
 - Type: architecture + harness
 - Priority: Medium
 - Tier: 1
@@ -423,8 +423,8 @@
   * ... (see docs/fix_plan_archive.md and plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/ for full Attempts History and metrics).
 
 ### [FORWARD-EQUIV-COVERAGE-001] Forward Equivalence & Parity Harness
-- Depends on: NANOBRAG-GOLDEN-001 (dataset refresh)
-- Status: pending
+- Depends on: NANOBRAG-GOLDEN-001 (dataset refresh) — **DONE**
+- Status: in_progress (Phase A: Member Plan Reality Check)
 - Type: diagnostics
 - Priority: Medium
 - Tier: 1
@@ -437,6 +437,7 @@
 - Spec References: `docs/forward_equivalence.md`, `docs/spec-db-conformance.md` DB-AT-001
 - Working Plan: `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md`
 - Attempts History:
+  * 2025-12-08T110000Z i=182 (Galph) — **Phase A delegation (Member Plan Reality Check)**. Dependency satisfied: NANOBRAG-GOLDEN-001 done. Member plan analysis: FORWARD-EQUIV-001 Phases A-C complete (only optional D1-D3 remaining), FORWARD-EQUIV-002 all phases complete, PARITY-HARNESS-002 Phases A-D complete (E1-E3 closure pending). Roll-up appears ready for closure validation. Scoped Phase A: (A1) verify 3 DB_AT_001 tests pass, (A2) member plan checklist verification, (A3) identify gaps, (A4) author summary. ActionType: evidence_collection. DecisionStatus: exploring (first Phase A). Artifacts: `plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T110000Z/`. Next: Ralph executes Phase A tasks (i=182).
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
   * ... (see docs/fix_plan_archive.md and plans/active/FORWARD-EQUIV-COVERAGE-001/reports/ for full Attempts History and metrics).
 

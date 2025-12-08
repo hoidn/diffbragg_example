@@ -68,14 +68,38 @@ Per `inbox/nanobrag_torch_response_2025_12_08.md`, the nanobrag_torch maintainer
 
 The maintainer states there is **no upstream bug** in gradient computation.
 
-**DBEX-side investigation needed:**
-Since the nanobrag maintainer denies an upstream issue, the magnitude mismatch must originate in DBEX's integration layer. Possible causes:
-1. **Config construction:** `create_crystal_config` may not properly preserve tensor gradients
-2. **Simulator construction:** `create_unified_simulator` may apply `.item()` or `.numpy()` somewhere
-3. **Loss computation:** `compute_masked_mse_loss` scaling or normalization
-4. **sqrt(spot_scale) application:** Line 265-266 in `forward.py` uses `torch.tensor()` on a float
+**Maintainer response on crystal cell parameters (2025-12-08):**
+Per `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`:
+- **Crystal cell parameter gradients work correctly** in nanobrag_torch (all 6 tests pass with tight tolerances)
+- The issue is **confirmed to be in DBEX integration layer**, not upstream
+- Suggested causes: double unit conversion, intermediate scalar extraction, or fluence/scaling mismatch
 
-**Action:** Create a DBEX-side gradient tracing initiative to locate the gradient magnitude discrepancy.
+**DBEX-side investigation findings (Loop i=207):**
+
+1. **nanobrag_torch minimal test PASSES** — Direct call to nanobrag_torch bypassing DBEX passes gradcheck:
+   ```bash
+   pytest -v tests/test_gradients.py::TestCellParameterGradients::test_gradcheck_cell_a  # PASSED
+   ```
+
+2. **DBEX config factory preserves gradients** — `create_crystal_config` correctly returns tensor with `requires_grad=True`
+
+3. **No `.item()/.numpy()/.detach()` in critical path** — grep search found no gradient-breaking calls in config_factories.py
+
+4. **Key difference identified:** The mismatch occurs with **real HKL grid** (97% hit rate, 69k reflections) but not with simple `default_F=100` constant:
+   ```
+   Minimal test (default_F=100):     PASS
+   DBEX test (real HKL, 97% hits):   FAIL (3498× mismatch)
+   ```
+
+5. **`simulate_forward_torch` does NOT pass `halo=True`** to `build_structure_factor_grid` (line 171-175 in forward.py) — this may cause boundary effects in tricubic interpolation.
+
+**Investigation hypothesis:**
+The gradient magnitude mismatch appears to correlate with the complexity of the HKL grid lookup. Tricubic interpolation through a sparse, non-uniform structure factor grid may be computing incorrect gradient contributions due to:
+- Missing halo causing boundary clipping
+- Sparse grid regions having incorrect interpolation weights
+- Interaction between grid lookup and cell parameter derivatives
+
+**Action:** Create DBEX-GRADIENT-TRACE-001 to investigate HKL grid interpolation gradient path.
 
 ---
 
@@ -115,11 +139,19 @@ Since the nanobrag maintainer denies an upstream issue, the magnitude mismatch m
 
 ## Next Steps
 
-1. Mark SPEC-INTERP-TRICUBIC-001 as `partial` (Phase A/B done, Phase C blocked pending investigation)
-2. Send clarification request to nanobrag_torch maintainers about crystal cell parameter gradients (see `inbox/to_nanobrag_cell_gradient_clarification_2025_12_08.md`)
-3. Update ARCH-GRADIENT-FLOW-001 status based on maintainer response
-4. If DBEX issue confirmed, create DBEX-GRADIENT-TRACE-001 initiative
-5. Once investigation complete, re-run DB-AT-010 to complete Phase C validation
+1. ✓ Mark SPEC-INTERP-TRICUBIC-001 as `partial` (Phase A/B done, Phase C blocked pending investigation)
+2. ✓ Sent clarification request to nanobrag_torch maintainers (see `inbox/to_nanobrag_cell_gradient_clarification_2025_12_08.md`)
+3. ✓ Received maintainer response confirming DBEX-side issue (see `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`)
+4. **NEXT:** Create DBEX-GRADIENT-TRACE-001 initiative to trace HKL grid interpolation gradient path
+5. **NEXT:** Add `halo=True` to `simulate_forward_torch` call to `build_structure_factor_grid` and re-test
+6. Once investigation complete, re-run DB-AT-010 to complete Phase C validation
+
+---
+
+### Turn Summary (Loop i=207 - Ralph)
+Investigated gradient magnitude mismatch after maintainer confirmed cell parameter gradients work in nanobrag_torch (all 6 tests PASS). Ran isolated tests: minimal nanobrag_torch test PASSES, DBEX full path FAILS with 3498× mismatch. Key finding: mismatch correlates with real HKL grid complexity vs simple default_F. Identified that `simulate_forward_torch` does NOT pass `halo=True` to HKL grid builder — this may cause tricubic boundary effects.
+Next: Add `halo=True` to forward.py HKL grid call and re-test DB-AT-010 gradcheck.
+Artifacts: plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/ (pytest_db_at_010.log, summary.md)
 
 ---
 

@@ -3,7 +3,7 @@
 ## Initiative
 - ID: FORWARD-EQUIV-COVERAGE-001
 - Title: Forward Equivalence & Parity Harness Roll-up
-- Status: in_progress (Phase A: Member Plan Reality Check)
+- Status: in_progress (Phase A complete, blocked by PARITY-001 bug)
 
 ## Goals
 - Consolidate forward equivalence and parity harness infrastructure
@@ -25,10 +25,10 @@
 ## Phase A — Member Plan Reality Check
 
 ### Checklist
-- [ ] A1: Run DB_AT_001 tests and verify all pass. Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001`. Capture logs.
-- [ ] A2: Verify member plan checklists match implementation reality. Cross-reference test files with plan phases.
-- [ ] A3: Identify any gaps between claimed completion and actual state. Document discrepancies.
-- [ ] A4: Author summary.md with member plan status matrix and gap analysis.
+- [x] A1: Run DB_AT_001 tests and verify all pass. Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001 --smoke-detector-size=full`. Capture logs. **DONE (2025-12-08T110000Z)**: 12/15 pass, 3 fail due to PARITY-001 bug.
+- [x] A2: Verify member plan checklists match implementation reality. Cross-reference test files with plan phases. **DONE**: All 3 member plans verified.
+- [x] A3: Identify any gaps between claimed completion and actual state. Document discrepancies. **DONE**: GAP-1 (PARITY-001 bug: compute_z_scores() signature mismatch), GAP-2 (PARITY-HARNESS-002 E1-E3 pending).
+- [x] A4: Author summary.md with member plan status matrix and gap analysis. **DONE**: `reports/2025-12-08T110000Z/summary.md`
 
 ### Exit Criteria for Phase A
 - 3 DB_AT_001 test files verified (pass/fail with metrics)

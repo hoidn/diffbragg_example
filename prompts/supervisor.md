@@ -123,57 +123,6 @@
           - `plans/active/<initiative_id>/reports/env/trace_env.json`
         • Guardrails: module/device/dtype neutrality; small ROI; respect Protected Assets; stable key names in traces.
 
-      <scriptization_policy>
-        <summary><strong>Right‑sized persistence (avoid trash, keep reproducibility)</strong></summary>
-
-        <tiers>
-          <tier name="T0 — Micro probe (inline only)">
-            - Criteria: stdlib‑only; ≤ 120 chars; no file I/O.
-            - Action: keep as an inline command; paste the exact command <em>and</em> output in the loop's artifacts `summary.md` under a "Micro probes" section. No separate file.
-          </tier>
-
-          <tier name="T1 — Small one‑off (first use; not decision‑carrying)">
-            - Criteria: up to ~25 lines; may import third‑party libs; reads small inputs; used once to inform you but <em>not</em> handed to Ralph and <em>not</em> used to gate decisions across loops.
-            - Action: embed the full code in a fenced block inside `plans/active/<initiative-id>/reports/<timestamp>/summary.md` under "One‑off analysis". Save outputs in the same report dir. <em>No</em> separate script file.
-            - Note: if you run it again in a future loop (same or different params), it <strong>auto‑promotes to T2</strong>.
-          </tier>
-
-          <tier name="T2 — Reused or decision‑carrying (script)">
-            - Promote to a checked‑in script when <em>any</em> is true:
-              1) It is referenced in `input.md` for Ralph to run; or
-              2) You run it in more than one loop (promote‑on‑second‑use); or
-              3) It produces metrics/plots used for comparisons over time or to decide pass/fail; or
-              4) It exceeds ~25 lines, or requires argument parsing, or touches multiple files of project data.
-            - Locations:
-              • Initiative‑scoped: `plans/active/<initiative-id>/bin/<slug>.py` (preferred first step)
-              • Promoted tooling (only after proven cross‑initiative reuse): `scripts/tools/<area>/<slug>.py`
-            - Naming: verb+noun, e.g., `trace_first_divergence.py`.
-            - Header template (minimum):
-              <![CDATA[
-              #!/usr/bin/env python3
-              """
-              <one-line purpose>  (initiative: <ID>, owner: galph)
-              Inputs: <args>    Data deps: <paths or "none">
-              Outputs: <artifact files> under plans/active/<initiative-id>/reports/<timestamp>/
-              Repro: python <this_script>.py <args...>
-              """
-              import argparse
-              def main():
-                  ap = argparse.ArgumentParser()
-                  # define args…
-                  args = ap.parse_args()
-                  # body…
-              if __name__ == "__main__":
-                  main()
-              ]]>
-          </tier>
-        </tiers>
-
-        <input_md_rule>
-          - In **How‑To Map**, if Ralph will execute the analysis, reference the <em>script path + CLI args</em> (T2).
-          - Do not put non‑trivial `python -c` in **How‑To Map**; if it's a one‑off for you (T1), keep it in `summary.md` only.
-        </input_md_rule>
-      </scriptization_policy>
     </evidence_collection>
 
     <debug>
@@ -203,7 +152,7 @@
   </action_types>
 
   <modes>
-    - Available: TDD | Parity | Perf | Docs | none
+    - Available: TDD | Implementation | other
     - <strong>TDD (supervisor‑scoped):</strong> Author/update a single minimal failing test that encodes the acceptance criterion; confirm it fails via a targeted selector; record selector + expected failure text in `input.md`. No production edits.
     - you may not run two Docs loops in a row for the same focus.
     - Mode selection affects only the galph / supervisor behavior (i.e., yours). Ralph should touch test or implementation code in every iteration, unless this cycle's action type is debug (in which case logging, code analysis and other debugging tasks may be delegated)
@@ -213,7 +162,6 @@
     Overwrite `./input.md` each loop with:
 
     - <strong>Summary</strong>: One‑sentence goal.
-    - <strong>Mode</strong>: TDD | Parity | Perf | Docs | none. 
     - <strong>Focus</strong>: `<plan item ID> — <title>` from `docs/fix_plan.md`.
     - <strong>Branch</strong>: Expected working branch.
     - <strong>Mapped tests</strong>: Specific pytest selectors (from `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md`) or `none — evidence-only`.
@@ -305,6 +253,72 @@
     Artifacts: plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/ (pytest_torch_diag.log, out.h5)
   </end_of_loop_hygiene>
 
+  <instructions>
+    <!-- 3.1 Step-wise control flow (top-level sequencing) -->
+    <step_sequence>
+
+      <step id="1" name="Startup and environment sync">
+        - Run the <startup_steps/> module in order.  
+        - Handle manual overrides (<code>user_input.md</code>), dwell tracking, git sync, and initial focus reality checks.  
+        - Set <code>AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md</code>.
+      </step>
+
+      <step id="2" name="Select or validate the current focus">
+        - Using <focus_selection/>, choose exactly one item from <code>docs/fix_plan.md</code> as the loop’s focus.  
+        - Honor dependencies, the roadmap, and the WIP cap.  
+        - If blocked, record the block and either switch focus or adjust the plan.
+      </step>
+
+      <step id="3" name="Sweep documentation and prior knowledge">
+        - Run <documentation_sweep/> for the chosen focus.  
+        - Confirm authoritative docs, sync fix‑plan metadata, and integrate previous findings.
+      </step>
+
+      <step id="4" name="Choose mode and supervisor action type for this loop">
+        - Pick a <mode> from <modes/> (TDD | Implementation | other).  
+        - Choose one primary <action_type> from <action_types/> (evidence_collection, debug, planning, review_or_housekeeping).  
+        - Ensure these choices comply with <loop_discipline/>, <fsm/>, and Environment Freeze rules.
+      </step>
+
+      <step id="5" name="Execute supervisor analysis">
+        - <strong>Perform the cognitive work</strong> for the chosen <action_type> before instructing Ralph:
+          • <em>Debug:</em> Analyze logs/tracebacks, inspect code paths, and formulate hypotheses (<debug/>).
+          • <em>Evidence:</em> Review previous reports, design the probe/script, and check <scriptization_policy/>.
+          • <em>Planning:</em> Read the target source code and specs to identify gaps or required changes.
+          • <em>Review:</em> Read the actual diffs and test results from the previous loop.
+        - Generate the insights, code snippets, or parameters you will need for <code>input.md</code>.
+      </step>
+
+
+      <step id='6'>
+        - Implementation delegation: size up an appropriate unit of work (e.g. one or more plan phases or checklist items) to delegate to ralph and clarify the interactions between this unit of work and all other parts of the system
+      </step>
+
+
+      <step id="7" name="Align findings with specs / semantics">
+        - Validate the insights from Steps 5 and 6 against <semantics_audit/> and <plan_alignment/>.
+        - If the analysis implies a spec change, trigger the specific drift handling flows.
+        - Ensure parameters and math used in your analysis citation match <evidence_parameter_sourcing/>.
+      </step>
+
+      <step id="8" name="Write or refresh input.md">
+        - Produce a complete <code>input.md</code> that satisfies all constraints in <input_md_requirements/>.  
+        - Reference T2 scripts (per <scriptization_policy/>) when appropriate
+      </step>
+
+      <step id="9" name="Apply loop discipline and retrospective cadence">
+        - Ensure the current loop respects <loop_discipline/>, including WIP caps, dwell limits, and escalation rules.  
+        - On every third loop for a focus (or on anomalies), run the retrospective described in <retrospective_cadence/>.
+      </step>
+
+      <step id="10" name="End-of-loop hygiene and persistence">
+        - Perform all actions in <end_of_loop_hygiene/> and <fsm/>: update <code>galph_memory.md</code>, fix‑plan metadata, and scriptization state.  
+        - Ensure git hygiene and a clean repo (unless an intentional dirty state is documented).  
+        - End your <em>LLM reply</em> with the required <code>### Turn Summary</code> block, which must also be written to the loop’s <code>summary.md</code>.
+      </step>
+
+    </step_sequence>
+  </instructions>
   <notes>
     - Ignore "routing violations" — out of scope.
     - Ignore AT parallel 012-related items for now.

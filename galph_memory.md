@@ -1,3 +1,18 @@
+2025-12-08T233000Z focus=ARCH-GRADIENT-FLOW-001 state=blocked_pending_upstream dwell=3 action=upstream_bug_reported artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/ next_action=await_nanobrag_mosaic_fix
+- Loop i=210 (Ralph): **ROOT CAUSE CONFIRMED — mosaic_spread_deg > 0 BREAKS GRADIENT MAGNITUDE.**
+  **Systematic Investigation:**
+  - B.8.1 PASS: Isolated nanobrag_torch gradcheck ratio=1.00× (upstream works)
+  - B.8.2-B.8.n: Progressive isolation identified `create_crystal_config` → `mosaic_spread_deg=0.003` as culprit
+  **Evidence:**
+  - `mosaic_spread_deg = 0.0`: ratio = **1.00×** ✓
+  - `mosaic_spread_deg = 0.001`: ratio = **-146×** ✗ (note: NEGATIVE!)
+  - `mosaic_spread_deg = 0.003`: ratio = **1072×** ✗
+  **Root Cause:** Non-zero `mosaic_spread_deg` triggers a code path in nanobrag_torch that has incorrect/non-differentiable gradient computation. The mosaicity path likely involves orientation sampling or rotation averaging that has a non-differentiable operation.
+  **DBEX Integration:** `create_crystal_config()` extracts `ML_half_mosaicity_deg` from experiment metadata and applies it as `mosaic_spread_deg`. Real datasets with refined mosaicity will fail gradcheck.
+  **Upstream Bug Report Filed:** `~/Documents/nanoBragg/inbox/mosaic_gradient_bug_2025_12_08.md`
+  **Workaround (if needed):** Force `mosaic_spread_deg=0.0` in gradient tests, but this means mosaicity cannot be refined.
+  ActionType: blocked_pending_upstream. DecisionStatus: root_cause_isolated (mosaic path). Next: Await nanobrag_torch maintainer response on mosaic gradient bug.
+
 2025-12-08T230000Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=2 action=implementation_ready artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/ next_action=phase_b8_magnitude_debug
 - Loop i=210 (Galph): **Phase B.8 delegation — Debug magnitude mismatch.** Prior loop (i=209, Ralph) achieved partial success: graph connectivity restored but magnitude mismatch (843×-19,352×) persists.
   **Analysis (This Loop):**

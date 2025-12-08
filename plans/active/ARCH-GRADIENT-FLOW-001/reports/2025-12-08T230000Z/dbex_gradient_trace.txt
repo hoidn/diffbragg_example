@@ -1,0 +1,594 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+======================================================================
+B.8.2 DBEX GRADIENT FLOW DIAGNOSTIC PROBE
+======================================================================
+
+[INFO] Device: cpu, dtype: torch.float64
+
+[INFO] Base unit cell: a=27.3758 b=32.0658 c=34.4664
+       angles: α=88.7686 β=71.6300 γ=68.1889
+
+--------------------------------------------------
+[TRACE] Checking DBEX config factories
+--------------------------------------------------
+
+[INPUT] cell_a_tensor = 27.375839, requires_grad = True
+
+[CONFIG] crystal_config.cell_a type = <class 'torch.Tensor'>
+[CONFIG] crystal_config.cell_a.requires_grad = True
+[CONFIG] crystal_config.cell_a.grad_fn = None
+[CONFIG] crystal_config.mosflm_a_star = None
+
+[CONFIG] beam_config.fluence = 1.259320e+29
+[CONFIG] beam_config.wavelength_A = 0.9768000000000001
+
+--------------------------------------------------
+[TRACE] Checking Crystal model
+--------------------------------------------------
+
+[MODEL] crystal_model.cell_a type = <class 'torch.Tensor'>
+[MODEL] crystal_model.cell_a = 27.375839
+[MODEL] crystal_model.cell_a.requires_grad = True
+[MODEL] crystal_model.cell_a.grad_fn = None
+
+[CHECK] Testing gradient flow: model.cell_a -> input tensor
+[CHECK] cell_a_tensor.grad = 2.0 ✓ GRADIENT FLOWS
+
+======================================================================
+[TEST] Running gradcheck through DBEX simulate_forward_torch
+======================================================================
+
+[TEST] Running forward pass...
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+[TEST] loss = 1.344065e+09
+[TEST] Analytical gradient: 6.833339e+07
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24218152/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24218000/24896004 (97.28%)
+[TEST] Numerical gradient:  3.598566e+10
+[TEST] Ratio (num/ana):     526.62x
+[TEST] ✗ MISMATCH - ratio should be ~1.0
+
+======================================================================
+END OF DIAGNOSTIC PROBE
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2b - SIMPLIFIED DBEX GRADIENT TEST (sum loss only)
+======================================================================
+
+[TEST] Running forward pass with sum() loss...
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217806/24896004 (97.28%)
+[TEST] loss (bragg.sum()) = 2.547214e+08
+[TEST] Analytical gradient: 2.414390e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217669/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217870/24896004 (97.28%)
+[TEST] Numerical gradient:  4.145519e+11
+[TEST] Ratio (num/ana):     1717.00x
+[TEST] ✗ MISMATCH - issue is in forward pass
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2c - DIRECT NANOBRAG_TORCH TEST WITH DBEX CONFIGS
+======================================================================
+Base cell_a = 27.375839 Å
+
+[TEST 1] Direct CrystalConfig creation (no DBEX)
+crystal_config.cell_a = 27.3758389202232
+crystal_config.cell_a.requires_grad = True
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=10000/10000 (100.00%)
+
+loss = 6.932726e+02
+Analytical gradient: -2.981718e+03
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=10000/10000 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=10000/10000 (100.00%)
+Numerical gradient:  -2.981718e+03
+Ratio (num/ana):     1.00x
+✓ Direct nanobrag_torch works! Issue is in DBEX integration
+
+======================================================================
+[TEST 2] Using DBEX factories but same simple setup
+======================================================================
+crystal_config2.cell_a = 27.3758389202232
+crystal_config2.cell_a.requires_grad = True
+crystal_config2.mosflm_a_star = None
+crystal_config2.N_cells = (29, 24, 23)
+crystal_config2.default_F = 0.0
+beam_config2.fluence = 1.259320e+29
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+
+loss = 0.000000e+00
+Analytical gradient: 0.000000e+00
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+Numerical gradient:  0.000000e+00
+✗ ANALYTICAL GRADIENT IS ZERO
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2d - TEST WITH HKL DATA PROPERLY ATTACHED
+======================================================================
+Traceback (most recent call last):
+  File "<stdin>", line 38, in <module>
+ModuleNotFoundError: No module named 'dbex.physics.hkl_grid'
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2d - TEST WITH HKL DATA PROPERLY ATTACHED
+======================================================================
+HKL grid shape: torch.Size([51, 59, 65])
+HKL grid non-zero: 69614 / 195585
+
+[TEST 1] DBEX factory WITH HKL data
+--------------------------------------------------
+crystal_config.cell_a = 27.3758389202232, requires_grad = True
+crystal_config.default_F = 0.0
+crystal_config.N_cells = (29, 24, 23)
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+
+loss = 0.000000e+00
+Analytical gradient: 0.000000e+00
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+Numerical gradient:  0.000000e+00
+✗ ANALYTICAL GRADIENT IS ZERO
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2e - TEST WITH REAL DETECTOR FROM EXPERIMENT
+======================================================================
+HKL grid shape: torch.Size([51, 59, 65])
+HKL grid non-zero: 69614 / 195585
+HKL metadata: {'h_min': -25, 'h_max': 25, 'k_min': -29, 'k_max': 29, 'l_min': -32, 'l_max': 32, 'h_range': 51, 'k_range': 59, 'l_range': 65, 'n_reflections': 69614, 'n_in_range': 69614, 'in_range_fraction': 1.0, 'grid_nonzero': 69614, 'grid_min': 0.0, 'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'has_halo': True, 'n_unique_asu': 34807}
+
+[TEST] DBEX factory with REAL detector (panel 0)
+--------------------------------------------------
+Panel size: (2463, 2527)
+Panel distance: -230.07 mm
+
+crystal_config.cell_a = 27.3758389202232, requires_grad = True
+crystal_config.default_F = 0.0
+crystal_config.N_cells = (29, 24, 23)
+beam_config.fluence = 1.259320e+29
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217466/24896004 (97.27%)
+
+loss = 2.553624e+08
+Analytical gradient: 2.238669e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217609/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24218101/24896004 (97.28%)
+Numerical gradient:  9.229339e+11
+Ratio (num/ana):     4122.69x
+✗ GRADIENT MAGNITUDE MISMATCH
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2f - ISOLATING ROOT CAUSE
+======================================================================
+
+[TEST 1: BASELINE] N_cells=(5, 5, 5), default_F=100.0
+--------------------------------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=10000/10000 (100.00%)
+loss = 6.932726e+02
+Analytical gradient: -2.981718e+03
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=10000/10000 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=10000/10000 (100.00%)
+Numerical gradient:  -2.981718e+03
+Ratio (num/ana):     1.00x
+
+[TEST 2: LARGE N_CELLS] N_cells=(29, 24, 23), default_F=100.0
+--------------------------------------------------
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=90000/90000 (100.00%)
+loss = 2.583471e+04
+Analytical gradient: 6.013831e+04
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=90000/90000 (100.00%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=90000/90000 (100.00%)
+Numerical gradient:  6.013829e+04
+Ratio (num/ana):     1.00x
+
+[TEST 3: default_F=0] N_cells=(5, 5, 5), default_F=0.0
+--------------------------------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/10000 (0.00%)
+loss = 0.000000e+00
+Analytical gradient: 0.000000e+00
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/10000 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/10000 (0.00%)
+Numerical gradient:  0.000000e+00
+Analytical gradient is ZERO
+
+[TEST 4: DBEX-like] N_cells=(29, 24, 23), default_F=0.0
+--------------------------------------------------
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+loss = 0.000000e+00
+Analytical gradient: 0.000000e+00
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[48,50] k=[-2,2] l=[-2,2] hit_rate=0/90000 (0.00%)
+Numerical gradient:  0.000000e+00
+Analytical gradient is ZERO
+
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2g - CONSTANT HKL FILL VS REAL HKL DATA
+======================================================================
+HKL grid shape: torch.Size([51, 59, 65])
+Real HKL grid: non-zero = 69614, mean = 16.90
+Const HKL grid: all = 100.0
+
+[CONSTANT HKL (all=100)]
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24896004/24896004 (100.00%)
+loss = 2.332908e+08
+Analytical gradient: 4.933887e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24896004/24896004 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24896004/24896004 (100.00%)
+Numerical gradient:  4.933890e+08
+Ratio (num/ana):     1.00x
+
+[REAL HKL DATA (from MTZ)]
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss = 2.545026e+08
+Analytical gradient: 2.305642e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+Numerical gradient:  2.305435e+08
+Ratio (num/ana):     1.00x
+
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2h - CRYSTAL WITH beam_config PARAMETER
+======================================================================
+
+[TEST] Crystal(config, beam_config=beam_config, ...)
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss = 2.545026e+08
+Analytical gradient: 2.305642e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+Numerical gradient:  2.305435e+08
+Ratio (num/ana):     1.00x
+
+======================================================================
+[TEST FULL PATH] simulate_forward_torch
+======================================================================
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217690/24896004 (97.28%)
+
+loss = 2.539837e+08
+Analytical gradient: 2.347330e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217586/24896004 (97.27%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217612/24896004 (97.28%)
+Numerical gradient:  4.157257e+10
+Ratio (num/ana):     177.11x
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2i - MULTI-PANEL VS SINGLE PANEL
+======================================================================
+Number of detector panels: 1
+
+[SOURCE] simulate_forward_torch signature:
+(inputs, detector, beam, crystal, experiment, hkl_indices: 'np.ndarray', hkl_amplitudes: 'np.ndarray', spot_scale_override: 'Optional[float]' = None, device=None, dtype=None, crystal_overrides: 'Optional[dict]' = None, detector_overrides: 'Optional[dict]' = None, beam_overrides: 'Optional[dict]' = None) -> "'torch.Tensor'"
+
+[TEST] Manual forward (replicating simulate_forward_torch)
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217665/24896004 (97.28%)
+loss = 2.545160e+08
+Analytical gradient: 2.314804e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217585/24896004 (97.27%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217664/24896004 (97.28%)
+Numerical gradient:  -2.947998e+11
+Ratio (num/ana):     -1273.54x
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2j - ISOLATING create_crystal_config vs create_unified_simulator
+======================================================================
+
+[TEST 1] create_crystal_config + MANUAL Crystal/Simulator
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217510/24896004 (97.27%)
+loss = 2.549595e+08
+Analytical: 2.288987e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217630/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217701/24896004 (97.28%)
+Numerical:  -2.918376e+11
+Ratio: -1274.96x
+
+[TEST 2] create_crystal_config + create_unified_simulator
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217634/24896004 (97.28%)
+loss = 2.532261e+08
+Analytical: 2.374863e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217651/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217784/24896004 (97.28%)
+Numerical:  5.512167e+11
+Ratio: 2321.05x
+
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2k - DEBUG create_crystal_config OUTPUT
+======================================================================
+
+[OUTPUT] create_crystal_config with cell_a tensor override:
+--------------------------------------------------
+cell_a type: <class 'torch.Tensor'>
+cell_a value: 27.3758389202232
+cell_a requires_grad: True
+cell_a grad_fn: None
+cell_a is same object as input: True
+
+cell_b type: <class 'float'>
+cell_c type: <class 'float'>
+N_cells: (29, 24, 23)
+default_F: 0.0
+mosflm_a_star: None
+misset_deg type: <class 'numpy.ndarray'>
+misset_deg value: [0. 0. 0.]
+
+[OUTPUT] Direct CrystalConfig creation:
+--------------------------------------------------
+cell_a type: <class 'torch.Tensor'>
+cell_a value: 27.3758389202232
+cell_a requires_grad: True
+cell_a grad_fn: None
+cell_a is same object as input: True
+
+cell_b type: <class 'float'>
+N_cells: (29, 24, 23)
+default_F: 0.0
+misset_deg type: <class 'tuple'>
+
+[COMPARE] __post_init__ computed values:
+--------------------------------------------------
+DBEX   sample_x: 7.938993286864729e-08, type: <class 'torch.Tensor'>
+Direct sample_x: 7.938993286864729e-08, type: <class 'torch.Tensor'>
+
+[CRITICAL] Testing if sample_x tensor->float conversion breaks grad:
+--------------------------------------------------
+DBEX cell_a: 27.3758389202232
+DBEX sample_x = N_cells[0] * cell_a * 1e-10
+If cell_a is tensor, sample_x = 29 * tensor * 1e-10
+
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2l - MISSET_DEG TYPE IMPACT
+======================================================================
+
+[TEST 1] misset_deg = (0.0, 0.0, 0.0) [tuple]
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss = 2.545026e+08
+Analytical: 2.305642e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+Numerical:  2.305435e+08
+Ratio: 1.00x
+
+[TEST 2] misset_deg = np.array([0.0, 0.0, 0.0]) [numpy]
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss = 2.545026e+08
+Analytical: 2.305642e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+Numerical:  2.305435e+08
+Ratio: 1.00x
+
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2m - DEEP DEBUG create_crystal_config FAILURE
+======================================================================
+
+[REPLAY B.8.2j Test 1 with DEBUG]
+--------------------------------------------------
+
+[FORWARD PASS]
+  [DEBUG] cell_a_param type: <class 'torch.Tensor'>, id: 136870675795536
+  [DEBUG] crystal_config.cell_a type: <class 'torch.Tensor'>, id: 136870675795536
+  [DEBUG] SAME OBJECT? True
+  [DEBUG] crystal_config.mosaic_spread_deg: 0.0031778840602028654
+  [DEBUG] crystal_config.mosaic_domains: 1
+  [DEBUG] c.cell_a type: <class 'torch.Tensor'>, requires_grad: True
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217631/24896004 (97.28%)
+loss = 2.546857e+08
+
+[BACKWARD PASS]
+Analytical: 2.302849e+08
+
+[NUMERICAL GRADIENT +eps]
+  [DEBUG] cell_a_param type: <class 'torch.Tensor'>, id: 136870199900976
+  [DEBUG] crystal_config.cell_a type: <class 'torch.Tensor'>, id: 136870199900976
+  [DEBUG] SAME OBJECT? True
+  [DEBUG] crystal_config.mosaic_spread_deg: 0.0031778840602028654
+  [DEBUG] crystal_config.mosaic_domains: 1
+  [DEBUG] c.cell_a type: <class 'torch.Tensor'>, requires_grad: False
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217558/24896004 (97.27%)
+loss_plus = 2.551671e+08
+
+[NUMERICAL GRADIENT -eps]
+  [DEBUG] cell_a_param type: <class 'torch.Tensor'>, id: 136870597099904
+  [DEBUG] crystal_config.cell_a type: <class 'torch.Tensor'>, id: 136870597099904
+  [DEBUG] SAME OBJECT? True
+  [DEBUG] crystal_config.mosaic_spread_deg: 0.0031778840602028654
+  [DEBUG] crystal_config.mosaic_domains: 1
+  [DEBUG] c.cell_a type: <class 'torch.Tensor'>, requires_grad: False
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217767/24896004 (97.28%)
+loss_minus = 2.555529e+08
+
+Numerical: -1.928797e+11
+Ratio: -837.57x
+
+======================================================================
+[COMPARE: Direct CrystalConfig with SAME config values]
+======================================================================
+
+[FORWARD PASS]
+  [DEBUG] cell_a_param type: <class 'torch.Tensor'>, id: 136870525757616
+  [DEBUG] cc.cell_a type: <class 'torch.Tensor'>, id: 136870525757616
+  [DEBUG] SAME OBJECT? True
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss = 2.545026e+08
+
+[BACKWARD PASS]
+Analytical: 2.305642e+08
+
+[NUMERICAL GRADIENT +eps]
+  [DEBUG] cell_a_param type: <class 'torch.Tensor'>, id: 136870593280336
+  [DEBUG] cc.cell_a type: <class 'torch.Tensor'>, id: 136870593280336
+  [DEBUG] SAME OBJECT? True
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss_plus = 2.545028e+08
+
+[NUMERICAL GRADIENT -eps]
+  [DEBUG] cell_a_param type: <class 'torch.Tensor'>, id: 136870744424752
+  [DEBUG] cc.cell_a type: <class 'torch.Tensor'>, id: 136870744424752
+  [DEBUG] SAME OBJECT? True
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss_minus = 2.545023e+08
+
+Numerical: 2.305435e+08
+Ratio: 1.00x
+
+======================================================================
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+======================================================================
+B.8.2n - MOSAIC_SPREAD_DEG IS THE CULPRIT!
+======================================================================
+
+[TEST 1: ZERO] mosaic_spread_deg = 0.0
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+loss = 2.545026e+08
+Analytical: 2.305642e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217633/24896004 (97.28%)
+Numerical:  2.305435e+08
+Ratio: 1.00x
+
+[TEST 2: DBEX VALUE] mosaic_spread_deg = 0.0031778840602028654
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217751/24896004 (97.28%)
+loss = 2.550451e+08
+Analytical: 2.337222e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217512/24896004 (97.27%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217664/24896004 (97.28%)
+Numerical:  2.505600e+11
+Ratio: 1072.04x
+
+[TEST 3: SMALL] mosaic_spread_deg = 0.001
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217675/24896004 (97.28%)
+loss = 2.541979e+08
+Analytical: 2.286201e+08
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217641/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217632/24896004 (97.28%)
+Numerical:  -3.348600e+10
+Ratio: -146.47x
+
+======================================================================
+CONCLUSION: mosaic_spread_deg > 0 breaks gradient magnitude!
+======================================================================

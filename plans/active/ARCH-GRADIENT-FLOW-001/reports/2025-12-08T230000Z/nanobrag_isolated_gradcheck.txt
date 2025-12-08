@@ -1,0 +1,39 @@
+======================================================================
+B.8.1 ISOLATED NANOBRAG_TORCH GRADIENT PROBE
+======================================================================
+
+[TEST 1] Simple backward pass
+cell_a = 100.0, requires_grad = True
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+cell_a.grad = 0.000540679524231522
+loss = 2.7625065180062865e-05
+result.shape = torch.Size([100, 100])
+
+[TEST 2] Gradcheck with default_F=100
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+gradcheck PASSED: True
+
+[TEST 3] Compare numerical vs analytical gradients manually
+--------------------------------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+Analytical gradient: 5.406795e-04
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-5,5] l=[-5,5] hit_rate=40000/40000 (100.00%)
+Numerical gradient:  5.406797e-04
+Ratio (num/ana):     1.00x
+
+======================================================================
+END OF ISOLATED PROBE
+======================================================================

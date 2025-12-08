@@ -10,6 +10,12 @@
 - Priority: Highest (blocks ARCH-REFACTOR-001 Phase D.3)
 - Tier: 0
 
+---
+
+**SQUARE Lattice Resolved (2025-12-08):** The SQUARE lattice expectation mismatch (C.34-C.39 probes) has been resolved by SPEC-SQUARE-PARTIALITY-001. The correct physics is: peak height ∝ (Na·Nb·Nc)², integrated intensity ∝ Na·Nb·Nc. Tests now enforce linear scaling. See `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/`. Future work should NOT reopen vendor edits for SQUARE scaling unless Spec-DB changes.
+
+---
+
 ## Goals
 1. **Align simulator construction conventions** so reconstruction helpers (`build_final_bragg_from_stage_*_telemetry`) produce identical simulator outputs as training stages (Stage A/B/C) given identical parameters
 2. **Enforce factory contract:** `create_unified_simulator` must apply calibration metadata (spot_scale_override, gain, sigma) consistently at construction time

@@ -5,7 +5,7 @@
 - Title: SQUARE Lattice Spec & Test Alignment
 - Owner: Galph ↔ Ralph
 - Spec Owner: docs/spec-db-core.md (lattice/partiality clauses), docs/findings.md::SIM-CONSTR-PARTIALITY-001
-- Status: pending
+- Status: done (Phase C complete 2025-12-08T130000Z)
 
 ## Goals
 - Codify the correct SQUARE lattice scaling behavior in our docs: peak height ∝ `(Na·Nb·Nc)²`, integrated/summed intensity ∝ `Na·Nb·Nc`.
@@ -162,13 +162,17 @@ Phase B.6 investigation confirmed:
 
 ## Phase C — Ledger Closure
 ### Checklist
-- [ ] C1: Update `docs/fix_plan.md`:
-  - Mark `[SPEC-SQUARE-PARTIALITY-001]` as `done` once Phases A/B complete.
-  - Update the `[ARCH-SIM-CONSTRUCTION-001]` row to reflect that the SQUARE scaling expectation mismatch has been resolved via this initiative (either by unblocking and finishing, or by archiving with “resolved via spec/test fix”).
-- [ ] C2: Update `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md`:
-  - Add a short note in Phase C or the conclusion pointing to SPEC-SQUARE-PARTIALITY-001 as the resolution path for SQUARE scaling, and make clear that future work should not reopen vendor edits for this physics unless Spec‑DB changes.
-- [ ] C3: Synchronize `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` for the partiality architecture test and any DB‑AT selectors touched.
-- [ ] C4: Add a brief entry to `docs/findings.md` (if appropriate) closing out the “SQUARE lattice expectation mismatch” as resolved.
+- [x] C1: Update `docs/fix_plan.md`: **(Done 2025-12-08T130000Z)**
+  - Marked `[SPEC-SQUARE-PARTIALITY-001]` as `done` with Phase C completion note.
+  - Updated the `[ARCH-SIM-CONSTRUCTION-001]` row to reflect that the SQUARE scaling expectation mismatch has been resolved via this initiative.
+- [x] C2: Update `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md`: **(Done 2025-12-08T130000Z)**
+  - Added prominent note at top of file pointing to SPEC-SQUARE-PARTIALITY-001 as the resolution path for SQUARE scaling.
+  - Documented that future work should NOT reopen vendor edits for SQUARE scaling unless Spec-DB changes.
+- [x] C3: Synchronize `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` for the partiality architecture test: **(Done 2025-12-08T130000Z)**
+  - Added row to TEST_SUITE_INDEX.md for SQUARE Lattice Partiality test.
+  - Added §5.2 to TESTING_GUIDE.md with run command, purpose, test cases, and references.
+- [x] C4: Verify `docs/findings.md::SIM-CONSTR-PARTIALITY-001` is marked Resolved: **(Already done in Phase A)**
+  - Line 168 shows status "Resolved (physics clarified 2025-12-08; test updates in Phase B)".
 
 ### Notes & Risks
 - Risk: Forgetting to update ARCH-SIM-CONSTRUCTION-001’s status, leaving it “blocked” in the ledger even though the root cause was reclassified and fixed on the spec/test side.

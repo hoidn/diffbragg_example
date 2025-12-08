@@ -300,3 +300,32 @@ AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md PYTEST_ADDOPTS='' pytest -vv test
 - `plans/active/ARCH-PROBE-FREEZE-001/implementation.md:80-150` — Phase C guardrails
 - `docs/architecture/data_telemetry_flow.md:42-118` — telemetry ownership
 - `docs/architecture/module_map.md:30-95` — module ownership boundaries
+
+### 5.2 SQUARE Lattice Partiality Enforcement
+
+The `tests/architecture/test_nanobrag_partiality.py` module validates SQUARE lattice scaling behavior per `docs/spec-db-core.md:60-140` and `docs/findings.md::SIM-CONSTR-PARTIALITY-001`.
+
+**Run command:**
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/architecture/test_nanobrag_partiality.py
+```
+
+**Purpose:**
+- Validate integrated intensity scales linearly with Na×Nb×Nc (NOT squared)
+- Uses 400×400 detector for full solid-angle integration
+- 7% tolerance accommodates sinc² sidelobe oscillations
+
+**Test cases:**
+- `test_square_lattice_applies_ncells[cpu]` — CPU path validation
+- `test_square_lattice_applies_ncells[cuda]` — CUDA path validation
+
+**Specification reference:** Peak height ∝ (Na·Nb·Nc)², integrated intensity ∝ Na·Nb·Nc per kinematic diffraction theory. See `inbox/nanobrag_torch_response_2025_12_08.md`.
+
+**Artifacts:**
+- Collection log: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/collect_partiality.log`
+- pytest log: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/pytest_final.log`
+
+**References:**
+- `docs/findings.md::SIM-CONSTR-PARTIALITY-001` — Resolution and physics rationale
+- `plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md` — Full implementation plan
+- `inbox/nanobrag_torch_response_2025_12_08.md` — Upstream physics clarification

@@ -651,3 +651,23 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
   - DB-AT-SUITE-CARE-001: `blocked` → **`in_progress`** (parent unblocked)
 
   ActionType: inbox_audit. DecisionStatus: blocker_reclassified. Next: Phase B.8 — unit conversion audit in config_factories.py, minimal reproduction bypassing DBEX factories per upstream guidance.
+
+2025-12-08T232143Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=0 action=implementation_ready artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T232143Z/ next_action=phase_b8_minimal_reproduction
+- Loop i=218 (Galph): **ARCH-GRADIENT-FLOW-001 Phase B.8 delegation** (Cell parameter gradient magnitude investigation). Prior loop (i=217 Ralph) performed inbox/outbox audit and correctly identified that ARCH-GRADIENT-FLOW-001 is NOT fully blocked — cell parameter magnitude investigation can proceed in DBEX per upstream response `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`.
+
+  **Upstream response key points:**
+  1. All 6 cell parameter gradcheck tests PASS in nanobrag_torch (eps=1e-6, atol=1e-5, rtol=0.05)
+  2. Issue is in DBEX integration layer, NOT nanobrag_torch
+  3. Three hypotheses provided: (a) Double unit conversion Å→m, (b) Scalar extraction .item()/.detach(), (c) Fluence mismatch
+
+  **Phase B.8 scope:** Create minimal reproduction test bypassing DBEX factories to confirm issue is in DBEX integration. If minimal test passes, audit config_factories.py for magnitude-altering code paths.
+
+  **Two separate blockers identified:**
+  1. Cell magnitude mismatch (843-19352×) — **DBEX-side fix actionable now** (this loop)
+  2. Mosaic gradient bug (mosaic_spread_deg>0 breaks gradcheck) — **upstream fix pending** (`mosaic_gradient_bug_2025_12_08.md`)
+
+  **Implementation floor satisfied:** Phase B.8 includes new test file + debug investigation (code changes).
+
+  Applied findings: RUNTIME-001 (gradcheck env vars), GRADIENT-001 (tensor overrides), GRADIENT-002 (graph connectivity fixed i=209), TESTING-003 (canonical selectors).
+
+  ActionType: implementation_ready. DecisionStatus: patch_ready (minimal reproduction test). Next: Ralph executes Phase B.8 tasks (i=218), creates minimal test, identifies magnitude source.

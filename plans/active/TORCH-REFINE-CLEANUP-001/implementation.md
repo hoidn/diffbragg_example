@@ -35,11 +35,11 @@
 ## Phase A — Member Plan Reality Check
 
 ### Checklist
-- [ ] A1: Audit each of 6 member plans' implementation.md and reports directories for completion status
-- [ ] A2: Identify blocking dependencies (ARCH-GRADIENT-FLOW-001 for gradient work, ARCH-SIM-CONSTRUCTION-001 for DB-AT-028/029)
-- [ ] A3: Classify remaining work as: revive (actionable now), blocked (pending Tier 0), deferred (low priority)
-- [ ] A4: Author member_plan_status_audit.md with status matrix and classification
-- [ ] A5: Author summary.md for Phase A deliverables
+- [x] A1: Audit each of 6 member plans' implementation.md and reports directories for completion status (2025-12-08T150000Z i=186)
+- [x] A2: Identify blocking dependencies (ARCH-GRADIENT-FLOW-001 for gradient work, ARCH-SIM-CONSTRUCTION-001 for DB-AT-028/029) (2025-12-08T150000Z i=186)
+- [x] A3: Classify remaining work as: revive (actionable now), blocked (pending Tier 0), deferred (low priority) (2025-12-08T150000Z i=186)
+- [x] A4: Author member_plan_status_audit.md with status matrix and classification (2025-12-08T150000Z i=186)
+- [x] A5: Author summary.md for Phase A deliverables (2025-12-08T150000Z i=186)
 
 ### Exit Criteria for Phase A
 - All 6 member plans audited with current phase status

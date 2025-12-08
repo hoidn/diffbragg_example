@@ -1180,15 +1180,18 @@ class StageA:
 
                 # Extract MOSFLM a/b/c_star for crystal_config injection
                 # A* columns are reciprocal lattice vectors a*, b*, c*
-                a_star = A_star_new[:, 0].detach().cpu().numpy()  # Shape: [3]
-                b_star = A_star_new[:, 1].detach().cpu().numpy()
-                c_star = A_star_new[:, 2].detach().cpu().numpy()
+                # GRADIENT-003 fix: Keep as tensors to preserve gradient flow
+                # nanobrag_torch's Crystal uses torch.as_tensor() which preserves requires_grad
+                a_star = A_star_new[:, 0]  # Shape: [3], keeps gradient
+                b_star = A_star_new[:, 1]
+                c_star = A_star_new[:, 2]
 
                 # Inject via MOSFLM a/b/c_star (per GRADIENT-001: no cell overrides with MOSFLM injection)
+                # GRADIENT-003: Pass tensors directly, not tuples/numpy
                 crystal_overrides = {
-                    'mosflm_a_star': tuple(a_star.tolist()),
-                    'mosflm_b_star': tuple(b_star.tolist()),
-                    'mosflm_c_star': tuple(c_star.tolist()),
+                    'mosflm_a_star': a_star,  # torch.Tensor with gradient
+                    'mosflm_b_star': b_star,
+                    'mosflm_c_star': c_star,
                 }
                 # CRITICAL: Do NOT inject cell parameters when using MOSFLM a/b/c_star (GRADIENT-001)
                 misset_deg_for_crystal = None  # MOSFLM A* is provided directly
@@ -1232,11 +1235,12 @@ class StageA:
                         'u_matrix_checksum': U.sum().item(),  # Phase B2: U-matrix checksum
                     }
 
-                # Convert A* to numpy for crystal_overrides
-                A_star_np = A_star_new.detach().cpu().numpy()
-                mosflm_a_star_tuple = tuple(A_star_np[:, 0].tolist())
-                mosflm_b_star_tuple = tuple(A_star_np[:, 1].tolist())
-                mosflm_c_star_tuple = tuple(A_star_np[:, 2].tolist())
+                # Extract A* columns as tensors for crystal_overrides
+                # GRADIENT-003 fix: Keep as tensors to preserve gradient flow
+                # nanobrag_torch's Crystal uses torch.as_tensor() which preserves requires_grad
+                mosflm_a_star = A_star_new[:, 0]  # torch.Tensor with gradient
+                mosflm_b_star = A_star_new[:, 1]
+                mosflm_c_star = A_star_new[:, 2]
 
                 crystal_overrides = {
                     'cell_a': perturbed_cell_a,
@@ -1245,9 +1249,9 @@ class StageA:
                     'cell_alpha': perturbed_alpha,
                     'cell_beta': perturbed_beta,
                     'cell_gamma': perturbed_gamma,
-                    'mosflm_a_star': mosflm_a_star_tuple,
-                    'mosflm_b_star': mosflm_b_star_tuple,
-                    'mosflm_c_star': mosflm_c_star_tuple,
+                    'mosflm_a_star': mosflm_a_star,  # torch.Tensor with gradient
+                    'mosflm_b_star': mosflm_b_star,
+                    'mosflm_c_star': mosflm_c_star,
                 }
                 # FIX: Define misset_deg_for_crystal here in U-matrix branch
                 misset_deg_for_crystal = None  # MOSFLM A* is provided directly

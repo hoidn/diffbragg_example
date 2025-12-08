@@ -1,53 +1,11 @@
 ### Turn Summary
-Processed upstream response confirming nanobrag_torch cell gradients work (6/6 PASS); identified two DBEX-side bugs breaking gradient flow.
-Root cause: `busing_levy_B_torch()` uses `.item()` for cctbx (nanobrag_bridge.py:602-608), and A* extraction uses `.detach()` (stage_a.py:1183-1185).
-Next: Ralph implements pure-PyTorch B-matrix and removes gradient-breaking `.detach()` calls.
-Artifacts: plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T212500Z/ (upstream_response_analysis)
 
-## Upstream Response Summary
+Implemented pure-PyTorch Busing-Levy B-matrix at `dbex/nanobrag_bridge.py:558-680` replacing cctbx-dependent implementation that used `.item()` calls; verified formula matches cctbx with max difference 3.47e-18.
 
-**File:** `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`
+Removed `.detach().cpu().numpy()` from A* vector extraction in `dbex/refinement/stage_a.py:1183-1195` and `:1238-1255` (both cell parameterization and U-matrix paths); A* vectors now flow as tensors to preserve gradient graph.
 
-**Key Points:**
-1. nanobrag_torch cell param gradcheck tests: **6/6 PASS**
-2. Issue location: **DBEX integration layer** (NOT nanobrag_torch)
-3. Upstream-provided debugging hypotheses:
-   - H1: Double unit conversion (Å→m applied twice)
-   - H2: Scalar extraction breaking graph (.item()/.detach())
-   - H3: Fluence mismatch (1e28 expected)
+DB-AT-010 gradcheck shows **partial progress**: analytical gradients are now non-zero (7.04e7 for cell_a, 4.64e7 for cell_gamma), proving graph connectivity is restored. Magnitude mismatch remains (843× for cell_a, 19,352× for cell_gamma) - separate issue from graph disconnect.
 
-## Root Cause Analysis (Galph Supervisor)
+Next: Investigate magnitude mismatch source in DBEX integration layer (fluence scaling, unit conversions) - magnitude issue is separate from the graph disconnect fixed in this loop.
 
-### Bug 1: `busing_levy_B_torch()` breaks gradient graph
-**Location:** `dbex/nanobrag_bridge.py:602-608`
-```python
-a_val = float(a.item() if hasattr(a, 'item') else a)  # BREAKS GRADIENT
-# ... same pattern for b, c, alpha, beta, gamma
-uc = uctbx.unit_cell((a_val, ...))  # cctbx has no autograd support
-```
-
-**Problem:** Cell parameters are converted to Python floats via `.item()` before being passed to cctbx's `unit_cell()`. cctbx cannot compute gradients.
-
-### Bug 2: A* extraction uses `.detach()`
-**Location:** `dbex/refinement/stage_a.py:1183-1185`
-```python
-a_star = A_star_new[:, 0].detach().cpu().numpy()  # BREAKS GRADIENT
-b_star = A_star_new[:, 1].detach().cpu().numpy()
-c_star = A_star_new[:, 2].detach().cpu().numpy()
-```
-
-**Problem:** Even if B-matrix computation preserved gradients, A* vectors are immediately detached before being passed to crystal_overrides.
-
-## Fix Strategy (Phase B.7)
-
-1. **B.7.1:** Implement pure-PyTorch Busing-Levy B-matrix using explicit formulas (no cctbx)
-2. **B.7.2:** Investigate MOSFLM a_star path vs direct cell parameter injection
-3. **B.7.3:** Run gradcheck verification
-
-## Upstream-Verified Working Pattern
-
-```python
-# From nanobrag_torch response - this pattern preserves gradients
-cell_a = torch.tensor(100.0, dtype=torch.float64, requires_grad=True)
-crystal_config = CrystalConfig(cell_a=cell_a, ...)  # torch.as_tensor() preserves requires_grad
-```
+Artifacts: plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T212500Z/ (gradcheck_post_fix.log)

@@ -568,12 +568,13 @@ def busing_levy_B_torch(
     """
     Compute Busing-Levy reciprocal metric tensor B from cell parameters.
 
-    This implementation uses cctbx.uctbx.unit_cell.fractionalization_matrix()
-    and transposes it to match dxtbx crystal.get_B() convention (lower triangular
-    with reciprocal vectors as columns).
+    This is a pure-PyTorch implementation that preserves gradient flow.
+    The formula follows the Busing-Levy convention and outputs a matrix
+    matching dxtbx crystal.get_B() convention (lower triangular, reciprocal
+    vectors as columns).
 
     Args:
-        a, b, c: Unit cell lengths (Ångströms)
+        a, b, c: Unit cell lengths (Ångströms) - can be torch.Tensor with requires_grad
         alpha_deg, beta_deg, gamma_deg: Unit cell angles (degrees)
         dtype: Target dtype
         device: Target device
@@ -584,14 +585,26 @@ def busing_levy_B_torch(
     Spec Reference:
         - spec-db-core.md:60 (Busing-Levy compatible metric tensor)
         - DB-AT-026 Test 2: ||B(0) - B₀|| < 1e-12 for zero deltas
+        - GRADIENT-003: Pure-PyTorch B-matrix to preserve cell gradient flow
 
     Note:
         dxtbx B-matrix convention: B = fractionalization_matrix().T
         where fractionalization_matrix is upper triangular.
+
+        Formula (Busing-Levy fractionalization matrix):
+            Volume_factor = sqrt(1 - cos²α - cos²β - cos²γ + 2·cos_α·cos_β·cos_γ)
+
+            Fractionalization matrix F (upper triangular):
+            F[0,0] = 1/a
+            F[0,1] = -cos_γ / (a * sin_γ)
+            F[0,2] = (cos_α*cos_γ - cos_β) / (a * V_f * sin_γ)
+            F[1,1] = 1 / (b * sin_γ)
+            F[1,2] = (cos_β*cos_γ - cos_α) / (b * V_f * sin_γ)
+            F[2,2] = sin_γ / (c * V_f)
+
+            B = F.T (dxtbx convention)
     """
     import torch
-    import numpy as np
-    from cctbx import uctbx
 
     # Infer dtype/device from inputs if not provided
     if dtype is None:
@@ -599,25 +612,70 @@ def busing_levy_B_torch(
     if device is None:
         device = a.device if hasattr(a, 'device') else torch.device("cpu")
 
-    # Extract scalar values (handle both tensors and scalars)
-    a_val = float(a.item() if hasattr(a, 'item') else a)
-    b_val = float(b.item() if hasattr(b, 'item') else b)
-    c_val = float(c.item() if hasattr(c, 'item') else c)
-    alpha_val = float(alpha_deg.item() if hasattr(alpha_deg, 'item') else alpha_deg)
-    beta_val = float(beta_deg.item() if hasattr(beta_deg, 'item') else beta_deg)
-    gamma_val = float(gamma_deg.item() if hasattr(gamma_deg, 'item') else gamma_deg)
+    # Ensure inputs are tensors (preserve gradient if already tensor)
+    if not isinstance(a, torch.Tensor):
+        a = torch.tensor(a, dtype=dtype, device=device)
+    if not isinstance(b, torch.Tensor):
+        b = torch.tensor(b, dtype=dtype, device=device)
+    if not isinstance(c, torch.Tensor):
+        c = torch.tensor(c, dtype=dtype, device=device)
+    if not isinstance(alpha_deg, torch.Tensor):
+        alpha_deg = torch.tensor(alpha_deg, dtype=dtype, device=device)
+    if not isinstance(beta_deg, torch.Tensor):
+        beta_deg = torch.tensor(beta_deg, dtype=dtype, device=device)
+    if not isinstance(gamma_deg, torch.Tensor):
+        gamma_deg = torch.tensor(gamma_deg, dtype=dtype, device=device)
 
-    # Create cctbx unit cell
-    uc = uctbx.unit_cell((a_val, b_val, c_val, alpha_val, beta_val, gamma_val))
+    # Convert degrees to radians
+    alpha = torch.deg2rad(alpha_deg)
+    beta = torch.deg2rad(beta_deg)
+    gamma = torch.deg2rad(gamma_deg)
 
-    # Get fractionalization matrix (upper triangular)
-    frac_mat = np.array(uc.fractionalization_matrix()).reshape(3, 3)
+    # Compute trigonometric values
+    cos_alpha = torch.cos(alpha)
+    cos_beta = torch.cos(beta)
+    cos_gamma = torch.cos(gamma)
+    sin_gamma = torch.sin(gamma)
 
-    # Transpose to get dxtbx B-matrix convention (lower triangular)
-    B_np = frac_mat.T
+    # Volume factor (numerically stabilized)
+    # V_f = sqrt(1 - cos²α - cos²β - cos²γ + 2·cos_α·cos_β·cos_γ)
+    V_f_squared = (
+        1.0
+        - cos_alpha * cos_alpha
+        - cos_beta * cos_beta
+        - cos_gamma * cos_gamma
+        + 2.0 * cos_alpha * cos_beta * cos_gamma
+    )
+    # Clamp for numerical stability (avoid sqrt of negative due to float precision)
+    V_f = torch.sqrt(V_f_squared.clamp_min(1e-12))
 
-    # Convert to PyTorch tensor with target dtype/device
-    B = torch.tensor(B_np, dtype=dtype, device=device)
+    # Clamp sin_gamma for numerical stability
+    sin_gamma_safe = sin_gamma.clamp_min(1e-12)
+
+    # Compute fractionalization matrix elements (upper triangular)
+    # F[0,0] = 1/a
+    F00 = 1.0 / a
+    # F[0,1] = -cos_γ / (a * sin_γ)
+    F01 = -cos_gamma / (a * sin_gamma_safe)
+    # F[0,2] = (cos_α*cos_γ - cos_β) / (a * V_f * sin_γ)
+    F02 = (cos_alpha * cos_gamma - cos_beta) / (a * V_f * sin_gamma_safe)
+    # F[1,1] = 1 / (b * sin_γ)
+    F11 = 1.0 / (b * sin_gamma_safe)
+    # F[1,2] = (cos_β*cos_γ - cos_α) / (b * V_f * sin_γ)
+    F12 = (cos_beta * cos_gamma - cos_alpha) / (b * V_f * sin_gamma_safe)
+    # F[2,2] = sin_γ / (c * V_f)
+    F22 = sin_gamma / (c * V_f)
+
+    # Build fractionalization matrix (upper triangular)
+    zero = torch.zeros_like(F00)
+    F = torch.stack([
+        torch.stack([F00, F01, F02]),
+        torch.stack([zero, F11, F12]),
+        torch.stack([zero, zero, F22]),
+    ])
+
+    # B = F.T (dxtbx convention: lower triangular)
+    B = F.T
 
     return B
 

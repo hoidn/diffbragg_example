@@ -387,6 +387,7 @@ def main() -> int:
             )
             return ["/bin/bash", "-lc", cmd_str]
 
+        # First, honor explicit CLI override if provided.
         cc = args.claude_cmd
         if cc:
             p = Path(cc)
@@ -396,6 +397,7 @@ def main() -> int:
             if which:
                 return _fmt(which)
 
+        # Historical pinned locations (repo-local, then home-local).
         repo_local = Path(".claude") / "local" / "claude"
         if repo_local.is_file() and os.access(str(repo_local), os.X_OK):
             return _fmt(repo_local)
@@ -403,6 +405,11 @@ def main() -> int:
         default_path = Path("/home/ollie/.claude/local/claude")
         if default_path.is_file() and os.access(str(default_path), os.X_OK):
             return _fmt(default_path)
+
+        # Fallback: whatever "claude" resolves to on PATH.
+        which = shutil.which("claude")
+        if which:
+            return _fmt(which)
         return None
 
     def _codex_cmd() -> list[str] | None:

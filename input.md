@@ -1,10 +1,10 @@
-# Input — Loop i=156
+# Input for Loop i=158 (Ralph)
 
 ## Summary
-Execute ARCH-GRADIENT-FLOW-001 Phase B (integration + verification) — upstream nanobrag_torch gradient fix has landed; run DB-AT-010 gradcheck and add enforcement test.
+Execute SPEC-SQUARE-PARTIALITY-001 Phase A: Clarify SQUARE lattice physics in docs and findings, codifying linear `Na×Nb×Nc` integrated intensity scaling per maintainer response.
 
 ## Mode
-none
+Docs
 
 ## ActionType
 implementation_ready
@@ -13,159 +13,137 @@ implementation_ready
 patch_ready
 
 ## InitiativeType
-architecture
+spec+tests
 
 ## Focus
-ARCH-GRADIENT-FLOW-001 — Gradient Flow Restoration (Phase B)
+SPEC-SQUARE-PARTIALITY-001 — SQUARE Lattice Spec & Test Alignment
 
 ## Branch
 integration
 
 ## Mapped tests
-- DB-AT-010 gradcheck suite: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=full pytest -v tests -k DB_AT_010` (5 tests, expect PASS with upstream fix)
-- Enforcement test (after authoring): `pytest -v tests/architecture/test_gradient_contracts.py` (expect PASS)
+None — Phase A is docs-only (no code/test changes this loop).
 
 ## Artifacts
-`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T050000Z/`
+`plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z/`
 
 ## Findings Applied (Mandatory)
-- **RUNTIME-001** (Runtime execution guardrails): DB-AT-010 requires `NANOBRAGG_DISABLE_COMPILE=1` per docs/pytorch_runtime_checklist.md:26
-- **GRADIENT-001** (Gradient test patterns): Tests inject differentiable parameters via `crystal_overrides` to preserve autograd graph
-- **TESTING-003** (Acceptance test registry maintenance): Update TEST_SUITE_INDEX.md when DB-AT-010 status changes FAILING → PASSING
+- **SIM-CONSTR-PARTIALITY-001**: Must update to demote `(Na×Nb×Nc)²` **integrated** scaling expectation to historical context; promote linear `Na×Nb×Nc` as enforceable requirement.
+- **PROBE-FREEZE-001**: No new plan-local probes; reuse existing architecture tests in Phase B.
 
 ## Pointers
-- **Upstream Fix Documentation**: `inbox/from_nanobragg.md` — DBEX-GRADIENT-001 fixes (wavelength, fluence, distance)
-- **Maintainer Response**: `inbox/nanobrag_torch_response_2025_12_08.md` — Gradient blockers RESOLVED section
-- **SPEC**: `docs/spec-db-conformance.md:55-76` — Gradient-Safe Profile criteria
-- **ARCH**: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md` — Phase B task list
-- **Fix-plan**: `docs/fix_plan.md:246-265` — ARCH-GRADIENT-FLOW-001 Attempts History
-- **Evidence from Phase A**: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T212000Z/` — call graph trace, suspect audit
+| Reference | Path | Section/Line |
+|-----------|------|--------------|
+| Spec | docs/spec-db-core.md | §60-140 (lattice/partiality) |
+| Finding | docs/findings.md | SIM-CONSTR-PARTIALITY-001 |
+| Maintainer Response | inbox/nanobrag_torch_response_2025_12_08.md | Full document |
+| Implementation Plan | plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md | Phase A checklist |
+| Fix Plan | docs/fix_plan.md | SPEC-SQUARE-PARTIALITY-001 row |
 
-## ARCH Contracts (mandatory)
-1. **ARCH-CONTRACT-GRADIENT-001** (Gradient flow preservation): `simulate_forward_torch` must preserve `requires_grad=True` through the call path to allow backprop
-   - Owner: `dbex/physics/forward.py::simulate_forward_torch`
-   - Classify: implementation bug previously (upstream fix now available); verify fix resolves it
+## ARCH Contracts (Mandatory)
+| Contract ID | Doc Pointer | Owner Module/API | Failure Classification |
+|-------------|-------------|------------------|------------------------|
+| N/A | N/A | N/A | Phase A is docs-only; no ARCH contracts enforced this loop |
 
-2. **ARCH-CONTRACT-TESTING-002** (Gradcheck tolerances): DB-AT-010 tests use documented tolerances (`eps=1e-6`, `atol=1e-5`, `rtol=0.05`)
-   - Owner: `tests/dbex/test_gradients.py`
-   - Classify: verify tolerances match spec; document any adjustments
+## Do Now (Hard Validity Contract)
 
-## Do Now (hard validity contract)
+### Focus: SPEC-SQUARE-PARTIALITY-001 Phase A — Clarify Physics
 
-**Focus**: ARCH-GRADIENT-FLOW-001 — Phase B (Integration + Verification)
+### Implement:
+1. **A0 — Physics summary artifact**: Create `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z/physics_summary.md` documenting:
+   - Peak height scales as `(Na×Nb×Nc)²`
+   - Integrated/summed intensity scales linearly as `Na×Nb×Nc`
+   - Reference to `inbox/nanobrag_torch_response_2025_12_08.md`
 
-**Implement**: Phase B tasks B1-B4
+2. **A1 — Update SIM-CONSTR-PARTIALITY-001**: Edit `docs/findings.md::SIM-CONSTR-PARTIALITY-001` to:
+   - Demote old `(Na×Nb×Nc)²` integrated scaling expectation to historical context
+   - Promote linear `Na×Nb×Nc` law as the enforceable requirement for integrated intensity
+   - Add citation to maintainer response
 
-**Tasks**:
+3. **A2 — Optional spec clause** (if needed): If `docs/spec-db-core.md` contains any text implying `(Na×Nb×Nc)²` for integrated intensity, add a short "SQUARE lattice scaling behavior" paragraph clarifying peak vs integrated behavior.
 
-1. **B1 — Verify upstream fix integration**:
-   - Check that the current environment has the nanobrag_torch version with gradient-preserving changes
-   - Test command: `python -c "from nanobrag_torch.utils.tensor_utils import as_tensor_preserving_grad; print('OK')"`
-   - If import fails: document as blocker (environment dependency issue)
-   - If import succeeds: proceed to B2
+4. **A3 — Create summary.md**: Document Phase A completion with artifact paths.
 
-2. **B2 — DB-AT-010 gradcheck verification**:
-   - Run: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=full pytest -v tests -k DB_AT_010`
-   - Expected: 5/5 tests PASS (wavelength, fluence, distance, crystal cell parameters)
-   - Archive log to: `reports/2025-12-08T050000Z/gradcheck_verification_post_fix.log`
-   - If tests FAIL: Document failure signature, assess whether DBEX-side changes needed (per `inbox/from_nanobragg.md` Pattern 1 vs Pattern 2)
+### Validating pytest selector(s):
+- N/A (docs-only loop; tests unchanged until Phase B)
 
-3. **B3 — Enforcement test authoring**:
-   - Create `tests/architecture/test_gradient_contracts.py::test_simulate_forward_torch_preserves_gradients`
-   - Test requirements:
-     1. Call `simulate_forward_torch` with `requires_grad=True` tensor parameter (use crystal_overrides pattern)
-     2. Compute loss, call backward
-     3. Assert `param.grad is not None` and `param.grad.abs().sum() > 0`
-     4. Use minimal refGeom fixture (small detector size for speed)
-   - Run: `pytest -v tests/architecture/test_gradient_contracts.py`
-   - Expected: PASS
+### Artifacts Path:
+`plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z/`
 
-4. **B4 — Documentation updates**:
-   - Add `docs/findings.md::GRADIENT-002` finding documenting:
-     - Upstream fix location: `nanobrag_torch/utils/tensor_utils.py::as_tensor_preserving_grad`
-     - DBEX patterns validated: Pattern 1 (init-time tensor) and Pattern 2 (post-creation override for detector)
-     - Enforcement test cross-ref: `tests/architecture/test_gradient_contracts.py`
-   - Update `docs/development/TEST_SUITE_INDEX.md` DB-AT-010 row to status=PASSING (if B2 succeeds)
-   - Archive artifacts
-
-**Validating pytest selectors**:
-- `pytest -v tests -k DB_AT_010` (expect 5/5 PASS after fix)
-- `pytest -v tests/architecture/test_gradient_contracts.py` (expect PASS after B3 authoring)
+### Initiative type consistent:
+spec+tests ✓
 
 ## Touched
-Phase B tasks: B1, B2, B3, B4
-Member plan: DB-AT-010 (status update)
-Roll-up: DB-AT-SUITE-CARE-001 (Gradient-Safe Profile unblocked)
+SPEC-SQUARE-PARTIALITY-001 Phase A (A0, A1, A2, A3)
 
 ## Forbidden This Loop
-- no new probes or plan-local diagnostic scripts
-- do not extend shadow pipeline scripts
-- do not modify ARCH-SIM-CONSTRUCTION-001 (blocked on different issue — spec/expectation mismatch)
-- do not modify Tier 1+ initiatives unless directly impacted by gradient fix
+- Do NOT modify production code
+- Do NOT modify test files (defer to Phase B)
+- Do NOT create new plan-local probes per PROBE-FREEZE-001
 
 ## How-To Map
 
-### Environment setup
+### Step 1: Create artifacts directory
 ```bash
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
-export DBEX_SMOKE_DETECTOR_SIZE=full
+mkdir -p plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z
 ```
 
-### B1 — Verify upstream fix
-```bash
-# Check nanobrag_torch has gradient-preserving utility
-python -c "from nanobrag_torch.utils.tensor_utils import as_tensor_preserving_grad; print('as_tensor_preserving_grad available')"
+### Step 2: Create physics_summary.md (A0)
+Write to `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z/physics_summary.md`:
+```markdown
+# SQUARE Lattice Scaling Physics Summary
 
-# Check detector property pattern
-python -c "from nanobrag_torch.models.detector import Detector; print('Detector.distance is property:', isinstance(type(Detector).distance, property))"
+## Key Result (from nanobrag_torch maintainer response)
+
+Per `inbox/nanobrag_torch_response_2025_12_08.md`, the correct SQUARE lattice scaling behavior is:
+
+1. **Peak intensity at exact Bragg condition**: ∝ `(Na×Nb×Nc)²`
+   - The lattice factor F_latt peaks at integer HKL with amplitude proportional to Na×Nb×Nc
+   - Peak height = |F_latt|² ∝ (Na×Nb×Nc)²
+
+2. **Integrated/summed intensity over a reflection**: ∝ `Na×Nb×Nc` (linear)
+   - When integrating over the full reflection profile (all subpixels, all angles)
+   - The sinc² envelope integrates to a constant per unit cell
+   - Total integrated intensity scales linearly with number of unit cells
+
+## DBEX Expectation Mismatch (Historical)
+
+Previous DBEX probes (ARCH-SIM-CONSTRUCTION-001 C.34-C.39) expected `(Na×Nb×Nc)²` for integrated intensity sums. This was physically incorrect. The ~11% deficit observed was consistent with linear scaling, not a sincg bug.
+
+## Enforcement Implications
+
+- Architecture test `tests/architecture/test_nanobrag_partiality.py` currently asserts `(Na×Nb×Nc)²` for `image.sum()` (integrated intensity) → MUST be changed to linear in Phase B
+- If peak-height testing is desired, it must use exact Bragg condition sampling, not integration over the full image
 ```
 
-### B2 — Gradcheck verification
-```bash
-mkdir -p plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T050000Z
+### Step 3: Update docs/findings.md (A1)
+Locate `SIM-CONSTR-PARTIALITY-001` and update to:
+- Add "**Resolution (2025-12-08)**" section explaining the physics clarification
+- Demote the old `(Na×Nb×Nc)²` integrated expectation as historical misunderstanding
+- Cite `inbox/nanobrag_torch_response_2025_12_08.md`
 
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=full \
-  pytest -v tests -k DB_AT_010 \
-  2>&1 | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T050000Z/gradcheck_verification_post_fix.log
-```
+### Step 4: Check docs/spec-db-core.md (A2)
+Read lattice/partiality sections (§60-140). If any text implies `(Na×Nb×Nc)²` for integrated intensity, add clarifying paragraph. If text is already correct or absent, skip.
 
-### B3 — Enforcement test
-Create `tests/architecture/test_gradient_contracts.py` with:
-- `test_simulate_forward_torch_preserves_gradients` method
-- Use existing `refgeom_dataload` fixture pattern
-- Apply GRADIENT-001 finding: use `crystal_overrides` dict for differentiable parameters
-
-### B4 — Documentation
-- Update `docs/findings.md` with GRADIENT-002 entry
-- Update `docs/development/TEST_SUITE_INDEX.md` DB-AT-010 row
-
-### Artifact destinations
-- `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T050000Z/gradcheck_verification_post_fix.log`
-- `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T050000Z/summary.md`
-- `tests/architecture/test_gradient_contracts.py` (new file)
+### Step 5: Create summary.md (A3)
+Write Phase A completion summary with checklist status and artifact paths.
 
 ## Pitfalls To Avoid
-1. **Type discipline**: This is an architecture initiative; production code changes should be minimal (the fix is upstream in nanobrag_torch, not DBEX)
-2. **No stacking on cliff**: If gradcheck still fails, document failure signature precisely — do not attempt multiple fixes in same loop
-3. **Parity-first**: Verify upstream fix is integrated before attempting DBEX-side workarounds
-4. **Shadow-pipeline guard**: Enforcement test should call production code path, not create parallel implementation
-5. **Probe saturation**: No new instrumentation — Phase A audit is complete
-6. **Evidence→Action**: If B1 shows nanobrag_torch is not updated, document as blocker (do not attempt manual patches)
-7. **Tolerance discipline**: Use documented tolerances (eps=1e-6, atol=1e-5, rtol=0.05); do not relax without spec_change justification
-8. **Pattern compliance**: Per `inbox/from_nanobragg.md`, wavelength/fluence require Pattern 1 (init-time tensor); distance supports Pattern 2 (post-creation)
+1. **No code changes** — This is a docs-only Phase A loop
+2. **No test changes** — Test modifications are Phase B
+3. **Preserve existing findings structure** — Only add/update, don't delete historical context
+4. **Cite maintainer response** — Must reference `inbox/nanobrag_torch_response_2025_12_08.md` in updates
+5. **Don't over-specify spec** — Stick to minimal physics statement; implementation details in findings
+6. **Mark implementation.md checklist items** — Update Phase A checkboxes after each task
 
 ## If Blocked
-- **If nanobrag_torch lacks gradient fix**: Document as `blocked_pending_environment`; record exact import error; recommend vendored subrepo update or pip install from fixed branch
-- **If gradcheck still fails after fix**: Document failure signature with file:line; compare against Phase A hypothesis; determine if DBEX-side override pattern needs adjustment (Pattern 1 vs Pattern 2)
-- **If enforcement test cannot use minimal fixture**: Fallback to unit-level test (mock simulator output) with regression guard; document limitation
+- If SIM-CONSTR-PARTIALITY-001 finding cannot be located: search for "partiality" in docs/findings.md and document discrepancy
+- If spec-db-core.md has no lattice text: document as "no update needed" in summary.md
+- If blocked, mark Phase A as blocked with rationale and switch focus per portfolio steering
 
 ## Doc Sync Plan (Conditional)
-If B2 succeeds (DB-AT-010 5/5 PASS):
-1. Update `docs/development/TEST_SUITE_INDEX.md` DB-AT-010 row: status=PASSING, artifact path=`reports/2025-12-08T050000Z/gradcheck_verification_post_fix.log`
-2. Add GRADIENT-002 finding to `docs/findings.md`
-3. Cross-reference TESTING_GUIDE.md §1.4 for consistency
+N/A — No tests added/renamed in Phase A.
 
 ---
 
-**End of input.md for Loop i=156**
+**Galph Note**: Phase A is docs-only per implementation.md structure. Phase B (test updates) will follow in next loop. This establishes the physics contract before modifying enforcement tests.

@@ -103,15 +103,35 @@ KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_nanobrag_bridge.
 
 ## Phase C — TORCH-CLI-003 Synchronization
 
-**Status:** Pending
-**Mode:** Docs
+**Status:** Complete (2025-12-08T090000Z)
+**Mode:** TDD (test fixture repair)
 **Estimated Loops:** 0.5
 
 ### Checklist
-- [ ] C1: Re-run CLI tests (15 expected)
-- [ ] C2: Update TORCH-CLI-003 implementation.md Phase A (A0-A2) → checked
-- [ ] C3: Update TORCH-CLI-003 implementation.md Phase B (B1-B2) → checked
-- [ ] C4: Confirm fix_plan.md reflects TORCH-CLI-003 status
+- [x] C1: Re-run CLI tests (15 expected) — **15 passed**
+- [x] C2: Update TORCH-CLI-003 implementation.md Phase A (A0-A2) → checked
+- [x] C3: Update TORCH-CLI-003 implementation.md Phase B (B1-B2) → checked
+- [x] C4: Confirm fix_plan.md reflects TORCH-CLI-003 status
+
+### Phase C Implementation Notes
+**Bug:** 3 of 15 CLI tests failing due to mock fixture issues (MOCK-FIXTURE-001)
+**Root Causes:**
+1. Mock `build_structure_factor_grid` returned numpy arrays; production expects torch tensors
+2. Mock `create_detector_config` returned `Mock()` but `Detector.__init__` needs real typed config
+3. Mock `hkl_metadata` missing `has_halo` key required by `JobContext`
+4. Patch targets for `write_torch_outputs` and `score_roi_payloads` at wrong module path
+5. `args.report_dir` not set causing `_generate_triptych_report` to fail
+
+**Fixes Applied:**
+- Changed `np.zeros` to `torch.zeros` for HKL grid mocks
+- Used `_make_detector_config()`, `_make_beam_config()`, `_make_crystal_config()` helpers
+- Added `has_halo: False` to mock metadata dicts
+- Changed `@patch('dbex.io.writer.write_torch_outputs')` to `@patch('dbex.refine_one.write_torch_outputs')`
+- Added `@patch('dbex.io.roi_scoring.score_roi_payloads')` with proper `ROIAnalysisPayload` return
+- Added `args.report_dir = None` to prevent triptych report generation
+
+### Phase C Artifacts
+- `reports/2025-12-08T090000Z/pytest_cli.log` — 15 passed
 
 ### Validation Commands
 ```bash

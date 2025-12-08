@@ -22,9 +22,9 @@ Status: in_progress
 
 ## Phase A — CLI Flag & Wiring
 ### Checklist
-- [ ] A0: Author minimal CLI test file `tests/dbex/test_refine_one_cli.py` (parser/help and backend switch), run `pytest --collect-only` and save log under reports path; register selector in testing docs.
-- [ ] A1: Add `--backend` option and plumb to execution path
-- [ ] A2: Wire torch path to `nanobrag_bridge` and model run (guarded behind flag)
+- [x] A0: Author minimal CLI test file `tests/dbex/test_refine_one_cli.py` (parser/help and backend switch), run `pytest --collect-only` and save log under reports path; register selector in testing docs.
+- [x] A1: Add `--backend` option and plumb to execution path
+- [x] A2: Wire torch path to `nanobrag_bridge` and model run (guarded behind flag)
 
 ### Validation & Artifacts
 - Selectors: `pytest -v tests/dbex/test_refine_one_cli.py`
@@ -32,8 +32,8 @@ Status: in_progress
 
 ## Phase B — Diagnostics & Docs
 ### Checklist
-- [ ] B1: Log minimal diagnostics for torch path; update CLI help
-- [ ] B2: Update docs/index.md entry and confirm smoke selector
+- [x] B1: Log minimal diagnostics for torch path; update CLI help
+- [x] B2: Update docs/index.md entry and confirm smoke selector
 
 ### Validation & Artifacts
 - Selector compliance: `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_refine_one_cli.py | tee "$ART/collect_cli.log"`

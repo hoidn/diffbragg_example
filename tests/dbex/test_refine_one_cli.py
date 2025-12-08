@@ -576,9 +576,11 @@ def test_nanobrag_backend_requires_sigma_rdout(mock_prepare):
 @patch('dbex.refinement.config_factories.create_detector_config')
 @patch('dbex.refinement.config_factories.create_beam_config')
 @patch('dbex.refinement.config_factories.create_crystal_config')
-@patch('dbex.io.writer.write_torch_outputs')
+@patch('dbex.io.roi_scoring.score_roi_payloads')  # MOCK-FIXTURE-001: Mock the scorer
+@patch('dbex.refine_one.write_torch_outputs')  # MOCK-FIXTURE-001: Patch at import site
 def test_nanobrag_backend_accepts_sigma_map(
     mock_write,
+    mock_score_roi,  # MOCK-FIXTURE-001: Added scorer mock
     mock_crystal_config,
     mock_beam_config,
     mock_detector_config,
@@ -611,12 +613,13 @@ def test_nanobrag_backend_accepts_sigma_map(
     mock_dl.sigma_readout_map = sigma_map
 
     # Bridge outputs
-    mock_detector_config.return_value = Mock()
-    mock_beam_config.return_value = Mock()
-    mock_crystal_config.return_value = (Mock(), False)
+    # MOCK-FIXTURE-001: Use real typed configs (not Mock) to avoid TypeError in Detector.__init__
+    mock_detector_config.return_value = _make_detector_config(spixels=8, fpixels=8)
+    mock_beam_config.return_value = _make_beam_config()
+    mock_crystal_config.return_value = (_make_crystal_config(), False)
     mock_build_grid.return_value = (
         torch.zeros((3, 3, 3), dtype=torch.float32),
-        {"grid_nonzero": 1},
+        {"grid_nonzero": 1, "has_halo": False},  # MOCK-FIXTURE-001: has_halo required by JobContext
         torch.zeros((3, 3, 3), dtype=torch.int32),
     )
 
@@ -636,6 +639,23 @@ def test_nanobrag_backend_accepts_sigma_map(
         sigma_readout=np.full((1, 8, 8), 3.0, dtype=np.float32),
     )
 
+    # MOCK-FIXTURE-001: Setup ROI scorer mock with proper payload
+    from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+    mock_roi_payload = ROIAnalysisPayload(
+        triptych=ROITriptych(
+            panel_id=0,
+            bbox=(0, 4, 0, 4),
+            data=np.zeros((4, 4), dtype=np.float32),
+            background=np.ones((4, 4), dtype=np.float32) * -1,
+            bragg=np.zeros((4, 4), dtype=np.float32),
+        ),
+        score=75.0,
+        optimal_scale=1.0,
+        model=np.ones((4, 4), dtype=np.float32),
+        variance=np.ones((4, 4), dtype=np.float32),
+    )
+    mock_score_roi.return_value = [mock_roi_payload]
+
     args = Mock()
     args.outFile = 'out.h5'
     args.spot_scale_override = None
@@ -645,6 +665,7 @@ def test_nanobrag_backend_accepts_sigma_map(
     args.sigma_rdout = None
     args.sigma_floor = 1.0
     args.device = "cpu"
+    args.report_dir = None  # MOCK-FIXTURE-001: Prevent triptych report generation
 
     run_nanobrag_backend(args, mock_dl)
 
@@ -668,9 +689,11 @@ def test_nanobrag_backend_accepts_sigma_map(
 @patch('dbex.refinement.config_factories.create_detector_config')
 @patch('dbex.refinement.config_factories.create_beam_config')
 @patch('dbex.refinement.config_factories.create_crystal_config')
-@patch('dbex.io.writer.write_torch_outputs')
+@patch('dbex.io.roi_scoring.score_roi_payloads')  # MOCK-FIXTURE-001: Mock the scorer
+@patch('dbex.refine_one.write_torch_outputs')  # MOCK-FIXTURE-001: Patch at import site
 def test_nanobrag_backend_accepts_external_lookup_sigma_map(
     mock_write,
+    mock_score_roi,  # MOCK-FIXTURE-001: Added scorer mock
     mock_crystal_config,
     mock_beam_config,
     mock_detector_config,
@@ -703,12 +726,13 @@ def test_nanobrag_backend_accepts_external_lookup_sigma_map(
     mock_dl.sigma_readout_map = sigma_map
     mock_dl.sigma_readout_map_source = "external_lookup"
 
-    mock_detector_config.return_value = Mock()
-    mock_beam_config.return_value = Mock()
-    mock_crystal_config.return_value = (Mock(), False)
+    # MOCK-FIXTURE-001: Use real typed configs (not Mock) to avoid TypeError in Detector.__init__
+    mock_detector_config.return_value = _make_detector_config(spixels=6, fpixels=6)
+    mock_beam_config.return_value = _make_beam_config()
+    mock_crystal_config.return_value = (_make_crystal_config(), False)
     mock_build_grid.return_value = (
         torch.zeros((3, 3, 3), dtype=torch.float32),
-        {"grid_nonzero": 1},
+        {"grid_nonzero": 1, "has_halo": False},  # MOCK-FIXTURE-001: has_halo required by JobContext
         torch.zeros((3, 3, 3), dtype=torch.int32),
     )
 
@@ -726,6 +750,23 @@ def test_nanobrag_backend_accepts_external_lookup_sigma_map(
         sigma_readout=np.full((1, 6, 6), 2.0, dtype=np.float32),
     )
 
+    # MOCK-FIXTURE-001: Setup ROI scorer mock with proper payload
+    from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+    mock_roi_payload = ROIAnalysisPayload(
+        triptych=ROITriptych(
+            panel_id=0,
+            bbox=(0, 3, 0, 3),
+            data=np.zeros((3, 3), dtype=np.float32),
+            background=np.ones((3, 3), dtype=np.float32) * -1,
+            bragg=np.zeros((3, 3), dtype=np.float32),
+        ),
+        score=75.0,
+        optimal_scale=1.0,
+        model=np.ones((3, 3), dtype=np.float32),
+        variance=np.ones((3, 3), dtype=np.float32),
+    )
+    mock_score_roi.return_value = [mock_roi_payload]
+
     args = Mock()
     args.outFile = 'out.h5'
     args.spot_scale_override = None
@@ -735,6 +776,7 @@ def test_nanobrag_backend_accepts_external_lookup_sigma_map(
     args.sigma_rdout = None
     args.sigma_floor = 1.0
     args.device = "cpu"
+    args.report_dir = None  # MOCK-FIXTURE-001: Prevent triptych report generation
 
     run_nanobrag_backend(args, mock_dl)
 
@@ -761,9 +803,10 @@ def test_nanobrag_backend_accepts_external_lookup_sigma_map(
 @patch('dbex.refinement.config_factories.create_beam_config')
 @patch('dbex.refinement.config_factories.create_crystal_config')
 @patch('dbex.nanobrag_bridge.load_refined_mtz')
-@patch('dbex.io.writer.write_torch_outputs')
+@patch('dbex.io.roi_scoring.score_roi_payloads')  # MOCK-FIXTURE-001: Mock the scorer
+@patch('dbex.refine_one.write_torch_outputs')  # MOCK-FIXTURE-001: Patch at import site
 def test_nanobrag_backend_uses_refined_mtz(
-    mock_write, mock_load_refined, mock_crystal_config, mock_beam_config,
+    mock_write, mock_score_roi, mock_load_refined, mock_crystal_config, mock_beam_config,
     mock_detector_config, mock_build_grid, mock_prepare, mock_Crystal,
     mock_Detector, mock_Simulator, mock_DataLoad
 ):
@@ -781,6 +824,7 @@ def test_nanobrag_backend_uses_refined_mtz(
     import tempfile
     import sys
     import numpy as np
+    import torch
     from unittest.mock import MagicMock
     from dbex.refinement.inputs import RefinementInputs
 
@@ -790,23 +834,23 @@ def test_nanobrag_backend_uses_refined_mtz(
     mock_load_refined.return_value = (refined_indices, refined_amplitudes)
 
     # Setup: mock structure factor grid builder
-    hkl_grid_mock = np.zeros((10, 10, 10), dtype=np.float32)
-    hkl_metadata_mock = {"grid_nonzero": 3}
-    mock_asu_map = np.zeros((10, 10, 10), dtype=np.int32)
+    # MOCK-FIXTURE-001: Use torch tensors (not numpy) to match production code expectations
+    hkl_grid_mock = torch.zeros((10, 10, 10), dtype=torch.float32)
+    hkl_metadata_mock = {"grid_nonzero": 3, "has_halo": False}  # has_halo required by JobContext
+    mock_asu_map = torch.zeros((10, 10, 10), dtype=torch.int32)
     mock_build_grid.return_value = (hkl_grid_mock, hkl_metadata_mock, mock_asu_map)
 
     # Setup: mock config builders
-    mock_detector_config.return_value = MagicMock()
-    mock_beam_config.return_value = MagicMock()
-    mock_crystal_cfg = MagicMock()
-    mock_crystal_config.return_value = (mock_crystal_cfg, False)  # no n_cells
+    # MOCK-FIXTURE-001: Use real typed configs (not MagicMock) to avoid TypeError in Detector.__init__
+    mock_detector_config.return_value = _make_detector_config(spixels=2527, fpixels=2463)
+    mock_beam_config.return_value = _make_beam_config()
+    mock_crystal_config.return_value = (_make_crystal_config(), False)  # no n_cells
 
     # Setup: mock models
     mock_Detector.return_value = MagicMock()
     mock_Crystal.return_value = MagicMock()
 
     # Setup: mock simulator
-    import torch
     mock_simulator_instance = MagicMock()
     mock_simulator_instance.run.return_value = torch.zeros((2527, 2463), dtype=torch.float32)
     mock_Simulator.return_value = mock_simulator_instance
@@ -836,6 +880,23 @@ def test_nanobrag_backend_uses_refined_mtz(
     mock_DL_instance.background_image = np.zeros((2, 2527, 2463), dtype=np.float32)
     mock_DL_instance.data = np.zeros((2, 2527, 2463), dtype=np.float32)
     mock_DataLoad.return_value = mock_DL_instance
+
+    # MOCK-FIXTURE-001: Setup ROI scorer mock with proper payload
+    from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+    mock_roi_payload = ROIAnalysisPayload(
+        triptych=ROITriptych(
+            panel_id=0,
+            bbox=(0, 100, 0, 100),
+            data=np.zeros((100, 100), dtype=np.float32),
+            background=np.zeros((100, 100), dtype=np.float32),
+            bragg=np.zeros((100, 100), dtype=np.float32),
+        ),
+        score=75.0,
+        optimal_scale=1.0,
+        model=np.zeros((100, 100), dtype=np.float32),
+        variance=np.ones((100, 100), dtype=np.float32),
+    )
+    mock_score_roi.return_value = [mock_roi_payload, mock_roi_payload]  # 2 panels
 
     # Mock DataLoad and run CLI
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as exp_file:

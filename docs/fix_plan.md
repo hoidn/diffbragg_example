@@ -265,6 +265,22 @@
   * 2025-12-07T210000Z (Loop i=137, Galph) — Phase A planning: Created initiative in response to DB-AT-SUITE-CARE-001 Phase B.1 verification (Ralph i=136) showing DB-AT-010 gradcheck regression persists (5/5 tests FAILING, disconnected autograd graph). Authored implementation.md with Phases A/B/C (call graph trace, suspect audit, gradient probe, fix, enforcement test, closure). Scoped 4 suspect modules (forward.py, crystallography.py, loss.py, inputs.py). Estimated effort: 5-7 loops. Next: Phase A.1-A.2 (call graph + suspect audit). Artifacts: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-07T210000Z/` (implementation.md, planning_notes.md).
   * ... (see plans/active/ARCH-GRADIENT-FLOW-001/reports/ for continued Attempts History).
 
+### [SPEC-SQUARE-PARTIALITY-001] SQUARE Lattice Spec & Test Alignment
+- Depends on: ARCH-SIM-CONSTRUCTION-001 (physics evidence), SIM-CONSTR-PARTIALITY-001 (finding), nanobrag_torch maintainer response (`inbox/nanobrag_torch_response_2025_12_08.md`)
+- Status: pending
+- Type: spec+tests
+- Priority: High
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-08
+- Exit Criteria:
+  1. Spec text (via `docs/findings.md::SIM-CONSTR-PARTIALITY-001` and, if needed, a short note in `docs/spec-db-core.md`) explicitly states the correct SQUARE lattice scaling: peak height ∝ `(Na·Nb·Nc)²`, integrated/summed intensity ∝ `Na·Nb·Nc`, with a citation to the maintainer response.
+  2. Architecture partiality test (`tests/architecture/test_nanobrag_partiality.py`) and the square‑lattice probe script are updated to enforce the **linear** `Na·Nb·Nc` integrated scaling (and, if retained, any `(Na·Nb·Nc)²` checks are clearly scoped to peak intensity at exact Bragg). Updated tests pass with `pytest -vv tests/architecture/test_nanobrag_partiality.py --maxfail=1`, and logs are archived under this plan’s reports directory.
+  3. `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` and `docs/fix_plan.md` are updated so the ARCH-SIM-CONSTRUCTION-001 row treats the SQUARE scaling issue as resolved via this initiative (either by unblocking and finishing or by archiving with “resolved via spec/test fix”).
+  4. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect any updated partiality tests/selectors; `pytest --collect-only tests/architecture/test_nanobrag_partiality.py` logs are stored under `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/<timestamp>/`.
+- Working Plan: `plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md`
+- Attempts History:
+  * 2025-12-08T000000Z (planning) — Created initiative to align SQUARE lattice spec/tests with nanobrag_torch maintainer response (peak vs integrated scaling); no code/tests changed yet.
+
 ### [DB-AT-SUITE-CARE-001] Acceptance Suite Upkeep (DB-AT-002/010/020—024)
 - Depends on: ARCH-GRADIENT-FLOW-001 (DB-AT-010 unblock for portfolio advancement)
 - Status: in_progress (Phase B.1 complete — escalated to ARCH-GRADIENT-FLOW-001; Phase B.2-B.7 pending Tier-0 resolution)

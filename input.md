@@ -1,136 +1,115 @@
-# Input for Ralph (Loop i=177)
+# Input for Ralph (Loop i=178)
 
 ## Summary
-Execute REPORT-NANOBRAG-STATUS-001 Phase B — Update `reports/nanobrag_validation.md` with current telemetry from the selected HDF5 file.
+Execute TORCH-CLI-BRIDGE-ROLLUP-001 Phase A — Member Plan Reality Check and Inventory.
 
 ## BindingForRalph
-- **ActionType:** implementation
-- **DecisionStatus:** patch_ready
-- **InitiativeType:** tooling
+- **ActionType:** evidence_collection
+- **DecisionStatus:** exploring
+- **InitiativeType:** roll-up
 
 ## SupervisorMode
-Docs (reporting pack finalization — minimal code in update script only)
+Docs (roll-up inventory and roadmap drafting — no production code changes)
 
 ## Focus
-REPORT-NANOBRAG-STATUS-001 — Nanobrag Progress Reporting Pack — Phase B (Report Finalization)
+TORCH-CLI-BRIDGE-ROLLUP-001 — CLI & Bridge Infrastructure Roll-up — Phase A (Member Plan Inventory)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- None — this is a reporting/docs-only loop; no production test validation required
+- None — this is an evidence-collection/docs-only loop; validation deferred to Phase B
 
 ## Artifacts
-`plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T071251Z/`
+`plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/`
 
 ## Findings Applied (Mandatory)
-- **PROBE-FREEZE-001** (Plan-local probe policy): Minimal inline Python for HDF5 parsing; no new persistent scripts
-  - Adherence: Use inline Python or existing tools only; no new `bin/` scripts
+- **PROBE-FREEZE-001** (Plan-local probe policy): No new persistent scripts; use existing tests and inline Python only
+  - Adherence: Evidence collection only; no new bin/ scripts
 - **DIAGNOSTICS-001** (Diagnostic artifact expectations): Artifacts follow established JSON/markdown patterns
-  - Adherence: Artifacts routed to `reports/2025-12-08T071251Z/`
-- No other findings directly applicable to this reporting task
+  - Adherence: Artifacts routed to `reports/2025-12-08T073000Z/`
+- No other findings directly applicable to this inventory task
 
 ## Pointers
-- Implementation plan: `plans/active/REPORT-NANOBRAG-STATUS-001/implementation.md`
-- Phase A artifacts: `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/`
-  - Selected HDF5: `./plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5`
-  - Telemetry schema: `telemetry_schema.json`
-  - Plan-vs-status matrix: `plan_status_matrix_draft.md`
-- Existing validation report: `reports/nanobrag_validation.md` (needs update)
-- Fix plan entry: `docs/fix_plan.md` lines 512-537
+- Roll-up entry: `docs/fix_plan.md` lines 405-422
+- Member plan TORCH-BRIDGE-001: `plans/active/TORCH-BRIDGE-001/implementation.md` (Phase A-C done, Phase D pending)
+- Member plan TORCH-CLI-003: `plans/active/TORCH-CLI-003/implementation.md`
+- Member plan TORCH-CLI-004: `plans/active/TORCH-CLI-004/implementation.md` (all phases pending)
+- Exit criteria: `docs/fix_plan.md` lines 412-416
 
 ---
 
 ## ARCH Contracts (mandatory)
-- **Environment Freeze**: No package installs; read-only HDF5 parsing
+- **Environment Freeze**: No package installs; read-only evidence collection
   - Owner: CLAUDE.md
-  - Classification: Reporting update — if plotting libraries unavailable, emit JSON/tables only
+  - Classification: Roll-up Phase A — inventory and reality check only
 
 ---
 
 ## Do Now
 
-**Focus:** REPORT-NANOBRAG-STATUS-001 Phase B — Report Finalization
+**Focus:** TORCH-CLI-BRIDGE-ROLLUP-001 Phase A — Member Plan Inventory
 
-**Implement:** `reports/nanobrag_validation.md::update_with_current_telemetry`
+**Implement:** `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md::phase_a_inventory`
 
-**Validating Pytest Selector:** None (docs-only loop)
+**Validating Pytest Selector:** None (evidence-collection loop)
 
 ### Background
-Phase A complete (i=176): Selected `./plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5` as primary HDF5 source. Telemetry schema documented showing loss traces (initial 981638 → final 979335, 0.235% improvement), 92 ROIs, and schema gaps (missing param_deltas, optimizer_config, hkl_source).
+TORCH-CLI-BRIDGE-ROLLUP-001 depends on REPORT-NANOBRAG-STATUS-001 (output schema), which is now **done**. The roll-up covers 3 member plans:
+1. **TORCH-BRIDGE-001** (Bridge DataLoad to nanobrag_torch): Phase A-C complete, Phase D (closeout) pending
+2. **TORCH-CLI-003** (implementation.md exists)
+3. **TORCH-CLI-004** (Torch diagnostics ROI score coercion): All phases pending
 
-Existing `reports/nanobrag_validation.md` uses older HDF5 from `2025-11-05T184233Z`. Update it to:
-1. Reference the newer selected HDF5
-2. Refresh loss telemetry numbers
-3. Update plan-vs-status matrix per Phase A draft
-4. Add schema gaps section documenting telemetry not yet implemented
+The roll-up `implementation.md` is currently a stub. This Phase A builds the real roadmap.
 
-### Phase B Tasks
+### Phase A Tasks
 
-#### B1 — Parse Telemetry from Selected HDF5
+#### A1 — Member Plan Reality Check
+For each member plan, verify:
+- Current implementation.md status vs reality
+- Which phases are truly complete (check if tests pass, code exists)
+- Which phases are pending/blocked
 
-Extract and format loss convergence data:
+Member plans to audit:
+1. `plans/active/TORCH-BRIDGE-001/implementation.md` — Phase A-C marked complete; Phase D (D1-D4) pending closeout
+2. `plans/active/TORCH-CLI-003/implementation.md` — Status unknown, read and assess
+3. `plans/active/TORCH-CLI-004/implementation.md` — All phases pending per implementation.md
 
-```python
-import h5py
-import json
+#### A2 — Inventory Remaining Work
+Compile a work breakdown:
+- Count remaining tasks across all member plans
+- Identify dependencies between member plans
+- Estimate scope (docs-only vs code changes)
 
-selected = "./plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5"
-with h5py.File(selected, 'r') as f:
-    diag = f['torch_diagnostics']
+Output: `member_plan_inventory.md` with:
+- Table of member plans with status/remaining phases
+- Dependency graph (if any)
+- Total remaining task count
 
-    # Loss trace
-    loss_full = diag['refine_loss_trace_full'][...]
-    print(f"Loss trace: {loss_full}")
+#### A3 — Draft Roll-up Roadmap
+Create a roadmap for the roll-up:
+- Sequence member plan closeouts (TORCH-BRIDGE-001 Phase D first if quickest)
+- Identify which exit criteria (EC1-EC4) each member plan addresses
+- Note any blockers or prerequisites
 
-    # ROI count
-    roi_count = len([k for k in f['data'].keys() if k.startswith('roi')])
-    print(f"ROI count: {roi_count}")
+Output: `roadmap_draft.md` with:
+- Phased approach for roll-up completion
+- Exit criteria mapping to member plans
+- Estimated loop count per phase
 
-    # Sample loss values
-    loss_sample = diag['refine_loss_trace_sample'][...]
-    print(f"Loss samples: {loss_sample}")
-```
+#### A4 — Update Roll-up implementation.md
+Replace the stub `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md` with a real plan:
+- Phase A: Member Plan Inventory (this loop)
+- Phase B: TORCH-BRIDGE-001 closeout
+- Phase C: TORCH-CLI-003 completion
+- Phase D: TORCH-CLI-004 completion
+- Phase E: Roll-up closure
 
-**Output:** `reports/2025-12-08T071251Z/parsed_telemetry.json`
-
-#### B2 — Update reports/nanobrag_validation.md
-
-Update the existing report with:
-1. **HDF5 Source**: Change to `plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5`
-2. **Loss Telemetry**: Update table with 981638 → 979335 (0.235% improvement)
-3. **Phase Status**: Incorporate Phase A matrix showing Phase 3 Partial, Phase 4 Done, Phase 5 In Progress
-4. **Stage Status**: Stage A Done (convergence verified), Stage B Partial, Stage C Blocked
-5. **Schema Gaps Section**: Add new section documenting missing telemetry fields (param_deltas, optimizer_config, hkl_source, perf metrics)
-6. **Blockers Section**: Update with current tier 0 blockers (ARCH-GRADIENT-FLOW-001, PERF-WARM-SIM-001, ARCH-SIM-CONSTRUCTION-001)
-7. **Artifacts Path**: Update to `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T071251Z/`
-
-#### B3 — Generate Convergence Table
-
-Create markdown table showing iteration-by-iteration loss:
-
-| Iteration | Loss | Δ from Initial | % Change |
-|-----------|------|----------------|----------|
-| 0 | 981638.31 | — | — |
-| 5 | 979336.00 | -2302.31 | -0.235% |
-| 10 | 979335.56 | -2302.75 | -0.235% |
-
-**Output:** Include in `reports/nanobrag_validation.md` and `reports/2025-12-08T071251Z/convergence_table.md`
-
-#### B4 — Cross-Reference Stage C Regression
-
-Document the Stage C blocker per PERF-WARM-SIM-001:
-- Stage C chi² regression: +0.067% above tolerance
-- Link to PERF-WARM-SIM-001 in fix_plan.md
-- Note panel-loss divergence as root cause
-
-#### B5 — Author Phase B Summary
-
-Create `reports/2025-12-08T071251Z/summary.md` with:
-1. Telemetry parsed from selected HDF5
-2. Validation report updated
-3. Convergence table generated
-4. Exit criteria validation
+#### A5 — Author Summary
+Create `reports/2025-12-08T073000Z/summary.md` with:
+- Member plan status overview
+- Key findings from reality check
+- Recommended next focus (likely TORCH-BRIDGE-001 Phase D)
 
 ---
 
@@ -139,86 +118,71 @@ Create `reports/2025-12-08T071251Z/summary.md` with:
 ```bash
 # Set environment
 cd /home/ollie/Documents/diffbragg_example
-export ARTIFACT_DIR=plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T071251Z
-export KMP_DUPLICATE_LIB_OK=TRUE
+export ARTIFACT_DIR=plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z
 
-# B1: Parse telemetry (inline Python)
-python3 -c "
-import h5py
-import json
-selected = './plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5'
-with h5py.File(selected, 'r') as f:
-    diag = f['torch_diagnostics']
-    loss_full = diag['refine_loss_trace_full'][...]
-    roi_count = len([k for k in f['data'].keys() if k.startswith('roi')])
-    result = {
-        'loss_trace': [{'iteration': int(r[0]), 'loss': float(r[1])} for r in loss_full],
-        'roi_count': roi_count,
-        'initial_loss': float(loss_full[0][1]),
-        'final_loss': float(loss_full[-1][1]),
-        'improvement_pct': round((1 - loss_full[-1][1]/loss_full[0][1]) * 100, 3)
-    }
-    print(json.dumps(result, indent=2))
-"
+# A1: Read member plan implementation.md files
+# Use Read tool on:
+#   - plans/active/TORCH-BRIDGE-001/implementation.md
+#   - plans/active/TORCH-CLI-003/implementation.md
+#   - plans/active/TORCH-CLI-004/implementation.md
 
-# B2: Update reports/nanobrag_validation.md with Edit tool
-# B3: Create convergence_table.md in ARTIFACT_DIR
-# B4: Add Stage C regression note to validation report
-# B5: Author summary.md
+# A2: Check test status for TORCH-BRIDGE-001 (completed phases)
+# Optional: verify tests still pass
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py 2>&1 | head -30
+
+# A3-A5: Create artifacts using Write tool
 ```
 
 ---
 
 ## Forbidden This Loop
-- **No production code changes** — Reporting/docs only
+- **No production code changes** — Inventory/docs only
 - **No package installs** — Environment Freeze
-- **No new persistent scripts** — Use inline Python for HDF5 parsing per PROBE-FREEZE-001
+- **No new persistent scripts** — Use inline Python per PROBE-FREEZE-001
 
 ## Pitfalls To Avoid
-1. **Don't run refinement** — Only parse existing HDF5 outputs
-2. **Don't modify HDF5 files** — Read-only access
-3. **Preserve existing report structure** — Update sections, don't rewrite entirely
-4. **Use actual numbers from telemetry** — Don't copy placeholder values
-5. **Link to fix_plan.md entries** — Cross-reference blockers properly
+1. **Don't run full test suites** — Only collect-only or targeted verification
+2. **Don't modify member plan implementation.md files** — Only read and inventory
+3. **Focus on reality check** — Verify claimed status matches actual state
+4. **Cross-reference fix_plan.md** — Ensure ledger consistency
 
 ## If Blocked
-If HDF5 parsing fails:
-1. Document the error in `reports/2025-12-08T071251Z/error.md`
-2. Fall back to Phase A telemetry_schema.json data
-3. Note limitation in validation report
+If member plan files are missing:
+1. Document the gap in `reports/2025-12-08T073000Z/error.md`
+2. Recommend creating missing implementation.md files as Phase B prerequisite
+3. Note limitation in summary
 
 ---
 
-## Exit Criteria Validation (Phase B)
+## Exit Criteria Validation (Phase A)
 
 | Criterion | Expected | Validation |
 |-----------|----------|------------|
-| Telemetry parsed | Loss trace + ROI count | parsed_telemetry.json |
-| Validation report updated | HDF5 source, loss table, phase status, blockers | reports/nanobrag_validation.md diff |
-| Convergence table | Iteration-by-iteration loss | convergence_table.md |
-| Summary authored | Phase B closure | summary.md |
+| Member plan inventory | All 3 plans audited | member_plan_inventory.md |
+| Roadmap drafted | Phased approach documented | roadmap_draft.md |
+| Roll-up implementation.md | Stub replaced with real plan | implementation.md diff |
+| Summary authored | Phase A closure | summary.md |
 
 ---
 
 ## Output Artifacts Expected
 
-1. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T071251Z/parsed_telemetry.json`
-2. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T071251Z/convergence_table.md`
-3. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T071251Z/summary.md`
-4. Updated `reports/nanobrag_validation.md`
+1. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/member_plan_inventory.md`
+2. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/roadmap_draft.md`
+3. `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T073000Z/summary.md`
+4. Updated `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md`
 
 ---
 
 ## Implement Target
-`reports/nanobrag_validation.md::update_with_current_telemetry` (docs update)
+`plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/implementation.md::phase_a_inventory` (docs update)
 
 ## Validating Pytest Selectors
-None — docs-only loop
+None — evidence-collection loop
 
 ---
 
 ## Next Up (optional)
-If Phase B completes successfully:
-- Validate all 4 exit criteria per implementation.md
-- If met, mark REPORT-NANOBRAG-STATUS-001 as done in fix_plan.md
-- Select next focus from Tier 1 (DB-AT-SUITE-CARE-001 Phase D maintenance or TORCH-CLI-BRIDGE-ROLLUP-001)
+If Phase A completes successfully:
+- Proceed to Phase B: TORCH-BRIDGE-001 Phase D closeout (D1-D4: re-run tests, update ledgers, registry sync)
+- TORCH-BRIDGE-001 Phase D is docs-heavy and quickest path to partial roll-up progress

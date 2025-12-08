@@ -1,4 +1,4 @@
-# input.md — Loop i=215
+# input.md — Loop i=217
 
 ## Summary
 Portfolio in maintenance mode — all actionable Tier 0-1 initiatives remain blocked pending upstream nanobrag_torch responses.
@@ -13,7 +13,7 @@ Portfolio in maintenance mode — all actionable Tier 0-1 initiatives remain blo
 None — maintenance mode, no implementation delegation possible.
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T010000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T030000Z/`
 
 ---
 
@@ -53,7 +53,7 @@ None — maintenance mode, no implementation delegation possible.
 | ARCH-REFACTOR-001 | blocked_pending_architecture | 0 | blocked by ARCH-SIM-CONSTRUCTION-001 |
 | PERF-GPU-MEM-001 | blocked_pending_upstream | 3 | tricubic memory issue |
 | DB-AT-SUITE-CARE-001 | in_progress | 1 | blocked by ARCH-GRADIENT-FLOW-001 |
-| Tier 4 items | pending | 4 | — |
+| Tier 4 items | pending | 4 | stubs, need scoping |
 
 **Outstanding Upstream Requests:**
 1. `~/Documents/nanoBragg/inbox/mosaic_gradient_bug_2025_12_08.md` — HIGH priority
@@ -96,4 +96,4 @@ No relevant findings — maintenance mode only.
 
 Portfolio is in maintenance mode. All Tier 0-1 actionable initiatives are blocked pending upstream nanobrag_torch responses. Per loop_discipline, implementation floor does not apply when no viable implementation targets exist.
 
-This is a docs-only / maintenance loop. Dwell tracking: dwell=24 for DB-AT-SUITE-CARE-001.
+This is a docs-only / maintenance loop. Dwell tracking: dwell=25 for DB-AT-SUITE-CARE-001.

@@ -1,0 +1,19 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 9 items
+
+tests/architecture/test_telemetry_surfaces.py::test_telemetry_owners_exist PASSED [ 11%]
+tests/architecture/test_telemetry_surfaces.py::test_no_unchartered_telemetry_exports PASSED [ 22%]
+tests/architecture/test_telemetry_surfaces.py::test_charter_link_exists PASSED [ 33%]
+tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis PASSED [ 44%]
+tests/architecture/test_gradient_contracts.py::TestGradientContracts::test_as_tensor_preserving_grad_preserves_tensor_grad PASSED [ 55%]
+tests/architecture/test_gradient_contracts.py::TestGradientContracts::test_as_tensor_preserving_grad_scalar_no_grad PASSED [ 66%]
+tests/architecture/test_gradient_contracts.py::TestGradientContracts::test_detector_distance_property_gradient_flow PASSED [ 77%]
+tests/architecture/test_gradient_contracts.py::TestGradientContracts::test_simulator_wavelength_gradient_flow PASSED [ 88%]
+tests/architecture/test_gradient_contracts.py::TestGradientContracts::test_simulator_fluence_gradient_flow PASSED [100%]
+
+============================== 9 passed in 0.92s ===============================

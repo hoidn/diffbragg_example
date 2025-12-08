@@ -19,10 +19,10 @@
 
 ### Tier 0: Refinement Architecture Finish
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place, and align ARCH docs/contracts with implementation via enforcement tests.
-- [ARCH-GRADIENT-FLOW-001] (Gradient Flow Restoration — DB-AT-010 Unblock) — **blocked_pending_upstream** (2025-12-08T140000Z: **SPEC-INTERP-TRICUBIC-001 Phase C validated: Graph connectivity RESTORED (analytical gradients are non-zero)** but magnitude mismatch persists (1000×-76000× between numerical and analytical gradients). The DBEX-layer tricubic fix is working correctly — gradients now flow through HKL lookup. Remaining blocker is upstream `nanobrag_torch` gradient correctness bug (GRADIENT-002). Artifacts: `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/`)
+- [ARCH-GRADIENT-FLOW-001] (Gradient Flow Restoration — DB-AT-010 Unblock) — **in_progress** (2025-12-08T220000Z: **UPSTREAM RESPONSE RECEIVED — BLOCKER LIFTED.** Upstream confirmed crystal cell gradients work correctly in nanobrag_torch (6/6 tests pass). The magnitude mismatch (1000×-76000×) is a DBEX integration layer issue, NOT upstream. Phase B.7 debugging protocol: (1) audit unit conversions in config_factories.py, (2) search for .item()/.detach() scalar extractions, (3) compare fluence values. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T220000Z/`)
   - **Governed by:** GRADIENT-001, RUNTIME-001, TESTING-003
-  - **Unblocked by:** SPEC-INTERP-TRICUBIC-001 (graph connectivity)
-  - **Blocked by:** nanobrag_torch gradient magnitude correctness (upstream)
+  - **Unblocked by:** SPEC-INTERP-TRICUBIC-001 (graph connectivity), upstream response (2025-12-08)
+  - **Next:** Phase B.7 — DBEX integration layer investigation (unit conversion audit, scalar extraction search)
 - [SPEC-INTERP-TRICUBIC-001] (Global Tricubic Interpolation Default) — **partial** (2025-12-08T140000Z: **Phase C validated: PARTIAL SUCCESS.** DB-AT-010 gradcheck 5/5 FAILED (magnitude mismatch) BUT analytical gradients ARE non-zero (6.98e+07, 4.63e+07, 1.10e+07). This proves tricubic interpolation restored autograd graph connectivity for cell parameters. HKL hit rate 97.28% confirms tricubic is working. Phase A/B goals achieved; Phase C blocked_pending_upstream on gradient magnitude correctness (GRADIENT-002). Artifacts: `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/`)
 - [ARCH-IMPL-CONFORMANCE-001] (Architecture / Implementation contract alignment) — **done** (2025-12-07T054500Z: Phases A-B complete; ARCH-CONTRACT-002/003 delivered with enforcement tests; exit criteria 3.5/4 satisfied; artifacts under `archive/plans/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T054500Z/initiative_closure_summary.md`)
 - [DIAG-NANOBRAGG-OVERSAMPLE-001] (nanobrag_torch oversample parameter investigation) — **done** (2025-12-09T153000Z: Phase F HKL stats + Stage-A instrumentation closed out diagnostics; artifacts under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/` now cover oversample, beam flux, and HKL evidence)
@@ -258,10 +258,10 @@
 ### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
 - Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)
 - Blocks: DB-AT-SUITE-CARE-001 portfolio advancement, Gradient-Safe Profile conformance
-- Status: **partial** (Phase B: nanobrag_torch layer FIXED, enforcement tests PASS; DBEX layer blocked on `simulate_forward_torch` gradient wiring — DB-AT-010 still 5/5 FAIL)
+- Status: **in_progress** (Phase B.7: DBEX integration layer investigation — upstream confirmed issue is DBEX-side, not nanobrag_torch)
 - Type: architecture
 - Priority: Tier 0 (blocks conformance profile)
-- Owner/Date: Galph ↔ Ralph / 2025-12-07
+- Owner/Date: Galph ↔ Ralph / 2025-12-08
 - Exit Criteria:
   1. Gradient flow restored: DB-AT-010 gradcheck tests pass (5/5) with documented tolerances (eps=1e-6, atol=1e-5, rtol=0.05)
   2. Root cause identified and fixed: Code audit locates `.item()` coercion or tensor detachment; patch applied
@@ -274,6 +274,7 @@
   * 2025-12-08T230000Z (Loop i=171, Ralph) — **Phase B.6 implementation**: Single-line fix at `forward.py:196` (commit d05dd833). **RESULT**: Graph connectivity FIXED but Jacobian mismatch ~640× discovered.
   * 2025-12-07T213000Z (Loop i=172, Galph) — **Lifecycle decision: blocked_pending_upstream**. Escalation filed: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`.
   * 2025-12-08T160000Z (Loop i=189, Ralph) — **Upstream response verification**: Gradients exist but correctness broken (2900-127000× mismatches). Status: **blocked_pending_upstream**.
+  * 2025-12-08T220000Z (Loop i=208, Ralph) — **UPSTREAM RESPONSE RECEIVED — BLOCKER LIFTED**. File `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`: nanobrag_torch confirms 6/6 cell param gradcheck tests PASS. Issue is in DBEX integration layer. **Debugging hypotheses provided:** (1) Double unit conversion (Å→m applied twice), (2) Scalar extraction breaking graph (.item()/.detach()), (3) Fluence mismatch. **Phase B.7 scope:** DBEX config_factories.py audit, simulate_forward_torch() diagnostics, minimal reproduction bypassing DBEX factories. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T220000Z/`.
 
 ### [SPEC-SQUARE-PARTIALITY-001] SQUARE Lattice Spec & Test Alignment
 - Depends on: ARCH-SIM-CONSTRUCTION-001 (physics evidence), SIM-CONSTR-PARTIALITY-001 (finding), nanobrag_torch maintainer response (`inbox/nanobrag_torch_response_2025_12_08.md`)

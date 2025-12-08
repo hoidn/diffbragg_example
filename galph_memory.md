@@ -468,3 +468,26 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
   - Crystal cell gradient fix: PENDING — clarification request sent, no response yet
   **Implementation floor exemption**: No viable implementation focus available (all Tier 0 blocked). Maintenance mode persists.
   ActionType: review_or_housekeeping. DecisionStatus: N/A (maintenance mode). Next: Await upstream response for crystal gradient clarification.
+
+2025-12-08T220000Z focus=ARCH-GRADIENT-FLOW-001 state=unblocked dwell=0 action=upstream_response_received artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T220000Z/ next_action=dbex_integration_layer_investigation
+- Loop i=208 (Ralph): **UPSTREAM RESPONSE RECEIVED — TIER 0 UNBLOCKED**. Response file `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md` arrived (dated 2025-12-08).
+
+  **CRITICAL FINDING: Crystal cell parameter gradients work correctly in nanobrag_torch.** All 6 cell parameter gradcheck tests pass with tight tolerances (eps=1e-6, atol=1e-5, rtol=0.05). The issue is confirmed to be in the **DBEX integration layer**, NOT nanobrag_torch.
+
+  **Upstream-provided debugging hypotheses (in priority order):**
+  1. **Double Unit Conversion** (HIGH confidence): DBEX may be converting Å→meters before CrystalConfig, while Crystal also does this internally. This would introduce an extra 1e-10 factor in gradients. **Check:** Verify cell parameters passed to CrystalConfig are in Angstroms (no pre-conversion).
+  2. **Intermediate Scalar Extraction**: `.item()`, `.numpy()`, or `.detach()` calls in the integration layer breaking gradient flow. **Check:** `grep -n "\.item()\|\.numpy()\|\.detach()" dbex/refinement/config_factories.py`
+  3. **Fluence/Scaling Mismatch**: Large fluence differences (nanobrag_torch tests use fluence=1e28) could amplify gradient magnitude errors. **Check:** Compare DBEX fluence values with upstream defaults.
+
+  **Recommended debugging protocol:**
+  1. Run nanobrag_torch gradient tests in DBEX environment to confirm isolation
+  2. Add diagnostic prints in `simulate_forward_torch()` to verify tensor properties
+  3. Create minimal reproduction bypassing DBEX config factories
+
+  **Key guidance:** Do NOT convert units (Å to meters) before passing to CrystalConfig — Crystal handles internal unit conversions.
+
+  **Initiative status change:** ARCH-GRADIENT-FLOW-001 transitions from `blocked_pending_upstream` to `in_progress` (Phase B.7: DBEX integration layer investigation).
+
+  **Portfolio impact:** Tier 0 blocker lifted. Next loop can execute debugging protocol to identify and fix the DBEX-layer gradient magnitude issue.
+
+  ActionType: upstream_response_received. DecisionStatus: blocker_resolved. Next: Phase B.7 — execute debugging protocol (unit conversion audit, scalar extraction search, fluence comparison).

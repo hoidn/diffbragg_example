@@ -114,7 +114,7 @@
 ### Tier 4: Orchestration & Agent Ops
 **Goal:** Harden orchestration tooling, submodule robustness, and agent operation workflows.
 - [HARDEN-SUBMODULE-ROBUSTNESS] (Submodule Robustness Hardening) — **pending** (2025-11-04T165400Z: reports exist, needs scoping and ledger coverage)
-- [ORCH-ROBUST-001] (Orchestration Robustness) — **in_progress** (2025-11-05T050500Z: orchestration resiliency work tracked)
+- [ORCH-ROBUST-001] (Orchestration Robustness) — **pending** (stub — needs scoping before work can begin)
 - [ORCH-CLAUDE-PATH-FIX-001] (Claude Path Fix) — **pending** (orchestration tooling path resolution)
 - [ORCH-CLI-FALLBACK-001] (CLI Fallback) — **pending** (CLI resilience and fallback handling)
 - [SUPERVISOR] (Supervisor Agent Documentation & Roadmap) — **pending** (2025-11-24T153000Z: roadmap assessment complete, supervisor meta-documentation pending)
@@ -323,6 +323,7 @@
   * 2025-12-08T225750Z (Loop i=213, Ralph) — **Maintenance mode continues**: Checked nanoBragg outbox and DBEX inbox — no new responses. Two outstanding upstream requests remain: `mosaic_gradient_bug_2025_12_08.md` (HIGH, blocks ARCH-GRADIENT-FLOW-001) and `chunked_interpolation_request_2025_12_09.md` (MEDIUM, blocks PERF-GPU-MEM-001). Portfolio status verified unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T225750Z/`.
   * 2025-12-08T230330Z (Loop i=214, Galph) — **Maintenance mode continues**: Checked nanoBragg outbox and DBEX inbox — no new responses. Outstanding upstream requests unchanged. Portfolio status verified unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T230330Z/`.
   * 2025-12-09T010000Z (Loop i=215, Galph) — **Maintenance mode continues**: Checked nanoBragg outbox and DBEX inbox — no new responses. Two outstanding upstream requests remain: `mosaic_gradient_bug_2025_12_08.md` (HIGH, blocks ARCH-GRADIENT-FLOW-001) and `chunked_interpolation_request_2025_12_09.md` (MEDIUM, blocks PERF-GPU-MEM-001). Portfolio status verified unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T010000Z/`.
+  * 2025-12-09T020000Z (Loop i=216, Galph) — **Maintenance mode continues**: Checked inbox/outbox — no new responses. Fixed ORCH-ROBUST-001 status drift (was `in_progress`, changed to `pending` per implementation.md stub status). Portfolio status unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T020000Z/`.
   * ... (see plans/active/DB-AT-SUITE-CARE-001/reports/ for full Attempts History and metrics).
 
 ### [MAP-SCALE-SYNC-001] Calibration Ladder Synchronization (MAP-SCALE-001—005)
@@ -566,7 +567,7 @@
 
 ### [ORCH-ROBUST-001] Orchestration Robustness
 - Depends on: AGENTS.md, scripts/orchestration tooling
-- Status: in_progress
+- Status: pending (stub — needs scoping before work can begin)
 - Type: architecture
 - Priority: Medium (Orchestration infrastructure)
 - Tier: 4

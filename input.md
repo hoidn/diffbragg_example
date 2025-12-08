@@ -1,162 +1,161 @@
-# Input for Ralph — Loop i=153
+# Input for Ralph — Loop i=154
 
 ## Summary
-Execute DB-AT-023 Phase A (Calibration Policy Guard reality check) to establish baseline metrics and calibration policy requirements.
+Close DB-AT-SUITE-CARE-001 Phase B (Workflow Integration cluster complete) and prepare Phase C conformance certification.
 
 ## Mode
-Parity
+none
 
 ## ActionType
-planning
+review_or_housekeeping
 
 ## DecisionStatus
-exploring
+validated
 
 ## InitiativeType
 harness
 
 ## Focus
-DB-AT-023 — Calibration Policy Guard (ADU vs Photons)
+DB-AT-SUITE-CARE-001 — Acceptance Suite Upkeep (Phase B Closure)
 
 ## Branch
 integration
 
 ## Mapped tests
-none — Phase A is evidence/planning only
+- `pytest -v tests -k "DB_AT_020 or DB_AT_021 or DB_AT_022 or DB_AT_023 or DB_AT_024"` — Workflow Integration Profile (13 tests)
 
 ## Artifacts
-`plans/active/DB-AT-023/reports/2025-12-08T022101Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/`
 
 ## Findings Applied (Mandatory)
-- **TESTING-003**: Registry updates will occur in Phase C after test authoring
-- **RUNTIME-001**: Environment flags documented for Phase B test commands
+- **TESTING-003**: Registry updates validated; all 5 Workflow Integration selectors are Active in TESTING_GUIDE.md
+- **RUNTIME-001**: Environment flags documented (`KMP_DUPLICATE_LIB_OK=TRUE`, `DBEX_SMOKE_DETECTOR_SIZE=full`, `NANOBRAGG_DISABLE_COMPILE=1`)
 - **DIAGNOSTICS-001**: Artifact structure follows standard pattern
-- **No calibration-specific findings yet** — DB-AT-023 Phase A will surface calibration policy requirements from spec-db-workflow.md
+- **CONFORMANCE-001**: All 5 member plans meet spec-db-conformance.md criteria
 
 ## Pointers
 
 ### SPEC
-- `docs/spec-db-workflow.md:19-47` — Calibration Policy (ADU vs Photons), precedence ladder, normative requirements
-- `docs/spec-db-workflow.md:34-47` — Calibration & Unit Conventions (gain, sigma, spot_scale)
-- `docs/spec-db-core.md:32-68` — Variance inputs, sigma_readout ladder
-- `docs/spec-db-conformance.md` — DB-AT-023 acceptance criteria
+- `docs/spec-db-conformance.md:55-76` — Workflow Integration Profile (DB-AT-020/021/022/023/024)
+- `docs/spec-db-workflow.md` — Calibration policy, mask semantics, bbox conventions
+- `docs/spec-db-core.md` — Loss mask, background sentinel, ROI conventions
 
 ### ARCH
-- `docs/architecture.md:165-178` — Calibration ladder architecture
-- `docs/config_crosswalk.md` — Parameter mapping between backends
+- `docs/TESTING_GUIDE.md:157-160` — Selector registry (all 5 selectors Active)
+- `docs/development/TEST_SUITE_INDEX.md` — Selector metadata
 
 ### Plan
-- `plans/active/DB-AT-023/implementation.md` — Phase A/B/C checklist
-- `plans/active/DB-AT-SUITE-CARE-001/implementation.md` — Roll-up coordination
-- `docs/fix_plan.md:267-292` — DB-AT-SUITE-CARE-001 Attempts History
+- `plans/active/DB-AT-SUITE-CARE-001/implementation.md` — Roll-up phases
+- `docs/fix_plan.md:267-292` — DB-AT-SUITE-CARE-001 ledger entry
 
-### Asset Validation Reference
-- `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md` — Loop i=143 centralized validation (4/4 assets VALID)
+### Member Plans (Complete)
+- `plans/active/DB-AT-020/implementation.md` — Reflection ingestion (complete i=147)
+- `plans/active/DB-AT-021/implementation.md` — Mask semantics (complete i=150)
+- `plans/active/DB-AT-022/implementation.md` — Background sentinel (complete i=152)
+- `plans/active/DB-AT-023/implementation.md` — Calibration policy (complete November 2025, re-validated i=153)
+- `plans/active/DB-AT-024/implementation.md` — Mapping consistency (active, tests pass)
 
 ## ARCH Contracts (mandatory)
 
-1. **ARCH-CONTRACT-CALIBRATION-001** (Calibration Precedence)
-   - Doc: `docs/spec-db-workflow.md:34` "Precedence ladder (highest → lowest)"
-   - Owner: `dbex/refine_one.py`, `dbex/nanobrag_bridge.py::prepare_refinement_inputs`
-   - Classification: Implementation conforms (precedence ladder documented, no enforcement test yet)
-
-2. **ARCH-CONTRACT-UNIT-MODE-001** (ADU vs Photon Mode)
-   - Doc: `docs/spec-db-workflow.md:35` "A run SHALL choose a single unit mode"
-   - Owner: `dbex/refine_one.py`, `dbex/data_load.py`
-   - Classification: Implementation partially exists (no --adu-per-photon CLI flag yet per DB-AT-023 Phase B1)
-
-3. **ARCH-CONTRACT-SIGMA-001** (Sigma Sourcing)
-   - Doc: `docs/spec-db-workflow.md:36-37` "sigma_readout MUST follow canonical ladder"
-   - Owner: `dbex/data_load.py::_resolve_sigma_readout`, `dbex/refinement/inputs.py`
-   - Classification: Implementation conforms (ladder implemented)
+1. **ARCH-CONTRACT-WORKFLOW-INTEGRATION-001** (Workflow Integration Profile)
+   - Doc: `docs/spec-db-conformance.md:55-76`
+   - Owner: `tests/dbex/test_reflection_ingestion.py`, `test_mask_semantics.py`, `test_background_semantics.py`, `test_calibration_policy.py`, `test_mapping_consistency.py`
+   - Classification: Implementation conforms (13/13 tests PASS)
 
 ## Do Now (hard validity contract)
 
-Execute **DB-AT-023 Phase A** — Calibration Policy Guard reality check:
+Execute **DB-AT-SUITE-CARE-001 Phase B Closure**:
 
-1. **Implement:** Read and confirm Phase A tasks in `plans/active/DB-AT-023/implementation.md`
+1. **Implement:** Update `plans/active/DB-AT-SUITE-CARE-001/implementation.md`
+   - Mark Phase B tasks B.4, B.5, B.6, B.7 as complete
 
-2. **A1 — Asset Availability Check**
-   - Cross-reference loop i=143 asset validation (`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md`)
-   - Confirm 4/4 canonical assets still VALID: `refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`
-   - Record asset snapshot in `asset_availability.md`
+2. **Validation: Workflow Integration Profile pytest**
+   ```bash
+   mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z
+   KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=full \
+     DBAT024_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/db_at_024 \
+     NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -v tests -k "DB_AT_020 or DB_AT_021 or DB_AT_022 or DB_AT_023 or DB_AT_024" \
+     2>&1 | tee plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/pytest_workflow_integration.log
+   ```
 
-3. **A2 — Baseline Metrics Capture**
-   - Load DataLoad with canonical inputs (see conftest.py refgeom_dataload pattern)
-   - Capture baseline calibration context:
-     - Background-subtracted ROI sample metrics (mean, std, ROI sums)
-     - Current calibration metadata (`spot_scale_override`, `flux`, `exposure`, `beamsize_mm`, `N_cells`)
-     - Sigma sourcing status (sigma_readout provenance, sigma_floor if present)
-   - Record in `baseline_metrics.md`
+3. **Create Phase B closure summary** at `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/phase_b_closure.md`:
+   - Member plan status: DB-AT-020 (complete), DB-AT-021 (complete), DB-AT-022 (complete), DB-AT-023 (complete), DB-AT-024 (complete)
+   - Test results: 13/13 PASSED
+   - Blockers: B.1 (DB-AT-010 gradcheck) remains escalated to ARCH-GRADIENT-FLOW-001 (blocked_pending_environment)
+   - Phase C readiness: Workflow Integration Profile ready for certification
 
-4. **A3 — Calibration Policy Summary**
-   - Cross-reference normative sources:
-     - `docs/spec-db-workflow.md:19-47` (ADU vs photon, precedence ladder)
-     - `docs/architecture.md` (calibration architecture)
-     - `docs/config_crosswalk.md` (parameter mapping)
-   - Summarize calibration expectations:
-     - When `--adu-per-photon` is provided: target/sigma converted to photons
-     - When absent: target remains ADU, global scale compensates
-     - Precedence: torch_config → CLI → external_lookup → MTZ → defaults
-   - Identify Phase B requirements:
-     - CLI flag extension (`--adu-per-photon`)
-     - `prepare_refinement_inputs` photon conversion path
-     - Telemetry provenance (`unit_mode`, `gain`)
-   - Record in `calibration_policy_summary.md`
+4. **Update fix_plan.md Attempts History** for DB-AT-SUITE-CARE-001:
+   - Add entry for Phase B closure
+   - Note: Phase B.4/B.5/B.6/B.7 complete
+   - Note: Workflow Integration Profile (13/13 PASS)
+   - Next: Phase C conformance certification
 
-5. **Artifacts:** Create 4 files under `plans/active/DB-AT-023/reports/2025-12-08T022101Z/`:
-   - `asset_availability.md` — A1 results
-   - `baseline_metrics.md` — A2 results
-   - `calibration_policy_summary.md` — A3 results
-   - `summary.md` — Phase A wrap-up with Phase B scoping notes
+5. **Artifacts:** Create files under `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/`:
+   - `pytest_workflow_integration.log` — Full pytest output
+   - `phase_b_closure.md` — Phase B summary and Phase C scope
+   - `summary.md` — Loop summary
 
-6. **Mark Phase A tasks complete** in `plans/active/DB-AT-023/implementation.md`
+## Validation (Supervisor Pre-verified)
+
+The following was validated by Galph before authoring this input.md:
+
+| Selector | Tests | Status | Runtime |
+|----------|-------|--------|---------|
+| DB_AT_020 | 2 | PASSED | ~1s |
+| DB_AT_021 | 3 | PASSED | ~4s |
+| DB_AT_022 | 3 | PASSED | ~2s |
+| DB_AT_023 | 4 | PASSED | ~8s |
+| DB_AT_024 | 1 | PASSED | ~44s |
+| **Total** | **13** | **PASSED** | **~60s** |
 
 ## How-To Map
 
 ```bash
-# A1: Cross-reference i=143 asset validation
-cat plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md
+# Step 1: Create artifact directory
+mkdir -p plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z
 
-# A2: Python probe for baseline metrics
-cd /home/ollie/Documents/diffbragg_example
-python -c "
-from tests.conftest import refgeom_dataload
-import json
+# Step 2: Run Workflow Integration Profile pytest
+KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=full \
+  DBAT024_ARTIFACT_DIR=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/db_at_024 \
+  NANOBRAGG_DISABLE_COMPILE=1 \
+  pytest -v tests -k "DB_AT_020 or DB_AT_021 or DB_AT_022 or DB_AT_023 or DB_AT_024" \
+  2>&1 | tee plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T030000Z/pytest_workflow_integration.log
 
-# Get DataLoad via fixture pattern
-DL = refgeom_dataload()
-
-# Capture calibration context
-metrics = {
-    'data_shape': list(DL.data.shape) if hasattr(DL, 'data') else None,
-    'n_rois': len(DL.panel_slices) if hasattr(DL, 'panel_slices') else None,
-    'calibration_metadata': DL.calibration_metadata if hasattr(DL, 'calibration_metadata') else {},
-}
-print(json.dumps(metrics, indent=2, default=str))
-"
-
-# A3: Read spec sources
-head -80 docs/spec-db-workflow.md | tail -60
+# Step 3: Update implementation.md (mark B.4-B.7 complete)
+# Step 4: Create phase_b_closure.md summary
+# Step 5: Update fix_plan.md Attempts History
 ```
 
 ## Pitfalls To Avoid
 
-1. **Do not create tests** — Phase A is planning/evidence only; tests authored in Phase B
-2. **Do not modify production code** — Phase A is read-only investigation
-3. **Cross-reference existing assets** — i=143 already validated; don't duplicate file checks
-4. **Capture calibration metadata** — Need baseline to design Phase B photon conversion logic
-5. **Follow DB-AT-020/021/022 pattern** — 4 artifacts, mark implementation.md checkboxes
-6. **No new probes beyond thin wrapper** — Use existing DataLoad patterns
-7. **Record provenance** — Cite spec section numbers for calibration requirements
+1. **Do not run DB-AT-002 or DB-AT-010** — These are in different profiles (Determinism, Gradient-Safe); B.1 escalation to ARCH-GRADIENT-FLOW-001 is separate
+2. **Use DBAT024_ARTIFACT_DIR** — DB-AT-024 skips without this environment variable
+3. **Use DBEX_SMOKE_DETECTOR_SIZE=full** — Required by pytest setup guard for DB-AT selectors
+4. **Do not claim full conformance** — Gradient-Safe profile (DB-AT-010) remains blocked
+5. **Update implementation.md checkboxes** — Mark B.4-B.7 as `[x]`
+6. **Include pytest log in artifacts** — Required for Phase C certification evidence
 
 ## If Blocked
 
-- If DataLoad instantiation fails: record error, propose mock-based Phase B tests
-- If calibration_metadata missing: document current state, design Phase B to add it
-- If spec ambiguity: cite conflicting sections, request Galph clarification
-- Record block in `plans/active/DB-AT-023/reports/2025-12-08T022101Z/summary.md` with next steps
+- If pytest fails: capture full log, analyze failure signature, determine if test regression or environment issue
+- If environment issue: record with `blocked_pending_environment` flag
+- If test regression: create bug fix item in fix_plan.md, mark Phase B blocked
+
+## Forbidden This Loop
+
+- no new probes
+- do not extend plan-local diagnostic scripts
+- do not modify production code
+
+## Phase C Preview (Next Loop)
+
+Phase C (Conformance Profile Certification) will:
+1. Execute conformance profile-level pytest commands
+2. Update TEST_SUITE_INDEX.md with final status
+3. Validate fix_plan.md coverage
+4. Author final roll-up summary
 
 ---
 
-**End of input.md for Loop i=153**
+**End of input.md for Loop i=154**

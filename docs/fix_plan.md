@@ -94,7 +94,7 @@
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
 - [DOC-RUNTIME-004] (Restore Runtime Checklist) — **Done** (2025-11-23T024449Z: all exit criteria met, runtime checklist restored with spec citations, references verified, validation artifacts complete)
 - [TORCH-RUNTIME-002] (Runtime Harness Seed) — **Done** (2025-10-28T232744Z: all exit criteria satisfied, TESTING_GUIDE.md updated, selector registry synchronized)
-- [ARCH-TELEMETRY-002] (Telemetry & Probe Simplification) — **in_progress** (Phase A complete 2025-12-07T215000Z: Telemetry charter authored at `docs/architecture/telemetry.md`, inventory built (5 dataclasses, 3 collectors, HDF5 schema), data dependency manifest extended with Telemetry section. Probe shims test green; growth cap test has pre-existing unrelated failure. Phase B next: enforcement test `tests/architecture/test_telemetry_surfaces.py`. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/`).
+- [ARCH-TELEMETRY-002] (Telemetry & Probe Simplification) — **in_progress** (Phase B complete 2025-12-07T220000Z i=174: (B0) Charter linked in docs/index.md, (B1) enforcement test `tests/architecture/test_telemetry_surfaces.py` (3 tests PASS), (B2) `prompts/supervisor.md::telemetry_charter_compliance` policy added, (B3) probe contracts cross-reference added. All 4 Phase B exit criteria met. Phase C next: cleanup/closure sweep. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z/`).
 
 ### Tier 4: Orchestration & Agent Ops
 **Goal:** Harden orchestration tooling, submodule robustness, and agent operation workflows.

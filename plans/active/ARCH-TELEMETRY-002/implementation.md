@@ -81,20 +81,29 @@
 
 ## Phase B — Enforcement & Diagnostic Policy
 
-**Status:** IN_PROGRESS
+**Status:** COMPLETE (i=174, 2025-12-07T220000Z)
 
 ### Checklist
-- [ ] B0: **(Housekeeping)** Wire telemetry charter into `docs/index.md` Architecture section. Completes Exit Criterion 1.
-- [ ] B1: Implement `tests/architecture/test_telemetry_surfaces.py` that:
+- [x] B0: **(Housekeeping)** Wire telemetry charter into `docs/index.md` Architecture section. Completes Exit Criterion 1. ✅ `docs/index.md` (telemetry charter entry added)
+- [x] B1: Implement `tests/architecture/test_telemetry_surfaces.py` that:
   - Walks production `dbex/` modules (excluding tests, plans, archive, scripts).
   - Flags new long‑lived telemetry dict surfaces (dict literals or `dict(...)`) returned from public functions or passed into known sinks (writer, JSON/HDF5 helpers) unless they are in the owner allow‑list defined in the charter.
   - Maintains a minimal allow‑list for existing dict surfaces (bridge diagnostics, mapping diagnostics, baseline metrics).
-- [ ] B2: Extend `<diagnostic_script_policy>` in `prompts/supervisor.md` to:
+  ✅ `tests/architecture/test_telemetry_surfaces.py` (3 tests: `test_telemetry_owners_exist`, `test_no_unchartered_telemetry_exports`, `test_charter_link_exists`)
+- [x] B2: Extend `<diagnostic_script_policy>` in `prompts/supervisor.md` to:
   - Allow plan‑local scripts to compute small derived metrics and write JSON/CSV views of existing telemetry.
   - Forbid creation of new production telemetry schemas (dict shapes intended for future tests/production consumers) outside owner modules.
-- [ ] B3: Align `tests/architecture/test_probe_contracts.py` with the updated policy by:
+  ✅ `prompts/supervisor.md` (`<telemetry_charter_compliance>` section added at lines 331-342)
+- [x] B3: Align `tests/architecture/test_probe_contracts.py` with the updated policy by:
   - Referencing the telemetry charter from probe contract docs/tests.
   - Ensuring shim scripts remain thin wrappers around owner APIs and do not introduce new telemetry shapes.
+  ✅ `tests/architecture/test_probe_contracts.py` (cross-reference comments added at lines 19-20)
+
+### Test Results (Phase B)
+```
+pytest -v tests/architecture/test_telemetry_surfaces.py tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis
+4 passed in 0.03s
+```
 
 ### Notes & Risks
 - Risk: Over‑aggressive AST rules may flag benign internal dicts; mitigate by scoping the guard to long‑lived/exported surfaces and by maintaining a small allow‑list in code + charter.

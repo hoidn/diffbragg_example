@@ -16,6 +16,9 @@ References:
 - docs/architecture/data_telemetry_flow.md:42-118 (telemetry ownership)
 - docs/architecture/module_map.md:30-95 (module ownership boundaries)
 
+Cross-reference: docs/architecture/telemetry.md (telemetry ownership charter)
+Cross-reference: tests/architecture/test_telemetry_surfaces.py (telemetry dict guard)
+
 Phase C.1 Deliverables:
 1. test_plan_bin_growth_cap: walk plans/active/**/bin/*.py, fail when script exceeds
    400 LOC unless in GROWTH_CAP_EXCEPTIONS allowlist. Allowlist seeds with current

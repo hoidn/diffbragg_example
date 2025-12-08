@@ -327,6 +327,19 @@
       further extension is forbidden. You must either:
       (a) promote to <code>scripts/tools/</code> under a <code>harness</code> initiative with minimal pytest, or
       (b) stop using it and instrument inside the real production call path.
+
+    <telemetry_charter_compliance>
+      <strong>Telemetry ownership enforcement (per docs/architecture/telemetry.md):</strong>
+
+      - New production telemetry fields MUST follow expansion rules in docs/architecture/telemetry.md §5:
+        (1) Spec update if new semantics, (2) IDL definition, (3) Dataclass update, (4) Collector wiring,
+        (5) Writer support if HDF5, (6) Enforcement test coverage.
+      - Plan-local scripts may read existing telemetry surfaces but MUST NOT define new production schemas.
+      - Dict-based telemetry in dbex/ outside owner modules (§2 of charter) is forbidden without charter amendment.
+      - Owner modules: interfaces.py, telemetry_collectors.py, writer.py (primary); telemetry_baseline.py,
+        artifacts.py, mapping.py (secondary/diagnostics).
+      - Enforcement: <code>tests/architecture/test_telemetry_surfaces.py</code> validates charter compliance.
+    </telemetry_charter_compliance>
   </diagnostic_script_policy>
 
   <!-- ========================= -->

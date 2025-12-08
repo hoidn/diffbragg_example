@@ -135,9 +135,14 @@ Import name: `nanobrag_torch` (e.g., `from nanobrag_torch import Simulator`).
 ## Architecture and Plans
 
 ### [Architecture Overview](architecture.md)
-Description: System context, ADRs, data flow, and proposed module layout for the torch integration.  
-Keywords: ADRs, data‑flow, modules  
+Description: System context, ADRs, data flow, and proposed module layout for the torch integration.
+Keywords: ADRs, data‑flow, modules
 Use this when: Understanding the planned design and integration boundaries.
+
+### [Telemetry Ownership Charter](architecture/telemetry.md)
+Description: Canonical telemetry ownership map, expansion rules, and probe freeze policy.
+Keywords: telemetry, collectors, writer, diagnostics, probe freeze
+Use this when: Adding production telemetry fields, consuming telemetry in tests/probes, or understanding ownership boundaries.
 
 ### [Current Implementation (Torch + DiffBragg)](architecture/live_backend.md)
 Description: Shipped pipelines for torch and legacy DiffBragg, divergence points, outputs, and migration status.  

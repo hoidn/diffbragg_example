@@ -19,4 +19,5 @@ include = ["dbex*"]
 [tool.pytest.ini_options]
 markers = [
     "allow_metadata_sigma: Stage smoke test opt-in for metadata-backed sigma fixtures",
+    "architecture: Architectural constraint enforcement tests (ARCH-*)",
 ]

@@ -188,7 +188,7 @@
 
 ### [ARCH-SIM-HKL-BOUNDS-001] Stage-A / Mapping HKL Alignment
 - Depends on: DIAG-NANOBRAGG-OVERSAMPLE-001
-- Status: in_progress (Phase A.1 complete, Phase B next)
+- Status: **done** (2025-12-03T154217Z: incident-beam sign fix restored 100% HKL coverage; DB-AT-028/029 intensity failure delegated to ARCH-SIM-CONSTRUCTION-001)
 - Priority: Highest (Tier 0)
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-03

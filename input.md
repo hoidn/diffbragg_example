@@ -1,172 +1,162 @@
-# Input for Ralph (Loop i=152)
+# Input for Ralph — Loop i=153
 
 ## Summary
-DB-AT-022 Phase B.3 + Phase C: Test execution + Registry sync (Combined closure loop)
+Execute DB-AT-023 Phase A (Calibration Policy Guard reality check) to establish baseline metrics and calibration policy requirements.
 
 ## Mode
 Parity
 
 ## ActionType
-implementation_ready
+planning
 
 ## DecisionStatus
-patch_ready
+exploring
 
 ## InitiativeType
 harness
 
 ## Focus
-DB-AT-022 — Background Sentinel Guard (Member of DB-AT-SUITE-CARE-001)
+DB-AT-023 — Calibration Policy Guard (ADU vs Photons)
 
 ## Branch
 integration
 
-## Mapped Tests
-- `KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=full pytest -vv tests/dbex/test_background_semantics.py -k DB_AT_022` (3 tests, expect PASS)
-- `pytest --collect-only tests -k DB_AT_022` (expect 3 collected)
+## Mapped tests
+none — Phase A is evidence/planning only
 
 ## Artifacts
-`plans/active/DB-AT-022/reports/2025-12-08T200000Z/`
+`plans/active/DB-AT-023/reports/2025-12-08T022101Z/`
 
 ## Findings Applied (Mandatory)
-- **MASKING-001** (Mask handling contracts): Sentinel -1 excluded from loss mask via `background >= 0` guard. ✅ Validated by Phase A probes and test implementation.
-- **TESTING-003** (Selector status transitions): Registry updates this loop after tests confirmed PASSED. ✅ Applied — update TESTING_GUIDE.md + TEST_SUITE_INDEX.md.
-- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Structured artifacts archived under reports directory. ✅ Applied — artifacts scoped below.
-
-**No blocking findings** — Phase B.3 + Phase C combined closure.
+- **TESTING-003**: Registry updates will occur in Phase C after test authoring
+- **RUNTIME-001**: Environment flags documented for Phase B test commands
+- **DIAGNOSTICS-001**: Artifact structure follows standard pattern
+- **No calibration-specific findings yet** — DB-AT-023 Phase A will surface calibration policy requirements from spec-db-workflow.md
 
 ## Pointers
 
-### Spec/Arch/Testing Docs
-- **Spec**: `docs/spec-db-workflow.md:38` (background sentinels −1 MUST be masked consistently)
-- **Spec**: `docs/spec-db-conformance.md:63-64` (DB-AT-022 acceptance: sentinel logic correct, ROI coverage matches metadata)
-- **Arch**: `docs/architecture/data_telemetry_flow.md:34` (Background sentinel: −1 outside ROI; validated before prep)
-- **Code**: `dbex/refinement/inputs.py:145-186` (Sentinel guard implementation)
-- **Testing Guide**: `docs/TESTING_GUIDE.md` §2 (canonical pytest selectors)
-- **Test Suite Index**: `docs/development/TEST_SUITE_INDEX.md` (test metadata registry)
+### SPEC
+- `docs/spec-db-workflow.md:19-47` — Calibration Policy (ADU vs Photons), precedence ladder, normative requirements
+- `docs/spec-db-workflow.md:34-47` — Calibration & Unit Conventions (gain, sigma, spot_scale)
+- `docs/spec-db-core.md:32-68` — Variance inputs, sigma_readout ladder
+- `docs/spec-db-conformance.md` — DB-AT-023 acceptance criteria
 
-### Fix Plan
-- `docs/fix_plan.md` line 267-291 (DB-AT-SUITE-CARE-001 § Attempts History)
+### ARCH
+- `docs/architecture.md:165-178` — Calibration ladder architecture
+- `docs/config_crosswalk.md` — Parameter mapping between backends
 
-### Implementation Plan
-- `plans/active/DB-AT-022/implementation.md` Phase B.3, Phase C checklist
+### Plan
+- `plans/active/DB-AT-023/implementation.md` — Phase A/B/C checklist
+- `plans/active/DB-AT-SUITE-CARE-001/implementation.md` — Roll-up coordination
+- `docs/fix_plan.md:267-292` — DB-AT-SUITE-CARE-001 Attempts History
 
-### Phase A Evidence (Cross-Reference)
-- `plans/active/DB-AT-022/reports/2025-12-08T180000Z/summary.md` (Phase A complete: 3/3 tasks done)
-- `plans/active/DB-AT-022/reports/2025-12-08T180000Z/sentinel_probe.md` (Case A: Perfect match)
+### Asset Validation Reference
+- `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md` — Loop i=143 centralized validation (4/4 assets VALID)
 
 ## ARCH Contracts (mandatory)
 
-### ARCH-CONTRACT-SENTINEL-001 (Background Sentinel Convention)
-**Owner Module/API**: `dbex.refinement.inputs::prepare_refinement_inputs` (lines 145-186)
+1. **ARCH-CONTRACT-CALIBRATION-001** (Calibration Precedence)
+   - Doc: `docs/spec-db-workflow.md:34` "Precedence ladder (highest → lowest)"
+   - Owner: `dbex/refine_one.py`, `dbex/nanobrag_bridge.py::prepare_refinement_inputs`
+   - Classification: Implementation conforms (precedence ladder documented, no enforcement test yet)
 
-**Contract**: Background image uses −1 sentinel outside ROIs; loss mask excludes sentinel pixels via `background >= 0` guard.
+2. **ARCH-CONTRACT-UNIT-MODE-001** (ADU vs Photon Mode)
+   - Doc: `docs/spec-db-workflow.md:35` "A run SHALL choose a single unit mode"
+   - Owner: `dbex/refine_one.py`, `dbex/data_load.py`
+   - Classification: Implementation partially exists (no --adu-per-photon CLI flag yet per DB-AT-023 Phase B1)
 
-**Enforcement**: Guard raises `ValueError` with actionable message when:
-- Sentinel pixels (≤ -0.5) found inside ROI union
-- Non-sentinel pixels (significantly different from -1) found outside ROI union
-
-**Failure Classification**: No conformance failure — tests PASS per Galph i=152 pre-verification.
+3. **ARCH-CONTRACT-SIGMA-001** (Sigma Sourcing)
+   - Doc: `docs/spec-db-workflow.md:36-37` "sigma_readout MUST follow canonical ladder"
+   - Owner: `dbex/data_load.py::_resolve_sigma_readout`, `dbex/refinement/inputs.py`
+   - Classification: Implementation conforms (ladder implemented)
 
 ## Do Now (hard validity contract)
 
-**Implement**: Combined Phase B.3 + Phase C closure for DB-AT-022 (docs-only after test confirmation)
+Execute **DB-AT-023 Phase A** — Calibration Policy Guard reality check:
 
-Execute 2 tasks per implementation.md checklist:
+1. **Implement:** Read and confirm Phase A tasks in `plans/active/DB-AT-023/implementation.md`
 
-**B3 — Test Execution & Artifact Capture**:
-1. Run DB-AT-022 selectors with canonical flags:
-   ```bash
-   mkdir -p plans/active/DB-AT-022/reports/2025-12-08T200000Z/
-   KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=full \
-     pytest -vv tests/dbex/test_background_semantics.py -k DB_AT_022 \
-     2>&1 | tee plans/active/DB-AT-022/reports/2025-12-08T200000Z/pytest_db_at_022.log
-   ```
+2. **A1 — Asset Availability Check**
+   - Cross-reference loop i=143 asset validation (`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md`)
+   - Confirm 4/4 canonical assets still VALID: `refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`
+   - Record asset snapshot in `asset_availability.md`
 
-2. Capture collect-only evidence:
-   ```bash
-   pytest --collect-only tests -k DB_AT_022 \
-     2>&1 | tee plans/active/DB-AT-022/reports/2025-12-08T200000Z/collect_db_at_022.log
-   ```
+3. **A2 — Baseline Metrics Capture**
+   - Load DataLoad with canonical inputs (see conftest.py refgeom_dataload pattern)
+   - Capture baseline calibration context:
+     - Background-subtracted ROI sample metrics (mean, std, ROI sums)
+     - Current calibration metadata (`spot_scale_override`, `flux`, `exposure`, `beamsize_mm`, `N_cells`)
+     - Sigma sourcing status (sigma_readout provenance, sigma_floor if present)
+   - Record in `baseline_metrics.md`
 
-3. Verify **3/3 PASSED** (expected per Galph pre-verification):
-   - `test_DB_AT_022_sentinel_complement`
-   - `test_DB_AT_022_guard_enforcement`
-   - `test_DB_AT_022_roi_coverage_metrics`
+4. **A3 — Calibration Policy Summary**
+   - Cross-reference normative sources:
+     - `docs/spec-db-workflow.md:19-47` (ADU vs photon, precedence ladder)
+     - `docs/architecture.md` (calibration architecture)
+     - `docs/config_crosswalk.md` (parameter mapping)
+   - Summarize calibration expectations:
+     - When `--adu-per-photon` is provided: target/sigma converted to photons
+     - When absent: target remains ADU, global scale compensates
+     - Precedence: torch_config → CLI → external_lookup → MTZ → defaults
+   - Identify Phase B requirements:
+     - CLI flag extension (`--adu-per-photon`)
+     - `prepare_refinement_inputs` photon conversion path
+     - Telemetry provenance (`unit_mode`, `gain`)
+   - Record in `calibration_policy_summary.md`
 
-**Expected Outcome**: 3/3 tests PASSED, logs archived.
+5. **Artifacts:** Create 4 files under `plans/active/DB-AT-023/reports/2025-12-08T022101Z/`:
+   - `asset_availability.md` — A1 results
+   - `baseline_metrics.md` — A2 results
+   - `calibration_policy_summary.md` — A3 results
+   - `summary.md` — Phase A wrap-up with Phase B scoping notes
 
-**C1-C3 — Registry Sync & Ledger Update**:
-1. Update `docs/TESTING_GUIDE.md` §2 with DB-AT-022 entry:
-   - Selector: `pytest -k DB_AT_022`
-   - Required flags: `DBEX_SMOKE_DETECTOR_SIZE=full`
-   - Status: Active
-   - Artifact path: `plans/active/DB-AT-022/reports/2025-12-08T200000Z/`
-
-2. Update `docs/development/TEST_SUITE_INDEX.md` with DB-AT-022 row:
-   - Test module: `tests/dbex/test_background_semantics.py`
-   - Selector pattern: `DB_AT_022`
-   - Test count: 3
-   - Status: Active
-   - Applied Findings: MASKING-001, TESTING-003, DIAGNOSTICS-001
-
-3. Update `docs/fix_plan.md` Attempts History:
-   - Add loop i=152 entry under DB-AT-SUITE-CARE-001
-   - Record test outcomes (3/3 PASSED)
-   - Mark DB-AT-022 Phase B.3 + Phase C complete
-   - Note DB-AT-022 initiative ready for closure
-
-4. Update `plans/active/DB-AT-022/implementation.md`:
-   - Mark B3, C1, C2, C3 complete with timestamps/loop references
-
-5. Author `summary.md` in artifacts directory with:
-   - Phase B.3 test results
-   - Phase C registry sync confirmation
-   - DB-AT-022 initiative closure readiness
-
-**Artifacts Destination**: `plans/active/DB-AT-022/reports/2025-12-08T200000Z/`
-- `pytest_db_at_022.log` (B3: full test output)
-- `collect_db_at_022.log` (B3: collection verification)
-- `summary.md` (combined Phase B.3 + C closure notes)
-
-**Touched**: DB-AT-022 Phase B.3 (B3), Phase C (C1, C2, C3)
-
-## Forbidden This Loop
-- **No production code edits** (Phase B.3 + C is docs/registry sync only)
-- **No new diagnostic scripts** (Phase A probes complete)
+6. **Mark Phase A tasks complete** in `plans/active/DB-AT-023/implementation.md`
 
 ## How-To Map
 
-**Phase B.3 + C Steps**:
-1. Create artifacts directory (if not exists)
-2. Execute pytest with canonical flags, tee output to log
-3. Execute collect-only, tee output to log
-4. Verify 3/3 PASSED
-5. Update TESTING_GUIDE.md §2 with DB-AT-022 entry
-6. Update TEST_SUITE_INDEX.md with DB-AT-022 row
-7. Update fix_plan.md Attempts History
-8. Update implementation.md (mark B3, C1-C3 complete)
-9. Author summary.md
+```bash
+# A1: Cross-reference i=143 asset validation
+cat plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md
 
-**Success Criteria**:
-- 3/3 tests PASSED (pytest log confirms)
-- 3 tests collected (collect-only log confirms)
-- TESTING_GUIDE.md updated with DB-AT-022 entry
-- TEST_SUITE_INDEX.md updated with DB-AT-022 row
-- fix_plan.md Attempts History entry added
-- implementation.md Phase B.3 + C marked complete
-- summary.md authored
+# A2: Python probe for baseline metrics
+cd /home/ollie/Documents/diffbragg_example
+python -c "
+from tests.conftest import refgeom_dataload
+import json
+
+# Get DataLoad via fixture pattern
+DL = refgeom_dataload()
+
+# Capture calibration context
+metrics = {
+    'data_shape': list(DL.data.shape) if hasattr(DL, 'data') else None,
+    'n_rois': len(DL.panel_slices) if hasattr(DL, 'panel_slices') else None,
+    'calibration_metadata': DL.calibration_metadata if hasattr(DL, 'calibration_metadata') else {},
+}
+print(json.dumps(metrics, indent=2, default=str))
+"
+
+# A3: Read spec sources
+head -80 docs/spec-db-workflow.md | tail -60
+```
 
 ## Pitfalls To Avoid
-1. **Missing env flag**: Always use `DBEX_SMOKE_DETECTOR_SIZE=full` for DB-AT selectors
-2. **Incomplete logs**: Tee both pytest and collect-only output to artifact directory
-3. **Registry drift**: Ensure TESTING_GUIDE.md and TEST_SUITE_INDEX.md match actual selector patterns
-4. **Stale implementation.md**: Update checkboxes with loop number and timestamp
+
+1. **Do not create tests** — Phase A is planning/evidence only; tests authored in Phase B
+2. **Do not modify production code** — Phase A is read-only investigation
+3. **Cross-reference existing assets** — i=143 already validated; don't duplicate file checks
+4. **Capture calibration metadata** — Need baseline to design Phase B photon conversion logic
+5. **Follow DB-AT-020/021/022 pattern** — 4 artifacts, mark implementation.md checkboxes
+6. **No new probes beyond thin wrapper** — Use existing DataLoad patterns
+7. **Record provenance** — Cite spec section numbers for calibration requirements
 
 ## If Blocked
-- **Tests fail unexpectedly**: Capture full log, document failure signature in summary.md, escalate to supervisor (likely environment or asset drift)
-- **Registry file locked/missing**: Note error, proceed with available docs, escalate remaining
+
+- If DataLoad instantiation fails: record error, propose mock-based Phase B tests
+- If calibration_metadata missing: document current state, design Phase B to add it
+- If spec ambiguity: cite conflicting sections, request Galph clarification
+- Record block in `plans/active/DB-AT-023/reports/2025-12-08T022101Z/summary.md` with next steps
 
 ---
 
-**END OF INPUT.MD**
+**End of input.md for Loop i=153**

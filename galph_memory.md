@@ -68,3 +68,19 @@
 - Loop i=151 (Galph): Selected DB-AT-022 Phase A (Background Sentinel Guard) from DB-AT-SUITE-CARE-001 Phase B.4 member plan coordination after DB-AT-021 closure (i=150 Ralph completed Phase C registry sync: 3/3 tests PASSED, TEST_SUITE_INDEX.md + TESTING_GUIDE.md updated, fix_plan.md Attempts History entry added). Portfolio progress: DB-AT-020 complete (Phase C done i=147), DB-AT-021 complete (Phase C done i=150), next=DB-AT-022. Tier 0 exhausted (ARCH-GRADIENT-FLOW-001 blocked_pending_environment). Scoped DB-AT-022 Phase A: (A1) verify canonical assets via cross-ref to i=143 Phase B.2 asset validation, (A2) instantiate DataLoad and capture baseline metrics (data/background shapes, ROI count, bbox sample), (A3) probe background_image sentinel coverage (sentinel mask `background == -1`, ROI union mask from bbox/pids, coverage ratios + overlap counts). Spec refs: spec-db-workflow.md:38 (background sentinels −1 MUST be masked consistently), spec-db-conformance.md:63-64 (DB-AT-022 acceptance criteria: sentinel logic correct, ROI coverage matches metadata). DecisionStatus: exploring (first Phase A for DB-AT-022). Next: Ralph executes Phase A tasks (i=151), produces 4 artifacts (asset_availability.md, baseline_metrics.md, sentinel_probe.md, summary.md), scopes Phase B implementation (hardens prepare_refinement_inputs + authors test_background_semantics.py).
 2025-12-08T120000Z focus=DB-AT-021 state=planning dwell=0 action=planning artifacts=plans/active/DB-AT-021/reports/2025-12-08T120000Z/ next_action=phase_a_reality_check
 - Loop i=148 (Galph): Selected DB-AT-021 Phase A (Mask Semantics Guard) from DB-AT-SUITE-CARE-001 Phase B.4 member plan coordination after DB-AT-020 closure (i=147 registry sync complete). Tier 0 exhausted (ARCH-GRADIENT-FLOW-001 blocked_pending_environment per i=141 lifecycle decision). DB-AT-SUITE-CARE-001 status: B.2 complete (refGeom assets VALID), B.3 complete (FORWARD-EQUIV-002 VALID with checksum anomaly), DB-AT-020 complete (all phases done), next=B.4 member plan Phase A coordination. Scoped DB-AT-021 Phase A: (A1) confirm refGeom asset availability + 747_mask.pkl check (cross-ref B.2 validation), (A2) reconcile mask polarity semantics (spec-db-core.md:47-55, dials_api.md:45-62, architecture.md:165-178), (A3) baseline DataLoad probe (trusted_mask counts, loss_mask construction, ROI intersection). DecisionStatus: exploring (first Phase A for DB-AT-021). Authored implementation.md (Phase A/B/C structure). Next: Ralph executes Phase A tasks (i=148), produces 4 artifacts (asset_availability.md, spec_alignment.md, baseline_probe.md, summary.md), scopes Phase B test authoring (tests/dbex/test_mask_semantics.py).
+
+---
+### Ralph Debugging Insight (Loop i=179)
+
+**MOCK-FIXTURE-001**: When using `unittest.mock.Mock()` for experiment fixtures, nested method calls like `experiment.crystal.to_dict().get('key', None)` do NOT honor the default argument — they return a Mock object instead of None. Root cause: Mock auto-creates attributes, so `to_dict()` returns a Mock, and `.get()` on that Mock returns another Mock (not the default).
+
+**Symptom**: Test failures with `TypeError: '>' not supported between instances of 'Mock' and 'float'` when production code checks `if value is not None and value > 0.0`.
+
+**Fix pattern**: Explicitly mock the method chain with a real return type:
+```python
+expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works correctly
+```
+
+**Affected code**: `tests/dbex/test_nanobrag_bridge_configs.py::mock_experiment_stills` fixture needed updating after ARCH-SIM-CONSTRUCTION-001 added `config_factories.py:380-383` (calls `experiment.crystal.to_dict().get('ML_half_mosaicity_deg', None)`).
+
+**Lesson**: When production code evolves to access new nested attributes on fixture objects, audit Mock fixtures for auto-creation gaps. This pattern may affect other test files using Mock experiment objects.

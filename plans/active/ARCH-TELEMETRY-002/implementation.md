@@ -52,18 +52,23 @@
 
 ## Phase A — Charter & Inventory
 
+**Status:** COMPLETE (i=173, commit 744cea60)
+
 ### Checklist
-- [ ] A0: **Nucleus / Contract spike:** Sketch initial telemetry ownership map (owners, surfaces, consumers) for `/torch_diagnostics`, StageResult, mapping diagnostics, and baseline metrics, and validate it against `docs/architecture/data_telemetry_flow.md`.
-- [ ] A1: Author `docs/architecture/telemetry.md` (or section in `docs/architecture.md`) that:
+- [x] A0: **Nucleus / Contract spike:** Sketch initial telemetry ownership map (owners, surfaces, consumers) for `/torch_diagnostics`, StageResult, mapping diagnostics, and baseline metrics, and validate it against `docs/architecture/data_telemetry_flow.md`. ✅ `reports/2025-12-07T215000Z/ownership_spike.md`
+- [x] A1: Author `docs/architecture/telemetry.md` (or section in `docs/architecture.md`) that:
   - Names primary production owners (Stage collectors, writer, CLI telemetry bundle) and secondary diagnostic owners (bridge/mapping/baseline helpers).
-  - Explicitly defers semantics to Spec‑DB and IDLs, and describes non‑owners/expansion rules for new telemetry.
-- [ ] A2: Build a telemetry inventory covering:
+  - Explicitly defers semantics to Spec‑DB and IDLs, and describes non‑owners/expansion rules for new telemetry. ✅ `docs/architecture/telemetry.md`
+- [x] A2: Build a telemetry inventory covering:
   - `/torch_diagnostics` attributes from `dbex/io/writer.py`,
   - Stage telemetry fields from `dbex/refinement/telemetry_collectors.py`,
   - Mapping diagnostics from `dbex/vis/mapping.py`,
   - Baseline metrics from `dbex/refinement/telemetry_baseline.py`,
-  and record where each field is consumed in code/tests/plans.
-- [ ] A3: Extend `docs/data_dependency_manifest.md` (or the charter) with a “Telemetry” section that points to owner modules and canonical artifacts (e.g., mapping_metrics.json, baseline metrics JSON).
+  and record where each field is consumed in code/tests/plans. ✅ `reports/2025-12-07T215000Z/telemetry_inventory.md`
+- [x] A3: Extend `docs/data_dependency_manifest.md` (or the charter) with a "Telemetry" section that points to owner modules and canonical artifacts (e.g., mapping_metrics.json, baseline metrics JSON). ✅ `docs/data_dependency_manifest.md` §Telemetry Surfaces
+
+### Phase A Gap (to fix in B0)
+- Charter not yet linked in `docs/index.md` (Exit Criterion 1 partial) — addressed as B0 task in Phase B.
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `docs/architecture.md`, `docs/architecture/data_telemetry_flow.md`, `docs/architecture/telemetry.md` (new), `docs/data_dependency_manifest.md`.
@@ -76,7 +81,10 @@
 
 ## Phase B — Enforcement & Diagnostic Policy
 
+**Status:** IN_PROGRESS
+
 ### Checklist
+- [ ] B0: **(Housekeeping)** Wire telemetry charter into `docs/index.md` Architecture section. Completes Exit Criterion 1.
 - [ ] B1: Implement `tests/architecture/test_telemetry_surfaces.py` that:
   - Walks production `dbex/` modules (excluding tests, plans, archive, scripts).
   - Flags new long‑lived telemetry dict surfaces (dict literals or `dict(...)`) returned from public functions or passed into known sinks (writer, JSON/HDF5 helpers) unless they are in the owner allow‑list defined in the charter.

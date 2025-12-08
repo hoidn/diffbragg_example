@@ -1,147 +1,165 @@
-# Input for Ralph (Loop i=173)
+# Input for Ralph (Loop i=174)
 
 ## Summary
-Execute ARCH-TELEMETRY-002 Phase A — Author telemetry ownership charter and build telemetry inventory.
+Execute ARCH-TELEMETRY-002 Phase B — Implement telemetry surfaces enforcement test and extend supervisor policy.
 
 ## BindingForRalph
-- **ActionType:** planning
-- **DecisionStatus:** exploring
+- **ActionType:** implementation_ready
+- **DecisionStatus:** patch_ready
 - **InitiativeType:** architecture
 
 ## SupervisorMode
-Docs (architectural documentation + inventory)
+TDD (author enforcement test that validates telemetry ownership contract)
 
 ## Focus
-ARCH-TELEMETRY-002 — Telemetry & Probe Simplification — Phase A (Charter & Inventory)
+ARCH-TELEMETRY-002 — Telemetry & Probe Simplification — Phase B (Enforcement & Diagnostic Policy)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest -v tests/architecture/test_probe_contracts.py` (PROBE-FREEZE-001 enforcement, must remain green)
-- No new tests authored this loop (Phase A is docs/inventory)
+- `pytest -v tests/architecture/test_telemetry_surfaces.py` (new test — must PASS)
+- `pytest -v tests/architecture/test_probe_contracts.py` (existing — must remain green for shim delegation)
 
 ## Artifacts
-`plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/`
+`plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z/`
 
 ## Findings Applied (Mandatory)
-- **PROBE-FREEZE-001** (Plan-local probe policy): Telemetry charter must align with existing probe freeze constraints
-  - Adherence: Phase A explicitly defers semantics to Spec-DB and existing IDLs; no new production schemas
-- **ARCH-STAGE-CTX-001** (Stage context ownership): Charter must recognize Stage collectors as primary telemetry owners
-  - Adherence: A1 task names Stage collectors (StageATelemetry, StageBTelemetry, StageCTelemetry) as production owners
-- **ARCH-STAGE-CTX-002** (Telemetry dict mutations): Charter must address typed setter methods over dict mutations
-  - Adherence: Inventory (A2) will catalog which surfaces still use dict patterns vs typed dataclasses
-- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Artifacts must follow established patterns
+- **PROBE-FREEZE-001** (Plan-local probe policy): New test must align with existing probe contracts
+  - Adherence: B3 task cross-references test_probe_contracts.py
+- **ARCH-STAGE-CTX-001** (Stage context ownership): Test validates Stage collectors as primary telemetry owners
+  - Adherence: Allow-list includes `telemetry_collectors.py`, `interfaces.py` as owners
+- **ARCH-STAGE-CTX-002** (Telemetry dict mutations): Test flags new dict surfaces outside owner modules
+  - Adherence: B1 test checks for telemetry dict creation in non-owner modules
+- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Artifacts follow established patterns
   - Adherence: Artifacts routed to `reports/<timestamp>/` per standard structure
 
 ## Pointers
-- Implementation plan: `plans/active/ARCH-TELEMETRY-002/implementation.md`
-- Spec-DB core (telemetry refs): `docs/spec-db-core.md` §Objective Function, §Variance Model
-- Spec-DB workflow (telemetry pipeline): `docs/spec-db-workflow.md` §Calibration & Unit Conventions
-- Data telemetry flow doc: `docs/architecture/data_telemetry_flow.md`
-- Stage collector impl: `dbex/refinement/telemetry_collectors.py`
+- Implementation plan: `plans/active/ARCH-TELEMETRY-002/implementation.md` (Phase B checklist)
+- Telemetry charter: `docs/architecture/telemetry.md`
+- Telemetry inventory: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/telemetry_inventory.md`
+- Probe contracts test: `tests/architecture/test_probe_contracts.py`
+- Supervisor policy: `prompts/supervisor.md` (search for `diagnostic_script_policy`)
 - Writer IDL: `docs/architecture/dbex/io/writer.idl.md`
 - Context IDL: `docs/architecture/dbex/refinement/context.idl.md`
-- Data dependency manifest: `docs/data_dependency_manifest.md`
+- Docs index: `docs/index.md` (needs telemetry charter link)
 
 ---
 
 ## ARCH Contracts (mandatory)
 - **ARCH-STAGE-CTX-001/002** (Stage Context Ownership): Stage collectors own production telemetry surfaces
-  - Owner: `dbex/refinement/telemetry_collectors.py`
-  - Classification: N/A (charter aligns with existing ownership, not changing it)
-- **PROBE-FREEZE-001** (Probe Policy): Plan-local scripts consume existing telemetry, don't create new production schemas
+  - Owner: `dbex/refinement/telemetry_collectors.py`, `dbex/refinement/interfaces.py`
+  - Classification: Implementation — adding enforcement test for existing ownership
+- **PROBE-FREEZE-001** (Probe Policy): Plan-local scripts consume existing telemetry only
   - Owner: `prompts/supervisor.md::diagnostic_script_policy`, `tests/architecture/test_probe_contracts.py`
-  - Classification: N/A (charter documents existing constraints)
+  - Classification: Implementation — extending enforcement with telemetry-specific rules
 
 ---
 
 ## Do Now
 
-**Focus:** ARCH-TELEMETRY-002 Phase A — Charter & Inventory
+**Focus:** ARCH-TELEMETRY-002 Phase B — Enforcement & Diagnostic Policy
 
 ### Background
-With Tier 0 exhausted and DB-AT-SUITE-CARE-001 Phase D.1 complete, this loop advances architectural hygiene by establishing telemetry ownership documentation. ARCH-TELEMETRY-002 dependencies are met:
-- ARCH-PROBE-FREEZE-001: done (enforcement test exists)
-- ARCH-TELEMETRY-001: archived (observer refactor complete)
-- ARCH-STAGE-CONTEXT-001: done (typed contexts)
+Phase A completed (loop i=173, commit 744cea60): Telemetry charter authored at `docs/architecture/telemetry.md`, inventory built, manifest extended. Minor gap: Charter not yet linked in `docs/index.md` (fix as B0).
 
-### Phase A Tasks
+Phase B implements enforcement artifacts per Exit Criteria 3-4.
 
-#### A0 — Nucleus / Contract Spike
+### Phase B Tasks
 
-Sketch initial telemetry ownership map by auditing key files:
+#### B0 — Fix Phase A Gap: Wire Charter into Docs Index (Housekeeping)
 
-1. **Stage collectors** (`dbex/refinement/telemetry_collectors.py`):
-   - List exported dataclasses (StageATelemetry, StageBTelemetry, StageCTelemetry, StageResult, StagePerfCounters)
-   - Note what attributes each owns
+Add telemetry charter to `docs/index.md` in the Architecture section:
 
-2. **Writer** (`dbex/io/writer.py`):
-   - List `/torch_diagnostics` attributes emitted
-   - Cross-reference with `docs/architecture/dbex/io/writer.idl.md`
+```markdown
+### [Telemetry Ownership Charter](architecture/telemetry.md)
+Description: Canonical telemetry ownership map, expansion rules, and probe freeze policy.
+Keywords: telemetry, collectors, writer, diagnostics, probe freeze
+```
 
-3. **Mapping diagnostics** (`dbex/vis/mapping.py` if exists, or `dbex/refinement/helpers.py`):
-   - Identify mapping metrics surfaces (mapping_metrics.json pattern)
+Output: Edit `docs/index.md`
 
-4. **Baseline helpers** (search for `baseline` in dbex/):
-   - Identify baseline metrics surfaces
+#### B1 — Implement Telemetry Surfaces Enforcement Test
 
-Output: `reports/2025-12-07T215000Z/ownership_spike.md`
+Create `tests/architecture/test_telemetry_surfaces.py` that:
 
-#### A1 — Author Telemetry Charter
+1. **Validates owner allow-list**: Only chartered owner modules may define long-lived telemetry dict surfaces
+2. **Scans production modules**: Walk `dbex/` (excluding tests, plans, archive, scripts)
+3. **Detects new dict surfaces**: Flag dict literals or `dict()` returned from public functions in non-owner modules
+4. **Maintains allow-list**: Small exception list for existing surfaces (bridge diagnostics, mapping helpers)
 
-Create `docs/architecture/telemetry.md` with:
+**Test structure:**
+```python
+"""
+Telemetry surfaces enforcement test.
 
-1. **Purpose Statement**: Clarify telemetry ownership and expansion rules
-2. **Primary Owners**:
-   - Stage collectors (StageATelemetry, StageBTelemetry, StageCTelemetry)
-   - Writer (`/torch_diagnostics` schema)
-   - CLI telemetry bundle
-3. **Secondary/Diagnostic Owners**:
-   - Bridge/mapping helpers
-   - Baseline metrics helpers
-4. **Semantics Deferral**: Explicitly state that Spec-DB and IDLs are normative for semantics
-5. **Expansion Rules**: New production telemetry must go through:
-   - Charter update
-   - IDL definition
-   - Enforcement test coverage
+ARCH-TELEMETRY-002 Exit Criterion 3: Prevents new long-lived telemetry dict
+surfaces in dbex/ outside owner allow-list.
 
-Output: `docs/architecture/telemetry.md`
+Owner allow-list (from docs/architecture/telemetry.md §2):
+- dbex/refinement/interfaces.py (Stage*Telemetry dataclasses)
+- dbex/refinement/telemetry_collectors.py (Stage*TelemetryCollector)
+- dbex/io/writer.py (/torch_diagnostics HDF5 schema)
 
-#### A2 — Build Telemetry Inventory
+Secondary owners (diagnostics, not full enforcement):
+- dbex/refinement/telemetry_baseline.py (baseline metrics)
+- dbex/refinement/artifacts.py (stage artifacts)
+"""
 
-Create inventory covering:
+TELEMETRY_OWNER_MODULES = {
+    "dbex/refinement/interfaces.py",
+    "dbex/refinement/telemetry_collectors.py",
+    "dbex/io/writer.py",
+}
 
-| Surface | Owner Module | Fields/Attributes | Consumers (tests/plans) |
-|---------|--------------|-------------------|------------------------|
-| `/torch_diagnostics` | `dbex/io/writer.py` | (list from writer) | (grep test files) |
-| StageATelemetry | `telemetry_collectors.py` | (list fields) | (grep test files) |
-| ... | ... | ... | ... |
+SECONDARY_OWNER_MODULES = {
+    "dbex/refinement/telemetry_baseline.py",
+    "dbex/refinement/artifacts.py",
+    "dbex/vis/mapping.py",
+}
+```
 
-Sources to audit:
-1. `dbex/io/writer.py` — search for `diagnostics_group` and attribute assignments
-2. `dbex/refinement/telemetry_collectors.py` — list dataclass fields
-3. `dbex/vis/mapping.py` or related — mapping metrics
-4. grep for `baseline` in dbex/ — baseline metrics
+**Test functions:**
+- `test_telemetry_owners_exist()` — Verify owner modules exist
+- `test_no_unchartered_telemetry_exports()` — Scan for new telemetry dict exports in non-owner modules (may need AST walk or grep-based heuristic)
 
-Output: `reports/2025-12-07T215000Z/telemetry_inventory.md`
+Output: `tests/architecture/test_telemetry_surfaces.py`
 
-#### A3 — Extend Data Dependency Manifest
+#### B2 — Extend Supervisor Diagnostic Policy
 
-Add "Telemetry" section to `docs/data_dependency_manifest.md`:
-- Point to owner modules
-- List canonical artifacts (mapping_metrics.json, baseline metrics JSON)
-- Cross-reference telemetry charter
+Update `prompts/supervisor.md` `<diagnostic_script_policy>` section to include telemetry charter compliance:
 
-Output: Edit `docs/data_dependency_manifest.md`
+Add to existing rules:
+```xml
+<telemetry_charter_compliance>
+  - New production telemetry fields MUST follow expansion rules in docs/architecture/telemetry.md §5:
+    (1) Spec update if new semantics, (2) IDL definition, (3) Dataclass update, (4) Collector wiring,
+    (5) Writer support if HDF5, (6) Enforcement test coverage.
+  - Plan-local scripts may read existing telemetry surfaces but MUST NOT define new production schemas.
+  - Dict-based telemetry in dbex/ outside owner modules (§2 of charter) is forbidden without charter amendment.
+</telemetry_charter_compliance>
+```
 
-#### A4 — Summary
+Output: Edit `prompts/supervisor.md`
 
-Create `reports/2025-12-07T215000Z/summary.md` with:
-1. Charter location and status
-2. Inventory findings (surface count, owner modules)
-3. Manifest update status
-4. Phase B scope preview (enforcement test, supervisor policy)
+#### B3 — Align Probe Contracts Test
+
+Update `tests/architecture/test_probe_contracts.py` docstring or comments to reference telemetry charter:
+
+At top of file or in relevant test docstrings, add:
+```python
+# Cross-reference: docs/architecture/telemetry.md (telemetry ownership charter)
+# Cross-reference: tests/architecture/test_telemetry_surfaces.py (telemetry dict guard)
+```
+
+Output: Edit `tests/architecture/test_probe_contracts.py` (minimal — add cross-reference only)
+
+#### B4 — Summary
+
+Create `reports/2025-12-07T220000Z/summary.md` with:
+1. Phase B task completion status (B0, B1, B2, B3)
+2. Test results (new test + existing probe contracts)
+3. Phase C scope preview (cleanup/closure)
 
 ---
 
@@ -150,50 +168,51 @@ Create `reports/2025-12-07T215000Z/summary.md` with:
 ```bash
 # Set environment
 cd /home/ollie/Documents/diffbragg_example
-export ARTIFACT_DIR=plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z
+export ARTIFACT_DIR=plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z
 
-# A0: Audit key files for ownership spike
-grep -n "class Stage.*Telemetry" dbex/refinement/telemetry_collectors.py
-grep -n "diagnostics_group" dbex/io/writer.py
-grep -rn "mapping_metrics" dbex/
-grep -rn "baseline" dbex/ --include="*.py" | grep -v test | head -30
+# B0: Wire charter into docs/index.md
+# Use Edit tool to add entry in Architecture section
 
-# A1: Create telemetry charter via Write tool
-
-# A2: Build inventory by examining:
-# - dbex/io/writer.py (torch_diagnostics attributes)
-# - dbex/refinement/telemetry_collectors.py (dataclass fields)
-# - dbex/vis/mapping.py (if exists)
-
-# A3: Edit docs/data_dependency_manifest.md via Edit tool
-
-# A4: Write summary.md via Write tool
-
-# Validation: Ensure probe contracts still pass
+# B1: Create enforcement test
+# Use Write tool to create tests/architecture/test_telemetry_surfaces.py
+# Then validate:
 export KMP_DUPLICATE_LIB_OK=TRUE
 export NANOBRAGG_DISABLE_COMPILE=1
-pytest -v tests/architecture/test_probe_contracts.py --maxfail=1
+pytest -v tests/architecture/test_telemetry_surfaces.py --maxfail=1
+
+# B2: Update supervisor policy
+# Use Edit tool to add telemetry_charter_compliance to diagnostic_script_policy
+
+# B3: Add cross-reference to probe contracts
+# Use Edit tool to add cross-reference comment
+
+# B4: Write summary
+# Use Write tool to create summary.md
+
+# Final validation: Run both architecture tests
+pytest -v tests/architecture/test_telemetry_surfaces.py tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis
 ```
 
 ---
 
 ## Forbidden This Loop
-- **No new production code** — Phase A is docs/inventory
-- **No new test authoring** — Phase B handles enforcement test
-- **No telemetry schema changes** — Inventory-only; cleanup is Phase C
+- **No telemetry schema changes** — Enforcement test validates existing ownership, doesn't modify production telemetry
+- **No new probes** — Phase B is enforcement/policy; probes deferred to Phase C cleanup
+- **No dict removal yet** — Cleanup is Phase C; Phase B establishes guards
 
 ## Pitfalls To Avoid
-1. **Don't duplicate IDL content** — Charter should reference IDLs, not copy them
-2. **Don't invent new ownership** — Document existing conventions, don't redesign
-3. **Don't over-engineer inventory** — Simple markdown table is sufficient
-4. **Keep charter concise** — 1-2 page max; point to specs/IDLs for details
-5. **Apply PROBE-FREEZE-001** — No new plan-local scripts for this audit; use grep/read tools
+1. **Don't over-engineer AST analysis** — Simple heuristic (grep for dict patterns, check module path) is sufficient for MVP
+2. **Don't duplicate charter content in test** — Reference charter, don't copy rules into test assertions
+3. **Keep allow-list minimal** — Only document existing surfaces; reject temptation to pre-allow hypotheticals
+4. **Test must be deterministic** — If using file scanning, sort paths for stable output
+5. **Don't break existing tests** — Probe contracts shim test must remain green
 
 ## If Blocked
-If critical modules are missing or ownership is unclear:
-1. Document the gap in `reports/2025-12-07T215000Z/gaps.md`
-2. Flag in summary.md as "Phase A incomplete — ownership unclear for X"
-3. Proceed to Phase B with partial inventory; gaps become cleanup items for Phase C
+If owner module scanning is too complex for a single loop:
+1. Author a minimal enforcement test that validates owner modules exist and are documented
+2. Document the gap in `reports/2025-12-07T220000Z/gaps.md`
+3. Defer full AST scanning to Phase C or a harness initiative
+4. Still complete B0, B2, B3 (docs/policy updates)
 
 ---
 
@@ -201,56 +220,53 @@ If critical modules are missing or ownership is unclear:
 
 | Criterion | Expected | Validation |
 |-----------|----------|------------|
-| A0 complete | Ownership spike exists | `reports/.../ownership_spike.md` |
-| A1 complete | Charter exists | `docs/architecture/telemetry.md` |
-| A2 complete | Inventory exists | `reports/.../telemetry_inventory.md` |
-| A3 complete | Manifest updated | Telemetry section in `docs/data_dependency_manifest.md` |
-| A4 complete | Summary exists | `reports/.../summary.md` |
-| Probe contracts green | No regression | `pytest tests/architecture/test_probe_contracts.py` PASS |
+| B0 complete | Charter linked in docs/index.md | Grep for `architecture/telemetry` in index |
+| B1 complete | Enforcement test exists + passes | `pytest tests/architecture/test_telemetry_surfaces.py` |
+| B2 complete | Supervisor policy extended | Grep for `telemetry_charter_compliance` in supervisor.md |
+| B3 complete | Probe contracts cross-ref added | Grep for telemetry charter reference in test |
+| B4 complete | Summary exists | `reports/.../summary.md` |
+| Existing tests green | No regression | `test_probe_shims_delegate_to_owner_clis` PASS |
 
 ---
 
 ## Output Artifacts Expected
 
-1. `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/ownership_spike.md`
-2. `docs/architecture/telemetry.md`
-3. `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/telemetry_inventory.md`
-4. `docs/data_dependency_manifest.md` (edited — Telemetry section added)
-5. `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/summary.md`
+1. `docs/index.md` (edited — telemetry charter entry added)
+2. `tests/architecture/test_telemetry_surfaces.py` (new file)
+3. `prompts/supervisor.md` (edited — telemetry_charter_compliance added)
+4. `tests/architecture/test_probe_contracts.py` (edited — cross-reference added)
+5. `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z/summary.md`
 
 ---
 
-## Context: Portfolio Status
+## Context: Phase A Completion
 
-### Tier 0 (Exhausted)
-- ARCH-GRADIENT-FLOW-001: **blocked_pending_upstream** (Jacobian mismatch in nanobrag_torch crystal gradient)
-- ARCH-SIM-CONSTRUCTION-001: **blocked_pending_environment**
-- ARCH-REFACTOR-001: **blocked_pending_architecture**
-- Others: done/archived
+### Deliverables Produced (i=173, commit 744cea60)
+- `docs/architecture/telemetry.md` — Telemetry ownership charter with §1-9
+- `reports/2025-12-07T215000Z/ownership_spike.md` — Initial owner mapping
+- `reports/2025-12-07T215000Z/telemetry_inventory.md` — Surface catalog (13+ HDF5 attrs, 20+ per-stage, 4 secondary)
+- `docs/data_dependency_manifest.md` — Telemetry section added
 
-### Tier 1
-- DB-AT-SUITE-CARE-001: **in_progress** (Phase D.1 complete 2025-12-07T213000Z; D.2-D.5 maintenance deferred)
-- MAP-SCALE-SYNC-001: **done**
-- TORCH-GEOMETRY-SYNC-001: **done**
-- PHYSICS-LOSS-001: **done_with_environment_caveat**
-- SPEC-SQUARE-PARTIALITY-001: **done**
-- RUNTIME-VEC-001: **done**
-- Others: pending with dependencies
+### Key Findings from Inventory
+- **5 primary dataclasses** in interfaces.py
+- **3 collectors** in telemetry_collectors.py
+- **1 HDF5 schema owner** in writer.py
+- **No mapping_metrics.json** pattern — mapping telemetry embedded in calibration dicts
+- **Baseline metrics opt-in** via config flag
 
-### Tier 3 (Selected)
-- ARCH-TELEMETRY-002: **pending** → **in_progress** (Phase A this loop)
-
-### Why This Focus
-With Tier 0 exhausted and no Tier 1 implementation work unblocked, ARCH-TELEMETRY-002 provides:
-1. Dependencies met (ARCH-PROBE-FREEZE-001 done, ARCH-TELEMETRY-001 archived)
-2. Concrete Phase A/B/C structure with implementation in Phase B
-3. Advances architectural hygiene ahead of future telemetry changes
-4. Low risk — docs/inventory work unlikely to regress tests
+### Exit Criteria Progress (5 total)
+1. Charter exists ✅ (minor: needs index link — B0)
+2. Inventory exists ✅ (in manifest + reports)
+3. Enforcement test — **Phase B** (B1)
+4. Supervisor policy updated — **Phase B** (B2)
+5. Tests pass under guards — **Phase C** (validation sweep)
 
 ---
 
 ## Implement Target
-N/A — This is planning (docs + inventory). Phase B will introduce `tests/architecture/test_telemetry_surfaces.py`.
+`tests/architecture/test_telemetry_surfaces.py::test_telemetry_owners_exist` + `test_no_unchartered_telemetry_exports`
 
-## Validating Pytest Selector
-`pytest -v tests/architecture/test_probe_contracts.py` (must remain green — no regressions from docs work)
+## Validating Pytest Selectors
+```bash
+pytest -v tests/architecture/test_telemetry_surfaces.py tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis
+```

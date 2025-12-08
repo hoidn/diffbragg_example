@@ -18,7 +18,7 @@
 - [x] **A5 — Loop summary**: Documented Phase A deliverables and next steps. Output: `reports/2025-12-07T024500Z/summary.md`.
 
 ### Key Findings (Phase A)
-1. **Blocker identified**: DB-AT-010 Phase D regression (gradcheck `crystal_cell_a` failure) is Tier-0 priority; blocks Gradient-Safe conformance profile.
+1. **Blocker identified**: DB-AT-010 Phase D regression (gradcheck `crystal_cell_a` failure) is Tier-0 priority; blocks Gradient-Safe conformance profile. Later analysis localized the dominant gradient breaks to `nanobrag_torch` internals, and an upstream fix for DBEX-GRADIENT-001 has since landed (see `ARCH-GRADIENT-FLOW-001` and `inbox/from_nanobragg.md`). This roll-up now expects Gradient-Safe to move forward once ARCH-GRADIENT-FLOW-001 Phase B (integration + verification) completes.
 2. **Shared dependency cluster**: 5 plans (DB-AT-020/021/022/023/024) depend on canonical refGeom assets; recommend centralized asset validation in Phase B.
 3. **Test authoring gap**: 5 plans (DB-AT-002/020/021/022/023) have unchecked Phase B tasks requiring test scaffold authoring; critical path for portfolio advancement.
 4. **Phase pattern uniformity**: All 7 plans follow A/B/C structure (Reality Check → Implementation → Docs Sync); enables portfolio-level progress tracking.

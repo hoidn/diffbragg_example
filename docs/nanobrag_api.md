@@ -36,7 +36,9 @@ Import Name
 ## Public Configuration Dataclasses
 
 ### DetectorConfig (key fields)
-- `distance_mm` (float): from `panel.get_directed_distance()` (mm).
+- `distance_mm` (float or `torch.Tensor`): from `panel.get_directed_distance()` (mm).
+  - When you pass a tensor with `requires_grad=True`, the `Detector` reads it dynamically (via a grad‑preserving conversion) so gradients from `Simulator.run()` propagate back to distance.
+  - DBEX pattern: it is supported to construct a `DetectorConfig` with a scalar distance and later overwrite `config.distance_mm` with a tensor; the property‑based `Detector.distance` accessor will still preserve the gradient graph.
 - `pixel_size_mm` (float): square pixel pitch only (fast/slow share a value).
   - Rectangular pixels: not supported in a single detector; instantiate separate Detectors per unique pitch until `pixel_size_s_mm/pixel_size_f_mm` is available.
 - `spixels`, `fpixels` (int): image dimensions (slow, fast).
@@ -66,7 +68,9 @@ Import Name
 - N_cells and shape: `N_cells`, `shape`, `fudge` control lattice factor.
 
 ### BeamConfig (key fields)
-- `wavelength_A` (Å), `dmin` cutoff.
+- `wavelength_A` (Å, float or `torch.Tensor`), `dmin` cutoff.
+  - Passing a tensor with `requires_grad=True` is supported; the Simulator converts it with a helper that preserves the computation graph (no `torch.tensor(...)` detachment).
+  - For differentiable experiments, prefer providing wavelength/fluence as tensors at config construction time rather than mutating after Simulator creation.
 - Polarization:
   - For parity: `polarization_factor=0.0`, `nopolar=False`.
   - When metadata exists: set `polarization_axis` and fraction; otherwise default axis `[0,0,1]`, fraction `0.999`.

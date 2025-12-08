@@ -2,9 +2,9 @@
 
 **Initiative Type**: architecture
 **Priority**: Tier 0 (blocks Gradient-Safe Profile conformance)
-**Status**: in_progress
+**Status**: in_progress (upstream nanobrag_torch gradient fix landed; DBEX integration/verification pending)
 **Created**: 2025-12-07T210000Z (Loop i=137, Galph)
-**Context**: DB-AT-SUITE-CARE-001 Phase B.1 verification (i=136, Ralph) confirmed DB-AT-010 gradcheck regression persists: all 5/5 tests FAILING with disconnected autograd graph. Root cause: gradient flow break in `simulate_forward_torch` → loss path prevents analytical gradients from reaching refined parameters (crystal cell, detector distance, beam wavelength). Numerical gradients exist (non-zero sensitivity), but autograd cannot compute analytical gradients.
+**Context**: DB-AT-SUITE-CARE-001 Phase B.1 verification (i=136, Ralph) confirmed DB-AT-010 gradcheck regression persists: all 5/5 tests FAILING with disconnected autograd graph. Root cause at that time: gradient flow break in the `simulate_forward_torch` → simulator path prevented analytical gradients from reaching refined parameters (crystal cell, detector distance, beam wavelength). Numerical gradients existed (non-zero sensitivity), but autograd could not compute analytical gradients. Upstream `nanobrag_torch` has since shipped a fix for these “DBEX-GRADIENT-001” blockers (see `inbox/from_nanobragg.md`); remaining work in this initiative is to integrate that version, re-run DB-AT-010, and add a local enforcement test.
 
 ## Exit Criteria
 
@@ -55,12 +55,12 @@
 
 ## Phase B — Root Cause Fix & Enforcement Test
 
-**Objective**: Implement fix for top-ranked hypothesis; add architecture enforcement test to prevent regression.
+**Objective**: Integrate the upstream nanobrag_torch gradient fix, verify DB-AT-010, and add an architecture enforcement test to prevent future regressions.
 
 ### Tasks (Phase B)
-- [ ] **B1 — Implement fix**: Patch identified gradient break location (e.g., replace `.item()` with tensor return, remove `.detach()`, convert in-place op to out-of-place). Must preserve production logic (no behavioral change except gradient flow). Output: git diff, commit message with ARCH-GRADIENT-FLOW-001 prefix.
+- [ ] **B1 — Integrate upstream fix**: Ensure the DBEX environment is using a `nanobrag_torch` version that includes the gradient‑preserving changes described in `inbox/from_nanobragg.md` (tensor‑safe wavelength/fluence handling and Detector distance property). Confirm DBEX override patterns (crystal/beam/detector overrides in `simulate_forward_torch`) remain compatible and do not introduce new `.item()`/`.detach()` conversions.
 
-- [ ] **B2 — Gradcheck verification**: Re-run DB-AT-010 full suite (`pytest -v tests -k DB_AT_010 --smoke-detector-size=full`) with canonical flags. Archive pytest log under `reports/<ts>/gradcheck_verification_post_fix.log`. Expected: 5/5 tests PASS.
+- [ ] **B2 — Gradcheck verification**: Re-run the DB-AT-010 full suite (`KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests -k DB_AT_010 --smoke-detector-size=full`) with canonical flags. Archive the pytest log under `reports/<ts>/gradcheck_verification_post_fix.log`. Expected: 5/5 tests PASS with the documented tolerances.
 
 - [ ] **B3 — Enforcement test authoring**: Create `tests/architecture/test_gradient_contracts.py::test_simulate_forward_torch_preserves_gradients`. Test must:
   1. Call `simulate_forward_torch` with `requires_grad=True` tensor parameter
@@ -70,9 +70,9 @@
   Expected: test PASSES post-fix, would FAIL pre-fix (demonstrate regression detection).
 
 - [ ] **B4 — Documentation updates**:
-  - Add `docs/findings.md::GRADIENT-002` finding documenting root cause, fix location (file:line), and enforcement test cross-ref
-  - Update `docs/architecture.md` §13 Common Pitfalls with "Gradient Flow Preservation" subsection
-  - Update `docs/development/TEST_SUITE_INDEX.md` DB-AT-010 row: status=PASSING, artifact path updated
+  - Add `docs/findings.md::GRADIENT-002` finding documenting the upstream fix (file:line pointers in `nanobrag_torch`) and the DBEX override patterns that were validated, plus an enforcement test cross‑ref.
+  - Update `docs/architecture.md` §13 Common Pitfalls with a "Gradient Flow Preservation" subsection.
+  - Update `docs/development/TEST_SUITE_INDEX.md` DB-AT-010 row to status=PASSING with an updated artifact path once B2 succeeds.
   Output: 3 file diffs.
 
 ### Validation (Phase B)

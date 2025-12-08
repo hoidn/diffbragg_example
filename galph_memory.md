@@ -230,3 +230,28 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
 **Lesson**: Graph connectivity fixes (tensor preservation) are necessary but not sufficient for gradient correctness. The underlying physics/math computations must also be differentiable AND correctly differentiated.
 
 **Next action**: Escalation to nanobrag_torch maintainers should clarify that the original issue (crystal cell gradient magnitude) was NOT addressed. The gradient audit must examine `compute_cell_tensors()` and the forward simulation chain, not just tensor init patterns.
+
+2025-12-08T162000Z focus=ARCH-GRADIENT-FLOW-001 state=blocked_pending_upstream dwell=N/A action=deep_investigation artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T162000Z/ next_action=escalate_magnitude_mismatch
+- Loop i=191 (Ralph): **UPSTREAM RESPONSE RECEIVED + DEEP INVESTIGATION**. File `inbox/nanobrag_torch_response_2025_12_08.md` arrived. Gradient blockers for wavelength/fluence/distance marked RESOLVED by upstream. SQUARE scaling clarified as physics expectation mismatch (not bug).
+  **DB-AT-010 Re-Verification:** 5/5 FAIL (unchanged) BUT new evidence gathered:
+  - Analytical gradients now **NON-ZERO** (pre-fix: zero/disconnected)
+  - Magnitude mismatch: numerical/analytical ratios 5096× (cell_a) to 127627× (distance)
+  - Sign flip in some parameters (cell_a numerical=-3.5542e+11, analytical=+6.97e+07)
+  
+  **CRITICAL DEBUGGING FINDINGS:**
+  1. **Isolated component tests PASS** — Detector.distance and Crystal.cell_a gradient flow work correctly in unit probes
+  2. **Integration fails** — Full Simulator.run() chain produces wrong magnitude gradients
+  3. **Bug discovered:** DetectorConfig.__post_init__ (line 284-285) replaces distance_mm tensor with float when value==100.0 AND close_distance_mm provided (NOT triggered by DBEX at 230mm)
+  
+  **HYPOTHESIS (plausible, not in planning docs):**
+  The gradient magnitude discrepancy suggests missing chain rule factors in the **B-matrix → q-vector → sincg** physics computation. Key suspect locations:
+  - `crystal.py::compute_B_matrix()` — cell parameters → reciprocal lattice vectors
+  - `simulator.py::_compute_physics_for_position()` — HKL lookup / F_latt calculation
+  - Units conversions (Å→Å⁻¹, deg→rad) that may use non-differentiable ops
+  
+  The varying ratios (5000× vs 127000×) for different parameters suggest multiple incomplete gradient paths rather than a single break. Detector distance has the largest ratio, possibly due to position-dependent gradient computation in the solid angle / pixel mapping code.
+  
+  **SUPERVISOR ACTION REQUIRED:** Escalate to nanobrag_torch maintainers with:
+  - Evidence: gradient graph connected but magnitude wrong (5000-127000×)
+  - Request: audit physics gradient chain in crystal.py and simulator.py, especially B-matrix computation and HKL interpolation
+  - Finding: GRADIENT-002 in docs/findings.md documents this blocker

@@ -1,0 +1,108 @@
+# Implementation Plan: SPEC-SQUARE-PARTIALITY-001
+
+## Initiative
+- ID: SPEC-SQUARE-PARTIALITY-001
+- Title: SQUARE Lattice Spec & Test Alignment
+- Owner: Galph ↔ Ralph
+- Spec Owner: docs/spec-db-core.md (lattice/partiality clauses), docs/findings.md::SIM-CONSTR-PARTIALITY-001
+- Status: pending
+
+## Goals
+- Codify the correct SQUARE lattice scaling behavior in our docs: peak height ∝ `(Na·Nb·Nc)²`, integrated/summed intensity ∝ `Na·Nb·Nc`.
+- Update DBEX-side findings, architecture tests, and probes so they enforce the **linear** `Na·Nb·Nc` integrated scaling (and no longer treat `(Na·Nb·Nc)²` as an integrated-intensity requirement).
+- Use this to unblock ARCH-SIM-CONSTRUCTION-001 by resolving the expectation mismatch without further edits to `nanobrag_torch`.
+
+## Phases Overview
+- Phase A — Clarify Physics: Document peak vs integrated SQUARE lattice scaling and tighten SIM-CONSTR-PARTIALITY-001.
+- Phase B — Align Tests & Probes: Update partiality architecture test and probe script to use the corrected scaling law.
+- Phase C — Ledger Closure: Synchronize findings, fix-plan ledger, and test registry, and formally unblock/close ARCH-SIM-CONSTRUCTION-001.
+
+## Exit Criteria
+1. `docs/findings.md::SIM-CONSTR-PARTIALITY-001` and, if needed, a short paragraph in `docs/spec-db-core.md` explicitly state: peak height scales as `(Na·Nb·Nc)²`; integrated intensity over a reflection scales linearly with `Na·Nb·Nc`, with a reference to `inbox/nanobrag_torch_response_2025_12_08.md`.
+2. `tests/architecture/test_nanobrag_partiality.py`:
+   - No longer asserts `(Na·Nb·Nc)²` for **integrated** intensity.
+   - Instead, asserts linear `Na·Nb·Nc` scaling for integrated/summed intensity, and (optionally) adds a clearly labeled test for peak-height behavior if we want to keep a `(Na·Nb·Nc)²` check.
+   - `pytest -vv tests/architecture/test_nanobrag_partiality.py --maxfail=1` passes, with logs stored under `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/<timestamp>/pytest_partiality.log`.
+3. `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` and `docs/fix_plan.md`:
+   - Reference this initiative as resolving the SQUARE scaling expectation.
+   - Update ARCH-SIM-CONSTRUCTION-001’s status/notes to make clear that the upstream simulator is considered correct on SQUARE scaling and that any remaining work is DBEX-side spec/test hygiene (or archive the initiative if everything else is satisfied).
+4. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect the updated partiality test; `pytest --collect-only tests/architecture/test_nanobrag_partiality.py` logs are archived under this plan’s `reports/<timestamp>/`.
+
+## Compliance Matrix (Mandatory)
+> List the specific Spec constraints, Fix-Plan ledger rows, and Findings/Policies this initiative must honor. Missing a relevant entry is a plan defect per ARRP.
+- [ ] **Spec Constraint:** `docs/spec-db-core.md §§60–140` — Lattice/partiality behavior must be physically correct and unambiguous about SQUARE scaling.
+- [ ] **Fix-Plan Link:** `docs/fix_plan.md — Row [ARCH-SIM-CONSTRUCTION-001]` (blocked due to expectation mismatch).
+- [ ] **Finding/Policy ID:** `SIM-CONSTR-PARTIALITY-001` (lattice/normalization), `PROBE-FREEZE-001` (no new plan-local probes; reuse existing tests/tools).
+
+## Spec Alignment
+- **Normative Spec:** `docs/spec-db-core.md`
+- **Key Clauses:**
+  - Lattice shape / sincg envelope definitions (§60–140).
+  - Any text that implies or could be read as implying `(Na·Nb·Nc)²` scaling for integrated intensity (must be clarified).
+- This initiative also aligns `docs/findings.md` and test behavior with the upstream `nanobrag_torch` maintainer analysis (integrated intensity ∝ `Na·Nb·Nc`).
+
+## Architecture / Interfaces (optional)
+- **Key Data Types / Protocols:**
+  - SQUARE lattice configuration in `nanobrag_torch` (N_cells, shape=SQUARE).
+  - Architecture partiality test harness: `tests/architecture/test_nanobrag_partiality.py`.
+  - Probe script: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py`.
+- **Boundary Definitions:**
+  - `[Spec DB] -> [Findings] -> [Tests/Probes]`: Spec defines physics, findings capture implementation notes, and tests/probes enforce behavior.
+
+## Context Priming (read before edits)
+- Primary docs/specs to re-read:
+  - `docs/spec-db-core.md` — lattice/partiality section and any SQUARE-specific notes.
+  - `docs/findings.md` — SIM-CONSTR-PARTIALITY-001 and CONFIG-002.
+  - `inbox/nanobrag_torch_response_2025_12_08.md` — SQUARE lattice response (peak vs integrated scaling).
+- Required findings/case law:
+  - SIM-CONSTR-PARTIALITY-001 — now updated to mention linear integrated scaling (this plan will finalize and enforce that).
+  - PROBE-FREEZE-001 — no new plan-local probes; use existing architecture tests and `probe_square_lattice_scaling.py`.
+- Related telemetry/attempts:
+  - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-08T010000Z/` and `.../2026-01-13T200000Z/` — SQUARE partiality evidence and lifecycle decision.
+- Data dependencies to verify:
+  - The small single-pixel/oversample fixtures used by `tests/architecture/test_nanobrag_partiality.py` and `probe_square_lattice_scaling.py`.
+
+## Phase A — Clarify Physics
+### Checklist
+- [ ] A0: **Nucleus / Test-first gate:** Write a short, self-contained doc note (in `docs/findings.md` and/or a new paragraph in `docs/spec-db-core.md`) that states the peak vs integrated SQUARE scaling, with a pointer to `inbox/nanobrag_torch_response_2025_12_08.md`.
+- [ ] A1: Tighten `docs/findings.md::SIM-CONSTR-PARTIALITY-001` so it clearly demotes the old `(Na·Nb·Nc)²` **integrated** scaling expectation to historical context and promotes the linear law as the only enforceable requirement.
+- [ ] A2: If needed, add a short “SQUARE lattice scaling behavior” subsection to `docs/spec-db-core.md` (§ lattice/partiality), explicitly calling out peak vs integrated behavior.
+- [ ] A3: Capture a brief markdown summary under `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/<timestamp>/physics_summary.md` so future loops don’t have to re-derive this from the inbox response.
+
+### Dependency Analysis (Required for Refactors)
+- **Touched Modules:** `docs/spec-db-core.md`, `docs/findings.md`.
+- **Circular Import Risks:** None (docs-only).
+- **State Migration:** Clarify and tighten physics description; no behavior change in code.
+
+### Notes & Risks
+- Risk: Over-constraining Spec‑DB to a particular lattice implementation detail; we should stick to the minimal, physically agreed-upon scaling statement and keep implementation details in findings/tests.
+
+## Phase B — Align Tests & Probes
+### Checklist
+- [ ] B1: Update `tests/architecture/test_nanobrag_partiality.py`:
+  - Replace integrated-intensity `(Na·Nb·Nc)²` expectations with linear `Na·Nb·Nc` expectations.
+  - If we keep a `(Na·Nb·Nc)²` check, ensure it’s clearly marked as **peak intensity at exact Bragg**, not integrated intensity, and uses the right detector/oversample configuration.
+- [ ] B2: Update comments and any explicit `(Na·Nb·Nc)²` messaging in `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_square_lattice_scaling.py` to reflect the new contract, while preserving its diagnostic value.
+- [ ] B3: Run `pytest -vv tests/architecture/test_nanobrag_partiality.py --maxfail=1`, capture logs and probe outputs under `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/<timestamp>/`.
+- [ ] B4: Verify no other tests or selectors (e.g., DB‑AT‑028/029) implicitly enforce the old `(Na·Nb·Nc)²` integrated scaling; if they do, adjust expectations or add comments to align them with the clarified spec.
+
+### Notes & Risks
+- Risk: Changing partiality tests could superficially “unbreak” DB‑AT‑028/029 without addressing other physics issues; we should keep their other gates (chi², correlations, etc.) intact and only adjust the lattice-scaling expectation.
+
+## Phase C — Ledger Closure
+### Checklist
+- [ ] C1: Update `docs/fix_plan.md`:
+  - Mark `[SPEC-SQUARE-PARTIALITY-001]` as `done` once Phases A/B complete.
+  - Update the `[ARCH-SIM-CONSTRUCTION-001]` row to reflect that the SQUARE scaling expectation mismatch has been resolved via this initiative (either by unblocking and finishing, or by archiving with “resolved via spec/test fix”).
+- [ ] C2: Update `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md`:
+  - Add a short note in Phase C or the conclusion pointing to SPEC-SQUARE-PARTIALITY-001 as the resolution path for SQUARE scaling, and make clear that future work should not reopen vendor edits for this physics unless Spec‑DB changes.
+- [ ] C3: Synchronize `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` for the partiality architecture test and any DB‑AT selectors touched.
+- [ ] C4: Add a brief entry to `docs/findings.md` (if appropriate) closing out the “SQUARE lattice expectation mismatch” as resolved.
+
+### Notes & Risks
+- Risk: Forgetting to update ARCH-SIM-CONSTRUCTION-001’s status, leaving it “blocked” in the ledger even though the root cause was reclassified and fixed on the spec/test side.
+
+## Artifacts Index
+- Reports root: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/`
+- Latest run: `<YYYY-MM-DDTHHMMSSZ>/`
+

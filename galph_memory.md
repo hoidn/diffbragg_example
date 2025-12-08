@@ -438,3 +438,20 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
 
 2025-12-08T140000Z focus=SPEC-INTERP-TRICUBIC-001 state=ready_for_implementation dwell=0 action=implementation_ready artifacts=plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/ next_action=phase_c_gradcheck_validation
 - Loop i=206 (Galph): **SPEC-INTERP-TRICUBIC-001 Phase C delegation** (Gradcheck Validation). Prior loop (i=205 Ralph, commit f0fb601c) completed Phase B successfully — config default changed to `enable_hkl_interpolation=True` in `config.py:42`, test files updated with legacy comments, validation tests passed (partiality 2/2, Stage A smoke showed 99.79% HKL hit rate with tricubic working). **Phase B complete.** **Phase C scope**: (C1) Run DB-AT-010 gradcheck suite (5 tests) to verify cell parameter gradients now flow with tricubic interpolation, (C2) Analyze results — distinguish between total pass vs partial success (non-zero but wrong magnitude), (C3) Update implementation.md checkboxes, (C4) Author summary.md. **Key insight**: Phase B enabled tricubic interpolation which should restore cell gradient flow (torch.round() → polin3()). However, upstream gradient magnitude issues (5000-127000x mismatch documented in galph_memory.md Loop i=191) may still cause test failures with incorrect magnitude rather than disconnected graph. **Portfolio status**: SPEC-INTERP-TRICUBIC-001 Phase B complete, Phase C (validation) delegation ready. ARCH-GRADIENT-FLOW-001 status depends on Phase C outcome. ActionType: implementation_ready. DecisionStatus: patch_ready (test execution). Applied findings: RUNTIME-001 (canonical flags), GRADIENT-001 (override pattern), TESTING-003 (canonical selectors). Next: Ralph executes Phase C (i=207), runs DB-AT-010 gradcheck, documents results.
+
+2025-12-08T140000Z focus=SPEC-INTERP-TRICUBIC-001 state=partial dwell=0 action=validate artifacts=plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/ next_action=await_upstream_gradient_fix
+- Loop i=207 (Ralph): **SPEC-INTERP-TRICUBIC-001 Phase C COMPLETE — PARTIAL SUCCESS**. DB-AT-010 gradcheck suite executed: 5/5 FAILED (GradcheckError: Jacobian mismatch). **CRITICAL FINDING: Analytical gradients are now NON-ZERO**, proving tricubic interpolation successfully restored autograd graph connectivity:
+  | Parameter | Numerical Grad | Analytical Grad | Mismatch |
+  |-----------|----------------|-----------------|----------|
+  | cell_a | -3.19e+11 | 6.98e+07 | ~4574× |
+  | cell_gamma | 5.75e+10 | 4.63e+07 | ~1241× |
+  | detector_distance | 8.35e+11 | 1.10e+07 | ~76000× |
+  
+  HKL hit rate 97.28% confirms tricubic interpolation is functioning correctly. **The DBEX-layer fix (tricubic config change) achieved its goal** — cell parameter gradients now flow through the HKL lookup path instead of being blocked by torch.round(). The magnitude mismatch is the known upstream issue (GRADIENT-002), NOT a DBEX problem.
+  
+  **Initiative status updates:**
+  - SPEC-INTERP-TRICUBIC-001: Phase A/B done (spec + impl), Phase C blocked_pending_upstream
+  - ARCH-GRADIENT-FLOW-001: Graph connectivity RESTORED; magnitude correctness blocked_pending_upstream
+  - DB-AT-010: Remains 5/5 FAIL until upstream gradient magnitude bug is fixed
+  
+  **Insight (not in planning docs):** The gradient magnitude ratios (1000×-76000×) vary significantly by parameter type. Crystal parameters (cell_a, cell_gamma) have smaller mismatches (~1000-5000×) while geometry parameters (detector_distance) have larger mismatches (~76000×). This pattern suggests the gradient bug may be localized in the geometry → pixel mapping chain rather than the crystal physics chain. Worth investigating when upstream responds.

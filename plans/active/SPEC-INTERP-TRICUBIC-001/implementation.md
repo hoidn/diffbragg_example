@@ -128,20 +128,35 @@ NEW: All stages: interpolation=True REQUIRED with ±1 halo
 
 ---
 
-## Phase C — Validation
+## Phase C — Validation (2025-12-08T140000Z)
 
 ### Checklist
 
-- [ ] C1: Run DB-AT-010 gradcheck for cell parameters — expect PASS
-- [ ] C2: Run Stage A smoke test — verify non-zero cell parameter deltas in telemetry
-- [ ] C3: Run full DB-AT suite — all selectors should pass
-- [ ] C4: Update docs/TESTING_GUIDE.md with new interpolation default
-- [ ] C5: Create finding INTERP-001 in docs/findings.md
+- [x] C1: Run DB-AT-010 gradcheck for cell parameters — **5/5 FAILED (magnitude mismatch, but gradients ARE non-zero)**
+- [ ] C2: Run Stage A smoke test — DEFERRED (OOM on full reconstruction)
+- [ ] C3: Run full DB-AT suite — DEFERRED pending C1 resolution
+- [ ] C4: Update docs/TESTING_GUIDE.md with new interpolation default — DEFERRED pending C1 resolution
+- [ ] C5: Create finding INTERP-001 in docs/findings.md — DEFERRED pending C1 resolution
+
+### Validation Results (2025-12-08T140000Z)
+
+**Outcome:** PARTIAL SUCCESS — Graph connectivity restored; magnitude mismatch persists
+
+**Evidence of gradient flow restoration:**
+- analytical(cell_a) = 6.98e+07 (non-zero ✓)
+- analytical(cell_gamma) = 4.63e+07 (non-zero ✓)
+- analytical(detector_distance) = 1.10e+07 (non-zero ✓)
+- HKL hit rate = 97.28% (tricubic interpolation working ✓)
+
+**Blocking issue:** Magnitude mismatch 1000×-76000× between numerical and analytical gradients. This is the known upstream `nanobrag_torch` gradient correctness bug documented in GRADIENT-002.
+
+**Artifacts:** `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/`
 
 ### Notes & Risks
 
 - **Risk:** Other DB-AT selectors may have hard-coded nearest-neighbor expectations
 - **Mitigation:** Search for `interpolat` patterns in test files and update
+- **Status:** Phase A/B goals achieved (spec + implementation). Phase C blocked_pending_upstream on gradient magnitude correctness.
 
 ---
 

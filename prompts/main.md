@@ -23,6 +23,7 @@
     - docs/architecture.md
     - docs/architecture/pytorch_design.md
     - docs/pytorch_runtime_checklist.md
+    - docs/development/differentiability_guide.md  <!-- CRITICAL: gradient-breaking patterns, C-to-PyTorch translation -->
     - docs/development/c_to_pytorch_config_map.md
     - docs/development/testing_strategy.md
     - docs/TESTING_GUIDE.md

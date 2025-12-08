@@ -198,9 +198,14 @@ Use this when: Checking which selectors exist and which remain to be authored.
 
 ## PyTorch Development
 
+### [Differentiability Guide](development/differentiability_guide.md) ⚠️ REQUIRED READING
+Description: C-to-PyTorch translation patterns, gradient-breaking operations to avoid, and the "minimal fix, measured impact" methodology for numerical helpers.
+Keywords: differentiability, gradients, autograd, requires_grad, torch.where
+Use this when: Implementing or modifying any differentiable code path. **Read before touching gradient-sensitive code.**
+
 ### [PyTorch Architecture Design](architecture/pytorch_design.md)
-Description: Detailed design notes for vectorized tricubic interpolation, detector absorption, and source weighting in `nanobrag_torch`.  
-Keywords: architecture, vectorization, tricubic, absorption  
+Description: Detailed design notes for vectorized tricubic interpolation, detector absorption, and source weighting in `nanobrag_torch`.
+Keywords: architecture, vectorization, tricubic, absorption
 Use this when: Implementing or reviewing PyTorch simulator internals for DBEX integration.
 
 ### [C-CLI to PyTorch Configuration Map](development/c_to_pytorch_config_map.md)
@@ -292,4 +297,4 @@ Use this when: You encounter a recurring error or need a known remediation patte
 
 ---
 
-Last updated: 2025‑10‑28
+Last updated: 2025‑12‑08

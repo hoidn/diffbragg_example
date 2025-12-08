@@ -155,6 +155,12 @@
 - Geometry changes affect all refinement flows; prefer to localize fixes to mapping‑aligned helper paths unless specs demand otherwise.
 - Any change that substantially alters Stage‑A χ² must be cross‑checked against DB‑AT selectors once they’re wired to the torch backend.
 
+## Status Update (2025-12-08)
+**Blocked on:** ARCH-GRADIENT-FLOW-001 (blocked_pending_upstream)
+- Phase B/C gradient work requires resolution of Jacobian magnitude/sign discrepancy
+- Escalation: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`
+- Phase A diagnostics complete — geometry encoding gap understood
+
 ## Artifacts Index
 - Reports root: `plans/active/TORCH-REFINE-002E/reports/`
 - Latest run: `<YYYY-MM-DDTHHMMSSZ>/`

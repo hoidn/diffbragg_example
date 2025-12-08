@@ -385,7 +385,7 @@
 
 ### [TORCH-REFINE-CLEANUP-001] Stage A/B/C Refinement Cleanup (TORCH-REFINE-001/002/002D/002E/003)
 - Depends on: ARCH-REFACTOR-001 (Stage modularization), PHYSICS-LOSS-001 (telemetry spec)
-- Status: pending
+- Status: in_progress (Phase B complete 2025-12-08T200000Z)
 - Type: architecture + perf
 - Priority: Medium
 - Tier: 1
@@ -398,8 +398,13 @@
 - Working Plan: `plans/active/TORCH-REFINE-001/`, `plans/active/TORCH-REFINE-002/`, `plans/active/TORCH-REFINE-002D/`, `plans/active/TORCH-REFINE-002E/`, `plans/active/TORCH-REFINE-003/`
 - Spec References: `docs/spec-db-workflow.md` §Stage B/C, `docs/spec-db-runtime.md` §Vectorization
 - Working Plan: `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md`
+- Revive Priority Queue:
+  * **TORCH-REFINE-002D:** Priority HIGH — Remove xfail, restore ≥0.2% Stage A gate (remaining: P2.1-P2.2, P3.1-P3.2)
+  * **TORCH-REFINE-001:** Priority MEDIUM — Phase B full-trace telemetry, Phase C CLI wiring (remaining: B1-B2, C1-C2)
 - Attempts History:
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
+  * 2025-12-08T150000Z (Loop i=186, Galph) — Phase A complete. Audited 6 member plans: 001 (substantial), 002 (done→002D), 002D (in_progress), 002E (blocked), 003 (blocked), 004 (done). Classification: revive (002D, 001), blocked (002E, 003), archive (004). Artifacts: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/`.
+  * 2025-12-08T200000Z (Loop i=187, Ralph) — **Phase B complete**: B1: Archived TORCH-REFINE-004 with closure summary. B2: Documented revive priority queue (002D HIGH, 001 MEDIUM). B3: Updated blocked member plan implementation.md files (002E, 003, 002) with status notes. B4: Updated fix_plan entry. Touched: Phase B (B1-B4). Tests: collect-only verification. Artifacts: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/`.
   * ... (see docs/fix_plan_archive.md and plans/active/TORCH-REFINE-CLEANUP-001/reports/ for full Attempts History and metrics).
 
 ### [TORCH-CLI-BRIDGE-ROLLUP-001] CLI & Bridge Infrastructure (TORCH-BRIDGE-001, TORCH-CLI-003/004)

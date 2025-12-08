@@ -49,10 +49,10 @@
 ## Phase B — Portfolio Decision & Archival
 
 ### Checklist
-- [ ] B1: Mark TORCH-REFINE-004 ready for archive (all phases complete, no pending work)
-- [ ] B2: For revive-classified phases, queue in fix_plan.md or create follow-on initiatives
-- [ ] B3: For blocked/deferred phases, update member plan implementation.md with deferral rationale
-- [ ] B4: Update fix_plan.md TORCH-REFINE-CLEANUP-001 entry with Phase A/B completion
+- [x] B1: Mark TORCH-REFINE-004 ready for archive (all phases complete, no pending work) — 2025-12-08T200000Z (i=187)
+- [x] B2: For revive-classified phases, queue in fix_plan.md or create follow-on initiatives — 2025-12-08T200000Z (i=187)
+- [x] B3: For blocked/deferred phases, update member plan implementation.md with deferral rationale — 2025-12-08T200000Z (i=187)
+- [x] B4: Update fix_plan.md TORCH-REFINE-CLEANUP-001 entry with Phase A/B completion — 2025-12-08T200000Z (i=187)
 
 ## Phase C — Closure
 

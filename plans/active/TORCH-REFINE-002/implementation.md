@@ -49,6 +49,11 @@ Extend the Stage A refinement loop from the nucleus (scale + cell_a) to the full
 - Full suite (post-expansion sanity):
   - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/`
 
+## Status Update (2025-12-08)
+**Status:** done (delegated to TORCH-REFINE-002D)
+- Phases 1-3 complete
+- Phase 4 (HKL perturbation) tracked in TORCH-REFINE-002D
+
 ## Next Up (after Stage A expansion)
 - TORCH-REFINE-003 — Stage C detector microslip (panel normal translations)
 - TORCH-REFINE-004 — Stage B Fhkl modifiers (per-shell/global multipliers)

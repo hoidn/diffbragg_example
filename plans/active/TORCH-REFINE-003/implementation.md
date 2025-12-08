@@ -55,6 +55,11 @@ Enable the Stage C refinement stage for the nanobrag torch backend by introducin
 - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
 - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --maxfail=1`
 
+## Status Update (2025-12-08)
+**Blocked on:** Stage A gate restoration
+- Depends on TORCH-REFINE-002D (xfail removal) and TORCH-REFINE-002E (gradient flow)
+- Will unblock once 002D restores ≥0.2% improvement gate
+
 ## Next Up (after completion)
 - TORCH-REFINE-004 — Stage B Fhkl modifiers once Stage C telemetry is stable.
 - Calibration follow-up to widen Stage C to small panel rotations if detector translation proves insufficient.

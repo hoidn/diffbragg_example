@@ -81,11 +81,11 @@
 
 **Objective**: Monitor member plan regressions, coordinate future DB-AT selector additions (DB-AT-025+), and maintain portfolio health.
 
-**Status**: ⏳ In progress (D1 complete 2025-12-07T213000Z, Loop i=172)
+**Status**: ⏳ In progress (D1 complete 2025-12-07T213000Z; D2 scoped 2025-12-08T112000Z, Loop i=192)
 
 ### Tasks (Phase D)
 - [x] **D1 — Regression monitoring**: Established regression monitoring cadence. Baseline sweep executed: 14 PASSED, 1 SKIPPED (DB-AT-024 artifact dir unset, expected). Cadence document authored: `plans/active/DB-AT-SUITE-CARE-001/regression_cadence.md`. Sweep logs archived: `reports/2025-12-07T213000Z/regression_sweeps/sweep_2025_12_07.log`. ✅ 2025-12-07 (Loop i=172)
-- [ ] **D2 — Future DB-AT onboarding**: When new DB-AT selectors are proposed (e.g., DB-AT-025 HKL interpolation halo, DB-AT-030 sigma precedence, DB-AT-031+ Stage B/C profiles), create member plan implementation.md under `plans/active/DB-AT-<NNN>/`, add to portfolio progress dashboard, and coordinate Phase A/B/C execution.
+- [x] **D2 — Future DB-AT onboarding**: Scoping complete. Inventoried 10 selectors beyond DB-AT-024: 4 already active (026-029), 6 defined in spec but lacking implementations (025, 030-032, 040, 050). DB-AT-028/029 blocked by ARCH-SIM-CONSTRUCTION-001; DB-AT-031 blocked by GRADIENT-003. Priority candidates for future onboarding: DB-AT-030 (sigma precedence), DB-AT-032 (Stage C detector offsets). No immediate onboarding action required. Inventory: `reports/2025-12-08T112000Z/future_db_at_inventory.md`. ✅ 2025-12-08 (Loop i=192)
 - [ ] **D3 — Conformance profile evolution**: As spec-db-conformance.md adds new profiles (e.g., CUDA Conformance Profile, Tracing & VIS Profile), update Phase C conformance certification tasks with new profile-level pytest commands.
 - [ ] **D4 — TEST_SUITE_INDEX.md hygiene**: Quarterly audit of TEST_SUITE_INDEX.md to remove stale selectors, update artifact paths, refresh runtime estimates, and sync with TESTING_GUIDE.md §2.
 - [ ] **D5 — Lessons learned archive**: Document recurring acceptance test patterns (e.g., fixture-sharing strategies, artifact emission helpers, skip/xfail guardrails) in `docs/findings.md` or dedicated `docs/acceptance_test_patterns.md` for future test authors.

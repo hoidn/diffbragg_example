@@ -229,11 +229,11 @@
 
 ### [ARCH-TELEMETRY-002] Telemetry & Probe Simplification
 - Depends on: ARCH-TELEMETRY-001 (observer refactor), ARCH-STAGE-CONTEXT-001 (typed contexts), PHYSICS-LOSS-001 (telemetry χ² spec), TOOLING-VIS-001 / MAP-SCALE-00x (mapping metrics), ARCH-PROBE-FREEZE-001 (probe/shim policy)
-- Status: pending
+- Status: in_progress
 - Type: architecture
 - Priority: High
 - Tier: 3 (Tooling & Observability)
-- Owner/Date: Galph ↔ Ralph / 2025-12-08
+- Owner/Date: Galph ↔ Ralph / 2025-12-07
 - Exit Criteria:
   1. Telemetry ownership charter exists (`docs/architecture/telemetry.md` or equivalent), is wired into `docs/index.md`, and clearly separates primary production telemetry owners (Stage collectors, writer, CLI bundle) from diagnostic owners (bridge/mapping/baseline helpers), explicitly deferring semantics to Spec‑DB and existing IDLs.
   2. A telemetry inventory (charter appendix or `docs/data_dependency_manifest.md` Telemetry section) catalogues `/torch_diagnostics` attributes, Stage telemetry fields, and mapping/baseline diagnostics with their code/tests/plan consumers; at least one unused, non‑normative field is removed or explicitly deprecated with recorded evidence.
@@ -243,6 +243,7 @@
 - Working Plan: `plans/active/ARCH-TELEMETRY-002/implementation.md`
 - Attempts History:
   * 2025-12-08T000000Z (planning) — Authored implementation plan under `plans/active/ARCH-TELEMETRY-002/implementation.md` based on telemetry ownership and probe simplification design; scoped phases A (charter/inventory), B (AST guard + supervisor policy), C (cleanup/closure). No code/tests changed yet; artifacts: `plans/active/ARCH-TELEMETRY-002/implementation.md`.
+  * 2025-12-07T215000Z (Loop i=173, Galph) — **Phase A delegation**: Selected focus after DB-AT-SUITE-CARE-001 Phase D.1 complete (i=172 Ralph: 14 PASS, 1 skip, cadence doc authored). Dependencies met: ARCH-PROBE-FREEZE-001 done, ARCH-TELEMETRY-001 archived. Phase A scoped: (A0) ownership spike, (A1) telemetry charter, (A2) telemetry inventory, (A3) manifest Telemetry section, (A4) summary. ActionType: planning. DecisionStatus: exploring (first Phase A). Tests: probe contracts green guard (no regression expected). Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/`. Next: Ralph executes Phase A tasks (i=173).
 
 ### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
 - Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)

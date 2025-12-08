@@ -1,157 +1,203 @@
-# input.md — Loop i=218
+# Ralph Input — Loop i=219
 
 ## Summary
-Phase B.8 — Investigate cell parameter gradient magnitude mismatch (843-19352×) by creating minimal reproduction bypassing DBEX factories.
+Verify mosaic coupling hypothesis by testing gradcheck with `experiment=None` to bypass mosaic metadata extraction.
 
 ## Focus
-**ARCH-GRADIENT-FLOW-001** — Gradient Flow Restoration (Phase B.8: DBEX-side magnitude investigation)
+ARCH-GRADIENT-FLOW-001 — Phase B.9 (Mosaic Workaround Verification)
 
 ## Branch
 `integration`
 
 ## Mapped Tests
-- `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::test_db_at_010_gradcheck_crystal_cell_a --tb=short`
+- `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_cell_a_no_mosaic --tb=short`
 
 ## Artifacts
-`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T232143Z/`
+`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T234500Z/`
 
 ---
 
-## Do Now (Implementation: Debug)
+## Do Now (Implementation: Debug + Test)
 
-**Focus Item:** ARCH-GRADIENT-FLOW-001 Phase B.8 — Cell parameter gradient magnitude investigation
+**Focus Item:** ARCH-GRADIENT-FLOW-001 Phase B.9 — Mosaic workaround verification
 
 **Implement:**
-- `tests/dbex/test_gradients.py::test_minimal_nanobrag_gradcheck` (new test function)
+- `tests/dbex/test_gradients.py::test_db_at_010_gradcheck_cell_a_no_mosaic` (new test function)
 - Investigation report in artifacts
 
 **Validating pytest selector:**
-`pytest -v tests/dbex/test_gradients.py::test_minimal_nanobrag_gradcheck`
+`pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_cell_a_no_mosaic`
 
-**Action Type:** Debug (hypothesis-driven minimal reproduction)
-
----
-
-### Background (from upstream response)
-
-Loop i=209 fixed graph connectivity — analytical gradients are now non-zero:
-- cell_a: analytical=7.04e7, numerical=8.36e4 → **843× mismatch**
-- cell_gamma: analytical=4.64e7, numerical=2.40e3 → **19,352× mismatch**
-
-Upstream `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md` confirms:
-- nanobrag_torch cell parameter gradcheck tests **PASS** (6/6)
-- Issue is in **DBEX integration layer**, not nanobrag_torch
-- **Hypotheses** (from upstream):
-  1. Double unit conversion (Å→m applied twice)
-  2. Intermediate scalar extraction (.item()/.detach()/.numpy())
-  3. Fluence scaling mismatch (DBEX vs upstream fluence=1e28)
+**Action Type:** Debug (hypothesis verification via targeted test)
 
 ---
 
-### Tasks (B.8.1-B.8.3)
+### Background (from Phase B.8)
 
-**B.8.1 — Create minimal reproduction test** (bypasses DBEX factories):
+Loop i=218 (Phase B.8) created 5 diagnostic tests:
+- **ALL synthetic tests PASS** with 1.00× gradient ratio
+- **Only real refGeom data test FAILS** (magnitude mismatch 843-19,352×)
+
+**Key finding:** The DBEX integration layer does NOT break cell parameter gradients for synthetic cubic crystals. The magnitude mismatch is specific to **real experiment metadata**.
+
+**Suspected root cause:** Mosaic parameters extracted from experiment metadata:
+- `ML_half_mosaicity_deg` at `config_factories.py:382-383` sets `mosaic_spread_deg > 0`
+- When `mosaic_spread_deg > 0`, a different simulation code path is taken in nanobrag_torch
+- This code path has a gradient bug (separate upstream issue filed: `mosaic_gradient_bug_2025_12_08.md`)
+
+### Hypothesis to Verify
+
+If we bypass the mosaic metadata extraction by passing `experiment=None` to `simulate_forward_torch`, the cell parameter gradcheck should PASS because:
+1. `config_factories.py:380` guards against `experiment is None`
+2. This keeps `mosaic_spread_deg = 0.0` (line 372)
+3. The non-mosaic code path in nanobrag_torch has correct gradients (confirmed by upstream 6/6 tests PASS)
+
+---
+
+### Tasks
+
+**B.9.1 — Create no-mosaic test:**
+
+Add new test `test_db_at_010_gradcheck_cell_a_no_mosaic` to `tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck` class.
+
+The test should:
+1. Copy the structure of `test_db_at_010_gradcheck_crystal_cell_a` (lines 168-255)
+2. Modify `loss_fn` to pass `experiment=None` instead of `experiment=experiment`
+3. Use the same tolerances: `eps=1e-6, atol=1e-5, rtol=0.05`
+4. Document the workaround purpose in the docstring
+
+**Insert AFTER** `test_db_at_010_gradcheck_crystal_cell_gamma` (around line 330):
+
 ```python
-# tests/dbex/test_gradients.py — add new test function
-
-def test_minimal_nanobrag_gradcheck():
+def test_db_at_010_gradcheck_cell_a_no_mosaic(
+    self,
+    refinement_inputs,
+    geometry_objects,
+    hkl_data,
+    artifact_dir
+):
     """
-    Minimal reproduction of nanobrag_torch cell parameter gradcheck.
+    DB-AT-010 Workaround: Verify cell_a gradients with mosaic bypass.
 
-    Bypasses all DBEX factories to isolate the integration layer.
-    This test should PASS if the issue is in DBEX config_factories/helpers.
+    ARCH-GRADIENT-FLOW-001 Phase B.9: Tests the hypothesis that the gradient
+    magnitude mismatch is caused by the mosaic code path in nanobrag_torch.
+    By passing experiment=None, we bypass mosaic metadata extraction
+    (config_factories.py:380), keeping mosaic_spread_deg=0.0.
+
+    If this test PASSES while test_db_at_010_gradcheck_crystal_cell_a FAILS,
+    it confirms the mosaic code path is the root cause.
     """
-    import os
-    os.environ["NANOBRAGG_DISABLE_COMPILE"] = "1"
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    from dbex.physics.forward import simulate_forward_torch
+    from dbex.physics.loss import compute_masked_mse_loss
 
-    import torch
-    from torch.autograd import gradcheck
-    from nanobrag_torch.config import CrystalConfig, DetectorConfig, BeamConfig
-    from nanobrag_torch.models.crystal import Crystal
-    from nanobrag_torch.models.detector import Detector
-    from nanobrag_torch.simulator import Simulator
-
-    device = torch.device("cpu")
+    device = torch.device('cpu')
     dtype = torch.float64
 
-    # Differentiable cell parameter
-    cell_a = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+    # Convert inputs to torch
+    target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
+    loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+    sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
 
-    def loss_fn(cell_a_param):
-        crystal_config = CrystalConfig(
-            cell_a=cell_a_param,
-            cell_b=100.0,
-            cell_c=100.0,
-            cell_alpha=90.0,
-            cell_beta=90.0,
-            cell_gamma=90.0,
-            N_cells=(5, 5, 5),
-            default_F=100.0,
-        )
+    # Get base crystal config
+    base_crystal = geometry_objects["crystal"]
+    # NOTE: experiment=None bypasses mosaic metadata extraction (ARCH-GRADIENT-FLOW-001 B.9)
 
-        detector_config = DetectorConfig(
-            distance_mm=100.0,
-            pixel_size_mm=0.1,
-            spixels=64,
-            fpixels=64,
-        )
+    def loss_fn(cell_a_tensor):
+        crystal_overrides = {'cell_a': cell_a_tensor}
 
-        beam_config = BeamConfig(
-            wavelength_A=1.0,
-            fluence=1e28,
-        )
-
-        crystal = Crystal(config=crystal_config, device=device, dtype=dtype)
-        detector = Detector(config=detector_config, device=device, dtype=dtype)
-
-        simulator = Simulator(
-            crystal=crystal,
-            detector=detector,
-            beam_config=beam_config,
+        # Pass experiment=None to bypass mosaic extraction
+        bragg_torch = simulate_forward_torch(
+            inputs=refinement_inputs,
+            detector=geometry_objects["detector"],
+            beam=geometry_objects["beam"],
+            crystal=base_crystal,
+            experiment=None,  # WORKAROUND: bypass mosaic_spread_deg extraction
+            hkl_indices=hkl_data["indices"],
+            hkl_amplitudes=hkl_data["amplitudes"],
+            spot_scale_override=1.0,
             device=device,
             dtype=dtype,
+            crystal_overrides=crystal_overrides
         )
 
-        result = simulator.run()
-        return result.sum()
+        loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
+        return loss
 
-    # Run gradcheck with upstream tolerances
-    assert gradcheck(loss_fn, (cell_a,), eps=1e-6, atol=1e-5, rtol=0.05), \
-        "Minimal nanobrag_torch gradcheck failed - issue is NOT in DBEX integration"
+    # Get base cell_a value
+    uc = base_crystal.get_unit_cell()
+    base_cell_a = uc.parameters()[0]
+
+    # Create differentiable parameter tensor
+    cell_a_param = torch.tensor(base_cell_a, dtype=dtype, device=device, requires_grad=True)
+
+    # Run gradcheck
+    gradcheck_passed = gradcheck(
+        loss_fn,
+        (cell_a_param,),
+        eps=1e-6,
+        atol=1e-5,
+        rtol=0.05,
+        raise_exception=True
+    )
+
+    # Emit metrics
+    metrics = {
+        "parameter": "crystal_cell_a_no_mosaic",
+        "base_value": float(base_cell_a),
+        "gradcheck_passed": gradcheck_passed,
+        "workaround": "experiment=None to bypass mosaic extraction",
+        "eps": 1e-6,
+        "atol": 1e-5,
+        "rtol": 0.05,
+        "device": str(device),
+        "dtype": str(dtype)
+    }
+
+    metrics_file = artifact_dir / "gradcheck_crystal_cell_a_no_mosaic.json"
+    with open(metrics_file, 'w') as f:
+        json.dump(metrics, f, indent=2)
+
+    assert gradcheck_passed, "Gradcheck failed for crystal cell_a (no mosaic) parameter"
 ```
 
-**B.8.2 — Run minimal test and compare**:
-- If test PASSES: Confirms issue is in DBEX integration layer (proceed to B.8.3)
-- If test FAILS: Issue is in nanobrag_torch (unexpected per upstream response)
+**B.9.2 — Run the new test:**
 
-**B.8.3 — If B.8.2 passes, audit config_factories.py**:
-Search for unit conversion or magnitude-altering code paths:
 ```bash
-grep -n "1000\|1e-\|1e+\|Angstrom\|meter\|mm\|fluence" dbex/refinement/config_factories.py
-grep -n "1000\|1e-\|1e+\|fluence" dbex/refinement/helpers.py
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_cell_a_no_mosaic --tb=short 2>&1 | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T234500Z/gradcheck_no_mosaic.log
 ```
 
-Document findings in `magnitude_audit.md`.
+**B.9.3 — Run the original failing test for comparison:**
+
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --tb=short 2>&1 | head -50
+```
+
+**B.9.4 — Document results:**
+
+Create `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T234500Z/mosaic_hypothesis_verification.md` with:
+- Test results comparison (no-mosaic vs original)
+- Hypothesis confirmation status
+- Recommended next steps
 
 ---
 
 ## How-To Map
 
-### Environment setup:
-```bash
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
-```
+### Create test file edit:
+1. Read `tests/dbex/test_gradients.py` to find insertion point (after `test_db_at_010_gradcheck_crystal_cell_gamma`)
+2. Insert the new test function using Edit tool
+3. Verify syntax by running pytest collect
 
-### Run minimal reproduction:
+### Run commands:
 ```bash
-pytest -v tests/dbex/test_gradients.py::test_minimal_nanobrag_gradcheck --tb=short 2>&1 | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T232143Z/minimal_gradcheck.log
-```
+# Create artifacts directory
+mkdir -p plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T234500Z
 
-### Run existing failing test for comparison:
-```bash
-pytest -v tests/dbex/test_gradients.py::test_db_at_010_gradcheck_crystal_cell_a --tb=short 2>&1 | head -100
+# Run new no-mosaic test
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_cell_a_no_mosaic --tb=short 2>&1 | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T234500Z/gradcheck_no_mosaic.log
+
+# Run original test for comparison (expect FAIL)
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --tb=short 2>&1 | head -50
 ```
 
 ---
@@ -159,20 +205,22 @@ pytest -v tests/dbex/test_gradients.py::test_db_at_010_gradcheck_crystal_cell_a 
 ## Pitfalls To Avoid
 
 1. **DO NOT** modify nanobrag_torch source (Environment Freeze)
-2. **DO NOT** change tolerances to make tests pass — investigate magnitude source
+2. **DO NOT** change tolerances to make the original test pass — this is a diagnostic
 3. **DO** use float64 dtype for gradcheck (per runtime checklist)
 4. **DO** use `NANOBRAGG_DISABLE_COMPILE=1` to avoid torch.compile interference
-5. **DO** match upstream test parameters (fluence=1e28, eps=1e-6, atol=1e-5, rtol=0.05)
-6. **DO** capture both minimal test and DBEX test outputs for comparison
+5. **DO** ensure both tests use identical parameters except for `experiment=None`
+6. **DO** document the hypothesis verification result clearly
+7. **DO NOT** add the new test to the official DB-AT-010 suite — it's a diagnostic workaround
 
 ---
 
 ## If Blocked
 
-If minimal test also fails (unexpected):
+If the no-mosaic test also fails:
 1. Log failure signature in artifacts
-2. Document environment difference from upstream
-3. File follow-up inquiry to nanoBragg inbox with detailed reproduction steps
+2. Check if `experiment=None` causes other issues (e.g., missing beam metadata)
+3. Try creating a mock experiment object with `ML_half_mosaicity_deg=None` instead
+4. Document the block and request supervisor guidance
 
 ---
 
@@ -180,28 +228,30 @@ If minimal test also fails (unexpected):
 
 - **RUNTIME-001**: `NANOBRAGG_DISABLE_COMPILE=1` required for gradcheck (runtime checklist §2)
 - **GRADIENT-001**: Tensor-valued overrides preserve autograd graph
-- **GRADIENT-002**: Graph connectivity fixed in i=209; this investigates magnitude
+- **GRADIENT-002**: Graph connectivity fixed in i=209; this investigates mosaic coupling
 - **TESTING-003**: Use canonical pytest selectors from TESTING_GUIDE.md
+- **PROBE-FREEZE-001**: Test is diagnostic (not enforcement); stays in test file
 
 ---
 
 ## Pointers
 
-### Upstream Response
-- `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md` — Cell gradient confirmation + hypotheses
+### Code Under Test
+- `dbex/physics/forward.py:199` — `create_crystal_config(crystal, experiment, ...)` call
+- `dbex/refinement/config_factories.py:380-396` — Mosaic metadata extraction with `if experiment is not None:` guard
 
-### Code Modules Under Investigation
-- `dbex/refinement/config_factories.py:278-468` — create_crystal_config
-- `dbex/refinement/helpers.py:83-228` — create_unified_simulator
-- `dbex/physics/forward.py:73-276` — simulate_forward_torch
+### Existing Tests
+- `tests/dbex/test_gradients.py:168-255` — Original `test_db_at_010_gradcheck_crystal_cell_a` (FAILING)
+- `tests/dbex/test_gradients.py:480-520` — Synthetic diagnostic tests added in B.8 (PASSING)
 
-### Prior Loop Evidence
-- `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T212500Z/` — Loop i=209 (graph fix)
+### Prior Evidence
+- `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T232143Z/magnitude_audit.md` — Phase B.8 findings
 
 ---
 
 ## Next Up (optional)
 
-If B.8 succeeds (minimal passes, DBEX fails):
-- B.8.4: Trace specific magnitude source in DBEX integration layer
-- B.8.5: Implement fix and re-run full DB-AT-010 suite
+If Phase B.9 confirms mosaic coupling:
+1. Document the workaround in `docs/findings.md::GRADIENT-003`
+2. Consider adding `mosaic_spread_deg_override` parameter to `create_crystal_config` (deferred pending upstream mosaic fix)
+3. Update DB-AT-010 status in TEST_SUITE_INDEX.md with "blocked_pending_upstream (mosaic gradient bug)"

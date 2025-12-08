@@ -1,3 +1,12 @@
+2025-12-08T234500Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=0 action=phase_b9_delegation artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T234500Z/ next_action=verify_mosaic_hypothesis
+- Loop i=219 (Galph): **PHASE B.9 DELEGATION — Mosaic workaround verification test.**
+  **Focus Switch:** Exited maintenance mode. Phase B.8 (i=218) isolated the issue to real experiment metadata. All synthetic tests pass (1.00× ratio), only real data fails.
+  **Mosaic Hypothesis:** The `ML_half_mosaicity_deg` metadata sets `mosaic_spread_deg > 0`, triggering a different simulation code path in nanobrag_torch that has incorrect gradients.
+  **Verification Strategy:** Create test `test_db_at_010_gradcheck_cell_a_no_mosaic` that passes `experiment=None` to bypass mosaic metadata extraction (config_factories.py:380 guard).
+  **Expected Outcome:** If no-mosaic test PASSES, mosaic code path is confirmed as root cause. Cell magnitude issue is coupled to upstream mosaic gradient bug.
+  **Portfolio Update:** ARCH-GRADIENT-FLOW-001 status changed from blocked_pending_upstream to in_progress (actionable DBEX-side verification).
+  ActionType: implementation_ready. DecisionStatus: hypothesis_verification_ready. Next: Ralph implements Phase B.9 (i=219).
+
 2025-12-09T020000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=25 action=maintenance_check artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T020000Z/ next_action=await_upstream_response
 - Loop i=216 (Galph): **MAINTENANCE CHECK — NO NEW UPSTREAM RESPONSES.**
   **Inbox/Outbox Check:** Verified nanoBragg outbox (last update Dec 7 19:55) and DBEX inbox — no new responses to pending requests.

@@ -292,6 +292,7 @@
 
       <step id='6'>
         - Implementation delegation: size up an appropriate unit of work (e.g. one or more plan phases or checklist items) to delegate to ralph and clarify the interactions between this unit of work and all other parts of the system
+        - IMPORTANT: neither Evidence nor Planning nor Review are valid for implementation delegation / input.md. Delegation means either of code (tests or implementation) or of debugging. All other actions are galph-only. 
       </step>
 
 

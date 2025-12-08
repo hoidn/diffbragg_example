@@ -1,7 +1,7 @@
-# input.md — Loop i=213
+# input.md — Loop i=215
 
 ## Summary
-Portfolio in maintenance mode — all actionable Tier 0-3 initiatives remain blocked pending upstream nanobrag_torch responses.
+Portfolio in maintenance mode — all actionable Tier 0-1 initiatives remain blocked pending upstream nanobrag_torch responses.
 
 ## Focus
 **DB-AT-SUITE-CARE-001** — Acceptance Suite Upkeep (Maintenance Mode)
@@ -13,7 +13,7 @@ Portfolio in maintenance mode — all actionable Tier 0-3 initiatives remain blo
 None — maintenance mode, no implementation delegation possible.
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T225750Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T010000Z/`
 
 ---
 
@@ -96,4 +96,4 @@ No relevant findings — maintenance mode only.
 
 Portfolio is in maintenance mode. All Tier 0-1 actionable initiatives are blocked pending upstream nanobrag_torch responses. Per loop_discipline, implementation floor does not apply when no viable implementation targets exist.
 
-This is a docs-only / maintenance loop. Dwell tracking: dwell=22 for DB-AT-SUITE-CARE-001 (incremented from i=212).
+This is a docs-only / maintenance loop. Dwell tracking: dwell=24 for DB-AT-SUITE-CARE-001.

@@ -37,19 +37,19 @@
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
 - [ARCH-REFINE-001] (Refine Engine Modularization + Torch IO context) — **Done** (2025-12-01T161600Z: Phase A-E code landed; 2025-12-01T170500Z docs/finding wrap complete. Ready to archive once downstream initiatives pick up.)
 - [ARCH-ENGINE-ARTIFACTS-001] (Engine artifact channel & Bragg unification) — **archived** (2025-12-02T185000Z, see docs/fix_plan_archive_2025-12-02.md)
-- [DB-AT-SUITE-CARE-001] (Acceptance suite upkeep for DB-AT-002/010/020/021/022/023/024) — **pending**.
+- [DB-AT-SUITE-CARE-001] (Acceptance suite upkeep for DB-AT-002/010/020/021/022/023/024) — **in_progress** (Phase C complete; Workflow Integration cluster certified; DB-AT-010 blocked_pending_environment escalated to ARCH-GRADIENT-FLOW-001).
   - **Governed by:** TESTING-003, RUNTIME-001, DIAGNOSTICS-001, MASKING-001
   - The plan directories under `plans/active/DB-AT-002/`, `.../DB-AT-010/`, and `.../DB-AT-020` through `.../DB-AT-024/` already contain implementation plans, but none were represented in this ledger. Scope: keep the DB-AT selectors mapped to fix-plan items, document status per selector, and surface artifacts/blocked states in the Attempts History. Classification reference: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`.
 - [MAP-SCALE-SYNC-001] (Calibration ladder initiatives MAP-SCALE-001—005) — **done** (2025-12-08T190000Z: 4/5 member plans complete; MAP-SCALE-003 telemetry already implemented; MAP-SCALE-005 deferred as non-critical).
   - **Governed by:** SCALE-001, SCALE-002, SCALE-003, SCALE-004, SCALE-005, SCALE-006, SCALE-007
   - Plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports; ledger coverage captures goals (sigma provenance, spot-scale alignment). Member plan status: MAP-SCALE-001/002/004 done, MAP-SCALE-003 done (telemetry already exists), MAP-SCALE-005 pending (enforcement guardrail deferred).
-- [PHYSICS-LOSS-001] (Variance-weighted loss parity and telemetry fixes) — **pending**. Plan exists under `plans/active/PHYSICS-LOSS-001/implementation.md`; add ledger tracking so variance, sigma-floor, and telemetry corrections remain visible.
+- [PHYSICS-LOSS-001] (Variance-weighted loss parity and telemetry fixes) — **done_with_environment_caveat** (all phases A-I complete; exit criteria satisfied; see detailed section line 343).
 - [PHYSICS-LOSS-CONSISTENCY] (Physics Loss Function Alignment) — **pending**.
   - **Governed by:** PHYSICS-LOSS-001, PHYSICS-LOSS-002, PHYSICS-LOSS-003, PHYSICS-LOSS-004, PHYSICS-LOSS-005
   - **Goal:** Align Stage A/B/C chi-squared computation, enforce sigma-floor guard, unify sigma-map ingestion contract, harvest DIALS external_lookup metadata.
   - **Exit Criteria:** All stages use identical variance-weighted denominator per spec-db-core.md:57-68; telemetry persists both chi_squared + masked_mse; sigma-floor enforcement validated via unit tests; sigma-map/external_lookup ingestion contracts tested.
   - **Dependencies:** ARCH-REFACTOR-001 (Stage A/B/C context + observer pattern provides hooks for unified loss computation).
-- [TORCH-GEOMETRY-SYNC-001] (Geometry convergence/parity/UB realign initiatives) — **pending**.
+- [TORCH-GEOMETRY-SYNC-001] (Geometry convergence/parity/UB realign initiatives) — **done** (2025-12-08T200000Z: Roll-up complete; see detailed section line 357).
   - **Governed by:** GEOMETRY-001, GEOMETRY-002, GEOMETRY-003, GEOMETRY-004, CONFIG-001, DXTBX-001, HKL-ORIENT-001, CONVERGENCE-001
   - Covers `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/`, `.../TORCH-GEOMETRY-PARITY-002/`, `.../TORCH-GEOMETRY-PARITY-003/`, and `.../TORCH-GEOMETRY-UB-REALIGN-001/`.
 - [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003) — **pending**.

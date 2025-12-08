@@ -1,116 +1,131 @@
-# Input for Ralph (Loop i=170)
+# Input for Ralph (Loop i=171)
 
 ## Summary
-Execute ARCH-GRADIENT-FLOW-001 Phase B.5: DBEX-layer gradient audit and fix to unblock DB-AT-010 gradcheck tests.
+Execute ARCH-GRADIENT-FLOW-001 Phase B.6: Implement single-line fix to pass `crystal_overrides` to `create_crystal_config`, then validate with DB-AT-010 gradcheck test.
 
 ## BindingForRalph
-- **ActionType:** evidence_collection (code audit to localize gradient break in DBEX layer)
-- **DecisionStatus:** exploring (first Phase B.5 loop for DBEX layer)
+- **ActionType:** implementation_ready
+- **DecisionStatus:** patch_ready (confidence 0.95 from Phase B.5)
 - **InitiativeType:** architecture
 
 ## SupervisorMode
 Parity (gradient flow restoration)
 
 ## Focus
-ARCH-GRADIENT-FLOW-001 — Gradient Flow Restoration (DB-AT-010 Unblock) — Phase B.5
+ARCH-GRADIENT-FLOW-001 — Gradient Flow Restoration (DB-AT-010 Unblock) — Phase B.6
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck -k "crystal_cell_a" --tb=short 2>&1 | head -100`
-- Evidence-only loop: run gradcheck with verbose output to capture exact failure location
+- `pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --tb=short`
+- After fix: full DB-AT-010 suite (`pytest -vv tests -k DB_AT_010 --smoke-detector-size=full`)
 
 ## Artifacts
-`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/`
+`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/`
 
 ## Findings Applied (Mandatory)
-- **GRADIENT-001** (Gradient test patterns): Tests inject differentiable parameters via `crystal_overrides` dict
+- **GRADIENT-001** (Gradient test patterns): Tests inject differentiable parameters via `crystal_overrides` dict; factory must accept and use them.
   - Code: `tests/dbex/test_gradients.py:379-382`, `dbex/physics/forward.py:198-226`
-  - Adherence: Audit must verify tensor flow preservation through override application
-- **GRADIENT-002** (nanobrag_torch gradient fix): Upstream fix applied in nanobrag_torch layer
-  - Code: `nanobrag_torch/utils/tensor_utils.py::as_tensor_preserving_grad`
-  - Adherence: DBEX layer must use same pattern or compatible gradient-preserving approach
+  - Adherence: Fix passes `crystal_overrides` to factory so MOSFLM path is skipped when overrides present
+- **GRADIENT-002** (nanobrag_torch gradient fix): Upstream fix ensures Crystal cell parameter path preserves gradients when `mosflm_a_star=None`.
+  - Code: `nanobrag_torch/models/crystal.py:682-716` (cell parameter path)
+  - Adherence: Fix enables cell parameter path by ensuring `mosflm_a_star=None` when `crystal_overrides` provided
 - **RUNTIME-001** (Runtime execution guardrails): Gradcheck requires `NANOBRAGG_DISABLE_COMPILE=1`
   - Code: `docs/TESTING_GUIDE.md:161`
-  - Adherence: All test runs must use canonical env flags
+  - Adherence: All test runs use canonical env flags
 
 ## Pointers
 - Implementation plan: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md` (Phase B section)
-- Prior Phase B summary: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T060000Z/summary.md`
-- Code under audit:
-  - `dbex/physics/forward.py::simulate_forward_torch` (lines 73-274)
-  - `dbex/refinement/config_factories.py::create_crystal_config` (lines 278-450)
-  - `dbex/refinement/helpers.py::create_unified_simulator` (lines 83-240)
-- Test file: `tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck` (lines 159-600)
+- Phase B.5 audit: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/dbex_gradient_audit.md`
+- Root cause analysis: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/summary.md`
+- Fix location: `dbex/physics/forward.py:196`
+- Factory that accepts overrides: `dbex/refinement/config_factories.py:278` (signature already has `crystal_overrides` param)
+- Logic that skips MOSFLM: `dbex/refinement/config_factories.py:353-357` (`else` branch sets `mosflm_a_star=None`)
 
 ---
 
 ## ARCH Contracts (mandatory)
-- **ARCH-FACTORY-001** (Simulator Factory Scope): `create_unified_simulator` is canonical factory; forward helpers may use it
-  - Owner: `dbex/refinement/helpers.py`
-  - Relevance: Gradient break may be in factory's config→simulator conversion
-- **GRADIENT-001** (Tensor Override Pattern): `crystal_overrides`/`detector_overrides` dicts preserve gradient flow
+- **GRADIENT-001** (Tensor Override Pattern): `crystal_overrides` dict must flow to `create_crystal_config` to trigger MOSFLM bypass
   - Owner: `dbex/physics/forward.py::simulate_forward_torch`
-  - Classification: **Implementation bug** (override values set correctly but gradient may be lost in downstream construction)
+  - Classification: **Implementation bug** — factory already supports overrides, caller omits them
+- **ARCH-FACTORY-001** (Config Factory): `create_crystal_config` has logic to skip MOSFLM when `crystal_overrides` provided (lines 353-357)
+  - Owner: `dbex/refinement/config_factories.py`
+  - Enforcement: This fix activates that logic path
 
 ---
 
 ## Do Now
 
-**Focus:** ARCH-GRADIENT-FLOW-001 Phase B.5 — DBEX-layer gradient audit
+**Focus:** ARCH-GRADIENT-FLOW-001 Phase B.6 — Implement crystal_overrides passthrough
 
 ### Background
-Phase B (i=153) successfully fixed nanobrag_torch layer gradient flow. Enforcement tests pass (5/5 in `tests/architecture/test_gradient_contracts.py`). However, DB-AT-010 gradcheck tests still fail (5/5) with "disconnected autograd graph" error.
+Phase B.5 (i=170) identified the root cause with 0.95 confidence:
+- `forward.py:196` calls `create_crystal_config(crystal, experiment)` WITHOUT `crystal_overrides`
+- This causes MOSFLM A* vectors to be injected from base crystal (`config_factories.py:342-347`)
+- When `Crystal.compute_cell_tensors()` runs, it takes the MOSFLM path and overwrites `self.cell_a` at `crystal.py:872`
+- The tensor with `requires_grad=True` is disconnected from the computational graph
 
-Root cause has shifted from nanobrag_torch to DBEX layer:
-- `simulate_forward_torch` → `create_unified_simulator` → Crystal/Detector construction
-- The override values (`crystal_overrides`, `detector_overrides`) are applied to config objects, but gradient flow may be lost when those configs are converted to nanobrag_torch models.
+The fix is a **single-line change**: pass `crystal_overrides=crystal_overrides` to the `create_crystal_config` call. This causes `config_factories.py:353-357` to set `mosflm_a_star=None`, which makes `mosflm_provided=False` in `Crystal.compute_cell_tensors()`, enabling the gradient-preserving cell parameter path.
 
-### Phase B.5 Tasks
+### Phase B.6 Tasks
 
-#### B.5.1 — Run diagnostic gradcheck with tensor tracking
+#### B.6.1 — Implement fix (1 line)
+
+**File:** `dbex/physics/forward.py`
+**Line:** 196
+
+**Current:**
+```python
+crystal_config, _ = create_crystal_config(crystal, experiment)
+```
+
+**Change to:**
+```python
+crystal_config, _ = create_crystal_config(crystal, experiment, crystal_overrides=crystal_overrides)
+```
+
+This is the ONLY production code change needed.
+
+#### B.6.2 — Validate crystal_cell_a gradcheck passes
+
 ```bash
 cd /home/ollie/Documents/diffbragg_example
 export KMP_DUPLICATE_LIB_OK=TRUE
 export NANOBRAGG_DISABLE_COMPILE=1
+export ARTIFACT_DIR=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z
+mkdir -p $ARTIFACT_DIR
 
-# Run single gradcheck test with verbose output
-pytest -vvv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --tb=long 2>&1 | tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/gradcheck_verbose.log
+pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --tb=short 2>&1 | tee $ARTIFACT_DIR/pytest_crystal_cell_a.log
 ```
 
-Capture: Full traceback and any tensor gradient state warnings.
+**Expected:** PASS (was FAIL before fix)
 
-#### B.5.2 — Trace tensor flow through `simulate_forward_torch`
-Audit the code path for gradient breaks:
+#### B.6.3 — Run remaining DB-AT-010 crystal tests
 
-1. **Entry point** (`forward.py:73-87`): `crystal_overrides` dict received with tensor values
-2. **Config creation** (`forward.py:196`): `create_crystal_config(crystal, experiment)` called WITHOUT crystal_overrides
-3. **Override application** (`forward.py:200-226`): Cell parameters overwritten on `crystal_config` object
+```bash
+pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck -k "crystal" --tb=short 2>&1 | tee $ARTIFACT_DIR/pytest_crystal_all.log
+```
 
-**CRITICAL QUESTION**: Does `CrystalConfig` preserve tensor values when assigned? Or does it coerce to scalar/numpy?
+**Expected:** All crystal parameter tests PASS
 
-Check `nanobrag_torch/config/crystal.py` for `CrystalConfig` class definition — verify whether field assignment preserves torch tensors.
+#### B.6.4 — Run full DB-AT-010 suite
 
-4. **Factory call** (`forward.py:248-259`): `create_unified_simulator(...)` receives `crystal_config` with tensor values
-5. **Simulator construction** (`helpers.py:83-240`): `create_unified_simulator` builds `TorchCrystal` from config
+```bash
+pytest -vv tests -k DB_AT_010 --smoke-detector-size=full --tb=short 2>&1 | tee $ARTIFACT_DIR/pytest_db_at_010_full.log
+```
 
-**CRITICAL QUESTION**: Does `create_unified_simulator` extract `.item()` from tensor values or use them directly?
+**Expected:** 5/5 PASS
 
-Search for: `.item()`, `.detach()`, `float()`, `np.array()` patterns that would break gradient flow.
+#### B.6.5 — Author summary
 
-#### B.5.3 — Document hypothesis and localize first gradient break
-Output: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/dbex_gradient_audit.md`
+Output: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/summary.md`
 
-Structure:
-1. **Tensor flow trace**: file:line annotations showing where tensor enters, propagates, and (if found) breaks
-2. **Suspect patterns**: Any `.item()`, `.detach()`, `float()`, `np.array()` conversions on override values
-3. **Hypothesis**: Specific file:line:pattern causing gradient break
-4. **Confidence**: 0.0-1.0 based on evidence
-5. **Proposed fix**: If localized, describe patch (single-line or few-line change)
-
-#### B.5.4 — Summary
-Output: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/summary.md`
+Include:
+1. What was implemented (single-line fix)
+2. Test results (expected all PASS)
+3. Exit criteria validation status
+4. Next steps (Phase B.7 docs update OR Phase C closure)
 
 ---
 
@@ -121,45 +136,50 @@ Output: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/summary.
 cd /home/ollie/Documents/diffbragg_example
 export KMP_DUPLICATE_LIB_OK=TRUE
 export NANOBRAGG_DISABLE_COMPILE=1
-export ARTIFACT_DIR=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z
+export ARTIFACT_DIR=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z
 
-# B.5.1: Run diagnostic gradcheck
-pytest -vvv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --tb=long 2>&1 | tee $ARTIFACT_DIR/gradcheck_verbose.log
+# Create artifacts directory
+mkdir -p $ARTIFACT_DIR
 
-# B.5.2: Search for gradient-breaking patterns in DBEX code
-grep -rn "\.item()" dbex/refinement/config_factories.py dbex/refinement/helpers.py dbex/physics/forward.py
-grep -rn "\.detach()" dbex/refinement/config_factories.py dbex/refinement/helpers.py dbex/physics/forward.py
-grep -rn "float(" dbex/refinement/config_factories.py dbex/refinement/helpers.py dbex/physics/forward.py
-grep -rn "np\.array(" dbex/refinement/config_factories.py dbex/refinement/helpers.py
+# B.6.1: Edit forward.py:196
+# Use Edit tool to change:
+#   crystal_config, _ = create_crystal_config(crystal, experiment)
+# To:
+#   crystal_config, _ = create_crystal_config(crystal, experiment, crystal_overrides=crystal_overrides)
 
-# Check if CrystalConfig preserves tensors (if accessible)
-grep -n "class CrystalConfig" /home/ollie/Documents/nanoBragg/src/nanobrag_torch/config/*.py 2>/dev/null || echo "Check nanobrag_torch source for CrystalConfig"
+# B.6.2: Validate crystal_cell_a
+pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --tb=short 2>&1 | tee $ARTIFACT_DIR/pytest_crystal_cell_a.log
 
-# B.5.3-B.5.4: Write audit and summary to artifacts
+# B.6.3: Run all crystal tests
+pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck -k "crystal" --tb=short 2>&1 | tee $ARTIFACT_DIR/pytest_crystal_all.log
+
+# B.6.4: Run full DB-AT-010 suite
+pytest -vv tests -k DB_AT_010 --smoke-detector-size=full --tb=short 2>&1 | tee $ARTIFACT_DIR/pytest_db_at_010_full.log
+
+# B.6.5: Write summary to $ARTIFACT_DIR/summary.md
 ```
 
 ---
 
-## Pitfalls To Avoid
-1. **Do not modify nanobrag_torch** — Phase B already fixed that layer; this is DBEX-only work
-2. **Do not create shadow pipeline diagnostics** — Use code reading and grep, not new probe scripts
-3. **Environment Freeze** — Do not install/upgrade packages
-4. **Thin wrapper rule** — Any diagnostic code must stay <400 LOC per PROBE-FREEZE-001
-5. **No stacking on cliff** — If audit reveals complex multi-site issue, localize and document rather than attempting fix
-6. **Type discipline** — This is architecture (gradient flow audit), not bugfix; document architectural findings
-
 ## Forbidden This Loop
-- No production code changes (evidence-only loop)
-- No new plan-local scripts
-- Do not modify nanobrag_torch source
-- Do not run full DB-AT-010 suite (single test for diagnostics)
+- **No new probes** — DecisionStatus=patch_ready prohibits additional instrumentation
+- **Do not extend plan-local diagnostic scripts** — Phase B.5 evidence is sufficient
+- **Do not modify nanobrag_torch** — That layer is already fixed (Phase B i=153)
+- **No additional exploratory changes** — Focus on the single-line fix only
+
+## Pitfalls To Avoid
+1. **Do not over-engineer** — This is a 1-line fix; do not refactor surrounding code
+2. **Do not add defensive code** — The factory already handles `crystal_overrides=None` (MOSFLM path)
+3. **Do not add comments** — The code intent is already documented in config_factories.py docstring
+4. **Environment Freeze** — Do not install/upgrade packages
+5. **Verify correct line** — Ensure editing line 196 specifically, not similar code elsewhere
 
 ## If Blocked
-If gradient break cannot be localized in DBEX layer:
-1. Document what was searched and eliminated
-2. Check if break is in nanobrag_torch `CrystalConfig` → `TorchCrystal` conversion
-3. If external dependency: create follow-up entry in findings.md with maintainer escalation hypothesis
-4. Mark this loop as evidence-only with next hypothesis for follow-up
+If the fix does not resolve gradcheck failures:
+1. Document the new failure mode (is it still "disconnected graph"?)
+2. Re-run with `-vvv --tb=long` to capture extended traceback
+3. Check if other `create_crystal_config` call sites exist in the test path
+4. Mark blocked and spawn spec_change or architecture follow-up
 
 ---
 
@@ -167,16 +187,38 @@ If gradient break cannot be localized in DBEX layer:
 
 | Criterion | Expected | Validation |
 |-----------|----------|------------|
-| B.5.1 complete | Gradcheck verbose log captured | File exists in artifacts |
-| B.5.2 complete | Code audit of tensor flow | Grep results documented |
-| B.5.3 complete | dbex_gradient_audit.md exists | Hypothesis + confidence documented |
-| B.5.4 complete | summary.md exists | Turn summary authored |
-| No production changes | git status clean | Verify no dbex/ modifications |
+| B.6.1 complete | forward.py:196 edited | git diff shows 1 line changed |
+| B.6.2 complete | crystal_cell_a PASS | pytest exit code 0 |
+| B.6.3 complete | all crystal tests PASS | pytest log shows 0 failures |
+| B.6.4 complete | 5/5 DB-AT-010 PASS | pytest log shows 5 passed |
+| B.6.5 complete | summary.md exists | File in artifacts dir |
 
 ---
 
 ## Output Artifacts Expected
 
-1. `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/gradcheck_verbose.log`
-2. `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/dbex_gradient_audit.md`
-3. `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T220000Z/summary.md`
+1. `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/pytest_crystal_cell_a.log`
+2. `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/pytest_crystal_all.log`
+3. `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/pytest_db_at_010_full.log`
+4. `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/summary.md`
+
+---
+
+## DMI Section
+N/A — This is implementation_ready, not parity_localization.
+
+## Doc Sync Plan
+Deferred to Phase B.7 (if all tests pass) or Phase C (closure):
+- Update `docs/development/TEST_SUITE_INDEX.md` DB-AT-010 row to PASSING
+- Update `docs/findings.md` with GRADIENT-002 fix confirmation
+- Update `docs/fix_plan.md` Attempts History
+
+---
+
+## Implement Target
+**File:** `dbex/physics/forward.py::simulate_forward_torch`
+**Line:** 196
+**Change:** Add `crystal_overrides=crystal_overrides` parameter to `create_crystal_config` call
+
+## Validating Pytest Selector
+`pytest -vv tests -k DB_AT_010 --smoke-detector-size=full` (5/5 expected PASS)

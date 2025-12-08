@@ -199,7 +199,7 @@ def stage_a_smoke_result(
         - Mapping context diagnostics MUST reflect those inputs (HKL source,
           calibration path, sigma provenance) before computing ROI correlations.
         - HKL sampling is nearest-neighbor (`enable_hkl_interpolation=False`)
-          per the Stage-A spec; interpolated grids would violate DB-AT-028/029.
+          for legacy DiffBragg parity (non-canonical); canonical Stage A uses tricubic per spec-db-core.md §Interpolation Policy.
     """
     # Build mapping context for unified HKL/calibration/inputs
     device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -263,7 +263,7 @@ def stage_a_smoke_result(
         max_iter=20,
         roi_sample_fraction=0.15,
         full_validation_interval=5,
-        enable_hkl_interpolation=False,  # DB-AT-028/029 require nearest-neighbor HKL sampling
+        enable_hkl_interpolation=False,  # Legacy: nearest-neighbor for DiffBragg parity (non-canonical per spec-db-core.md)
         enable_stage_b=False,
         enable_stage_c=False,
         calibration_metadata=mapping_context.calibration,
@@ -742,7 +742,7 @@ def test_stage_a_baseline_metrics_dump(
     config = RefinementConfig(
         device=device,
         dtype=torch.float32,
-        enable_hkl_interpolation=False,  # Nearest-neighbor per DB-AT-028/029
+        enable_hkl_interpolation=False,  # Legacy: nearest-neighbor for DiffBragg parity (non-canonical per spec-db-core.md)
         enable_stage_a_warm_cache=True,
         enable_stage_a_baseline_metrics=True,  # Enable baseline metrics collection
         stage_a_baseline_metrics_path=None,  # No JSON dump for test (only StageAArtifacts)

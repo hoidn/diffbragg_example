@@ -34,10 +34,12 @@ class RefinementConfig:
     early_stop_window: int = 3  # Stop if no improvement over last K validations
     max_loss_increase: float = 0.02  # 2% max increase before rollback
 
-    # HKL interpolation (TORCH-REFINE-002D, REFINE-005)
-    # Enable tricubic interpolation for structure factors; requires halo-padded grid
-    # Defaults to False (nearest-neighbor) to protect datasets without halo support
-    enable_hkl_interpolation: bool = False
+    # HKL interpolation (SPEC-INTERP-TRICUBIC-001, ARCH-GRADIENT-FLOW-001)
+    # Enable tricubic interpolation for structure factors; requires halo-padded grid.
+    # Defaults to True (canonical) per spec-db-core.md §Interpolation Policy:
+    # "All stages SHALL use tricubic interpolation to enable differentiable cell parameter gradients."
+    # Legacy nearest-neighbor mode (False) MAY be used for DiffBragg parity diagnostics but is non-canonical.
+    enable_hkl_interpolation: bool = True
 
     # U-matrix parameterization (TORCH-GEOMETRY-PARITY-002 Phase B)
     # Enable direct U-matrix quaternion parameterization for Stage A orientation.

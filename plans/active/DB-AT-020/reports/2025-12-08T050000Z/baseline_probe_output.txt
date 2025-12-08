@@ -1,0 +1,43 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+=== Initializing DataLoad ===
+
+=== Panel & ROI Summary ===
+Panel count: 1
+ROI tally: 92
+Data shape: (1, 2527, 2463)
+Background shape: (1, 2527, 2463)
+Trusted mask shape: (1, 2527, 2463)
+
+=== Bbox Structure Inspection ===
+Type of bbox: <class 'list'>
+First bbox entry: (582, 594, 0, 12)
+First bbox entry length: 4
+
+=== Sample Bbox Deltas (first 10) ===
+ROI  0: pid=0, bbox=(582,594,  0, 12), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  1: pid=0, bbox=(477,489, 43, 55), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  2: pid=0, bbox=(1150,1162, 91,103), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  3: pid=0, bbox=(1292,1304,109,121), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  4: pid=0, bbox=(178,190,312,324), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  5: pid=0, bbox=(715,727,429,441), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  6: pid=0, bbox=(1837,1849,440,452), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  7: pid=0, bbox=(570,582,448,460), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  8: pid=0, bbox=(1155,1167,455,467), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+ROI  9: pid=0, bbox=(1280,1292,469,481), width=12, height=12, data_shape=(12, 12), bg_shape=(12, 12)
+
+=== Panel Dimensions ===
+Panel 0: image_size=(2463, 2527) (fast=2463, slow=2527)
+
+=== Bounds Validation (sample) ===
+ROI 0: pid=0, x_bounds=[582,594] vs fast=2463, y_bounds=[  0, 12] vs slow=2527, valid_x=True, valid_y=True
+ROI 1: pid=0, x_bounds=[477,489] vs fast=2463, y_bounds=[ 43, 55] vs slow=2527, valid_x=True, valid_y=True
+ROI 2: pid=0, x_bounds=[1150,1162] vs fast=2463, y_bounds=[ 91,103] vs slow=2527, valid_x=True, valid_y=True
+ROI 3: pid=0, x_bounds=[1292,1304] vs fast=2463, y_bounds=[109,121] vs slow=2527, valid_x=True, valid_y=True
+ROI 4: pid=0, x_bounds=[178,190] vs fast=2463, y_bounds=[312,324] vs slow=2527, valid_x=True, valid_y=True
+
+=== ROI Statistics ===
+Width: min=12, max=12, mean=12.0, median=12.0
+Height: min=12, max=12, mean=12.0, median=12.0
+
+=== DataLoad inspection complete ===

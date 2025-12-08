@@ -1,229 +1,163 @@
-# Input — Loop i=210 (Ralph) — ARCH-GRADIENT-FLOW-001 Phase B.8
+# input.md — Loop i=210
 
 ## Summary
-Debug crystal cell gradient magnitude mismatch (843× for cell_a) — graph is connected, magnitudes are wrong.
+Profile GPU memory allocation during Stage A/reconstruction to identify optimization targets for OOM fix.
 
 ## Focus
-ARCH-GRADIENT-FLOW-001 — Gradient Flow Restoration (DB-AT-010 Unblock)
+**PERF-GPU-MEM-001** — GPU Memory Usage Analysis and Optimization (Phase A)
 
 ## Branch
-integration
+`integration`
 
 ## Mapped Tests
-`pytest -v tests -k "test_db_at_010_gradcheck_crystal_cell_a" --smoke-detector-size=full` — Focused on cell_a first
+None — evidence-only profiling loop (no code changes).
 
 ## Artifacts
-`plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/`
+`plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/`
 
 ---
 
-## Context
+## Do Now (Implementation Delegation)
 
-**Phase B.7 PARTIAL SUCCESS** (Loop i=209, Ralph):
-1. Pure-PyTorch B-matrix implemented at `nanobrag_bridge.py:558-680` — verified vs cctbx (max diff 3.47e-18)
-2. Removed `.detach()` from A* extraction at `stage_a.py:1183-1195,1238-1255`
-3. **Graph connectivity RESTORED** — analytical gradients now non-zero
+**Focus Item:** PERF-GPU-MEM-001 Phase A (Memory Profiling)
 
-**Remaining Issue — Magnitude Mismatch**:
-```
-cell_a:    numerical=5.94e10, analytical=7.04e7  (843× mismatch)
-cell_gamma: numerical=4.63e7, analytical=4.64e7  (much closer, but still fails rtol=0.05)
-```
+**Implement:** Memory profiling probe + instrumentation (evidence collection only, no production edits)
 
-**Upstream Hypotheses** (from `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`):
-1. **Double unit conversion** — Å→m applied twice somewhere
-2. **Intermediate scalar extraction** — remaining `.item()/.detach()` calls
-3. **Fluence/scaling mismatch** — Different scaling factors
+**Tasks:**
+1. **A0 — Create profiling probe** (`plans/active/PERF-GPU-MEM-001/bin/profile_gpu_memory.py`):
+   - Script to track `torch.cuda.memory_allocated()` and `torch.cuda.max_memory_allocated()` at key points
+   - Capture: before/after Crystal creation, before/after Simulator.run(), before/after reconstruction
+   - Output JSON metrics to artifacts directory
+   - Must be <400 LOC per PROBE-FREEZE-001
 
----
+2. **A1-A2 — Profile Stage A closure execution**:
+   - Run profiling against `test_stage_a_expansion` fixture path
+   - Capture memory at: HKL grid allocation, mosaic domain setup, tricubic interpolation entry/exit
+   - Use small detector (512x512) to avoid actual OOM during profiling
 
-## Do Now
+3. **A3-A4 — Profile reconstruction path**:
+   - Profile `build_final_bragg_from_stage_a_telemetry` if accessible
+   - Focus on tricubic interpolation memory footprint (`Crystal._tricubic_interpolation`)
+   - Document which call creates the ~4GB intermediates
 
-### B.8.1 — Isolate nanobrag_torch gradient directly
+4. **A5 — Document findings**:
+   - Create `reports/2025-12-08T224000Z/memory_profile.md` with:
+     - Memory breakdown by component (table)
+     - Peak allocation location (file:line)
+     - Scaling observations (memory vs detector size)
+   - Create `reports/2025-12-08T224000Z/summary.md`
 
-Create a minimal test that bypasses DBEX integration entirely to confirm upstream gradients work in our environment.
-
-**Target**: Create and run diagnostic script (T1 probe in artifacts, don't commit)
-
-```python
-# T1 probe — run directly in Python REPL, save output to artifacts
-import torch
-import sys
-sys.path.insert(0, '/home/ollie/Documents/nanoBragg/src')
-
-from nanobrag_torch.config import CrystalConfig, DetectorConfig, BeamConfig
-from nanobrag_torch.models import Crystal, Detector
-from nanobrag_torch.simulator import Simulator
-
-device = torch.device('cpu')
-dtype = torch.float64
-
-# Create cell_a as differentiable tensor
-cell_a = torch.tensor(100.0, dtype=dtype, requires_grad=True)
-
-# Simple crystal config with tensor cell_a
-crystal_config = CrystalConfig(
-    cell_a=cell_a,
-    cell_b=100.0, cell_c=100.0,
-    cell_alpha=90.0, cell_beta=90.0, cell_gamma=90.0,
-    N_cells=(5, 5, 5),
-    default_F=100.0,
-)
-
-# Simple detector/beam
-detector_config = DetectorConfig(
-    fpixels=100, spixels=100, pixel_size_mm=0.1,
-    distance_mm=100.0, beam_center_f_mm=5.0, beam_center_s_mm=5.0
-)
-beam_config = BeamConfig(wavelength_A=1.0, fluence=1e20)
-
-# Create models and simulator
-crystal = Crystal(config=crystal_config, device=device, dtype=dtype)
-detector = Detector(config=detector_config)
-simulator = Simulator(crystal=crystal, detector=detector, beam_config=beam_config,
-                      device=device, dtype=dtype)
-
-# Run forward
-result = simulator.run()
-loss = result.sum()
-
-# Check gradients
-loss.backward()
-print(f"cell_a.grad = {cell_a.grad}")
-print(f"loss = {loss.item()}")
-
-# Run gradcheck
-from torch.autograd import gradcheck
-def simple_loss(cell_a_param):
-    config = CrystalConfig(
-        cell_a=cell_a_param, cell_b=100.0, cell_c=100.0,
-        cell_alpha=90.0, cell_beta=90.0, cell_gamma=90.0,
-        N_cells=(5, 5, 5), default_F=100.0,
-    )
-    crystal = Crystal(config=config, device=device, dtype=dtype)
-    detector = Detector(config=detector_config)
-    sim = Simulator(crystal=crystal, detector=detector, beam_config=beam_config,
-                    device=device, dtype=dtype)
-    return sim.run().sum()
-
-cell_a_test = torch.tensor(100.0, dtype=dtype, requires_grad=True)
-try:
-    result = gradcheck(simple_loss, (cell_a_test,), eps=1e-6, atol=1e-5, rtol=0.05)
-    print(f"gradcheck PASSED: {result}")
-except Exception as e:
-    print(f"gradcheck FAILED: {e}")
-```
-
-Save output to: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/nanobrag_isolated_gradcheck.txt`
-
-### B.8.2 — Compare gradient paths: DBEX vs Direct
-
-If B.8.1 passes, the issue is in DBEX integration. Add diagnostic prints to understand the chain:
-
-**Target**: `dbex/physics/forward.py::simulate_forward_torch` (around line 199-229)
-
-Add temporary diagnostics (remove after debugging):
-```python
-# After line 199 (after create_crystal_config call)
-if crystal_overrides and 'cell_a' in crystal_overrides:
-    print(f"[DEBUG] crystal_overrides['cell_a'] requires_grad: {crystal_overrides['cell_a'].requires_grad}")
-    print(f"[DEBUG] crystal_config.cell_a type: {type(crystal_config.cell_a)}")
-    if hasattr(crystal_config.cell_a, 'requires_grad'):
-        print(f"[DEBUG] crystal_config.cell_a requires_grad: {crystal_config.cell_a.requires_grad}")
-```
-
-### B.8.3 — Check for duplicate B-matrix computation
-
-Search for any location where B-matrix or A* is computed TWICE for the same crystal:
-
-```bash
-grep -n "busing_levy_B_torch\|derive_B_from_cell\|fractionalization_matrix" dbex/**/*.py
-```
-
-If found, verify only ONE path computes gradients.
-
-### B.8.4 — Check fluence/scale values
-
-Compare fluence values between DBEX test and nanobrag_torch upstream test:
-
-**DBEX test** (from fixture):
-```bash
-grep -n "fluence" tests/dbex/test_gradients.py tests/conftest.py dbex/refinement/config_factories.py | head -30
-```
-
-**Upstream test** (from response): Uses `fluence=1e28`
-
-If fluence differs by orders of magnitude, this could explain the gradient magnitude difference.
+**Validating Test:** None (evidence-only loop). Validation is completion of profiling artifacts.
 
 ---
 
 ## How-To Map
 
-### Run the isolated probe
+### Environment
 ```bash
-cd /home/ollie/Documents/diffbragg_example
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python3 << 'EOF'
-# ... (paste B.8.1 code here)
-EOF
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
+export CUDA_VISIBLE_DEVICES=0  # Single GPU profiling
 ```
 
-### Run DB-AT-010 cell_a test with verbose output
+### Memory profiling snippet pattern
+```python
+import torch
+
+def log_gpu_memory(label):
+    if torch.cuda.is_available():
+        alloc = torch.cuda.memory_allocated() / 1e9
+        max_alloc = torch.cuda.max_memory_allocated() / 1e9
+        print(f"[MEMORY] {label}: allocated={alloc:.2f} GB, max={max_alloc:.2f} GB")
+        return {"label": label, "allocated_gb": alloc, "max_allocated_gb": max_alloc}
+    return {"label": label, "allocated_gb": 0, "max_allocated_gb": 0}
+
+# Reset peak stats at start
+torch.cuda.reset_peak_memory_stats()
+```
+
+### Key instrumentation points
+- `nanobrag_torch/models/crystal.py:404` — tricubic interpolation (OOM location)
+- `Crystal.__init__` — HKL grid allocation
+- `Simulator.run()` — forward simulation entry/exit
+- Reconstruction helpers in `dbex/physics/`
+
+### Artifact output
 ```bash
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-    pytest -v tests -k "test_db_at_010_gradcheck_crystal_cell_a" \
-    --smoke-detector-size=full -s 2>&1 | \
-    tee plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/gradcheck_cell_a_verbose.log
+# Metrics JSON
+plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/memory_metrics.json
+
+# Profile markdown
+plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/memory_profile.md
 ```
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** modify production code for diagnostics — use temporary prints removed before commit
-2. **DO NOT** install packages — use existing nanobrag_torch from editable install
-3. **Environment Freeze:** Do not run pip install
-4. **Test artifact capture:** Save all diagnostic output to artifacts directory
-5. **Compare apples to apples:** Ensure DBEX test and isolated probe use same fluence/scale values
+1. **DO NOT modify production code** — Phase A is evidence collection only
+2. **DO NOT run full-detector profiles** — Use small detector (512x512) to avoid OOM during profiling
+3. **DO NOT install packages** — Environment Freeze policy
+4. **DO reset peak memory stats** before each measurement with `torch.cuda.reset_peak_memory_stats()`
+5. **DO use NANOBRAGG_DISABLE_COMPILE=1** — Avoid Dynamo compilation overhead
+6. **DO keep probe <400 LOC** — Per PROBE-FREEZE-001
+7. **DO use device='cuda' if available** — Profile actual GPU memory, not CPU
+8. **DO document with file:line references** — Trace exact OOM source location
 
 ---
 
 ## If Blocked
 
-If isolated nanobrag_torch test FAILS (B.8.1):
-- Re-check upstream's exact test pattern
-- File follow-up to `~/Documents/nanoBragg/inbox/` requesting exact test code that passes
-
-If isolated test PASSES but DBEX fails:
-- Focus on DBEX integration layer (config_factories.py, forward.py)
-- Check for any hidden scaling/conversion factors
-- Document exactly where gradient magnitude diverges
+1. If CUDA not available: Profile on CPU with memory_profiler; document as CPU-only evidence
+2. If fixture loading fails: Use synthetic test data (simple cubic crystal)
+3. If OOM during profiling: Reduce detector size further (256x256) or chunk queries
+4. Document block in `galph_memory.md` and Attempts History with error signature
 
 ---
 
-## Findings Applied
+## Findings Applied (Mandatory)
 
-- **GRADIENT-002** (Current finding): Graph connected but magnitude mismatch 843×-19352×.
-  - Adherence: B.8.1-B.8.4 systematically isolate the magnitude source.
+- **RUNTIME-001** (Runtime execution guardrails): Use `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference with memory profiling
+  - Code: `docs/TESTING_GUIDE.md:161`, `docs/pytorch_runtime_checklist.md:26`
+  - Adherence: All profiling runs use canonical environment flags
 
-- **RUNTIME-001** (Runtime execution guardrails): Use `NANOBRAGG_DISABLE_COMPILE=1`.
-  - Adherence: All commands include this flag.
+- **PROBE-FREEZE-001** (Plan-local script policy): Profiling probe must stay <400 LOC, be a thin wrapper calling existing APIs
+  - Code: `docs/findings.md`, `prompts/supervisor.md::diagnostic_script_policy`
+  - Adherence: Phase A.0 probe is instrumentation only, no new pipelines
 
-- **PROBE-FREEZE-001** (No new plan-local scripts): Diagnostics are T1 probes in artifacts.
-  - Adherence: B.8.1 code is NOT committed, only output saved.
+- **DIAGNOSTICS-001** (Artifact patterns): Use timestamped artifacts directory with JSON metrics + markdown summary
+  - Adherence: Artifacts go to `plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/`
 
 ---
 
 ## Pointers
 
-- Phase B.7 fix commit: See `git log -1 --oneline` (i=209)
-- Bug locations fixed: `nanobrag_bridge.py:558-680`, `stage_a.py:1183-1195,1238-1255`
-- Upstream response: `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`
-- Forward simulation entry: `dbex/physics/forward.py:165-276`
-- Config factory: `dbex/refinement/config_factories.py:278-468`
+### Implementation Plan
+- `plans/active/PERF-GPU-MEM-001/implementation.md` — Full Phase A-D checklist
+
+### OOM Evidence
+- `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/pytest_stage_a.log` — Original OOM stack trace
+- Root cause: `nanobrag_torch/models/crystal.py:404` — tricubic interpolation batched gather
+
+### Key Source Files
+- `nanobrag_torch/models/crystal.py:350-450` — Tricubic interpolation implementation
+- `dbex/physics/forward.py::simulate_forward_torch` — Forward simulation entry
+- `dbex/physics/reconstruction.py` (if exists) — Reconstruction helpers
+
+### Spec References
+- `docs/spec-db-runtime.md` Device/Dtype Neutrality — Optimization constraints
+- `docs/pytorch_runtime_checklist.md` Memory hygiene — Memory management patterns
 
 ---
 
-## Next Up (if B.8 isolates root cause)
+## Next Up (optional)
 
-1. B.8.5 — Apply targeted fix based on diagnosis (scaling factor, double computation, etc.)
-2. B.9 — Run full DB-AT-010 suite to verify 5/5 PASS
+If Phase A completes early:
+- **Phase B.1**: Calculate theoretical memory requirements for each component
+- **Phase B.2**: Identify memory scaling laws (linear vs quadratic in detector size)
+
+---
+
+## Doc Sync Plan (Conditional)
+
+N/A — No tests added this loop. Test registry sync not required for evidence-only Phase A.

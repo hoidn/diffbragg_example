@@ -96,7 +96,7 @@
 
 ### Tier 3: Performance & Memory
 **Goal:** Profile and optimize GPU memory usage to enable full smoke tests on 24GB GPUs.
-- [PERF-GPU-MEM-001] (GPU Memory Usage Analysis and Optimization) — **pending** (2025-12-08T140000Z: Created to address Stage A smoke OOM during reconstruction. Root cause: tricubic interpolation creates ~4GB intermediate tensors for full-panel queries (B=4M × 4×4×4 neighborhoods × 3 coordinates). Target: chunked interpolation to reduce peak memory by ~40×. Working plan: `plans/active/PERF-GPU-MEM-001/implementation.md`)
+- [PERF-GPU-MEM-001] (GPU Memory Usage Analysis and Optimization) — **in_progress** (2025-12-08T224000Z: Phase A memory profiling started. Root cause: tricubic interpolation creates ~4GB intermediate tensors for full-panel queries (B=4M × 4×4×4 neighborhoods × 3 coordinates). Target: chunked interpolation to reduce peak memory by ~40×. Working plan: `plans/active/PERF-GPU-MEM-001/implementation.md`. Artifacts: `plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/`)
   - **Governed by:** RUNTIME-001
   - **Depends on:** None
   - **Exit Criteria:** (1) Memory profiling report; (2) ≥30% peak memory reduction; (3) Stage A smoke completes on 24GB GPU; (4) Physics unchanged (partiality/gradcheck tests pass)

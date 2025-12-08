@@ -1,0 +1,62 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 28 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_nanobrag_bridge.py>
+        <Class TestPrepareRefinementInputs>
+          <Function test_tensor_contract>
+          <Function test_sigma_readout_broadcast_and_conversion>
+          <Function test_mask_polarity>
+          <Function test_pixel_pitch_guard>
+          <Function test_tuple_mask_input>
+      <Module test_nanobrag_bridge_configs.py>
+        <Class TestDetectorConfigMapping>
+          <Function test_beam_center_swap>
+          <Function test_sample_to_source_vector>
+          <Function test_detector_convention_dials>
+          <Function test_mask_array_float_conversion>
+          <Function test_pixel_size_and_dimensions>
+          <Function test_distance_mm>
+          <Function test_detector_basis_reconstruction_from_real_geom>
+          <Function test_returns_real_nanobrag_torch_config>
+          <Function test_detector_model_roundtrip>
+        <Class TestBeamCrystalConfigMapping>
+          <Function test_beam_wavelength>
+          <Function test_polarization_factor_parity_default>
+          <Function test_polarization_metadata_extraction>
+          <Function test_polarization_fallback>
+          <Function test_crystal_unit_cell_parameters>
+          <Function test_mosflm_astar_injection>
+          <Function test_stills_phi_defaults>
+          <Function test_crystal_misset_zero_default>
+          <Function test_returns_real_nanobrag_torch_beam_config>
+          <Function test_returns_real_nanobrag_torch_crystal_config>
+          <Function test_crystal_model_roundtrip>
+      <Module test_nanobrag_smoke.py>
+        <Class TestSmokeHarness>
+          <Function test_single_experiment_flow>
+          <Function test_masked_mse_and_shapes>
+        <Function test_artifact_generation>
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 28 tests collected in 2.13s ==========================

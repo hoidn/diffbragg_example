@@ -1,4 +1,4 @@
-# Input — Loop i=189 (Ralph)
+# Input — Loop i=197 (Ralph)
 
 ## Summary
 Portfolio maintenance mode continues — no upstream response received. All Tier 0 initiatives blocked.
@@ -13,7 +13,7 @@ integration
 - `none` — No actionable work; portfolio in maintenance mode
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T160000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T105900Z/`
 
 ---
 
@@ -27,13 +27,18 @@ integration
 | 0 | ARCH-SIM-CONSTRUCTION-001 | blocked_pending_environment | SQUARE scaling resolved; other issues pending |
 | 1 | DB-AT-SUITE-CARE-001 | in_progress | D.1-D.4 complete; D.5 optional |
 
+**Upstream escalation status:**
+- Escalation filed: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md` (Dec 7 21:24)
+- Delivered to nanoBragg: `nanoBragg/inbox/dbex_crystal_gradient_escalation_2025_12_07.md` (Dec 7 22:01)
+- Last nanoBragg outbox update: `square-lattice-partiality-response.md` (Dec 7 19:55) — predates escalation
+
 ---
 
 ## Do Now
 
 **No implementation tasks.** Portfolio in maintenance mode.
 
-**If upstream responds** (new file in `inbox/`):
+**If upstream responds** (new file in nanoBragg outbox or DBEX inbox):
 1. Read the response
 2. Switch focus to ARCH-GRADIENT-FLOW-001 Phase B.7+
 3. Ignore maintenance tasks
@@ -50,6 +55,8 @@ integration
 ```bash
 ls -la inbox/
 # Look for new files dated after 2025-12-07
+ls -la /home/ollie/Documents/nanoBragg/outbox/
+# Look for new files dated after 2025-12-07 19:55
 ```
 
 ### If upstream responds
@@ -85,3 +92,4 @@ No relevant findings — maintenance mode only.
 - Escalation file: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`
 - ARCH-GRADIENT-FLOW-001 implementation.md: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md`
 - D.4 audit results: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/test_registry_audit.md`
+- galph_memory.md: Loop i=197 entry

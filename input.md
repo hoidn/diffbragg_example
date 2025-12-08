@@ -1,190 +1,194 @@
-# Input for Ralph (Loop i=150)
+# Input for Ralph (Loop i=151)
 
 ## Summary
-DB-AT-021 Phase C: Registry sync and documentation closure (docs-only)
+DB-AT-022 Phase A: Asset validation and background sentinel probes (Reality Check)
 
 ## Mode
-Docs
+Parity
 
 ## ActionType
-implementation_ready
+planning
 
 ## DecisionStatus
-patch_ready
+exploring
 
 ## InitiativeType
 harness
 
 ## Focus
-DB-AT-021 — Mask Semantics Guard (Member of DB-AT-SUITE-CARE-001)
+DB-AT-022 — Background Sentinel Guard (Member of DB-AT-SUITE-CARE-001)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021` (regression check)
-- `pytest --collect-only tests -k DB_AT_021` (collection validation)
+- `pytest --collect-only tests/dbex/test_background_semantics.py` (verify test scaffold exists OR note creation needed in Phase B)
+- No tests required to pass this loop (Phase A is planning/probing only)
 
 ## Artifacts
-`plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
+`plans/active/DB-AT-022/reports/2025-12-08T180000Z/`
 
 ## Findings Applied (Mandatory)
-- **TESTING-003** (Selector status transitions only after pytest --collect-only confirms >0 tests): Phase C will validate collection before updating TEST_SUITE_INDEX.md. ✅ Applied — Phase B collection log confirms 3 tests.
-- **CONFORMANCE-001** (DB-AT parity selectors use `-k DB_AT_0XX` pattern): Test method naming follows `test_DB_AT_021_*` convention. ✅ Applied — Phase B scaffold conforms.
-- **MASKING-001** (Loss mask coverage <1% is expected for sparse Bragg peaks): Registry entry must NOT flag low coverage as failure. ✅ Applied — will document in TEST_SUITE_INDEX.md notes.
+- **MASKING-001** (Mask handling contracts): Background sentinel −1 must be excluded from loss mask; `loss_mask = (background >= 0) ∧ trusted_mask` per spec-db-core.md:124. ✅ Applied — Phase A will validate sentinel coverage against this contract.
+- **TESTING-003** (Selector status transitions only after pytest --collect-only confirms >0 tests): Phase A is planning; test authoring deferred to Phase B. ✅ Applied — no registry updates this loop.
+- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Probe outputs must be structured (JSON/markdown) and archived under reports/. ✅ Applied — Phase A artifacts scoped below.
 
-**No blocking findings** — Phase C is docs-only; all implementation complete in Phase B.
+**No blocking findings** — Phase A is evidence collection.
 
 ## Pointers
 
 ### Spec/Arch/Testing Docs
-- **Spec**: `docs/spec-db-core.md:124` (loss_mask normative formula)
-- **Spec**: `docs/spec-db-conformance.md:58-61` (DB-AT-021 acceptance criteria)
-- **DIALS API**: `docs/dials_api.md:45-62` (mask polarity conventions)
-- **Architecture**: `docs/architecture.md:165-178` (mask precedence + ADR-07)
-- **Testing Guide**: `docs/TESTING_GUIDE.md` §2 (canonical pytest selectors + Active test status registry)
+- **Spec**: `docs/spec-db-workflow.md:38` (background sentinels −1 MUST be masked consistently in loss/variance)
+- **Spec**: `docs/spec-db-conformance.md:63-64` (DB-AT-022 acceptance: sentinel logic correct, ROI coverage matches metadata)
+- **Spec**: `docs/spec-db-conformance.md:116` (loss mask formula: `(background >= 0) ∧ trusted_mask`)
+- **Arch**: `docs/architecture/data_telemetry_flow.md:34` (Background sentinel: −1 outside ROI; validated before prep)
+- **simtbx API**: `docs/simtbx_api.md:14` (background_image filled with −1 sentinel for invalid pixels)
+- **Testing Guide**: `docs/TESTING_GUIDE.md` §2 (canonical pytest selectors)
 - **Test Suite Index**: `docs/development/TEST_SUITE_INDEX.md` (comprehensive test metadata registry)
 
 ### Fix Plan
 - `docs/fix_plan.md` line 267-289 (DB-AT-SUITE-CARE-001 § Attempts History)
 
 ### Implementation Plan
-- `plans/active/DB-AT-021/implementation.md` Phase C checklist (C1, C2, C3)
+- `plans/active/DB-AT-022/implementation.md` Phase A checklist (A1, A2, A3)
 
-### Phase B Artifacts (Evidence for Registry Sync)
-- `plans/active/DB-AT-021/reports/2025-12-08T150000Z/summary.md` (Phase B completion: 3/3 tests PASSED)
-- `plans/active/DB-AT-021/reports/2025-12-08T150000Z/pytest_db_at_021.log` (primary test run, 4.02s)
-- `plans/active/DB-AT-021/reports/2025-12-08T150000Z/collect_db_at_021.log` (3 tests collected)
+### Prior Validation (Cross-Reference)
+- `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md` (Phase B.2: 4 canonical assets VALID)
+- `plans/active/DB-AT-021/reports/2025-12-08T150000Z/summary.md` (DB-AT-021 Phase B: mask semantics reference)
 
 ## ARCH Contracts (mandatory)
 
-### ARCH-CONTRACT-MASKING-001 (Loss Mask Construction)
-**Owner Module/API**: `dbex.refinement.inputs.prepare_refinement_inputs`
+### ARCH-CONTRACT-SENTINEL-001 (Background Sentinel Convention)
+**Owner Module/API**: `dbex.data_load.DataLoad` + simtbx `get_roi_background_and_selection_flags`
 
-**Contract**: Constructs `loss_mask = (background_image >= 0) ∧ trusted_mask` per spec-db-core.md:124. Background sentinel `-1` excludes pixels outside ROIs. Trusted mask boolean polarity: True=trusted, no inversion.
+**Contract**: Background image uses −1 sentinel outside ROIs; valid ROI pixels carry plane/robust background estimate. Loss mask excludes sentinel pixels via `background >= 0` guard.
 
-**Forbidden Duplicates**: Alternative loss_mask construction in Stage A/B/C helpers (validated by Phase B test_DB_AT_021_precedence_guards).
+**Forbidden Duplicates**: Alternative sentinel values (0, NaN) or inverted polarity in background construction.
 
-**Failure Classification**: No conformance failure detected (Phase B test PASSED with 0 duplicates found).
+**Failure Classification**: No conformance failure detected yet (Phase A probing).
 
 ## Do Now (hard validity contract)
 
-**Implement**: Registry sync for `tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics` (docs-only, no production code changes)
+**Implement**: Evidence collection for `docs/spec-db-conformance.md:63-64` DB-AT-022 acceptance criteria (Phase A — no production code changes)
 
-Execute 3 Phase C tasks per implementation.md checklist (DB-AT-021 § Phase C):
+Execute 3 Phase A tasks per implementation.md checklist (DB-AT-022 § Phase A):
 
-**C1 — Evidence Capture**:
-1. Run regression check to validate Phase B tests still pass:
-   ```bash
-   DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1 \
-   DBEX_SMOKE_DETECTOR_SIZE=full \
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021
+**A1 — Asset Validation (Cross-Reference)**:
+1. Cross-reference i=143 Phase B.2 asset validation:
+   - Confirm refGeom assets (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`) remain valid
+   - Record file presence check in `asset_availability.md`
+   - If assets missing: HALT and escalate (blocker for Phase B)
+
+**Expected Outcome**: 4/4 assets VALID (cross-ref confirms no change since i=143)
+
+**A2 — Baseline Metrics Capture**:
+1. Instantiate `DataLoad` with canonical inputs:
+   ```python
+   from dbex.data_load import DataLoad
+   loader = DataLoad(
+       expt_path="./refGeom.expt",
+       refl_path="./refGeom.refl",
+       mtz_path="./scaled.mtz",
+       mask_path="./747_mask.pkl"
+   )
    ```
-   Capture output to `plans/active/DB-AT-021/reports/2025-12-08T170000Z/pytest_db_at_021_regression.log`
+2. Capture baseline metrics:
+   - `loader.data.shape` (data shape: expected `(1, slow, fast)` single panel)
+   - `loader.background_image.shape` (same as data)
+   - `loader.bbox` (list of `(x0, x1, y0, y1)` tuples)
+   - `len(loader.pids)` (ROI count, expected ~92 per DB-AT-020/021 probes)
+   - Sample bbox dimensions (x1-x0, y1-y0 for first 5 ROIs)
+3. Archive metrics in `baseline_metrics.md`
 
-2. Run collection validation to confirm selector pattern functional:
-   ```bash
-   DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1 \
-   DBEX_SMOKE_DETECTOR_SIZE=full \
-   pytest --collect-only tests -k DB_AT_021
+**Expected Outcome**: DataLoad instantiates without error; metrics capture confirms prerequisites from DB-AT-020/021 remain valid.
+
+**A3 — Sentinel Coverage Probe**:
+1. Compute sentinel mask:
+   ```python
+   import numpy as np
+   bg = loader.background_image  # shape: (n_panels, slow, fast)
+   sentinel_mask = np.isclose(bg, -1.0)  # True where background == -1
+   sentinel_count = sentinel_mask.sum()
+   total_pixels = bg.size
+   sentinel_fraction = sentinel_count / total_pixels
    ```
-   Capture output to `plans/active/DB-AT-021/reports/2025-12-08T170000Z/collect_db_at_021.log`
 
-**Expected Outcomes**:
-- Regression check: 3 passed, 4 warnings, ~4s runtime (match Phase B metrics)
-- Collection validation: 3/181 tests collected (178 deselected), selector pattern confirmed functional
+2. Compute ROI union mask (pixels inside ANY ROI):
+   ```python
+   roi_union = np.zeros(bg.shape, dtype=bool)
+   for (x0, x1, y0, y1), pid in zip(loader.bbox, loader.pids):
+       roi_union[pid, y0:y1, x0:x1] = True
+   roi_count = roi_union.sum()
+   roi_fraction = roi_count / total_pixels
+   ```
 
-**C2 — Docs Update**:
-1. **Update `docs/development/TEST_SUITE_INDEX.md`**:
-   - Add DB-AT-021 row after DB-AT-020 row (maintain numerical ordering)
-   - Columns to populate:
-     - **Selector**: `DB-AT-021`
-     - **Status**: `Active`
-     - **Description**: `Mask semantics guard (polarity, loss_mask construction, ARCH-CONTRACT-MASKING-001 precedence)`
-     - **Spec References**: `docs/spec-db-core.md:124`, `docs/dials_api.md:45-62`, `docs/architecture.md:165-178`
-     - **Canonical Command**: `DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1 DBEX_SMOKE_DETECTOR_SIZE=full AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021`
-     - **Environment Flags**: `DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1`, `DBEX_SMOKE_DETECTOR_SIZE=full`, `KMP_DUPLICATE_LIB_OK=TRUE`
-     - **Artifact Path**: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
-     - **Runtime Estimate**: `~4s`
-     - **Applied Findings**: `MASKING-001, TESTING-003, CONFORMANCE-001, DIALS-API polarity`
-     - **Skip Behavior**: `test skips when refGeom.expt/refGeom.refl missing (mirrors smoke fixture guard)`
+3. Compute overlap/complement analysis:
+   ```python
+   # Sentinel should be complement of ROI union (outside ROIs)
+   overlap = (sentinel_mask & roi_union).sum()  # Should be 0
+   complement_match = (sentinel_mask == ~roi_union).all()  # Should be True
 
-2. **Update `docs/TESTING_GUIDE.md` §2 (Test Taxonomy)**:
-   - Locate "Mask semantics guard" entry (if exists) or add new entry after Reflection ingestion section
-   - Update with:
-     - Test names: `test_DB_AT_021_polarity_checks`, `test_DB_AT_021_loss_mask_construction`, `test_DB_AT_021_precedence_guards`
-     - Canonical metrics (from Phase B summary.md):
-       - Trusted pixels: 5,696,996 (91.5%)
-       - Loss mask pixels: 13,084 (0.2% coverage — sparse Bragg peaks expected per MASKING-001)
-       - Duplicates found: 0 (ARCH-CONTRACT-MASKING-001 enforcement)
-     - Skip guard documentation: test skips when refGeom assets missing
-     - Artifact path: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
+   # Valid background pixels (inside ROIs, not sentinel)
+   valid_bg = (bg >= 0) & roi_union
+   valid_bg_count = valid_bg.sum()
+   ```
 
-**C3 — Ledger Sync**:
-1. **Update `docs/fix_plan.md` § [DB-AT-SUITE-CARE-001] Attempts History**:
-   - Add new entry after line 288 (DB-AT-020 Phase C entry):
-     ```
-     * 2025-12-08T170000Z (Loop i=150, Ralph) — DB-AT-021 Phase C complete: Registry sync executed (TEST_SUITE_INDEX.md + TESTING_GUIDE.md updated with Active status, canonical commands, artifact paths). Regression check PASSED (3 tests: polarity checks, loss_mask construction, ARCH-CONTRACT-MASKING-001 precedence guards). Collect-only verification confirmed selector pattern (-k DB_AT_021) functional (3 tests collected: test_DB_AT_021_polarity_checks, test_DB_AT_021_loss_mask_construction, test_DB_AT_021_precedence_guards). Member plan closure complete; ready for DB-AT-SUITE-CARE-001 Phase B.4 coordination. Touched: DB-AT-021 Phase C (C1, C2, C3). Tests: pytest -vv tests -k DB_AT_021 (PASSED, ~4s); pytest --collect-only tests -k DB_AT_021 (3 selected). Artifacts: plans/active/DB-AT-021/reports/2025-12-08T170000Z/ (pytest_db_at_021_regression.log, collect_db_at_021.log, summary.md).
-     ```
+4. Archive results in `sentinel_probe.md`:
+   - Sentinel pixel count and fraction
+   - ROI union pixel count and fraction
+   - Overlap count (expected: 0)
+   - Complement match (expected: True)
+   - Valid background pixel count
+   - Classification: Case A (perfect match), Case B (minor anomaly), Case C (significant mismatch)
 
-2. **Update `plans/active/DB-AT-021/implementation.md`**:
-   - Mark Phase C tasks (C1/C2/C3) complete with checkmarks
-   - Add timestamp: `✅ 2025-12-08 (Loop i=150)`
+**Expected Outcome**: Sentinel mask equals complement of ROI union, overlap == 0, coverage aligns with ROI area from reflection metadata.
 
-**Artifacts Destination**: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
-- `pytest_db_at_021_regression.log` (regression check)
-- `collect_db_at_021.log` (collection validation)
-- `summary.md` (Phase C completion notes including doc changes summary)
+**Artifacts Destination**: `plans/active/DB-AT-022/reports/2025-12-08T180000Z/`
+- `asset_availability.md` (A1: cross-ref to i=143 validation)
+- `baseline_metrics.md` (A2: DataLoad shape/count metrics)
+- `sentinel_probe.md` (A3: sentinel coverage analysis with classification)
+- `summary.md` (Phase A completion notes + Phase B scoping)
 
-**Touched**: DB-AT-021 Phase C (C1, C2, C3)
+**Touched**: DB-AT-022 Phase A (A1, A2, A3)
 
 ## Forbidden This Loop
-- **No production code edits** (docs-only per Mode: Docs)
-- **No new test authoring** (Phase B complete)
-- **No plan-local diagnostic scripts** (not needed for registry sync)
+- **No production code edits** (Phase A is evidence collection)
+- **No test authoring** (deferred to Phase B)
+- **No registry updates** (docs/TESTING_GUIDE.md, TEST_SUITE_INDEX.md unchanged)
 
 ## How-To Map
 
-**Registry Sync Steps**:
-1. Create artifacts directory: `mkdir -p plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
-2. Run regression check (pytest command from C1), capture log
-3. Run collection validation (pytest --collect-only from C1), capture log
-4. Update TEST_SUITE_INDEX.md (add DB-AT-021 row with all metadata)
-5. Update TESTING_GUIDE.md §2 (add/update Mask semantics entry)
-6. Update fix_plan.md Attempts History (add DB-AT-021 Phase C entry at line ~289)
-7. Update implementation.md Phase C checklist (mark C1/C2/C3 complete)
-8. Author summary.md with test outcomes + doc changes summary
+**Phase A Steps**:
+1. Create artifacts directory: `mkdir -p plans/active/DB-AT-022/reports/2025-12-08T180000Z/`
+2. Execute A1: Cross-reference i=143 asset validation, confirm files exist, write `asset_availability.md`
+3. Execute A2: Load DataLoad, capture shapes/counts, write `baseline_metrics.md`
+4. Execute A3: Compute sentinel/ROI masks, analyze coverage, write `sentinel_probe.md`
+5. Author `summary.md` with Phase A outcomes and Phase B implementation scoping
+6. Update `plans/active/DB-AT-022/implementation.md` (mark A1/A2/A3 in progress or complete if time permits)
 
-**Expected Doc Diff Summary**:
-- `docs/development/TEST_SUITE_INDEX.md`: +1 row (DB-AT-021)
-- `docs/TESTING_GUIDE.md` §2: +1 entry or updated existing Mask semantics entry
-- `docs/fix_plan.md`: +1 Attempts History entry (~289)
-- `plans/active/DB-AT-021/implementation.md`: Phase C tasks marked complete
+**Expected Artifact Summary**:
+- `asset_availability.md`: 4 assets confirmed VALID (cross-ref)
+- `baseline_metrics.md`: data shape, background shape, ROI count, sample bbox dimensions
+- `sentinel_probe.md`: sentinel_fraction, roi_fraction, overlap=0, complement_match=True
+- `summary.md`: Phase A complete, Phase B scope (B1 sentinel guard hardening, B2 test authoring, B3 pytest execution)
 
 **Success Criteria**:
-- Regression check PASSES (3/3 tests)
-- Collection validation shows 3 tests collected
-- TEST_SUITE_INDEX.md DB-AT-021 row has all required columns populated
-- fix_plan.md Attempts History entry includes metrics + artifact path
+- DataLoad instantiates without error
+- Sentinel mask == complement of ROI union (overlap == 0)
+- Coverage fractions logged (sentinel_fraction + roi_fraction ≈ 1.0)
+- All 4 artifacts authored and archived
 
 ## Pitfalls To Avoid
-1. **Stale metrics**: Use Phase B actual metrics (5.7M trusted pixels, 13K loss_mask pixels), not placeholder values.
-2. **Registry inconsistency**: Ensure TEST_SUITE_INDEX.md and TESTING_GUIDE.md both reference same artifact path (2025-12-08T170000Z).
-3. **Ledger insertion point**: Add DB-AT-021 entry AFTER DB-AT-020 entry (line 288) to maintain chronological ordering.
-4. **Skip guard documentation**: Mirror DB-AT-020 pattern (skip when assets missing, not fail/error).
-5. **Type discipline**: This is docs-only (Mode: Docs); do NOT edit production modules under `dbex/` or `tests/` (except implementation.md checklist).
+1. **Stale asset references**: Use i=143 asset checksums as ground truth; if files changed, note discrepancy.
+2. **Array ordering**: Background and sentinel masks use `[panel, slow, fast]` per spec-db-core.md:22; do NOT swap axes.
+3. **Sentinel value precision**: Use `np.isclose(bg, -1.0)` not exact equality; simtbx may use float −1.
+4. **ROI bbox slicing**: `bbox = (x0, x1, y0, y1)` with x1/y1 exclusive; slice as `img[pid, y0:y1, x0:x1]` not `x0:x1, y0:y1`.
+5. **Classification drift**: If overlap > 0 or complement doesn't match, classify as Case B/C (anomaly) and document for Phase B investigation — do NOT fail the loop.
 
 ## If Blocked
-- **Regression check fails**: If Phase B tests now fail, halt and escalate to supervisor with pytest log (potential environment drift or test flakiness).
-- **Collection validation shows ≠3 tests**: If collect-only discovers different test count, halt and escalate (test discovery regression).
-- **Doc template mismatch**: If TEST_SUITE_INDEX.md or TESTING_GUIDE.md schema differs from DB-AT-020 pattern, consult existing rows and adapt format to match.
-
-## Doc Sync Plan (Conditional)
-**REQUIRED THIS LOOP** — Phase C execution (registry sync):
-1. Run `pytest --collect-only tests -k DB_AT_021` (already in C1 validation commands)
-2. Store collection log: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/collect_db_at_021.log`
-3. Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` per C2 specifications
+- **DataLoad import fails**: Record import error, check environment, escalate to supervisor (likely environment drift or dependency issue).
+- **Assets missing**: Halt Phase A, update asset_availability.md with failure, escalate to supervisor (blocker for portfolio).
+- **Sentinel anomaly (overlap > 0)**: Document as Case C, author hypothesis in sentinel_probe.md, continue with Phase A completion — Phase B will investigate.
 
 ---
 

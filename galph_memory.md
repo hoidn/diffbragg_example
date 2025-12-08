@@ -623,3 +623,31 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
 
 2025-12-08T224000Z focus=PERF-GPU-MEM-001 state=exploring dwell=0 action=evidence_collection artifacts=plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/ next_action=phase_a_memory_profiling
 - Loop i=210 (Galph): **Focus switch to PERF-GPU-MEM-001 Phase A** (GPU Memory Profiling). Prior loop (i=209 Ralph) completed ARCH-GRADIENT-FLOW-001 Phase B.8 investigation — **ROOT CAUSE ISOLATED: `mosaic_spread_deg > 0` breaks gradient magnitude in nanobrag_torch**. Systematic probes (14 tests) confirmed: mosaic=0 gives ratio=1.00×, mosaic>0 gives ratios 100-1000×. Bug report filed to `~/Documents/nanoBragg/inbox/mosaic_gradient_bug_2025_12_08.md`. **Portfolio status**: Tier 0 exhausted (ARCH-GRADIENT-FLOW-001 blocked_pending_upstream awaiting mosaic bug response; ARCH-SIM-CONSTRUCTION-001 blocked_pending_environment; ARCH-REFACTOR-001 blocked_pending_architecture). Tier 1: DB-AT-SUITE-CARE-001 D.1-D.4 complete (D.5 optional), blocked by Tier 0; most roll-ups done. **Focus selection**: PERF-GPU-MEM-001 (Tier 3, no dependencies, addresses Stage A OOM on 24GB GPU). Phase A scoped: (A0) memory profiling probe, (A1-A4) instrumentation + profiling, (A5) document breakdown. **Key evidence path**: OOM at `crystal.py:404` during tricubic interpolation creates ~4GB intermediates. Applied findings: RUNTIME-001 (runtime guardrails), PROBE-FREEZE-001 (thin probe <400 LOC). ActionType: evidence_collection. DecisionStatus: exploring (first Phase A). Forbidden this loop: no production code changes (Phase A is profiling only). Next: Ralph executes Phase A tasks (i=210), produces memory_profile.md + instrumentation logs.
+
+2025-12-09T030000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_to_unblocked dwell=25 action=inbox_audit artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T030000Z/ next_action=phase_b8_gradient_magnitude_investigation
+- Loop i=217 (Ralph): **MAINTENANCE MODE → PORTFOLIO UNBLOCKED**. Full inbox/outbox audit revealed portfolio was incorrectly marked as fully blocked.
+
+  **Inbox/Outbox Audit Results:**
+  1. `dbex-gradient-blockers-fix-report.md` (Dec 7, outbox) — wavelength/fluence/distance gradients FIXED in nanobrag_torch (17/17 tests PASS)
+  2. `nanobrag_torch_cell_gradient_response_2025_12_08.md` (Dec 8, inbox) — **Cell gradients work in nanobrag_torch** (6/6 tests PASS). Issue is in DBEX integration layer.
+  3. `square-lattice-partiality-response.md` (Dec 7, outbox) — SQUARE scaling clarified (already captured in SPEC-SQUARE-PARTIALITY-001)
+  4. `mosaic_gradient_bug_2025_12_08.md` (HIGH, inbox) — AWAITING RESPONSE (blocks mosaicity refinement)
+  5. `chunked_interpolation_request_2025_12_09.md` (MEDIUM, inbox) — AWAITING RESPONSE (blocks PERF-GPU-MEM-001)
+
+  **CRITICAL CLARIFICATION:** The portfolio has TWO SEPARATE gradient blockers:
+  1. **Cell param magnitude mismatch (843-19352×)** — This is DBEX-side and **ACTIONABLE NOW**. Upstream confirmed nanobrag_torch cell gradients work correctly.
+  2. **Mosaic gradient bug** — This is upstream and **AWAITING RESPONSE**. Only affects `mosaic_spread_deg > 0`.
+
+  Loop i=209 (Ralph) isolated the mosaic bug as the ROOT CAUSE for gradcheck failures when mosaicity is enabled. However, the cell gradient magnitude issue (which occurs even with mosaic=0) remains an open DBEX-side investigation item.
+
+  **HYPOTHESIS (not in planning docs):** The magnitude mismatch for cell params (843× cell_a, 19352× cell_gamma) despite upstream tests passing suggests:
+  - DBEX may still have `.detach()` or unit conversion issues NOT YET FOUND
+  - Loop i=209 removed some `.detach()` calls but magnitude still wrong
+  - Upstream suggests checking: (1) unit conversion (Å vs meters), (2) `.item()`/`.detach()` calls, (3) fluence mismatch
+  - Worth auditing `config_factories.py` and `simulate_forward_torch()` per upstream guidance
+
+  **Portfolio status correction:**
+  - ARCH-GRADIENT-FLOW-001: `blocked_pending_upstream` → **`in_progress`** (Phase B.8: DBEX magnitude investigation)
+  - DB-AT-SUITE-CARE-001: `blocked` → **`in_progress`** (parent unblocked)
+
+  ActionType: inbox_audit. DecisionStatus: blocker_reclassified. Next: Phase B.8 — unit conversion audit in config_factories.py, minimal reproduction bypassing DBEX factories per upstream guidance.

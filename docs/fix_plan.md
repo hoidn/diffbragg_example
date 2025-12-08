@@ -19,11 +19,11 @@
 
 ### Tier 0: Refinement Architecture Finish
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place, and align ARCH docs/contracts with implementation via enforcement tests.
-- [ARCH-GRADIENT-FLOW-001] (Gradient Flow Restoration — DB-AT-010 Unblock) — **blocked_pending_upstream** (2025-12-08T233000Z: **TRUE ROOT CAUSE ISOLATED: `mosaic_spread_deg > 0` breaks gradient magnitude in nanobrag_torch.** Systematic investigation in Loop i=210 ruled out previous hypotheses (HKL sparsity, unit conversion, fluence). Evidence: with `mosaic_spread_deg=0.0`, ratio=1.00× ✓; with `mosaic_spread_deg=0.003`, ratio=1072× ✗. DBEX `create_crystal_config()` automatically sets `mosaic_spread_deg` from experiment's `ML_half_mosaicity_deg` metadata, causing all real datasets to fail gradcheck. **Upstream bug report filed:** `~/Documents/nanoBragg/inbox/mosaic_gradient_bug_2025_12_08.md`. Artifacts: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/`)
+- [ARCH-GRADIENT-FLOW-001] (Gradient Flow Restoration — DB-AT-010 Unblock) — **in_progress** (2025-12-09T030000Z: **Phase B.8 — DBEX gradient magnitude investigation.** Loop i=217 identified two separate blockers: (1) cell param magnitude mismatch (843-19352×) — **DBEX-side fix actionable now** per upstream response confirming nanobrag_torch cell gradients work (6/6 tests PASS), (2) mosaic gradient bug — **upstream fix pending** (request filed `mosaic_gradient_bug_2025_12_08.md`). Graph connectivity restored Loop i=209; magnitude fix in progress. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T030000Z/`)
   - **Governed by:** GRADIENT-001, RUNTIME-001, TESTING-003
-  - **Blocked by:** nanobrag_torch mosaic code path gradient bug
+  - **Two separate blockers:** (1) Cell magnitude → DBEX investigation (ACTIVE), (2) Mosaic gradient → upstream (PENDING)
   - **Workaround (if needed):** Force `mosaic_spread_deg=0.0` in gradient tests (disables mosaicity refinement)
-  - **Next:** Await nanobrag_torch maintainer response on mosaic gradient bug
+  - **Next:** Phase B.8 — unit conversion audit in `config_factories.py`, minimal reproduction bypassing DBEX factories
 - [SPEC-INTERP-TRICUBIC-001] (Global Tricubic Interpolation Default) — **done** (2025-12-08T233000Z: **HKL sparsity hypothesis SUPERSEDED.** Loop i=210 investigation confirmed that gradcheck passes with real HKL data (97% hit rate) when `mosaic_spread_deg=0.0` (ratio=1.00×). The actual root cause is the mosaic code path in nanobrag_torch, not HKL grid discontinuities. Phase A/B goals achieved (tricubic interpolation enabled globally); Phase C architecture decision no longer needed — the issue is upstream. Artifacts: `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/`)
 - [ARCH-IMPL-CONFORMANCE-001] (Architecture / Implementation contract alignment) — **done** (2025-12-07T054500Z: Phases A-B complete; ARCH-CONTRACT-002/003 delivered with enforcement tests; exit criteria 3.5/4 satisfied; artifacts under `archive/plans/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T054500Z/initiative_closure_summary.md`)
 - [DIAG-NANOBRAGG-OVERSAMPLE-001] (nanobrag_torch oversample parameter investigation) — **done** (2025-12-09T153000Z: Phase F HKL stats + Stage-A instrumentation closed out diagnostics; artifacts under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/` now cover oversample, beam flux, and HKL evidence)
@@ -263,7 +263,7 @@
 ### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
 - Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)
 - Blocks: DB-AT-SUITE-CARE-001 portfolio advancement, Gradient-Safe Profile conformance
-- Status: **in_progress** (Phase B.7: DBEX integration layer investigation — upstream confirmed issue is DBEX-side, not nanobrag_torch)
+- Status: **in_progress** (Phase B.8: DBEX gradient magnitude investigation — graph connectivity restored Loop i=209, magnitude mismatch remains. Two separate blockers: (1) cell param magnitude → DBEX-side fix actionable now, (2) mosaic gradient → upstream fix pending)
 - Type: architecture
 - Priority: Tier 0 (blocks conformance profile)
 - Owner/Date: Galph ↔ Ralph / 2025-12-08
@@ -324,6 +324,7 @@
   * 2025-12-08T230330Z (Loop i=214, Galph) — **Maintenance mode continues**: Checked nanoBragg outbox and DBEX inbox — no new responses. Outstanding upstream requests unchanged. Portfolio status verified unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T230330Z/`.
   * 2025-12-09T010000Z (Loop i=215, Galph) — **Maintenance mode continues**: Checked nanoBragg outbox and DBEX inbox — no new responses. Two outstanding upstream requests remain: `mosaic_gradient_bug_2025_12_08.md` (HIGH, blocks ARCH-GRADIENT-FLOW-001) and `chunked_interpolation_request_2025_12_09.md` (MEDIUM, blocks PERF-GPU-MEM-001). Portfolio status verified unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T010000Z/`.
   * 2025-12-09T020000Z (Loop i=216, Galph) — **Maintenance mode continues**: Checked inbox/outbox — no new responses. Fixed ORCH-ROBUST-001 status drift (was `in_progress`, changed to `pending` per implementation.md stub status). Portfolio status unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T020000Z/`.
+  * 2025-12-09T030000Z (Loop i=217, Ralph) — **Maintenance mode → PORTFOLIO UNBLOCKED**: Full inbox/outbox audit found upstream responses: (1) `dbex-gradient-blockers-fix-report.md` — wavelength/fluence/distance FIXED, (2) `nanobrag_torch_cell_gradient_response_2025_12_08.md` — cell gradients work in nanobrag_torch, issue is DBEX-side. **Key finding:** ARCH-GRADIENT-FLOW-001 is NOT fully blocked — cell param magnitude investigation can proceed in DBEX. Mosaic bug is a separate blocker (awaiting response). ARCH-GRADIENT-FLOW-001 status updated to in_progress (Phase B.8). Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T030000Z/`.
   * ... (see plans/active/DB-AT-SUITE-CARE-001/reports/ for full Attempts History and metrics).
 
 ### [MAP-SCALE-SYNC-001] Calibration Ladder Synchronization (MAP-SCALE-001—005)

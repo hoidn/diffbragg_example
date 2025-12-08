@@ -11,14 +11,12 @@ We avoid relying on ephemeral runtime logs; all references below point to checke
 
 ## 1. Contract and Enforcement Test
 
-**Spec contract**
+**Spec contract (updated)**
 
-- Spec‑DB core (DBEX): `docs/spec-db-core.md` §§60‑140 define the lattice weight contract. For the SQUARE lattice shape, lattice weights must scale as:
-  \[
-    I(N_a, N_b, N_c) \propto (N_a \cdot N_b \cdot N_c)^2
-  \]
-  when evaluated at sufficient precision.
-- This is the basis for DB‑AT‑028/029’s expectations about Stage‑A intensity and ROI correlation when changing `N_cells`.
+- Later analysis plus the upstream maintainer response clarified that Spec‑DB core does **not** require `(Na·Nb·Nc)²` scaling for integrated/summed intensity. For a SQUARE lattice in the kinematic limit:
+  - Peak intensity at exact Bragg: ∝ `(Na·Nb·Nc)²`
+  - Integrated reflection intensity (full rocking-curve / reciprocal‑space peak): ∝ `Na·Nb·Nc` (linear)
+- DB‑AT‑028/029 operate on Stage‑A χ² and ROI correlation metrics over experimental ROIs; they SHALL NOT be interpreted as enforcing a simple power law (e.g., `Na`, `(Na·Nb·Nc)²`) for a single still‑image detector ROI sum. The resolved contract is recorded in `docs/findings.md::SIM-CONSTR-PARTIALITY-001` and `docs/TESTING_GUIDE.md` §5.2.
 
 **Architecture enforcement test**
 
@@ -196,4 +194,3 @@ Once a fix lands in `nanobrag_torch`, DBEX maintainers will:
   - The square‑lattice probe script
   - DB‑AT‑028/029
 - And, if those pass within the documented tolerances, clear the `blocked_pending_environment` status on `[ARCH-SIM-CONSTRUCTION-001]` in `docs/fix_plan.md`.
-

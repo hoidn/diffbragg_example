@@ -1,0 +1,10 @@
+{
+  "correlation": 0.9999999999999998,
+  "sum_weighted": 22989.948888918734,
+  "sum_equal": 22989.948888918734,
+  "sum_ratio": 1.0,
+  "sum_ratio_delta": 0.0,
+  "threshold_correlation": 0.999,
+  "threshold_sum_ratio_delta": 0.005,
+  "pass": true
+}

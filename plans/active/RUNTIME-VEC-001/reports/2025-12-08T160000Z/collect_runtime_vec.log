@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 1 item
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_runtime_vectorization.py>
+        <Class TestRuntimeVectorization>
+          <Function test_source_weights_ignored_per_spec>
+
+========================== 1 test collected in 0.02s ===========================

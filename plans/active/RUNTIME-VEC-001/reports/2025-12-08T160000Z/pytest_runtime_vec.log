@@ -1,0 +1,11 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec PASSED [100%]
+
+============================== 1 passed in 2.90s ===============================

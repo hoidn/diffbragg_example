@@ -1,0 +1,6 @@
+RUNTIME-VEC-001: Source Weight Equal-Weight Validation
+Correlation: 1.000000 (≥0.999 ✓)
+Sum ratio: 1.000000 (|Δ| = 0.000000 ≤5e-3 ✓)
+Weighted sum: 2.299e+04
+Equal sum: 2.299e+04
+Metrics: plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/artifacts/mapping_metrics.json

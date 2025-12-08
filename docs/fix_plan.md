@@ -93,6 +93,7 @@
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
 - [DOC-RUNTIME-004] (Restore Runtime Checklist) — **Done** (2025-11-23T024449Z: all exit criteria met, runtime checklist restored with spec citations, references verified, validation artifacts complete)
 - [TORCH-RUNTIME-002] (Runtime Harness Seed) — **Done** (2025-10-28T232744Z: all exit criteria satisfied, TESTING_GUIDE.md updated, selector registry synchronized)
+- [ARCH-TELEMETRY-002] (Telemetry & Probe Simplification) — **pending** (new architecture/hygiene initiative to charter telemetry ownership, prune unused fields, and add guards against new ad‑hoc telemetry dict surfaces; see `plans/active/ARCH-TELEMETRY-002/implementation.md`).
 
 ### Tier 4: Orchestration & Agent Ops
 **Goal:** Harden orchestration tooling, submodule robustness, and agent operation workflows.
@@ -224,6 +225,23 @@
 - Working Plan: `plans/active/ARCH-TELEMETRY-001/implementation.md`
 - Attempts History:
   * See docs/fix_plan_archive.md (snapshot 2025-12-07) and plans/active/ARCH-TELEMETRY-001/reports/ for full Attempts History.
+
+### [ARCH-TELEMETRY-002] Telemetry & Probe Simplification
+- Depends on: ARCH-TELEMETRY-001 (observer refactor), ARCH-STAGE-CONTEXT-001 (typed contexts), PHYSICS-LOSS-001 (telemetry χ² spec), TOOLING-VIS-001 / MAP-SCALE-00x (mapping metrics), ARCH-PROBE-FREEZE-001 (probe/shim policy)
+- Status: pending
+- Type: architecture
+- Priority: High
+- Tier: 3 (Tooling & Observability)
+- Owner/Date: Galph ↔ Ralph / 2025-12-08
+- Exit Criteria:
+  1. Telemetry ownership charter exists (`docs/architecture/telemetry.md` or equivalent), is wired into `docs/index.md`, and clearly separates primary production telemetry owners (Stage collectors, writer, CLI bundle) from diagnostic owners (bridge/mapping/baseline helpers), explicitly deferring semantics to Spec‑DB and existing IDLs.
+  2. A telemetry inventory (charter appendix or `docs/data_dependency_manifest.md` Telemetry section) catalogues `/torch_diagnostics` attributes, Stage telemetry fields, and mapping/baseline diagnostics with their code/tests/plan consumers; at least one unused, non‑normative field is removed or explicitly deprecated with recorded evidence.
+  3. `tests/architecture/test_telemetry_surfaces.py` prevents new long‑lived telemetry dict surfaces from being introduced in `dbex/` outside a small owner allow‑list; new telemetry schemas are required to go through the charter + IDL + tests path.
+  4. `<diagnostic_script_policy>` in `prompts/supervisor.md` and `tests/architecture/test_probe_contracts.py` both reflect updated telemetry rules: plan‑local scripts may only produce views of existing telemetry and may not define new production schemas or shadow pipelines.
+  5. Telemetry‑relevant selectors in `docs/TESTING_GUIDE.md` (Stage smokes, MAP‑SCALE‑00x, TOOLING‑VIS‑001, PHYSICS‑LOSS‑001) and architecture tests all pass under the new guards; `docs/findings.md` is updated to record the new guardrails and close out any outstanding telemetry‑dict debt.
+- Working Plan: `plans/active/ARCH-TELEMETRY-002/implementation.md`
+- Attempts History:
+  * 2025-12-08T000000Z (planning) — Authored implementation plan under `plans/active/ARCH-TELEMETRY-002/implementation.md` based on telemetry ownership and probe simplification design; scoped phases A (charter/inventory), B (AST guard + supervisor policy), C (cleanup/closure). No code/tests changed yet; artifacts: `plans/active/ARCH-TELEMETRY-002/implementation.md`.
 
 ### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
 - Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)

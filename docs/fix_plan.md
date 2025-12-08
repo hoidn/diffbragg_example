@@ -479,7 +479,13 @@
 - Working Plan: `plans/active/RUNTIME-VEC-001/implementation.md`
 - Attempts History:
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
-  * ... (see docs/fix_plan_archive.md and plans/active/RUNTIME-VEC-001/reports/ for full Attempts History and metrics).
+  * 2025-12-08T140000Z (i=164) — Phase A complete:
+    - A1: nanobrag_torch v0.1.0 accessible; spec refs captured (pytorch_design.md §1.1.5, runtime_checklist.md §4)
+    - A2: 9 tests inventoried from nanoBragg/test_cli_scaling.py (TestSourceWeights: 6, TestSourceWeightsDivergence: 3); 1 test already ported to DBEX (`test_source_weights_ignored_per_spec`)
+    - A3: Artifact policy defined: `RUNTIME_VEC_ARTIFACT_DIR` env var, JSON metrics schema, pytest selector documented
+    - Thresholds: correlation ≥0.999, |sum_ratio−1| ≤5e-3
+    - Next: Phase B — validate existing DBEX test, update TESTING_GUIDE.md
+    - Artifacts: `plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z/` (a1_spec_refs.md, a2_test_inventory.md, a3_artifact_policy.md, summary.md)
 
 ### [REPORT-NANOBRAG-STATUS-001] Status Reporting Scripts
 - Depends on: None

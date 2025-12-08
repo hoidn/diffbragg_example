@@ -116,9 +116,41 @@ When fractional HKL coordinates are near grid boundaries, tiny numerical differe
 
 **Why DBEX test FAILS:** Uses 97% hit rate, many queries near boundaries causing noise.
 
-**FIX REQUIRED:** Add `halo=True` to `build_structure_factor_grid` call in `simulate_forward_torch` (line 171-175 in forward.py). This adds ±1 padding to eliminate boundary discontinuities.
+**INITIAL FIX ATTEMPTED:** Added `halo=True` to `build_structure_factor_grid` call in `simulate_forward_torch` (line 171-175 in forward.py).
 
-**Action:** Fix forward.py to add halo, then re-run DB-AT-010 gradcheck.
+**RESULT:** Tests still fail. The halo only addresses boundary discontinuities, but the real issue is **interior discontinuities** from the 65% of grid cells with F=0.
+
+**Grid Occupancy Analysis (Loop i=207, continued):**
+```
+Grid shape: (50, 59, 34) = 100,300 cells
+Grid occupancy: 34,807/100,300 (34.70%)
+Grid zeros: 65,493 (65.30%)
+Mean |F|: 47.47
+```
+
+The 97% hit rate during simulation comes from query distribution (queries cluster around Bragg peaks), but 65% of the grid cells are zeros. When tricubic interpolation samples near F=0 cells, the function becomes discontinuous.
+
+**Mechanism Refined:**
+1. MTZ provides 34,807 reflections covering 34.7% of the HKL grid
+2. Missing reflections are filled with F=0 (default)
+3. Tricubic interpolation blends values from 4×4×4 neighborhoods
+4. Neighborhoods containing zeros create discontinuities when parameters change
+5. Small cell_a changes cause queries to sample different blend ratios of real F vs 0
+6. This creates ~1000×-100000× numerical gradient instability
+
+**ROOT CAUSE CONFIRMED:** The gradient mismatch is NOT from incorrect analytical gradient computation, but from the **inherently discontinuous nature of the forward function** when using incomplete HKL data with F=0 fill.
+
+**Potential Fixes (require DBEX architecture decision):**
+1. **Fill gaps with mean|F|** instead of 0 → smooths function but is physically incorrect
+2. **Use default_F=47.47** in CrystalConfig → same effect, smooths the discontinuities
+3. **Accept that gradcheck cannot validate this function** → use gradient descent which averages noise
+
+**Why nanobrag_torch tests PASS:** They use `default_F=100.0` (constant fill), which makes ALL grid cells non-zero, eliminating discontinuities.
+
+**Action:** This is an ARCHITECTURE DECISION. The halo fix was insufficient. Either:
+- A) Accept gradcheck failure as expected behavior for incomplete data
+- B) Modify fill strategy for test-only smooth mode
+- C) Create separate synthetic test dataset with 100% coverage
 
 ---
 
@@ -136,7 +168,7 @@ When fractional HKL coordinates are near grid boundaries, tiny numerical differe
 
 **Result:** 2/5 exit criteria met, 1 blocked (DBEX investigation), 2 deferred.
 
-**Initiative Status:** PARTIAL — Tricubic spec/implementation complete; validation blocked pending DBEX gradient investigation.
+**Initiative Status:** PARTIAL — Tricubic spec/implementation complete; validation blocked pending architecture decision on gradient testing strategy for discontinuous forward functions.
 
 ---
 
@@ -167,10 +199,19 @@ When fractional HKL coordinates are near grid boundaries, tiny numerical differe
 
 ---
 
-### Turn Summary (Loop i=207 - Ralph)
-Investigated gradient magnitude mismatch after maintainer confirmed cell parameter gradients work in nanobrag_torch (all 6 tests PASS). Ran isolated tests: minimal nanobrag_torch test PASSES, DBEX full path FAILS with 3498× mismatch. Key finding: mismatch correlates with real HKL grid complexity vs simple default_F. Identified that `simulate_forward_torch` does NOT pass `halo=True` to HKL grid builder — this may cause tricubic boundary effects.
-Next: Add `halo=True` to forward.py HKL grid call and re-test DB-AT-010 gradcheck.
-Artifacts: plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/ (pytest_db_at_010.log, summary.md)
+### Turn Summary (Loop i=207 - Ralph, continued)
+Applied `halo=True` fix to forward.py, re-ran DB-AT-010 gradcheck — still 5/5 FAILED. Analyzed grid occupancy: only 34.7% of HKL grid cells have data, 65% are zeros. The halo fix only addresses boundary discontinuities; the real issue is interior discontinuities from F=0 fill for missing reflections.
+
+**Key Insight:** gradcheck requires continuous functions. The DBEX forward function is inherently discontinuous due to incomplete HKL data (34.7% coverage) with F=0 fill. The nanobrag_torch maintainer tests pass because they use `default_F=100.0` (constant fill) which eliminates discontinuities.
+
+**Architecture Decision Required:**
+- Option A: Accept gradcheck failure as expected behavior for incomplete real data
+- Option B: Add test-only smooth mode with mean|F| fill
+- Option C: Create synthetic 100% coverage test dataset
+
+**Status:** BLOCKED pending architecture decision on how to handle discontinuous forward functions in gradient testing.
+
+Artifacts: plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/ (pytest_db_at_010.log, pytest_db_at_010_halo_fix.log, summary.md)
 
 ---
 

@@ -1,0 +1,85 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 189 items / 174 deselected / 15 selected
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_db_at_001_parity.py>
+        <Class TestManifestIntegrity>
+          <Function test_manifest_integrity>
+          <Function test_golden_data_sanity>
+          <Function test_pixel_pitch_guard>
+        <Class TestParityMetrics>
+          <Function test_perfect_match>
+          <Function test_correlation_computation>
+          <Function test_error_metrics>
+          <Function test_sum_ratio>
+          <Function test_localization_metric>
+          <Function test_mask_application>
+          <Function test_edge_cases>
+          <Function test_to_dict_serialization>
+        <Class TestArtifactEmission>
+          <Function test_artifact_emission>
+          <Function test_artifact_emission_minimal>
+        <Class TestDB_AT_001_Parity>
+          <Function test_db_at_001_parity_smoke>
+      <Module test_forward_equivalence_complete.py>
+        <Class TestForwardEquiv>
+          <Function test_DB_AT_001_forward_equiv>
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_stage_a_adam_tooling.py:304
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_adam_tooling.py:304: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/dbex/test_stage_a_mapping_equiv.py:160
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_mapping_equiv.py:160: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_027 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_027
+
+tests/dbex/test_stage_b_cpu_fallback.py:389
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_b_cpu_fallback.py:389: PytestUnknownMarkWarning: Unknown pytest.mark.mini - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mini
+
+tests/dbex/test_ub_parameterization_roundtrip.py:51
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:104
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:150
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:150: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:213
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:213: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============== 15/189 tests collected (174 deselected) in 2.15s ===============

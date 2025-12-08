@@ -3,7 +3,7 @@
 ## Initiative
 - ID: FORWARD-EQUIV-COVERAGE-001
 - Title: Forward Equivalence & Parity Harness Roll-up
-- Status: in_progress (Phase A.5 complete, GAP-1 fixed 2025-12-08T120000Z; Phase B complete 2025-12-08T130000Z)
+- Status: **done** (Phase C complete 2025-12-08T143000Z; all 3 member plans done; all 3 exit criteria satisfied)
 
 ## Goals
 - Consolidate forward equivalence and parity harness infrastructure
@@ -44,13 +44,13 @@
 - [x] B3: Verify docs/development/TEST_SUITE_INDEX.md with unified forward-equiv entries. **DONE**: Entries present and accurate (line ~195-197)
 - [x] B4: Refresh docs/fix_plan.md with closure metrics. **DONE**: Attempts History updated with Phase B completion (i=184)
 
-## Phase C — Roll-up Closure
+## Phase C — Roll-up Closure (Complete — 2025-12-08T143000Z)
 
 ### Checklist
-- [ ] C1: Mark all member plans as done in their implementation.md
-- [ ] C2: Update fix_plan.md status to done
-- [ ] C3: Author closure_summary.md
-- [ ] C4: Capture collect-only logs for all DB_AT_001 selectors
+- [x] C1: Mark all member plans as done in their implementation.md — **DONE** (All 3 member plans already had completion checkboxes marked; verified via read)
+- [x] C2: Update fix_plan.md status to done — **DONE** (Execution Roadmap line 59 + detailed section line 427 updated)
+- [x] C3: Author closure_summary.md — **DONE** (`reports/2025-12-08T143000Z/closure_summary.md`)
+- [x] C4: Capture collect-only logs for all DB_AT_001 selectors — **DONE** (`reports/2025-12-08T143000Z/collect_db_at_001_final.log`, 15 tests)
 
 ## Spec References
 - `docs/forward_equivalence.md`

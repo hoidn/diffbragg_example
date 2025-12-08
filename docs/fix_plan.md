@@ -94,7 +94,7 @@
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
 - [DOC-RUNTIME-004] (Restore Runtime Checklist) — **Done** (2025-11-23T024449Z: all exit criteria met, runtime checklist restored with spec citations, references verified, validation artifacts complete)
 - [TORCH-RUNTIME-002] (Runtime Harness Seed) — **Done** (2025-10-28T232744Z: all exit criteria satisfied, TESTING_GUIDE.md updated, selector registry synchronized)
-- [ARCH-TELEMETRY-002] (Telemetry & Probe Simplification) — **in_progress** (Phase B complete 2025-12-07T220000Z i=174: (B0) Charter linked in docs/index.md, (B1) enforcement test `tests/architecture/test_telemetry_surfaces.py` (3 tests PASS), (B2) `prompts/supervisor.md::telemetry_charter_compliance` policy added, (B3) probe contracts cross-reference added. All 4 Phase B exit criteria met. Phase C next: cleanup/closure sweep. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z/`).
+- [ARCH-TELEMETRY-002] (Telemetry & Probe Simplification) — **done** (Phase C complete 2025-12-08T000000Z i=175: ALL EXIT CRITERIA MET. (C1) Field audit — all fields in use, `panel_loss_diag` flagged as future cleanup candidate, (C2) `docs/findings.md` TELEMETRY-GUARD-001 added, (C3) architecture test slice PASSED (9/9), (C4) status updated. EC1-5 all satisfied: charter linked, inventory complete, enforcement tests pass, supervisor policy updated, findings guardrail documented. Initiative ready for archive. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z/`).
 
 ### Tier 4: Orchestration & Agent Ops
 **Goal:** Harden orchestration tooling, submodule robustness, and agent operation workflows.
@@ -229,7 +229,7 @@
 
 ### [ARCH-TELEMETRY-002] Telemetry & Probe Simplification
 - Depends on: ARCH-TELEMETRY-001 (observer refactor), ARCH-STAGE-CONTEXT-001 (typed contexts), PHYSICS-LOSS-001 (telemetry χ² spec), TOOLING-VIS-001 / MAP-SCALE-00x (mapping metrics), ARCH-PROBE-FREEZE-001 (probe/shim policy)
-- Status: in_progress
+- Status: done
 - Type: architecture
 - Priority: High
 - Tier: 3 (Tooling & Observability)
@@ -247,6 +247,7 @@
   * 2025-12-07T215000Z (Loop i=173, Ralph) — **Phase A complete** (commit 744cea60): A0 ownership spike (5 dataclasses, 3 collectors, HDF5 schema), A1 telemetry charter (`docs/architecture/telemetry.md`) authored with ownership boundaries and expansion rules, A2 telemetry inventory with 13 HDF5 attrs + ~20 per-stage attrs + 4 secondary surfaces, A3 manifest Telemetry section added to `docs/data_dependency_manifest.md`, A4 summary authored. Tests: `test_probe_shims_delegate_to_owner_clis` PASS; `test_plan_bin_growth_cap` FAIL (pre-existing: probe_square_lattice_scaling.py 813 LOC). **Gap**: Charter not yet linked in docs/index.md (Exit Criterion 1 partial). Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/`. Next: Phase B (enforcement test + supervisor policy).
   * 2025-12-07T220000Z (Loop i=174, Galph) — **Phase B delegation**: Applied implementation floor (Phase A docs-only, Phase B must implement). Scoped Phase B: (B0) wire charter into docs/index.md, (B1) implement `tests/architecture/test_telemetry_surfaces.py`, (B2) extend `prompts/supervisor.md` with telemetry_charter_compliance, (B3) add probe contracts cross-reference. ActionType: implementation_ready. DecisionStatus: patch_ready. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z/`. Next: Ralph executes Phase B tasks (i=174).
   * 2025-12-07T220000Z (Loop i=174, Ralph) — **Phase B complete** (commit 4d8943a6): B0 charter linked in docs/index.md, B1 enforcement test `tests/architecture/test_telemetry_surfaces.py` authored (3 tests: test_telemetry_owners_exist, test_no_unchartered_telemetry_exports, test_charter_link_exists), B2 `prompts/supervisor.md` extended with `<telemetry_charter_compliance>` policy (lines 331-342), B3 `tests/architecture/test_probe_contracts.py` cross-reference added (lines 19-20). Tests: 4/4 PASSED (telemetry_surfaces 3 + probe_shims 1). **Exit criteria progress**: EC1 ✅ EC2 ✅ EC3 ✅ EC4 ✅ EC5 partial. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z/`. Next: Phase C (cleanup/closure).
+  * 2025-12-08T000000Z (Loop i=175, Ralph) — **Phase C complete** (closure): C1 field audit — all primary telemetry fields in active use, `panel_loss_diag` identified as future cleanup candidate (no test/spec consumers); C2 `docs/findings.md` TELEMETRY-GUARD-001 guardrail entry added; C3 architecture test slice PASSED (9/9 tests: telemetry_surfaces 3, probe_shims 1, gradient_contracts 5); C4 status updated to `done`. **ALL EXIT CRITERIA MET**: EC1 ✅ Charter exists + linked, EC2 ✅ Inventory complete (all fields in use documented), EC3 ✅ Enforcement test passes, EC4 ✅ Policy updated, EC5 ✅ Tests pass + findings updated. Initiative ready for archive. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z/`.
 
 ### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
 - Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)

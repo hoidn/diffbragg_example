@@ -1,0 +1,1431 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 6 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [ 16%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub FAILED [ 33%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry FAILED [ 50%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [ 66%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [ 83%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke SKIPPED [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x729e503db700>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_a_expansion(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥0.2% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002D):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
+        3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+        4. Improvement gate (≥0.2%) calibrated to achievable ceiling per empirical probe
+        5. Full-loss trace is non-increasing over last 3 validations
+    
+        Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+        against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+        Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+        through baseline_crystal parameter exercises orientation recovery while fractional HKL
+        coordinates from the perturbed basis stay within haloed grid bounds.
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        print(f"\n[test_stage_a_expansion] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+        n_rois = len(refgeom_dataload.bbox)
+        strict_gates = smoke_detector_size == "full"
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Create perturbed geometry (TORCH-REFINE-002D)
+        # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
+        # with tricubic HKL interpolation enabled (haloed grid prevents default_F fallback)
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run refinement with perturbed geometry and baseline crystal for misset extraction
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,  # Enables U_delta extraction for orientation telemetry
+        )
+        stages = [StageA()]  # Stage A only (no Stage B/C)
+        engine = RefinementEngine(stages, config=config)
+>       telemetry_dict = engine.run({"context": refinement_context})
+
+tests/dbex/test_torch_refine_smoke.py:453: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+../../nanoBragg/src/nanobrag_torch/simulator.py:1052: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+../../nanoBragg/src/nanobrag_torch/simulator.py:747: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py:433: in _fn
+    return fn(*args, **kwargs)
+../../nanoBragg/src/nanobrag_torch/simulator.py:20: in compute_physics_for_position
+    def compute_physics_for_position(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py:600: in _fn
+    return fn(*args, **kwargs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/aot_autograd.py:987: in forward
+    return compiled_fn(full_args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py:217: in runtime_wrapper
+    all_outs = call_func_at_runtime_with_args(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py:120: in call_func_at_runtime_with_args
+    out = normalize_as_list(f(args))
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py:451: in wrapper
+    return compiled_fn(runtime_args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/codecache.py:1131: in __call__
+    return self.current_callable(inputs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/compile_fx.py:993: in run
+    return compiled_fn(new_inputs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:373: in deferred_cudagraphify
+    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:403: in cudagraphify
+    return manager.add_function(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:2089: in add_function
+    return fn, fn(inputs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:1841: in run
+    out = self._run(new_inputs, function_id)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:1900: in _run
+    self.try_end_curr_warmup(function_id)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:2180: in try_end_curr_warmup
+    self.dealloc_current_path_weakrefs()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <torch._inductor.cudagraph_trees.CUDAGraphTreeManager object at 0x729e00b181c0>
+
+    def dealloc_current_path_weakrefs(self):
+        # TODO: we could also allow the these weak refs to continue to be allocated,
+        # but that adds some complications.
+        for node in self.current_node._path_from_root:
+>           assert len(node.tensor_weakrefs) == len(node.stack_traces)
+E           AssertionError
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:2227: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=small
+____________________ test_stage_a_expansion_incremental_ub _____________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x729df03fdb20>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_a_expansion_incremental_ub(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage A LBFGS refinement with incremental UB parameterization achieves ≥0.2% loss decrease.
+    
+        Identical to test_stage_a_expansion but with use_incremental_ub=True to validate
+        quaternion-based incremental orientation (ΔR @ U₀) + cell perturbations (logs/angles).
+    
+        Acceptance criteria (TORCH-GEOMETRY-UB-REALIGN-001 Phase C1):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation)
+        3. Improvement gate (≥0.2%) matching cell+misset path
+        4. Full-loss trace is non-increasing over last 3 validations
+        5. Convergence behavior matches cell+misset default path
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub
+        """
+        from dbex.refinement.config import RefinementConfig
+        from dbex.nanobrag_refinement import run_nanobrag_refinement
+    
+        print(f"\n[test_stage_a_expansion_incremental_ub] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+        n_rois = len(refgeom_dataload.bbox)
+        strict_gates = smoke_detector_size == "full"
+    
+        # Configure refinement (Stage A expansion with incremental UB)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,
+            use_incremental_ub=True,  # <-- ONLY DIFFERENCE: Enable incremental UB parameterization
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Create perturbed geometry
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run refinement with perturbed geometry and baseline crystal for misset extraction
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+>       bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal
+        )
+
+tests/dbex/test_torch_refine_smoke.py:796: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/nanobrag_refinement.py:210: in run_nanobrag_refinement
+    telemetry_dict = engine.run(engine_inputs)
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <nanobrag_torch.simulator.Simulator object at 0x729df03fd220>
+pixel_batch_size = None, override_a_star = None, oversample = 3
+oversample_omega = False, oversample_polar = False, oversample_thick = False
+
+    def run(
+        self,
+        pixel_batch_size: Optional[int] = None,
+        override_a_star: Optional[torch.Tensor] = None,
+        oversample: Optional[int] = None,
+        oversample_omega: Optional[bool] = None,
+        oversample_polar: Optional[bool] = None,
+        oversample_thick: Optional[bool] = None,
+    ) -> torch.Tensor:
+        """
+        Run the diffraction simulation with crystal rotation and mosaicity.
+    
+        This method vectorizes the simulation over all detector pixels, phi angles,
+        and mosaic domains. It integrates contributions from all crystal orientations
+        to produce the final diffraction pattern.
+    
+        Important: This implementation uses the full Miller indices (h, k, l) for the
+        lattice shape factor calculation, not the fractional part (h-h0). This correctly
+        models the crystal shape transform and is consistent with the physics of
+        diffraction from a finite crystal.
+    
+        C-Code Implementation Reference (from nanoBragg.c, lines 2993-3151):
+        The vectorized implementation replaces these nested loops. The outer `source`
+        loop is future work for handling beam divergence and dispersion.
+    
+        ```c
+                        /* loop over sources now */
+                        for(source=0;source<sources;++source){
+    
+                            /* retrieve stuff from cache */
+                            incident[1] = -source_X[source];
+                            incident[2] = -source_Y[source];
+                            incident[3] = -source_Z[source];
+                            lambda = source_lambda[source];
+    
+                            /* ... scattering vector calculation ... */
+    
+                            /* sweep over phi angles */
+                            for(phi_tic = 0; phi_tic < phisteps; ++phi_tic)
+                            {
+                                /* ... crystal rotation ... */
+    
+                                /* enumerate mosaic domains */
+                                for(mos_tic=0;mos_tic<mosaic_domains;++mos_tic)
+                                {
+                                    /* ... mosaic rotation ... */
+                                    /* ... h,k,l calculation ... */
+                                    /* ... F_cell and F_latt calculation ... */
+    
+                                    /* convert amplitudes into intensity (photons per steradian) */
+                                    I += F_cell*F_cell*F_latt*F_latt;
+                                }
+                            }
+                        }
+        ```
+    
+        Args:
+            pixel_batch_size: Optional batching for memory management.
+            override_a_star: Optional override for the a_star vector for testing.
+            oversample: Number of subpixel samples per axis. Defaults to detector config.
+            oversample_omega: Apply solid angle per subpixel. Defaults to detector config.
+            oversample_polar: Apply polarization per subpixel. Defaults to detector config.
+            oversample_thick: Apply absorption per subpixel. Defaults to detector config.
+    
+        Returns:
+            torch.Tensor: Final diffraction image with shape (spixels, fpixels).
+        """
+        # Unified vectorization path (spec-compliant fresh rotations)
+        # Get oversampling parameters from detector config if not provided
+        if oversample is None:
+            oversample = self.detector.config.oversample
+        if oversample_omega is None:
+            oversample_omega = self.detector.config.oversample_omega
+        if oversample_polar is None:
+            oversample_polar = self.detector.config.oversample_polar
+        if oversample_thick is None:
+            oversample_thick = self.detector.config.oversample_thick
+    
+        # Auto-select oversample if set to -1 (matches C behavior)
+        if oversample == -1:
+            # Calculate maximum crystal dimension in meters
+            xtalsize_max = max(
+                abs(self.crystal.config.cell_a * 1e-10 * self.crystal.config.N_cells[0]),  # a*Na in meters
+                abs(self.crystal.config.cell_b * 1e-10 * self.crystal.config.N_cells[1]),  # b*Nb in meters
+                abs(self.crystal.config.cell_c * 1e-10 * self.crystal.config.N_cells[2])   # c*Nc in meters
+            )
+    
+            # Calculate reciprocal pixel size in meters
+            # reciprocal_pixel_size = λ * distance / pixel_size (all in meters)
+            wavelength_m = self.wavelength * 1e-10  # Convert from Angstroms to meters
+            distance_m = self.detector.config.distance_mm / 1000.0  # Convert from mm to meters
+            pixel_size_m = self.detector.config.pixel_size_mm / 1000.0  # Convert from mm to meters
+            reciprocal_pixel_size = wavelength_m * distance_m / pixel_size_m
+    
+            # Calculate recommended oversample using C formula
+            import math
+            recommended_oversample = math.ceil(3.0 * xtalsize_max / reciprocal_pixel_size)
+    
+            # Ensure at least 1
+            if recommended_oversample <= 0:
+                recommended_oversample = 1
+    
+            oversample = recommended_oversample
+            print(f"auto-selected {oversample}-fold oversampling")
+    
+        # For now, we'll implement the base case without oversampling for this test
+        # The full subpixel implementation will come later
+        # This matches the current implementation which doesn't yet have subpixel sampling
+    
+        # PERF-PYTORCH-004 P3.4: Use cached ROI mask instead of rebuilding every run
+        roi_mask = self._cached_roi_mask
+    
+        # PERF-PYTORCH-004 P3.4: Use cached pixel coordinates instead of fetching/converting every run
+        pixel_coords_meters = self._cached_pixel_coords_meters
+    
+        # Get rotated lattice vectors for all phi steps and mosaic domains
+        # Shape: (N_phi, N_mos, 3)
+        # PERF-PYTORCH-006: Convert crystal vectors to correct device/dtype
+        if override_a_star is None:
+            (rot_a, rot_b, rot_c), (rot_a_star, rot_b_star, rot_c_star) = (
+                self.crystal.get_rotated_real_vectors(self.crystal.config)
+            )
+            # Convert to correct dtype/device
+            rot_a = rot_a.to(device=self.device, dtype=self.dtype)
+            rot_b = rot_b.to(device=self.device, dtype=self.dtype)
+            rot_c = rot_c.to(device=self.device, dtype=self.dtype)
+            rot_a_star = rot_a_star.to(device=self.device, dtype=self.dtype)
+            rot_b_star = rot_b_star.to(device=self.device, dtype=self.dtype)
+            rot_c_star = rot_c_star.to(device=self.device, dtype=self.dtype)
+    
+            # VECTOR-PARITY-001 Phase D5: Convert lattice vectors from Angstroms to meters
+            # The scattering vector q is in m⁻¹ (Phase D1 fix), and real-space lattice vectors
+            # must be in meters for dimensionally correct h=a·q computation (meters × m⁻¹ = dimensionless).
+            # Crystal.get_rotated_real_vectors() returns vectors in Angstroms, so multiply by 1e-10.
+            # Reference: specs/spec-a-core.md line 135 ("scaled by 1e-10 to meters for all subsequent dot products with q")
+            # and line 446 ("q: scattering vector in m⁻¹").
+            # Evidence: reports/2026-01-vectorization-parity/phase_d/20251010T073708Z/simulator_f_latt.md
+            # and C-code trace showing a = [1e-08, ...] |a| = 1e-08 meters (100 Å × 1e-10).
+            rot_a = rot_a * 1e-10  # Å → meters
+            rot_b = rot_b * 1e-10  # Å → meters
+            rot_c = rot_c * 1e-10  # Å → meters
+    
+            # Cache rotated reciprocal vectors for GAUSS/TOPHAT shape models
+            self._rot_a_star = rot_a_star
+            self._rot_b_star = rot_b_star
+            self._rot_c_star = rot_c_star
+        else:
+            # For gradient testing with override, use single orientation
+            rot_a = override_a_star.view(1, 1, 3)
+            rot_b = self.crystal.b.view(1, 1, 3)
+            rot_c = self.crystal.c.view(1, 1, 3)
+            rot_a_star = override_a_star.view(1, 1, 3)
+            rot_b_star = self.crystal.b_star.view(1, 1, 3)
+            rot_c_star = self.crystal.c_star.view(1, 1, 3)
+    
+            # VECTOR-PARITY-001 Phase D5: Convert lattice vectors from Angstroms to meters (same as non-override path)
+            rot_a = rot_a * 1e-10  # Å → meters
+            rot_b = rot_b * 1e-10  # Å → meters
+            rot_c = rot_c * 1e-10  # Å → meters
+    
+            # Cache for shape models
+            self._rot_a_star = rot_a_star
+            self._rot_b_star = rot_b_star
+            self._rot_c_star = rot_c_star
+    
+        # PERF-PYTORCH-004 P1.2: Use pre-normalized source tensors from __init__
+        # Tensors were already moved to correct device/dtype during initialization
+        if self._source_directions is not None:
+            n_sources = len(self._source_directions)
+            source_directions = self._source_directions
+            source_wavelengths_A = self._source_wavelengths_A
+            source_weights = self._source_weights
+        else:
+            # No explicit sources, use single beam configuration
+            n_sources = 1
+            source_directions = None
+            source_wavelengths_A = None
+            source_weights = None
+    
+        # Calculate normalization factor (steps)
+        # Per spec AT-SAM-001: "Final per-pixel scale SHALL divide by steps"
+        # SOURCE-WEIGHT-001 Phase C1: C-parity requires ignoring source weights
+        # Per spec-a-core.md line 151: "The weight column is read but ignored (equal weighting results)"
+        # C code (nanoBragg.c:3358) divides by steps = sources*mosaic_domains*phisteps*oversample^2
+        # where sources is the COUNT of sources, not the sum of weights
+        phi_steps = self.crystal.config.phi_steps
+        mosaic_domains = self.crystal.config.mosaic_domains
+    
+        # Always use n_sources (count) to match C behavior
+        # The spec explicitly states source weights are "read but ignored"
+        source_norm = n_sources
+    
+        steps = source_norm * phi_steps * mosaic_domains * oversample * oversample  # Include sources and oversample^2
+    
+        # Apply physical scaling factors (from nanoBragg.c ~line 3050)
+        # Solid angle correction, converting all units to meters for calculation
+    
+        # Check if we're doing subpixel sampling
+        if oversample > 1:
+            # VECTORIZED IMPLEMENTATION: Process all subpixels in parallel
+            # Generate subpixel offsets (centered on pixel center)
+            # Per spec: "Compute detector-plane coordinates (meters): Fdet and Sdet at subpixel centers."
+            # Create offsets in fractional pixel units
+            subpixel_step = 1.0 / oversample
+            offset_start = -0.5 + subpixel_step / 2.0
+    
+            # Use manual arithmetic to preserve gradients (avoid torch.linspace)
+            subpixel_offsets = offset_start + torch.arange(
+                oversample, device=self.device, dtype=self.dtype
+            ) * subpixel_step
+    
+            # Create grid of subpixel offsets
+            sub_s, sub_f = torch.meshgrid(subpixel_offsets, subpixel_offsets, indexing='ij')
+            # Flatten the grid for vectorized processing
+            # Shape: (oversample*oversample,)
+            sub_s_flat = sub_s.flatten()
+            sub_f_flat = sub_f.flatten()
+    
+            # Get detector basis vectors for proper coordinate transformation
+            f_axis = self.detector.fdet_vec  # Shape: [3]
+            s_axis = self.detector.sdet_vec  # Shape: [3]
+            S, F = pixel_coords_meters.shape[:2]
+    
+            # VECTORIZED: Create all subpixel positions at once
+            # Shape: (oversample*oversample, 3)
+            # Convert detector properties to tensors with correct device/dtype (AT-PERF-DEVICE-001)
+            # Use as_tensor to avoid warnings when value might already be a tensor
+            pixel_size_m_tensor = torch.as_tensor(self.detector.pixel_size, device=pixel_coords_meters.device, dtype=pixel_coords_meters.dtype)
+            delta_s_all = sub_s_flat * pixel_size_m_tensor
+            delta_f_all = sub_f_flat * pixel_size_m_tensor
+    
+            # Shape: (oversample*oversample, 3)
+            offset_vectors = delta_s_all.unsqueeze(-1) * s_axis + delta_f_all.unsqueeze(-1) * f_axis
+    
+            # Expand pixel_coords for all subpixels
+            # Shape: (S, F, oversample*oversample, 3)
+            pixel_coords_expanded = pixel_coords_meters.unsqueeze(2).expand(S, F, oversample*oversample, 3)
+            offset_vectors_expanded = offset_vectors.unsqueeze(0).unsqueeze(0).expand(S, F, oversample*oversample, 3)
+    
+            # All subpixel coordinates at once
+            # Shape: (S, F, oversample*oversample, 3)
+            subpixel_coords_all = pixel_coords_expanded + offset_vectors_expanded
+    
+            # Convert to Angstroms for physics
+>           subpixel_coords_ang_all = subpixel_coords_all * 1e10
+E           torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 108.00 MiB. GPU 0 has a total capacity of 23.56 GiB of which 83.62 MiB is free. Including non-PyTorch memory, this process has 23.40 GiB memory in use. Of the allocated memory 23.08 GiB is allocated by PyTorch, with 22.70 GiB allocated in private pools (e.g., CUDA Graphs), and 6.31 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+../../nanoBragg/src/nanobrag_torch/simulator.py:1015: OutOfMemoryError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion_incremental_ub] detector=small
+___________________ test_stage_a_engine_delegation_telemetry ___________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x729df26b9a00>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    def test_stage_a_engine_delegation_telemetry(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Validate Phase E engine delegation telemetry fields.
+    
+        telemetry dict MUST include:
+        - engine_protocol: str (e.g., "stage_a" for Stage-A-only mode)
+        - stage_modes: Dict[str, str] (empty dict {} when no B/C enabled)
+    
+        Test uses Stage-A-only mode (enable_stage_b=False, enable_stage_c=False).
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+        """
+        print(f"\n[test_stage_a_engine_delegation_telemetry] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Stage-A-only config (default: enable_stage_b=False, enable_stage_c=False)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.0,  # No strict gate for telemetry validation
+            enable_hkl_interpolation=True,
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Verify Stage-A-only mode
+        assert not config.enable_stage_b, "Test requires enable_stage_b=False"
+        assert not config.enable_stage_c, "Test requires enable_stage_c=False"
+    
+        # Create perturbed geometry
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run with engine delegation
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+        )
+        stages = [StageA()]  # Stage A only (no Stage B/C)
+        engine = RefinementEngine(stages, config=config)
+>       telemetry_dict = engine.run({"context": refinement_context})
+
+tests/dbex/test_torch_refine_smoke.py:1004: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <nanobrag_torch.simulator.Simulator object at 0x729df2709670>
+pixel_batch_size = None, override_a_star = None, oversample = 3
+oversample_omega = False, oversample_polar = False, oversample_thick = False
+
+    def run(
+        self,
+        pixel_batch_size: Optional[int] = None,
+        override_a_star: Optional[torch.Tensor] = None,
+        oversample: Optional[int] = None,
+        oversample_omega: Optional[bool] = None,
+        oversample_polar: Optional[bool] = None,
+        oversample_thick: Optional[bool] = None,
+    ) -> torch.Tensor:
+        """
+        Run the diffraction simulation with crystal rotation and mosaicity.
+    
+        This method vectorizes the simulation over all detector pixels, phi angles,
+        and mosaic domains. It integrates contributions from all crystal orientations
+        to produce the final diffraction pattern.
+    
+        Important: This implementation uses the full Miller indices (h, k, l) for the
+        lattice shape factor calculation, not the fractional part (h-h0). This correctly
+        models the crystal shape transform and is consistent with the physics of
+        diffraction from a finite crystal.
+    
+        C-Code Implementation Reference (from nanoBragg.c, lines 2993-3151):
+        The vectorized implementation replaces these nested loops. The outer `source`
+        loop is future work for handling beam divergence and dispersion.
+    
+        ```c
+                        /* loop over sources now */
+                        for(source=0;source<sources;++source){
+    
+                            /* retrieve stuff from cache */
+                            incident[1] = -source_X[source];
+                            incident[2] = -source_Y[source];
+                            incident[3] = -source_Z[source];
+                            lambda = source_lambda[source];
+    
+                            /* ... scattering vector calculation ... */
+    
+                            /* sweep over phi angles */
+                            for(phi_tic = 0; phi_tic < phisteps; ++phi_tic)
+                            {
+                                /* ... crystal rotation ... */
+    
+                                /* enumerate mosaic domains */
+                                for(mos_tic=0;mos_tic<mosaic_domains;++mos_tic)
+                                {
+                                    /* ... mosaic rotation ... */
+                                    /* ... h,k,l calculation ... */
+                                    /* ... F_cell and F_latt calculation ... */
+    
+                                    /* convert amplitudes into intensity (photons per steradian) */
+                                    I += F_cell*F_cell*F_latt*F_latt;
+                                }
+                            }
+                        }
+        ```
+    
+        Args:
+            pixel_batch_size: Optional batching for memory management.
+            override_a_star: Optional override for the a_star vector for testing.
+            oversample: Number of subpixel samples per axis. Defaults to detector config.
+            oversample_omega: Apply solid angle per subpixel. Defaults to detector config.
+            oversample_polar: Apply polarization per subpixel. Defaults to detector config.
+            oversample_thick: Apply absorption per subpixel. Defaults to detector config.
+    
+        Returns:
+            torch.Tensor: Final diffraction image with shape (spixels, fpixels).
+        """
+        # Unified vectorization path (spec-compliant fresh rotations)
+        # Get oversampling parameters from detector config if not provided
+        if oversample is None:
+            oversample = self.detector.config.oversample
+        if oversample_omega is None:
+            oversample_omega = self.detector.config.oversample_omega
+        if oversample_polar is None:
+            oversample_polar = self.detector.config.oversample_polar
+        if oversample_thick is None:
+            oversample_thick = self.detector.config.oversample_thick
+    
+        # Auto-select oversample if set to -1 (matches C behavior)
+        if oversample == -1:
+            # Calculate maximum crystal dimension in meters
+            xtalsize_max = max(
+                abs(self.crystal.config.cell_a * 1e-10 * self.crystal.config.N_cells[0]),  # a*Na in meters
+                abs(self.crystal.config.cell_b * 1e-10 * self.crystal.config.N_cells[1]),  # b*Nb in meters
+                abs(self.crystal.config.cell_c * 1e-10 * self.crystal.config.N_cells[2])   # c*Nc in meters
+            )
+    
+            # Calculate reciprocal pixel size in meters
+            # reciprocal_pixel_size = λ * distance / pixel_size (all in meters)
+            wavelength_m = self.wavelength * 1e-10  # Convert from Angstroms to meters
+            distance_m = self.detector.config.distance_mm / 1000.0  # Convert from mm to meters
+            pixel_size_m = self.detector.config.pixel_size_mm / 1000.0  # Convert from mm to meters
+            reciprocal_pixel_size = wavelength_m * distance_m / pixel_size_m
+    
+            # Calculate recommended oversample using C formula
+            import math
+            recommended_oversample = math.ceil(3.0 * xtalsize_max / reciprocal_pixel_size)
+    
+            # Ensure at least 1
+            if recommended_oversample <= 0:
+                recommended_oversample = 1
+    
+            oversample = recommended_oversample
+            print(f"auto-selected {oversample}-fold oversampling")
+    
+        # For now, we'll implement the base case without oversampling for this test
+        # The full subpixel implementation will come later
+        # This matches the current implementation which doesn't yet have subpixel sampling
+    
+        # PERF-PYTORCH-004 P3.4: Use cached ROI mask instead of rebuilding every run
+        roi_mask = self._cached_roi_mask
+    
+        # PERF-PYTORCH-004 P3.4: Use cached pixel coordinates instead of fetching/converting every run
+        pixel_coords_meters = self._cached_pixel_coords_meters
+    
+        # Get rotated lattice vectors for all phi steps and mosaic domains
+        # Shape: (N_phi, N_mos, 3)
+        # PERF-PYTORCH-006: Convert crystal vectors to correct device/dtype
+        if override_a_star is None:
+            (rot_a, rot_b, rot_c), (rot_a_star, rot_b_star, rot_c_star) = (
+                self.crystal.get_rotated_real_vectors(self.crystal.config)
+            )
+            # Convert to correct dtype/device
+            rot_a = rot_a.to(device=self.device, dtype=self.dtype)
+            rot_b = rot_b.to(device=self.device, dtype=self.dtype)
+            rot_c = rot_c.to(device=self.device, dtype=self.dtype)
+            rot_a_star = rot_a_star.to(device=self.device, dtype=self.dtype)
+            rot_b_star = rot_b_star.to(device=self.device, dtype=self.dtype)
+            rot_c_star = rot_c_star.to(device=self.device, dtype=self.dtype)
+    
+            # VECTOR-PARITY-001 Phase D5: Convert lattice vectors from Angstroms to meters
+            # The scattering vector q is in m⁻¹ (Phase D1 fix), and real-space lattice vectors
+            # must be in meters for dimensionally correct h=a·q computation (meters × m⁻¹ = dimensionless).
+            # Crystal.get_rotated_real_vectors() returns vectors in Angstroms, so multiply by 1e-10.
+            # Reference: specs/spec-a-core.md line 135 ("scaled by 1e-10 to meters for all subsequent dot products with q")
+            # and line 446 ("q: scattering vector in m⁻¹").
+            # Evidence: reports/2026-01-vectorization-parity/phase_d/20251010T073708Z/simulator_f_latt.md
+            # and C-code trace showing a = [1e-08, ...] |a| = 1e-08 meters (100 Å × 1e-10).
+            rot_a = rot_a * 1e-10  # Å → meters
+            rot_b = rot_b * 1e-10  # Å → meters
+            rot_c = rot_c * 1e-10  # Å → meters
+    
+            # Cache rotated reciprocal vectors for GAUSS/TOPHAT shape models
+            self._rot_a_star = rot_a_star
+            self._rot_b_star = rot_b_star
+            self._rot_c_star = rot_c_star
+        else:
+            # For gradient testing with override, use single orientation
+            rot_a = override_a_star.view(1, 1, 3)
+            rot_b = self.crystal.b.view(1, 1, 3)
+            rot_c = self.crystal.c.view(1, 1, 3)
+            rot_a_star = override_a_star.view(1, 1, 3)
+            rot_b_star = self.crystal.b_star.view(1, 1, 3)
+            rot_c_star = self.crystal.c_star.view(1, 1, 3)
+    
+            # VECTOR-PARITY-001 Phase D5: Convert lattice vectors from Angstroms to meters (same as non-override path)
+            rot_a = rot_a * 1e-10  # Å → meters
+            rot_b = rot_b * 1e-10  # Å → meters
+            rot_c = rot_c * 1e-10  # Å → meters
+    
+            # Cache for shape models
+            self._rot_a_star = rot_a_star
+            self._rot_b_star = rot_b_star
+            self._rot_c_star = rot_c_star
+    
+        # PERF-PYTORCH-004 P1.2: Use pre-normalized source tensors from __init__
+        # Tensors were already moved to correct device/dtype during initialization
+        if self._source_directions is not None:
+            n_sources = len(self._source_directions)
+            source_directions = self._source_directions
+            source_wavelengths_A = self._source_wavelengths_A
+            source_weights = self._source_weights
+        else:
+            # No explicit sources, use single beam configuration
+            n_sources = 1
+            source_directions = None
+            source_wavelengths_A = None
+            source_weights = None
+    
+        # Calculate normalization factor (steps)
+        # Per spec AT-SAM-001: "Final per-pixel scale SHALL divide by steps"
+        # SOURCE-WEIGHT-001 Phase C1: C-parity requires ignoring source weights
+        # Per spec-a-core.md line 151: "The weight column is read but ignored (equal weighting results)"
+        # C code (nanoBragg.c:3358) divides by steps = sources*mosaic_domains*phisteps*oversample^2
+        # where sources is the COUNT of sources, not the sum of weights
+        phi_steps = self.crystal.config.phi_steps
+        mosaic_domains = self.crystal.config.mosaic_domains
+    
+        # Always use n_sources (count) to match C behavior
+        # The spec explicitly states source weights are "read but ignored"
+        source_norm = n_sources
+    
+        steps = source_norm * phi_steps * mosaic_domains * oversample * oversample  # Include sources and oversample^2
+    
+        # Apply physical scaling factors (from nanoBragg.c ~line 3050)
+        # Solid angle correction, converting all units to meters for calculation
+    
+        # Check if we're doing subpixel sampling
+        if oversample > 1:
+            # VECTORIZED IMPLEMENTATION: Process all subpixels in parallel
+            # Generate subpixel offsets (centered on pixel center)
+            # Per spec: "Compute detector-plane coordinates (meters): Fdet and Sdet at subpixel centers."
+            # Create offsets in fractional pixel units
+            subpixel_step = 1.0 / oversample
+            offset_start = -0.5 + subpixel_step / 2.0
+    
+            # Use manual arithmetic to preserve gradients (avoid torch.linspace)
+            subpixel_offsets = offset_start + torch.arange(
+                oversample, device=self.device, dtype=self.dtype
+            ) * subpixel_step
+    
+            # Create grid of subpixel offsets
+            sub_s, sub_f = torch.meshgrid(subpixel_offsets, subpixel_offsets, indexing='ij')
+            # Flatten the grid for vectorized processing
+            # Shape: (oversample*oversample,)
+            sub_s_flat = sub_s.flatten()
+            sub_f_flat = sub_f.flatten()
+    
+            # Get detector basis vectors for proper coordinate transformation
+            f_axis = self.detector.fdet_vec  # Shape: [3]
+            s_axis = self.detector.sdet_vec  # Shape: [3]
+            S, F = pixel_coords_meters.shape[:2]
+    
+            # VECTORIZED: Create all subpixel positions at once
+            # Shape: (oversample*oversample, 3)
+            # Convert detector properties to tensors with correct device/dtype (AT-PERF-DEVICE-001)
+            # Use as_tensor to avoid warnings when value might already be a tensor
+            pixel_size_m_tensor = torch.as_tensor(self.detector.pixel_size, device=pixel_coords_meters.device, dtype=pixel_coords_meters.dtype)
+            delta_s_all = sub_s_flat * pixel_size_m_tensor
+            delta_f_all = sub_f_flat * pixel_size_m_tensor
+    
+            # Shape: (oversample*oversample, 3)
+            offset_vectors = delta_s_all.unsqueeze(-1) * s_axis + delta_f_all.unsqueeze(-1) * f_axis
+    
+            # Expand pixel_coords for all subpixels
+            # Shape: (S, F, oversample*oversample, 3)
+            pixel_coords_expanded = pixel_coords_meters.unsqueeze(2).expand(S, F, oversample*oversample, 3)
+            offset_vectors_expanded = offset_vectors.unsqueeze(0).unsqueeze(0).expand(S, F, oversample*oversample, 3)
+    
+            # All subpixel coordinates at once
+            # Shape: (S, F, oversample*oversample, 3)
+>           subpixel_coords_all = pixel_coords_expanded + offset_vectors_expanded
+E           torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 108.00 MiB. GPU 0 has a total capacity of 23.56 GiB of which 35.62 MiB is free. Including non-PyTorch memory, this process has 23.45 GiB memory in use. Of the allocated memory 23.11 GiB is allocated by PyTorch, with 22.70 GiB allocated in private pools (e.g., CUDA Graphs), and 23.54 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+../../nanoBragg/src/nanobrag_torch/simulator.py:1012: OutOfMemoryError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_engine_delegation_telemetry] detector=small
+_______________________ test_stage_c_detector_microslip ________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x729df2673c70>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_c_detector_microslip(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage C detector distance refinement pulls injected ±0.25 mm offsets back toward zero.
+    
+        Acceptance criteria (TORCH-REFINE-003 + REFINE-007 telemetry recalibration):
+        1. Stage A + Stage C run without errors (status != "error")
+        2. Stage C telemetry contains per-panel distance_offset parameters
+        3. On the canonical detector (`--smoke-detector-size=full`), each panel offset shrinks by ≥80%
+           or lands within ±0.05 mm of the nominal geometry, and Stage C does not increase chi-squared
+           relative to Stage A by more than 0.05%.
+        4. Full-loss trace (Stage C) is non-increasing over last 3 validations
+        5. Stage A telemetry is preserved and not regressed by Stage C
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+    
+        Per docs/spec-db-workflow.md:35, Stage C refines per-panel translations along detector
+        normal (distance offset) with rotations fixed. The test applies deterministic detector
+        perturbation via create_perturbed_geometry(enable_detector_perturbation=True), then runs
+        Stage A followed by Stage C. Canonical `--smoke-detector-size=full` strict gates now rely on
+        the recorded detector-offset telemetry (REFINE-007 / docs/findings.md#L43) rather than a
+        chi-squared percentage floor: we require ≥80% reduction toward zero (or ≤0.05 mm absolute
+        distance) and a non-regressing chi-squared trace (≤+0.05% vs Stage A). Telemetry emitted via
+        `DBEX_SMOKE_TELEMETRY_PATH` is archived under PERF-SMOKE-DETSIZE for PHYSICS-LOSS-001 parity
+        evidence.
+        """
+        print(f"\n[test_stage_c_detector_microslip] detector={smoke_detector_size}")
+        strict_gates = smoke_detector_size == "full"
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps per stage
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.0,  # Strict gates enforced via telemetry asserts (REFINE-007)
+            enable_hkl_interpolation=True,  # Tricubic with haloed grid
+            enable_stage_c=True,  # Enable Stage C detector distance refinement
+            stage_c_min_loss_improvement=0.0,
+            stage_c_max_distance_delta_mm=0.5,  # ±0.5mm max offset per panel
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
+        # Applies alternating ±0.25mm distance offsets to detector panels
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        detector_offset_mm = 0.25
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam,
+            enable_detector_perturbation=True,  # Enable detector distance offsets
+            detector_distance_offset_mm=detector_offset_mm  # ±0.25mm alternating pattern
+        )
+    
+        # Run refinement with Stage A + Stage C
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,  # Required for Stage C
+        )
+        stages = [StageA()]
+        if config.enable_stage_c:
+            stages.append(StageC())
+        engine = RefinementEngine(stages, config=config)
+>       telemetry_dict = engine.run({"context": refinement_context})
+
+tests/dbex/test_torch_refine_smoke.py:1129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+../../nanoBragg/src/nanobrag_torch/simulator.py:1052: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+../../nanoBragg/src/nanobrag_torch/simulator.py:747: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py:433: in _fn
+    return fn(*args, **kwargs)
+../../nanoBragg/src/nanobrag_torch/simulator.py:20: in compute_physics_for_position
+    def compute_physics_for_position(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_dynamo/eval_frame.py:600: in _fn
+    return fn(*args, **kwargs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/aot_autograd.py:987: in forward
+    return compiled_fn(full_args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py:217: in runtime_wrapper
+    all_outs = call_func_at_runtime_with_args(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/utils.py:120: in call_func_at_runtime_with_args
+    out = normalize_as_list(f(args))
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py:451: in wrapper
+    return compiled_fn(runtime_args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/codecache.py:1131: in __call__
+    return self.current_callable(inputs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/compile_fx.py:993: in run
+    return compiled_fn(new_inputs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:373: in deferred_cudagraphify
+    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:403: in cudagraphify
+    return manager.add_function(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:2089: in add_function
+    return fn, fn(inputs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:1841: in run
+    out = self._run(new_inputs, function_id)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:1900: in _run
+    self.try_end_curr_warmup(function_id)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:2180: in try_end_curr_warmup
+    self.dealloc_current_path_weakrefs()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <torch._inductor.cudagraph_trees.CUDAGraphTreeManager object at 0x729e00b181c0>
+
+    def dealloc_current_path_weakrefs(self):
+        # TODO: we could also allow the these weak refs to continue to be allocated,
+        # but that adds some complications.
+        for node in self.current_node._path_from_root:
+>           assert len(node.tensor_weakrefs) == len(node.stack_traces)
+E           AssertionError
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_inductor/cudagraph_trees.py:2227: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=small
+_________________________ test_stage_b_shell_modifiers _________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x729df8061b80>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_shell_modifiers(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
+    
+        Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
+        after Stage A, validating:
+        - Canonical detector runs do not regress chi-squared by more than 1e-6 relative loss
+        - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+        - Shell modifiers stay within ±1% of identity (REFINE-008) when strict gates are active
+        - Non-increasing full-loss trace across last 3 validations
+        - Halo-padded HKL grid and interpolation are required (guards enforced)
+    
+        Per input.md:
+        - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
+        - docs/spec-db-workflow.md §Stage B (lines 58-66) specifies Stage B shell mode contract
+        - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
+        - docs/findings.md REFINE-005 confirms halo requirement for Stage B
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1 to avoid torch.compile interference
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory for Stage B; guard enforced in run_nanobrag_refinement
+        - REFINE-008: Canonical detector improvements hover near zero, so strict gates verify
+          non-regression (≥-1e-6 loss delta) plus ±1% shell-modifier sanity via telemetry. Telemetry
+          is archived via `DBEX_SMOKE_TELEMETRY_PATH` for PHYSICS-LOSS-001 reviews.
+        - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
+        """
+        print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
+    
+        # CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)
+        # Root cause: .to(device='cpu') corrupts Miller index semantics (k-range [-1796,1708] instead of [-14,14])
+        # Deferred to unblock roadmap; small detector validates core Stage B logic (CUDA-only)
+        if smoke_detector_size == "full":
+            pytest.skip("CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+        strict_gates = smoke_detector_size == "full"
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid. "
+            "hkl_data fixture must be configured with halo=True per TORCH-REFINE-004."
+        )
+    
+        # Refinement config: enable Stage B with 5 resolution shells
+        # Keep Stage A and Stage C disabled to isolate Stage B behavior
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        # PERF-WARM-010: Canonical runs disable ROI mode to preserve ±1% shell modifier gates
+        # until REFINE-008 can be recalibrated for ROI sampling. Small-detector runs keep ROI enabled.
+        enable_roi = smoke_detector_size != "full"
+    
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.0,  # Strict-gate behavior asserted via telemetry (REFINE-008)
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,  # Enable shell modifiers
+            stage_b_n_shells=5,
+            stage_b_min_loss_improvement=0.0,
+            stage_b_max_modifier=2.0,
+            enable_stage_c=False,  # Disable Stage C for this test
+            enable_stage_a_roi_mode=enable_roi,  # Panel mode for canonical; ROI for small
+            # ARCH-REFINE-001 Phase E.2 (REFINE-FLOW-001): Set threshold=0 so small-detector run
+            # emulates ROI-heavy detector behavior. This forces Stage A baseline/final validations
+            # into panel mode via enable_stage_b trigger (not via ROI count threshold), proving
+            # the Stage B-aware toggle ensures REFINE-FLOW-001 parity even when ROI sampling
+            # is active for closures.
+            stage_a_panel_validation_roi_threshold=0,
+            device="cuda:0",
+            dtype=torch.float32,
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Run refinement (Stage A + Stage B)
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
+            baseline_detector=None,  # Stage C disabled
+        )
+        stages = [StageA()]
+        if config.enable_stage_b:
+            stages.append(StageB())
+        engine = RefinementEngine(stages, config=config)
+>       telemetry_dict = engine.run({"context": refinement_context})
+
+tests/dbex/test_torch_refine_smoke.py:1477: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1906: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = self._run_lbfgs(
+dbex/refinement/stage_a.py:724: in _run_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:1509: in compute_loss
+    ) = _compute_panel_loss(
+dbex/refinement/stage_a_utils.py:644: in _compute_panel_loss
+    bragg_panels.append(simulator.run())
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <nanobrag_torch.simulator.Simulator object at 0x729df8061ac0>
+pixel_batch_size = None, override_a_star = None, oversample = 3
+oversample_omega = False, oversample_polar = False, oversample_thick = False
+
+    def run(
+        self,
+        pixel_batch_size: Optional[int] = None,
+        override_a_star: Optional[torch.Tensor] = None,
+        oversample: Optional[int] = None,
+        oversample_omega: Optional[bool] = None,
+        oversample_polar: Optional[bool] = None,
+        oversample_thick: Optional[bool] = None,
+    ) -> torch.Tensor:
+        """
+        Run the diffraction simulation with crystal rotation and mosaicity.
+    
+        This method vectorizes the simulation over all detector pixels, phi angles,
+        and mosaic domains. It integrates contributions from all crystal orientations
+        to produce the final diffraction pattern.
+    
+        Important: This implementation uses the full Miller indices (h, k, l) for the
+        lattice shape factor calculation, not the fractional part (h-h0). This correctly
+        models the crystal shape transform and is consistent with the physics of
+        diffraction from a finite crystal.
+    
+        C-Code Implementation Reference (from nanoBragg.c, lines 2993-3151):
+        The vectorized implementation replaces these nested loops. The outer `source`
+        loop is future work for handling beam divergence and dispersion.
+    
+        ```c
+                        /* loop over sources now */
+                        for(source=0;source<sources;++source){
+    
+                            /* retrieve stuff from cache */
+                            incident[1] = -source_X[source];
+                            incident[2] = -source_Y[source];
+                            incident[3] = -source_Z[source];
+                            lambda = source_lambda[source];
+    
+                            /* ... scattering vector calculation ... */
+    
+                            /* sweep over phi angles */
+                            for(phi_tic = 0; phi_tic < phisteps; ++phi_tic)
+                            {
+                                /* ... crystal rotation ... */
+    
+                                /* enumerate mosaic domains */
+                                for(mos_tic=0;mos_tic<mosaic_domains;++mos_tic)
+                                {
+                                    /* ... mosaic rotation ... */
+                                    /* ... h,k,l calculation ... */
+                                    /* ... F_cell and F_latt calculation ... */
+    
+                                    /* convert amplitudes into intensity (photons per steradian) */
+                                    I += F_cell*F_cell*F_latt*F_latt;
+                                }
+                            }
+                        }
+        ```
+    
+        Args:
+            pixel_batch_size: Optional batching for memory management.
+            override_a_star: Optional override for the a_star vector for testing.
+            oversample: Number of subpixel samples per axis. Defaults to detector config.
+            oversample_omega: Apply solid angle per subpixel. Defaults to detector config.
+            oversample_polar: Apply polarization per subpixel. Defaults to detector config.
+            oversample_thick: Apply absorption per subpixel. Defaults to detector config.
+    
+        Returns:
+            torch.Tensor: Final diffraction image with shape (spixels, fpixels).
+        """
+        # Unified vectorization path (spec-compliant fresh rotations)
+        # Get oversampling parameters from detector config if not provided
+        if oversample is None:
+            oversample = self.detector.config.oversample
+        if oversample_omega is None:
+            oversample_omega = self.detector.config.oversample_omega
+        if oversample_polar is None:
+            oversample_polar = self.detector.config.oversample_polar
+        if oversample_thick is None:
+            oversample_thick = self.detector.config.oversample_thick
+    
+        # Auto-select oversample if set to -1 (matches C behavior)
+        if oversample == -1:
+            # Calculate maximum crystal dimension in meters
+            xtalsize_max = max(
+                abs(self.crystal.config.cell_a * 1e-10 * self.crystal.config.N_cells[0]),  # a*Na in meters
+                abs(self.crystal.config.cell_b * 1e-10 * self.crystal.config.N_cells[1]),  # b*Nb in meters
+                abs(self.crystal.config.cell_c * 1e-10 * self.crystal.config.N_cells[2])   # c*Nc in meters
+            )
+    
+            # Calculate reciprocal pixel size in meters
+            # reciprocal_pixel_size = λ * distance / pixel_size (all in meters)
+            wavelength_m = self.wavelength * 1e-10  # Convert from Angstroms to meters
+            distance_m = self.detector.config.distance_mm / 1000.0  # Convert from mm to meters
+            pixel_size_m = self.detector.config.pixel_size_mm / 1000.0  # Convert from mm to meters
+            reciprocal_pixel_size = wavelength_m * distance_m / pixel_size_m
+    
+            # Calculate recommended oversample using C formula
+            import math
+            recommended_oversample = math.ceil(3.0 * xtalsize_max / reciprocal_pixel_size)
+    
+            # Ensure at least 1
+            if recommended_oversample <= 0:
+                recommended_oversample = 1
+    
+            oversample = recommended_oversample
+            print(f"auto-selected {oversample}-fold oversampling")
+    
+        # For now, we'll implement the base case without oversampling for this test
+        # The full subpixel implementation will come later
+        # This matches the current implementation which doesn't yet have subpixel sampling
+    
+        # PERF-PYTORCH-004 P3.4: Use cached ROI mask instead of rebuilding every run
+        roi_mask = self._cached_roi_mask
+    
+        # PERF-PYTORCH-004 P3.4: Use cached pixel coordinates instead of fetching/converting every run
+        pixel_coords_meters = self._cached_pixel_coords_meters
+    
+        # Get rotated lattice vectors for all phi steps and mosaic domains
+        # Shape: (N_phi, N_mos, 3)
+        # PERF-PYTORCH-006: Convert crystal vectors to correct device/dtype
+        if override_a_star is None:
+            (rot_a, rot_b, rot_c), (rot_a_star, rot_b_star, rot_c_star) = (
+                self.crystal.get_rotated_real_vectors(self.crystal.config)
+            )
+            # Convert to correct dtype/device
+            rot_a = rot_a.to(device=self.device, dtype=self.dtype)
+            rot_b = rot_b.to(device=self.device, dtype=self.dtype)
+            rot_c = rot_c.to(device=self.device, dtype=self.dtype)
+            rot_a_star = rot_a_star.to(device=self.device, dtype=self.dtype)
+            rot_b_star = rot_b_star.to(device=self.device, dtype=self.dtype)
+            rot_c_star = rot_c_star.to(device=self.device, dtype=self.dtype)
+    
+            # VECTOR-PARITY-001 Phase D5: Convert lattice vectors from Angstroms to meters
+            # The scattering vector q is in m⁻¹ (Phase D1 fix), and real-space lattice vectors
+            # must be in meters for dimensionally correct h=a·q computation (meters × m⁻¹ = dimensionless).
+            # Crystal.get_rotated_real_vectors() returns vectors in Angstroms, so multiply by 1e-10.
+            # Reference: specs/spec-a-core.md line 135 ("scaled by 1e-10 to meters for all subsequent dot products with q")
+            # and line 446 ("q: scattering vector in m⁻¹").
+            # Evidence: reports/2026-01-vectorization-parity/phase_d/20251010T073708Z/simulator_f_latt.md
+            # and C-code trace showing a = [1e-08, ...] |a| = 1e-08 meters (100 Å × 1e-10).
+            rot_a = rot_a * 1e-10  # Å → meters
+            rot_b = rot_b * 1e-10  # Å → meters
+            rot_c = rot_c * 1e-10  # Å → meters
+    
+            # Cache rotated reciprocal vectors for GAUSS/TOPHAT shape models
+            self._rot_a_star = rot_a_star
+            self._rot_b_star = rot_b_star
+            self._rot_c_star = rot_c_star
+        else:
+            # For gradient testing with override, use single orientation
+            rot_a = override_a_star.view(1, 1, 3)
+            rot_b = self.crystal.b.view(1, 1, 3)
+            rot_c = self.crystal.c.view(1, 1, 3)
+            rot_a_star = override_a_star.view(1, 1, 3)
+            rot_b_star = self.crystal.b_star.view(1, 1, 3)
+            rot_c_star = self.crystal.c_star.view(1, 1, 3)
+    
+            # VECTOR-PARITY-001 Phase D5: Convert lattice vectors from Angstroms to meters (same as non-override path)
+            rot_a = rot_a * 1e-10  # Å → meters
+            rot_b = rot_b * 1e-10  # Å → meters
+            rot_c = rot_c * 1e-10  # Å → meters
+    
+            # Cache for shape models
+            self._rot_a_star = rot_a_star
+            self._rot_b_star = rot_b_star
+            self._rot_c_star = rot_c_star
+    
+        # PERF-PYTORCH-004 P1.2: Use pre-normalized source tensors from __init__
+        # Tensors were already moved to correct device/dtype during initialization
+        if self._source_directions is not None:
+            n_sources = len(self._source_directions)
+            source_directions = self._source_directions
+            source_wavelengths_A = self._source_wavelengths_A
+            source_weights = self._source_weights
+        else:
+            # No explicit sources, use single beam configuration
+            n_sources = 1
+            source_directions = None
+            source_wavelengths_A = None
+            source_weights = None
+    
+        # Calculate normalization factor (steps)
+        # Per spec AT-SAM-001: "Final per-pixel scale SHALL divide by steps"
+        # SOURCE-WEIGHT-001 Phase C1: C-parity requires ignoring source weights
+        # Per spec-a-core.md line 151: "The weight column is read but ignored (equal weighting results)"
+        # C code (nanoBragg.c:3358) divides by steps = sources*mosaic_domains*phisteps*oversample^2
+        # where sources is the COUNT of sources, not the sum of weights
+        phi_steps = self.crystal.config.phi_steps
+        mosaic_domains = self.crystal.config.mosaic_domains
+    
+        # Always use n_sources (count) to match C behavior
+        # The spec explicitly states source weights are "read but ignored"
+        source_norm = n_sources
+    
+        steps = source_norm * phi_steps * mosaic_domains * oversample * oversample  # Include sources and oversample^2
+    
+        # Apply physical scaling factors (from nanoBragg.c ~line 3050)
+        # Solid angle correction, converting all units to meters for calculation
+    
+        # Check if we're doing subpixel sampling
+        if oversample > 1:
+            # VECTORIZED IMPLEMENTATION: Process all subpixels in parallel
+            # Generate subpixel offsets (centered on pixel center)
+            # Per spec: "Compute detector-plane coordinates (meters): Fdet and Sdet at subpixel centers."
+            # Create offsets in fractional pixel units
+            subpixel_step = 1.0 / oversample
+            offset_start = -0.5 + subpixel_step / 2.0
+    
+            # Use manual arithmetic to preserve gradients (avoid torch.linspace)
+            subpixel_offsets = offset_start + torch.arange(
+                oversample, device=self.device, dtype=self.dtype
+            ) * subpixel_step
+    
+            # Create grid of subpixel offsets
+            sub_s, sub_f = torch.meshgrid(subpixel_offsets, subpixel_offsets, indexing='ij')
+            # Flatten the grid for vectorized processing
+            # Shape: (oversample*oversample,)
+            sub_s_flat = sub_s.flatten()
+            sub_f_flat = sub_f.flatten()
+    
+            # Get detector basis vectors for proper coordinate transformation
+            f_axis = self.detector.fdet_vec  # Shape: [3]
+            s_axis = self.detector.sdet_vec  # Shape: [3]
+            S, F = pixel_coords_meters.shape[:2]
+    
+            # VECTORIZED: Create all subpixel positions at once
+            # Shape: (oversample*oversample, 3)
+            # Convert detector properties to tensors with correct device/dtype (AT-PERF-DEVICE-001)
+            # Use as_tensor to avoid warnings when value might already be a tensor
+            pixel_size_m_tensor = torch.as_tensor(self.detector.pixel_size, device=pixel_coords_meters.device, dtype=pixel_coords_meters.dtype)
+            delta_s_all = sub_s_flat * pixel_size_m_tensor
+            delta_f_all = sub_f_flat * pixel_size_m_tensor
+    
+            # Shape: (oversample*oversample, 3)
+            offset_vectors = delta_s_all.unsqueeze(-1) * s_axis + delta_f_all.unsqueeze(-1) * f_axis
+    
+            # Expand pixel_coords for all subpixels
+            # Shape: (S, F, oversample*oversample, 3)
+            pixel_coords_expanded = pixel_coords_meters.unsqueeze(2).expand(S, F, oversample*oversample, 3)
+            offset_vectors_expanded = offset_vectors.unsqueeze(0).unsqueeze(0).expand(S, F, oversample*oversample, 3)
+    
+            # All subpixel coordinates at once
+            # Shape: (S, F, oversample*oversample, 3)
+            subpixel_coords_all = pixel_coords_expanded + offset_vectors_expanded
+    
+            # Convert to Angstroms for physics
+>           subpixel_coords_ang_all = subpixel_coords_all * 1e10
+E           torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 108.00 MiB. GPU 0 has a total capacity of 23.56 GiB of which 35.62 MiB is free. Including non-PyTorch memory, this process has 23.45 GiB memory in use. Of the allocated memory 23.11 GiB is allocated by PyTorch, with 22.70 GiB allocated in private pools (e.g., CUDA Graphs), and 23.54 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+../../nanoBragg/src/nanobrag_torch/simulator.py:1015: OutOfMemoryError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_shell_modifiers] detector=small
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - Assert...
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - ...
+================== 5 failed, 1 skipped, 10 warnings in 32.62s ==================

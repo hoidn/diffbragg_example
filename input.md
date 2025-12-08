@@ -1,231 +1,177 @@
-# Loop i=148 — DB-AT-021 Phase A (Mask Semantics Guard Reality Check)
+# Input for Ralph (Loop i=149)
 
 ## Summary
-Execute DB-AT-021 Phase A reality check: validate refGeom asset availability (cross-ref DB-AT-SUITE-CARE-001 Phase B.2), reconcile mask polarity semantics across 3 spec docs, run baseline DataLoad probe (trusted_mask counts, loss_mask construction, ROI intersection), and scope Phase B test scaffold.
+DB-AT-021 Phase B: Author mask semantics acceptance tests (harness type, test-only)
 
 ## Mode
-none (planning/evidence — no production code edits, no test authoring this loop)
+TDD
 
 ## ActionType
-planning
+implementation_ready
 
 ## DecisionStatus
-exploring (first Phase A for DB-AT-021; reality check + baseline metrics to ground Phase B assertions)
+patch_ready
 
 ## InitiativeType
 harness
 
 ## Focus
-DB-AT-021 — Mask Semantics Guard (member plan of DB-AT-SUITE-CARE-001 roll-up)
+DB-AT-021 — Mask Semantics Guard (Member of DB-AT-SUITE-CARE-001)
 
 ## Branch
 integration
 
-## Mapped tests
-None (Phase A is planning/evidence only; Phase B will author tests/dbex/test_mask_semantics.py)
+## Mapped Tests
+- `pytest -v tests -k DB_AT_021` (primary acceptance selector)
+- `pytest --collect-only tests -k DB_AT_021` (collection validation)
 
 ## Artifacts
-`plans/active/DB-AT-021/reports/2025-12-08T120000Z/`
+`plans/active/DB-AT-021/reports/2025-12-08T150000Z/`
 
 ## Findings Applied (Mandatory)
+- **MASKING-001** (Loss mask coverage <1% is expected for sparse Bragg peaks): Test assertions must NOT flag low coverage as failure.
+- **TESTING-003** (Selector status transitions only after pytest --collect-only confirms >0 tests): Phase C will validate collection before updating TEST_SUITE_INDEX.md.
+- **CONFORMANCE-001** (DB-AT parity selectors use `-k DB_AT_0XX` pattern): Test method naming follows `test_DB_AT_021_*` convention.
+- **DIALS-API polarity** (True=trusted per dials_api.md:16): Test assertions validate boolean dtype with True=trusted polarity.
 
-**MASKING-001** (Canonical mask precedence per spec-db-core.md:47):
-- **Code**: `dbex/data_load.py` (trusted_mask extraction), `dbex/refinement/inputs.py` (loss_mask = (background >= 0) & trusted_mask)
-- **Adherence**: Phase A validates DataLoad correctly exposes trusted_mask attribute; baseline probe confirms loss_mask construction matches spec; Phase B will author enforcement test.
-
-**TESTING-003** (Acceptance test registry maintenance):
-- **Code**: `docs/development/TEST_SUITE_INDEX.md` (status table rows for DB-AT-XXX selectors)
-- **Adherence**: Phase C will update TEST_SUITE_INDEX.md with DB-AT-021 row (deferred to Phase C per Phase A/B/C pattern).
-
-**CONFORMANCE-001** (DB-AT acceptance criteria alignment):
-- **Code**: `docs/spec-db-conformance.md` (DB-AT-021 mask polarity validation criteria)
-- **Adherence**: Phase A spec alignment task (A2) reconciles spec-db-conformance.md acceptance criteria with spec-db-core.md normative polarity rules.
-
-**RUNTIME-001** (Runtime execution guardrails):
-- **Code**: `docs/TESTING_GUIDE.md` (canonical environment flags for acceptance tests)
-- **Adherence**: Phase B test scaffold will follow TESTING_GUIDE.md selector patterns (KMP_DUPLICATE_LIB_OK=TRUE, DBEX_SMOKE_DETECTOR_SIZE=full).
+**No relevant findings requiring pre-implementation action** — Phase A confirmed spec alignment.
 
 ## Pointers
 
-### SPEC
-- **docs/spec-db-core.md:47-55** — Mask Polarity & Loss Mask Construction (normative)
-- **docs/dials_api.md:45-62** — Reflection Table Flags Column (Flags.integrated bitmask semantics)
-- **docs/spec-db-conformance.md** — DB-AT-021 acceptance criteria
+### Spec/Arch/Testing Docs
+- **Spec**: `docs/spec-db-core.md:124` (loss_mask normative formula: `(background >= 0) ∧ trusted_mask`)
+- **Spec**: `docs/spec-db-conformance.md:58-61` (DB-AT-021 acceptance criteria)
+- **DIALS API**: `docs/dials_api.md:45-62` (mask polarity conventions)
+- **Architecture**: `docs/architecture.md:165-178` (mask precedence + ADR-07 background sentinel)
+- **Testing Guide**: `docs/TESTING_GUIDE.md` (canonical pytest selectors)
 
-### ARCH
-- **docs/architecture.md:165-178** — Mask Handling Contract (trusted_mask precedence)
-- **docs/architecture/module_map.md** — DataLoad module ownership
+### Fix Plan
+- `docs/fix_plan.md` line 240 (DB-AT-SUITE-CARE-001 § Member Plan Coordination)
 
-### Testing Docs
-- **docs/TESTING_GUIDE.md** — Canonical selector patterns, fixture reuse
-- **docs/development/TEST_SUITE_INDEX.md** — Test registry (DB-AT-021 row to be added in Phase C)
+### Implementation Plan
+- `plans/active/DB-AT-021/implementation.md` Phase B checklist
 
-### Member Plan References
-- **plans/active/DB-AT-021/implementation.md** — Phase A/B/C checklist (just authored this loop)
-- **plans/active/DB-AT-SUITE-CARE-001/implementation.md** — Roll-up Phase B.4 coordination
-- **plans/active/DB-AT-020/implementation.md** — Phase A precedent (reality check pattern)
-- **plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md** — Centralized refGeom asset checksums (cross-ref for A1)
+### Phase A Artifacts
+- `plans/active/DB-AT-021/reports/2025-12-08T120000Z/summary.md` (spec alignment + baseline metrics)
+- `plans/active/DB-AT-021/reports/2025-12-08T120000Z/spec_alignment.md` (polarity reconciliation table)
+- `plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.md` (DataLoad metrics: 5.7M trusted pixels, 13K loss_mask pixels)
 
 ## ARCH Contracts (mandatory)
 
-**ARCH-CONTRACT-DATA-LOAD-001** (DataLoad API ownership):
-- **Owner module/API**: `dbex.data_load.DataLoad` (owns reflection table → trusted_mask extraction)
-- **Forbidden duplicates**: Direct `.refl` file mask extraction outside DataLoad
-- **Classification**: Implementation audit (Phase A verifies DataLoad correctly exposes trusted_mask attribute; no duplicates expected)
+### ARCH-CONTRACT-MASKING-001 (Loss Mask Construction)
+**Owner Module/API**: `dbex.refinement.inputs.prepare_refinement_inputs`
 
-**ARCH-CONTRACT-MASKING-001** (Mask Precedence):
-- **Owner module/API**: `dbex.refinement.inputs.prepare_refinement_inputs` (owns canonical loss_mask construction per spec-db-core.md:55)
-- **Forbidden duplicates**: Alternative `loss_mask` construction logic in Stage A/B/C helpers or test harness
-- **Classification**: Arch conformance verification (Phase A confirms no duplicates; Phase B will author enforcement test validating canonical construction)
+**Contract**: Constructs `loss_mask = (background_image >= 0) ∧ trusted_mask` per spec-db-core.md:124. Background sentinel `-1` excludes pixels outside ROIs. Trusted mask boolean polarity: True=trusted, no inversion.
+
+**Forbidden Duplicates**: Alternative loss_mask construction in:
+- Stage A/B/C helpers (`dbex/refinement/stage_*_impl.py`)
+- Test harness boilerplate (except direct DataLoad API calls for validation)
+- Plan-local diagnostic scripts (must delegate to DataLoad API)
+
+**Failure Classification**: Implementation bug within architecture (Phase A confirmed no duplicate construction detected; Phase B test will enforce precedence).
 
 ## Do Now (hard validity contract)
 
-**Focus**: DB-AT-021 — Mask Semantics Guard (Phase A)
+**Implement**: `tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics`
 
-**Implement**: Planning only (no production code edits this loop)
+Author 3 test methods per Phase B checklist (DB-AT-021 § Phase B):
 
-**Validating pytest**: None (Phase A is planning/evidence; Phase B will author tests/dbex/test_mask_semantics.py)
+**B1 — Test Scaffold**:
+1. Create `tests/dbex/test_mask_semantics.py` with `TestDB_AT_021_MaskSemantics` class
+2. Add `refgeom_dataload` fixture (or reuse from `tests/conftest.py` if exists):
+   - Instantiate `DataLoad` with `refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`
+   - Apply `pytest.skip` guard when assets missing (mirror DB-AT-020 pattern)
+3. Ensure test methods are discoverable via `-k DB_AT_021` selector pattern
 
-**Artifacts path**: `plans/active/DB-AT-021/reports/2025-12-08T120000Z/`
+**B2 — Mask Polarity Checks** (`test_polarity_checks`):
+1. Load `747_mask.pkl` via `DataLoad` fixture
+2. Assert `dataload.trusted_mask.dtype == bool` (DIALS convention)
+3. Validate sample trusted pixel: `assert dataload.trusted_mask[0, 582, 594] == True` (ROI 0 coordinates from baseline probe)
+4. Validate sample untrusted pixel (use baseline probe to identify untrusted coordinates if available, else skip)
+5. Confirm no polarity inversion in production path
 
-**Initiative type**: harness
+**B3 — Loss Mask Construction** (`test_loss_mask_construction`):
+1. Extract `background_image` and `trusted_mask` from `DataLoad`
+2. Compute expected: `expected_loss_mask = (background_image >= 0) & trusted_mask`
+3. Extract actual from `RefinementInputs` (call `prepare_refinement_inputs` or inspect `DataLoad.loss_mask` if attribute exists)
+4. Assert `torch.equal(actual_loss_mask, expected_loss_mask)` or numpy equivalent
+5. Validate sentinel handling: assert pixels where `background == -1` are excluded from `loss_mask`
+6. Validate trusted mask precedence: assert pixels where `trusted_mask == False` are excluded even if `background >= 0`
 
-**Phase A Deliverables** (4 artifacts):
+**B4 — ARCH-CONTRACT-MASKING-001 Enforcement** (`test_precedence_guards`):
+1. Use AST or grep to search for duplicate `loss_mask` construction patterns in:
+   - `dbex/refinement/stage_a_impl.py`
+   - `dbex/refinement/stage_b_impl.py`
+   - `dbex/refinement/stage_c_impl.py`
+2. If duplicates found, raise `AssertionError` with file:line references
+3. If no duplicates, assert canonical owner is `prepare_refinement_inputs` (validate via import inspection or doc cross-reference)
+4. Document any exceptions in test comments with justification (if legacy paths exist, cross-ref to findings)
 
-1. **asset_availability.md**:
-   - Cross-reference DB-AT-SUITE-CARE-001 Phase B.2 asset validation (i=143) for refGeom.expt/refl checksums
-   - Validate `747_mask.pkl` exists at repo root (file size, readability check)
-   - Document skip behavior if assets missing (mirror DB-AT-020 smoke fixture guard)
+**Validation Commands**:
+```bash
+# Primary acceptance selector
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021
 
-2. **spec_alignment.md**:
-   - Reconcile mask polarity semantics across 3 docs:
-     - `docs/spec-db-core.md:47-55` (normative: trusted=True, background sentinel=-1, loss_mask construction)
-     - `docs/dials_api.md:45-62` (Flags.integrated bitmask mapping to trusted_mask)
-     - `docs/architecture.md:165-178` (mask precedence rules: trusted ∩ ROI ∩ background_valid)
-   - Identify conflicts OR confirm alignment
-   - Document ARCH-CONTRACT-MASKING-001 canonical owner (prepare_refinement_inputs)
+# Collection validation (for Phase C registry sync)
+pytest --collect-only tests -k DB_AT_021 > plans/active/DB-AT-021/reports/2025-12-08T150000Z/collect_db_at_021.log 2>&1
+```
 
-3. **baseline_probe.md**:
-   - Run lightweight DataLoad inspection (use existing `refGeom.expt`, `refGeom.refl`, `747_mask.pkl`):
-     ```python
-     from dbex.data_load import DataLoad
-     dl = DataLoad("refGeom.expt", "refGeom.refl", "scaled.mtz", "747_mask.pkl")
-     # Metrics:
-     # - trusted_mask.shape (should match panel dimensions from expt)
-     # - trusted_mask.dtype (should be bool)
-     # - Trusted pixel counts: np.sum(dl.trusted_mask), np.sum(~dl.trusted_mask)
-     # - loss_mask construction: loss_mask = (dl.background_image >= 0) & dl.trusted_mask
-     # - Sample ROI intersection: Pick ROI 0, compute trusted ∩ ROI ∩ background_valid
-     ```
-   - Capture ≥3 metrics: trusted counts, loss_mask construction validation, sample ROI pixel count
-   - Thin wrapper rule: Keep probe <100 LOC, call DataLoad API directly
+**Artifacts Destination**: `plans/active/DB-AT-021/reports/2025-12-08T150000Z/`
+- `pytest_db_at_021.log` (primary test run)
+- `collect_db_at_021.log` (collection validation)
+- `summary.md` (Phase B completion notes)
 
-4. **summary.md**:
-   - Phase A completion notes (A1/A2/A3 status)
-   - Key findings (asset status, spec conflicts if any, baseline metrics)
-   - **Phase B scoping**: Test scaffold design (TestDB_AT_021_MaskSemantics, 3 test methods: polarity checks, loss_mask construction, precedence guards)
-   - Next loop preview (Phase B implementation)
-
-**Touched**: DB-AT-021 Phase A (A1, A2, A3)
+**Touched**: DB-AT-021 Phase B (B1, B2, B3)
 
 ## Forbidden This Loop
-
-- No production code edits (`dbex/`, `tests/` implementation files)
-- No test authoring (deferred to Phase B)
-- No registry updates (deferred to Phase C)
-- No fix_plan.md Attempts History updates until Phase A complete
+- **No production code edits** (harness type, test-only)
+- **No fix_plan updates** until Phase C (per standard member plan pattern)
+- **No new plan-local diagnostic scripts** (Phase A baseline probe sufficient)
 
 ## How-To Map
 
-### Asset Availability Check (A1)
-```bash
-# Cross-reference B.2 validation
-cat plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md
+**Test Authoring Steps**:
+1. Create `tests/dbex/test_mask_semantics.py`
+2. Import `pytest`, `DataLoad`, `prepare_refinement_inputs` (if accessible)
+3. Define `refgeom_dataload` fixture with skip guard (or reuse from conftest)
+4. Author 3 test methods (B2, B3, B4) per specifications above
+5. Run primary selector: `pytest -vv tests -k DB_AT_021`
+6. Run collection validation: `pytest --collect-only tests -k DB_AT_021`
+7. Capture both logs under artifacts directory
+8. Author `summary.md` with test outcomes + metrics
 
-# Validate 747_mask.pkl
-ls -lh 747_mask.pkl
-file 747_mask.pkl
+**Expected Outcomes**:
+- All 3 tests PASS (polarity, loss_mask construction, precedence guards all validate per spec)
+- Collection log shows ≥3 tests collected with `-k DB_AT_021` pattern
+- No ARCH-CONTRACT-MASKING-001 violations detected (canonical owner is sole source)
 
-# Document in asset_availability.md
-```
-
-### Spec Alignment (A2)
-```bash
-# Read 3 spec sections
-cat docs/spec-db-core.md | sed -n '47,55p'  # Mask polarity normative
-cat docs/dials_api.md | sed -n '45,62p'     # Flags.integrated bitmask
-cat docs/architecture.md | sed -n '165,178p' # Mask precedence
-
-# Reconcile in spec_alignment.md
-```
-
-### Baseline Probe (A3)
-```python
-# Thin wrapper probe script (save as plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.py)
-import numpy as np
-from dbex.data_load import DataLoad
-
-# Load canonical assets
-dl = DataLoad("refGeom.expt", "refGeom.refl", "scaled.mtz", "747_mask.pkl")
-
-# Metrics
-metrics = {
-    "trusted_mask_shape": dl.trusted_mask.shape,
-    "trusted_mask_dtype": dl.trusted_mask.dtype,
-    "trusted_pixel_count": int(np.sum(dl.trusted_mask)),
-    "untrusted_pixel_count": int(np.sum(~dl.trusted_mask)),
-    "loss_mask_construction_formula": "(background >= 0) & trusted_mask",
-    "loss_mask_pixel_count": int(np.sum((dl.background_image >= 0) & dl.trusted_mask)),
-    "sample_roi_index": 0,
-    "sample_roi_trusted_pixels": int(np.sum(dl.trusted_mask[dl.pids[0],
-                                                             dl.roi_bboxes[0,1]:dl.roi_bboxes[0,3],
-                                                             dl.roi_bboxes[0,0]:dl.roi_bboxes[0,2]]))
-}
-
-# Write to baseline_probe.md
-with open("plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.md", "w") as f:
-    f.write("# DB-AT-021 Phase A Baseline Probe\n\n")
-    for k, v in metrics.items():
-        f.write(f"- **{k}**: {v}\n")
-```
-
-Run probe:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-python plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.py
-```
+**Phase C Preview** (not this loop):
+- Update `docs/TESTING_GUIDE.md` §2 with DB_AT_021 row (Active status, selector command, artifact path)
+- Update `docs/development/TEST_SUITE_INDEX.md` with DB_AT_021 status
+- Update `docs/fix_plan.md` Attempts History with Phase B outcomes
+- Mark DB-AT-021 complete per implementation.md exit criteria
 
 ## Pitfalls To Avoid
-
-1. **Type discipline**: Do not author tests in Phase A (harness type, planning phase) — defer to Phase B
-2. **Spec conflicts**: If mask polarity semantics conflict between spec-db-core.md and dials_api.md, prioritize spec-db-core.md (normative) and document DIALS mapping notes
-3. **Shadow pipeline guard**: Keep baseline probe <100 LOC; call DataLoad API directly; do not re-implement mask extraction logic
-4. **Fixture sharing**: Note in summary.md that `refgeom_dataload` fixture can be reused from test_reflection_ingestion.py (or extract to conftest.py if shared across 3+ member plans)
-5. **Asset cross-ref**: Use DB-AT-SUITE-CARE-001 Phase B.2 checksums (i=143) for refGeom.expt/refl; do not recompute
-6. **Skip guard**: Document that Phase B tests must skip when assets missing (mirror DB-AT-020 pattern)
-7. **No fix_plan updates**: Phase A Attempts History appended in Phase C only (after full member plan closure)
-8. **PROBE-FREEZE-001**: Baseline probe must be thin wrapper (<100 LOC); if it exceeds, switch to manual inspection + notes in baseline_probe.md
+1. **Polarity inversion**: Do NOT apply `~trusted_mask` or `1 - trusted_mask`; DIALS convention is True=trusted (direct polarity).
+2. **Sentinel tolerance**: Background sentinel is `-1` (exact), not `< 0` (per ADR-07).
+3. **Loss mask duplication**: Test must NOT re-implement `(background >= 0) & trusted_mask`; validate canonical owner only.
+4. **Skip guard**: Fixture must `pytest.skip` when canonical assets missing (not fail/error).
+5. **Selector pattern**: Test method names must include `DB_AT_021` substring for `-k DB_AT_021` discovery.
+6. **Type discipline**: This is harness type (test-only); do NOT edit production modules under `dbex/` unless blocking test authoring.
 
 ## If Blocked
-
-**Asset unavailable**:
-- Cross-check DB-AT-SUITE-CARE-001 Phase B.2 validation (i=143) — assets were VALID 5 loops ago
-- If missing, mark DB-AT-021 blocked_pending_asset_regeneration and escalate to DB-AT-SUITE-CARE-001 coordination
-
-**Spec conflicts**:
-- Prioritize spec-db-core.md (normative)
-- Document conflict in spec_alignment.md with hypothesis for resolution
-- Flag for supervisor review in summary.md
-
-**Probe failures**:
-- If DataLoad raises errors, capture error signature in baseline_probe.md
-- Mark Phase A blocked_pending_dataload_fix and escalate to ARCH-CONTRACT-DATA-LOAD-001 conformance review
+- **Missing DataLoad attribute**: If `DataLoad` lacks `trusted_mask` or `loss_mask` attributes, flag as architecture conformance issue and escalate to supervisor (ARCH-CONTRACT-DATA-LOAD-001 violation).
+- **Duplicate loss_mask construction found**: Flag as ARCH-CONTRACT-MASKING-001 violation; escalate to supervisor with file:line evidence for conformance remediation.
+- **Spec conflicts during test authoring**: If mask polarity or loss_mask formula contradicts Phase A spec alignment, halt and escalate to supervisor for spec_change type handling.
+- **Asset unavailability**: If canonical assets deleted/moved since Phase B.2 validation, re-run asset availability check and update skip guard logic.
 
 ## Doc Sync Plan (Conditional)
-
-Not applicable (Phase A does not modify tests; registry updates deferred to Phase C).
+**NOT REQUIRED THIS LOOP** — Test authoring (Phase B) does not trigger registry sync. Phase C (next loop) will execute:
+1. Run `pytest --collect-only tests -k DB_AT_021` (already in validation commands above)
+2. Store collection log: `plans/active/DB-AT-021/reports/2025-12-08T150000Z/collect_db_at_021.log`
+3. Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` after tests PASS
 
 ---
 
-**Input authored**: 2025-12-08T120000Z (Loop i=148, Galph)
-**Next loop actor**: Ralph (executes Phase A tasks, produces 4 artifacts, scopes Phase B)
+**END OF INPUT.MD**

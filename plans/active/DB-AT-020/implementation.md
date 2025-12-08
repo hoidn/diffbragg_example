@@ -11,6 +11,6 @@
 - [x] **B3 — Panel ordering guards**: Validate reflection table `panel` column aligns with `dl.pids`, verify `dl.pids` integers fall within detector range, and ensure bbox arrays remain length-synced with `pids`. ✅ 2025-12-08 (Loop i=146)
 
 ## Phase C — Documentation & Registry Sync
-- [ ] **C1 — Evidence capture**: Run `pytest -v tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox` (plus any companion tests) and `pytest --collect-only tests -k DB_AT_020`, archiving logs under this initiative.
-- [ ] **C2 — Docs update**: Promote DB_AT_020 rows in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to Active with artifact paths, command selectors, and referenced findings (e.g., CONFORMANCE-001, TESTING-003).
-- [ ] **C3 — Ledger sync**: Append Attempts History entries to `docs/fix_plan.md` with metrics/commands/artifacts, update `docs/findings.md` if new ingestion pitfalls emerge, and mark the initiative ready for closure once exit criteria are met.
+- [x] **C1 — Evidence capture**: Run `pytest -v tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox` (plus any companion tests) and `pytest --collect-only tests -k DB_AT_020`, archiving logs under this initiative. ✅ 2025-12-08 (Loop i=147)
+- [x] **C2 — Docs update**: Promote DB_AT_020 rows in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to Active with artifact paths, command selectors, and referenced findings (e.g., CONFORMANCE-001, TESTING-003). ✅ 2025-12-08 (Loop i=147)
+- [x] **C3 — Ledger sync**: Append Attempts History entries to `docs/fix_plan.md` with metrics/commands/artifacts, update `docs/findings.md` if new ingestion pitfalls emerge, and mark the initiative ready for closure once exit criteria are met. ✅ 2025-12-08 (Loop i=147)

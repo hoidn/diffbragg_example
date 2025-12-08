@@ -64,10 +64,10 @@
 
 ## Phase A — Clarify Physics
 ### Checklist
-- [ ] A0: **Nucleus / Test-first gate:** Write a short, self-contained doc note (in `docs/findings.md` and/or a new paragraph in `docs/spec-db-core.md`) that states the peak vs integrated SQUARE scaling, with a pointer to `inbox/nanobrag_torch_response_2025_12_08.md`.
-- [ ] A1: Tighten `docs/findings.md::SIM-CONSTR-PARTIALITY-001` so it clearly demotes the old `(Na·Nb·Nc)²` **integrated** scaling expectation to historical context and promotes the linear law as the only enforceable requirement.
-- [ ] A2: If needed, add a short “SQUARE lattice scaling behavior” subsection to `docs/spec-db-core.md` (§ lattice/partiality), explicitly calling out peak vs integrated behavior.
-- [ ] A3: Capture a brief markdown summary under `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/<timestamp>/physics_summary.md` so future loops don’t have to re-derive this from the inbox response.
+- [x] A0: **Nucleus / Test-first gate:** Write a short, self-contained doc note (in `docs/findings.md` and/or a new paragraph in `docs/spec-db-core.md`) that states the peak vs integrated SQUARE scaling, with a pointer to `inbox/nanobrag_torch_response_2025_12_08.md`. **(Done 2025-12-08: Created `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z/physics_summary.md`)**
+- [x] A1: Tighten `docs/findings.md::SIM-CONSTR-PARTIALITY-001` so it clearly demotes the old `(Na·Nb·Nc)²` **integrated** scaling expectation to historical context and promotes the linear law as the only enforceable requirement. **(Done 2025-12-08: Updated finding with "Resolution (2025-12-08)" section, demoted historical context, status changed to "Resolved")**
+- [x] A2: If needed, add a short "SQUARE lattice scaling behavior" subsection to `docs/spec-db-core.md` (§ lattice/partiality), explicitly calling out peak vs integrated behavior. **(Done 2025-12-08: No update needed — spec-db-core.md contains no text implying `(Na×Nb×Nc)²` for integrated intensity)**
+- [x] A3: Capture a brief markdown summary under `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/<timestamp>/physics_summary.md` so future loops don't have to re-derive this from the inbox response. **(Done 2025-12-08: Created `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z/physics_summary.md`)**
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `docs/spec-db-core.md`, `docs/findings.md`.

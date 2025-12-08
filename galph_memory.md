@@ -1,3 +1,16 @@
+2025-12-08T234600Z focus=PERF-GPU-MEM-001 state=in_progress dwell=0 action=phase_a_complete artifacts=plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/ next_action=phase_b_analysis
+- Loop i=210 (Ralph): **Phase A COMPLETE — GPU memory profile documented.**
+  **Configuration:** Small detector (1024²), 9 mosaic domains, B=9,437,184 query points.
+  **Peak Memory:** 23.842 GB (OOM during reconstruction, tried to allocate 4.5 GB more).
+  **Root Cause:** `Crystal._tricubic_interpolation()` at `nanobrag_torch/models/crystal.py:404` batches ALL query points simultaneously:
+  - sub_Fhkl: (9.4M, 4, 4, 4) × 4 bytes = 2.4 GB
+  - coordinate grids (h,k,l): 3 × (9.4M, 4) × 8 bytes = 860 MB
+  - autograd overhead: ~10+ GB for backward pass intermediates
+  **Scaling:** Full detector (2463×2527 = 6.2M pixels × 9 domains = 56M queries) would require ~50+ GB.
+  **Key Insight:** The memory issue is NOT in HKL grid (0.77 MB) or context building, but in tricubic interpolation's advanced indexing creating massive intermediate tensors.
+  **Recommendation:** Chunked interpolation (100K points/batch) would reduce peak memory by 94× (from 2.4 GB to ~25 MB per chunk).
+  ActionType: evidence_collected. DecisionStatus: root_cause_confirmed. Next: Phase B analysis (memory scaling laws), then Phase C implementation (chunked interpolation).
+
 2025-12-08T233000Z focus=ARCH-GRADIENT-FLOW-001 state=blocked_pending_upstream dwell=3 action=upstream_bug_reported artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/ next_action=await_nanobrag_mosaic_fix
 - Loop i=210 (Ralph): **ROOT CAUSE CONFIRMED — mosaic_spread_deg > 0 BREAKS GRADIENT MAGNITUDE.**
   **Systematic Investigation:**

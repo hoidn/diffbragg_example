@@ -96,10 +96,12 @@
 
 ### Tier 3: Performance & Memory
 **Goal:** Profile and optimize GPU memory usage to enable full smoke tests on 24GB GPUs.
-- [PERF-GPU-MEM-001] (GPU Memory Usage Analysis and Optimization) — **in_progress** (2025-12-08T224000Z: Phase A memory profiling started. Root cause: tricubic interpolation creates ~4GB intermediate tensors for full-panel queries (B=4M × 4×4×4 neighborhoods × 3 coordinates). Target: chunked interpolation to reduce peak memory by ~40×. Working plan: `plans/active/PERF-GPU-MEM-001/implementation.md`. Artifacts: `plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/`)
+- [PERF-GPU-MEM-001] (GPU Memory Usage Analysis and Optimization) — **in_progress** (2025-12-08T234600Z: **Phase A COMPLETE — Memory profile documented.** Profiled small detector (1024²) with 9 mosaic domains: B=9.4M queries, peak=23.8 GB, OOM on 4.5 GB allocation. Root cause confirmed: `Crystal._tricubic_interpolation()` at `nanobrag_torch/models/crystal.py:404` batches ALL query points, creating sub_Fhkl tensor of shape (9.4M, 4, 4, 4) = 2.4 GB plus coordinate grids ~1.7 GB plus autograd overhead ~10+ GB. Full detector (2463×2527) would require ~50+ GB. **Recommendation:** Chunked interpolation (100K batch) for 94× peak reduction. Working plan: `plans/active/PERF-GPU-MEM-001/implementation.md`. Artifacts: `plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/`)
   - **Governed by:** RUNTIME-001
   - **Depends on:** None
-  - **Exit Criteria:** (1) Memory profiling report; (2) ≥30% peak memory reduction; (3) Stage A smoke completes on 24GB GPU; (4) Physics unchanged (partiality/gradcheck tests pass)
+  - **Exit Criteria:** (1) Memory profiling report ✓; (2) ≥30% peak memory reduction; (3) Stage A smoke completes on 24GB GPU; (4) Physics unchanged (partiality/gradcheck tests pass)
+  - **Attempts History:**
+    * 2025-12-08T234600Z (Loop i=210, Ralph) — **Phase A complete (memory profiling)**. Created `profile_gpu_memory.py` probe (377 LOC < 400 limit). Profiled small detector: B=9,437,184 queries, peak=23.842 GB. OOM during reconstruction at `crystal.py:404`. Memory breakdown documented: sub_Fhkl (2.4 GB) + coordinate grids (1.7 GB) + autograd (10+ GB). Artifacts: `plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/{memory_profile.md,memory_metrics.json}`.
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.

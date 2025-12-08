@@ -1,0 +1,62 @@
+{
+  "detector_size": "small",
+  "detector_shape": [
+    1024,
+    1024
+  ],
+  "n_rois": 29,
+  "n_mosaic_domains": 1,
+  "snapshots": [
+    {
+      "label": "init_clean",
+      "allocated_gb": 0.0,
+      "max_allocated_gb": 0.0,
+      "timestamp_s": 0.10245060920715332
+    },
+    {
+      "label": "after_data_load",
+      "allocated_gb": 0.0,
+      "max_allocated_gb": 0.0,
+      "timestamp_s": 0.39220666885375977
+    },
+    {
+      "label": "after_prepare_inputs",
+      "allocated_gb": 0.0,
+      "max_allocated_gb": 0.0,
+      "timestamp_s": 0.41196632385253906
+    },
+    {
+      "label": "after_hkl_grid_build",
+      "allocated_gb": 0.00154112,
+      "max_allocated_gb": 0.003276288,
+      "timestamp_s": 2.2384026050567627
+    },
+    {
+      "label": "after_build_context",
+      "allocated_gb": 0.00154112,
+      "max_allocated_gb": 0.003276288,
+      "timestamp_s": 2.2386510372161865
+    },
+    {
+      "label": "before_engine_run",
+      "allocated_gb": 0.00154112,
+      "max_allocated_gb": 0.003276288,
+      "timestamp_s": 2.2388126850128174
+    },
+    {
+      "label": "oom_occurred",
+      "allocated_gb": 16.43408384,
+      "max_allocated_gb": 23.842423296,
+      "timestamp_s": 10.213530778884888
+    },
+    {
+      "label": "final",
+      "allocated_gb": 0.01858048,
+      "max_allocated_gb": 23.842423296,
+      "timestamp_s": 10.213919878005981
+    }
+  ],
+  "peak_allocation_label": "oom_occurred",
+  "peak_allocation_gb": 23.842423296,
+  "profile_duration_s": 10.213937520980835
+}

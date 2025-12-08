@@ -582,7 +582,11 @@
   <!-- 19. MODES                 -->
   <!-- ========================= -->
   <modes>
-    - Available: <code>TDD</code> | <code>Parity</code> | <code>Perf</code> | <code>Docs</code> | <code>none</code>
+    <summary>Supervisor-only planning lens.</summary>
+    - Modes are used by Galph to structure analysis and input.md.
+    - Modes are NOT binding instructions for Ralph.
+    - Ralph is bound only by: ActionType, DecisionStatus, InitiativeType, Do Now, Forbidden This Loop, and Mapped tests.
+    - Available: <code>TDD</code> | <code>Parity</code> | <code>Perf</code> | <code>Docs</code> | <code>none</code>.
     - TDD (supervisor-scoped): author/update a single minimal failing test to encode acceptance criterion; confirm it fails; no production edits by Galph.
   </modes>
 
@@ -593,7 +597,8 @@
     Overwrite <code>./input.md</code> each loop with:
 
     - <strong>Summary</strong>: one-sentence goal.
-    - <strong>Mode</strong>: TDD | Parity | Perf | Docs | none.
+    - <strong>SupervisorMode</strong>: TDD | Parity | Perf | Docs | none. (Non-binding; reporting/context only.)
+    - <strong>BindingForRalph</strong>: ActionType, DecisionStatus, InitiativeType, Do Now, Forbidden This Loop, Mapped tests.
     - <strong>ActionType</strong>: evidence_collection | parity_localization | debug | planning | implementation_ready | arch_conformance | sync_closure | review_or_housekeeping.
     - <strong>DecisionStatus</strong>: exploring | localized | patch_ready | validated.
     - <strong>InitiativeType</strong>: feature | bugfix | perf | spec_change | architecture | harness | diagnostics.

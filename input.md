@@ -1,10 +1,10 @@
-# Ralph Input — Loop i=223
+# Ralph Input — Loop i=221
 
 ## Summary
 Maintenance check — await upstream responses for mosaic gradient bug and chunked interpolation requests.
 
 ## Focus
-DB-AT-SUITE-CARE-001 — Maintenance Mode (all Tier 0-1 blocked pending upstream)
+DB-AT-SUITE-CARE-001 — Maintenance Mode (all Tier 0 blocked pending upstream)
 
 ## Branch
 `integration`
@@ -13,7 +13,7 @@ DB-AT-SUITE-CARE-001 — Maintenance Mode (all Tier 0-1 blocked pending upstream
 `none — maintenance-only`
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T070000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T090000Z/`
 
 ---
 
@@ -43,7 +43,7 @@ ls -la ~/Documents/nanoBragg/inbox/
 **M.2 — Document status:**
 
 If no new responses:
-1. Create `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T070000Z/summary.md`
+1. Create `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T090000Z/summary.md`
 2. Record: "No new upstream responses. Outstanding: mosaic_gradient_bug (HIGH), chunked_interpolation (MEDIUM)"
 
 If new response found:
@@ -66,6 +66,7 @@ If new response found:
 
 **Tier 0 (all blocked):**
 - ARCH-GRADIENT-FLOW-001: `blocked_pending_upstream` (Phase B.9 complete — mosaic hypothesis confirmed)
+- PERF-GPU-MEM-001: `blocked_pending_upstream` (Phase A/B complete — upstream request filed)
 - ARCH-SIM-CONSTRUCTION-001: `blocked_pending_environment`
 - ARCH-REFACTOR-001: `blocked_pending_architecture`
 

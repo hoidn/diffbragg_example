@@ -1,9 +1,9 @@
 # DB-AT-022 — Background sentinel guard
 
 ## Phase A — Asset validation & sentinel probes
-- [ ] A1: Verify canonical assets exist (`scaled.mtz`, `refGeom.expt`, `refGeom.refl`, `747_mask.pkl`); record snapshot of file presence in planning report.
-- [ ] A2: Instantiate `DataLoad` with canonical inputs and capture baseline metrics (data/background shapes, ROI count, bbox sample) to confirm prerequisites from DB-AT-020/021 remain valid.
-- [ ] A3: Probe `background_image` sentinel coverage: compute sentinel mask (`np.isclose(background, -1.0)`), ROI union mask derived from bbox/pids, and summarize coverage ratios + overlap counts.
+- [x] A1: Verify canonical assets exist (`scaled.mtz`, `refGeom.expt`, `refGeom.refl`, `747_mask.pkl`); record snapshot of file presence in planning report. **(Loop i=151, 2025-12-08T180000Z: COMPLETE — cross-ref i=143 validation, 4/4 assets VALID)**
+- [x] A2: Instantiate `DataLoad` with canonical inputs and capture baseline metrics (data/background shapes, ROI count, bbox sample) to confirm prerequisites from DB-AT-020/021 remain valid. **(Loop i=151: COMPLETE — data.shape=(1,2527,2463), 92 ROIs, all 12×12)**
+- [x] A3: Probe `background_image` sentinel coverage: compute sentinel mask (`np.isclose(background, -1.0)`), ROI union mask derived from bbox/pids, and summarize coverage ratios + overlap counts. **(Loop i=151: COMPLETE — Case A: Perfect match, overlap=0, complement_match=True)**
 
 ## Phase B — Implementation & testing
 - [ ] B1: Harden `dbex.nanobrag_bridge.prepare_refinement_inputs` with an explicit sentinel guard (ensure `background_image` uses -1 outside ROIs and raise descriptive `ValueError` when unexpected values are encountered).

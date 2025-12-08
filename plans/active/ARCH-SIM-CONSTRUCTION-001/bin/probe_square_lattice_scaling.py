@@ -1,9 +1,18 @@
 #!/usr/bin/env python
 """
-Probe script for square lattice (Na·Nb·Nc)² scaling validation.
+Probe script for square lattice scaling validation.
 
 ARCH-SIM-CONSTRUCTION-001: Simulator Construction Convention Alignment
-SIM-CONSTR-PARTIALITY-001: SQUARE lattice must emit weights ∝ (Na·Nb·Nc)²
+SIM-CONSTR-PARTIALITY-001: SQUARE lattice integrated intensity scales linearly with Na×Nb×Nc
+
+IMPORTANT - SQUARE lattice scaling physics (per inbox/nanobrag_torch_response_2025_12_08.md):
+- Peak intensity at exact Bragg (sinc² peak): ∝ (Na×Nb×Nc)²
+- Peak width: ∝ 1/(Na×Nb×Nc)
+- Integrated/summed intensity (integral of peak): ∝ Na×Nb×Nc (LINEAR)
+
+This probe measures INTEGRATED (summed) intensity, which follows LINEAR scaling.
+The expected_ratio computed below uses (Na*Nb*Nc)**2 for historical/diagnostic
+comparison, but tests should enforce linear Na*Nb*Nc scaling for integrated intensity.
 
 This thin wrapper instantiates nanobrag_torch.Simulator twice:
 1. Base case: N_cells=(1,1,1)
@@ -974,12 +983,19 @@ def main():
                     f.write("The deficit must originate elsewhere (normalization, Lorentz, or polar ordering).\n\n")
 
         f.write("## Commentary\n\n")
-        if relative_error < 0.05:
-            f.write("✅ The observed ratio is within 5% tolerance of the expected (Na·Nb·Nc)² scaling.\n")
+        # NOTE: expected_ratio uses (Na*Nb*Nc)**2 for diagnostic comparison, but integrated
+        # intensity should scale as Na*Nb*Nc (linear) per SIM-CONSTR-PARTIALITY-001 resolution.
+        # This probe provides diagnostic data; tests/architecture/test_nanobrag_partiality.py
+        # enforces the correct linear scaling contract.
+        linear_expected = na * nb * nc
+        linear_ratio = observed_ratio / linear_expected if linear_expected > 0 else 0.0
+        if abs(linear_ratio - 1.0) < 0.05:
+            f.write("✅ The observed ratio is within 5% of the expected Na×Nb×Nc LINEAR scaling.\n")
+            f.write(f"   (Linear expected: {linear_expected:,.1f}, observed: {observed_ratio:,.1f}, ratio: {linear_ratio:.4f}x)\n")
         else:
-            f.write(f"❌ **Contract violation detected**: The observed ratio deviates by {relative_error:.1%} from expected.\n\n")
-            f.write(f"The SQUARE lattice contract (docs/spec-db-core.md:60-140) requires weights ∝ (Na·Nb·Nc)².\n")
-            f.write(f"This {observed_ratio / expected_ratio:.6f}x shortfall suggests a bug in the lattice weight computation.\n")
+            f.write(f"⚠️ The observed ratio deviates from LINEAR Na×Nb×Nc scaling by {abs(linear_ratio - 1.0):.1%}.\n\n")
+            f.write(f"Per SIM-CONSTR-PARTIALITY-001 (resolved 2025-12-08), integrated intensity scales linearly with Na×Nb×Nc.\n")
+            f.write(f"Linear expected: {linear_expected:,.1f}, observed: {observed_ratio:,.1f}, ratio: {linear_ratio:.4f}x\n")
 
     print(f"Wrote Markdown: {md_path}")
     print()

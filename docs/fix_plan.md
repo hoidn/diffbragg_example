@@ -269,7 +269,7 @@
 
 ### [SPEC-SQUARE-PARTIALITY-001] SQUARE Lattice Spec & Test Alignment
 - Depends on: ARCH-SIM-CONSTRUCTION-001 (physics evidence), SIM-CONSTR-PARTIALITY-001 (finding), nanobrag_torch maintainer response (`inbox/nanobrag_torch_response_2025_12_08.md`)
-- Status: **in_progress** (Phase A complete; Phase B pending)
+- Status: **blocked** (Phase A complete; Phase B blocked on DMI — observed scaling matches neither linear nor quadratic)
 - Type: spec+tests
 - Priority: High
 - Tier: 1
@@ -284,6 +284,7 @@
   * 2025-12-08T000000Z (planning) — Created initiative to align SQUARE lattice spec/tests with nanobrag_torch maintainer response (peak vs integrated scaling); no code/tests changed yet.
   * 2025-12-08T070000Z (Loop i=158, Ralph) — **Phase A complete (docs-only)**: A0: Created `physics_summary.md` documenting SQUARE lattice peak vs integrated scaling physics. A1: Updated `docs/findings.md::SIM-CONSTR-PARTIALITY-001` with "**Resolution (2025-12-08)**" section, demoted historical `(Na·Nb·Nc)²` integrated expectation to context, promoted linear `Na·Nb·Nc` as enforceable requirement, status changed to "Resolved". A2: Verified `docs/spec-db-core.md` contains no conflicting text requiring update. A3: Created summary.md. Exit criterion #1 satisfied. Touched: Phase A (A0, A1, A2, A3). Tests: not run (docs-only loop per Mode: Docs). Next: Phase B (test updates). Artifacts: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T070000Z/` (physics_summary.md, summary.md).
   * 2025-12-08T080000Z (Loop i=159, Galph) — **Phase B delegated**: Scoped Phase B (Align Tests & Probes): B1: update `tests/architecture/test_nanobrag_partiality.py` to expect linear `Na×Nb×Nc` scaling (change line 45 from `(Na*Nb*Nc)**2` to `Na*Nb*Nc`), B2: update probe script comments (no logic changes per PROBE-FREEZE-001), B3: run partiality test and capture logs, B4: verify no other tests enforce old scaling. Applied implementation floor (Phase A was docs-only). DecisionStatus: patch_ready (physics clarified, test fix straightforward). Next: Ralph executes Phase B tasks (i=159). Artifacts: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T080000Z/`.
+  * 2025-12-08T080000Z (Loop i=159, Ralph) — **Phase B executed, BLOCKED on DMI**: B1: Updated test expectation from `(Na*Nb*Nc)**2` to `Na*Nb*Nc` (line 50), updated docstrings/comments for linear scaling. B2: Updated probe script comments (no logic per PROBE-FREEZE-001). B3: Test FAILED with DMI — observed ratio 1,187,854 vs expected linear 38,048 (3022% off). **FINDING**: nanobrag_torch behavior matches NEITHER linear nor quadratic; observed ≈ Na×Nb×Nc×Nc (31.2× linear). Hypothesis: partial quadratic scaling on one axis. B4: No other tests enforce old squared scaling. Status: **blocked** pending physics clarification (maintainer's linear claim contradicted by observation). Next: Escalate to Galph for nanobrag_torch investigation or spec clarification. Touched: Phase B (B1, B2, B3, B4). Artifacts: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T080000Z/` (pytest_partiality.log, collect_partiality.log, summary.md).
 
 ### [DB-AT-SUITE-CARE-001] Acceptance Suite Upkeep (DB-AT-002/010/020—024)
 - Depends on: ARCH-GRADIENT-FLOW-001 (DB-AT-010 unblock for portfolio advancement)

@@ -1,0 +1,198 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a ERROR [100%]
+
+==================================== ERRORS ====================================
+_ ERROR at setup of TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a _
+tests/conftest.py:399: in pytest_runtest_setup
+    raise pytest.UsageError(
+E   _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+=========================== short test summary info ============================
+ERROR tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+=============================== 1 error in 0.76s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a FAILED [100%]
+
+=================================== FAILURES ===================================
+_______ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a ________
+
+self = <tests.dbex.test_gradients.TestDB_AT_010_Gradcheck object at 0x7ddf37df89d0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318, sigma_readout_provenance=None)
+geometry_objects = {'beam': <dxtbx_model_ext.Beam object at 0x7ddf44632e40>, 'crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object a...xtbx_model_ext.Detector object at 0x7ddf44632f90>, 'experiment': <dxtbx_model_ext.Experiment object at 0x7ddf44632eb0>}
+hkl_data = {'amplitudes': <scitbx_array_family_flex_ext.double object at 0x7ddf4476eac0>, 'indices': <cctbx_array_family_flex_ext.miller_index object at 0x7ddf4476e640>}
+artifact_dir = PosixPath('plans/active/DB-AT-010/reports/default')
+
+    def test_db_at_010_gradcheck_crystal_cell_a(
+        self,
+        refinement_inputs,
+        geometry_objects,
+        hkl_data,
+        artifact_dir
+    ):
+        """
+        DB-AT-010 (1/4): Verify gradients for crystal unit cell parameter cell_a.
+    
+        Tests that torch.autograd.gradcheck passes for the cell_a parameter
+        with eps=1e-6, atol=1e-5, rtol≈0.05 per testing_strategy.md:364.
+        """
+        from dbex.physics.forward import simulate_forward_torch
+        from dbex.physics.loss import compute_masked_mse_loss
+        from dbex.refinement.config_factories import create_crystal_config
+    
+        device = torch.device('cpu')
+        dtype = torch.float64
+    
+        # Convert inputs to torch
+        target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
+        loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+    
+        # Get base crystal config
+        base_crystal = geometry_objects["crystal"]
+        experiment = geometry_objects["experiment"]
+    
+        # Create a loss function parameterized by cell_a
+        def loss_fn(cell_a_tensor):
+            # Use crystal_overrides to inject tensor parameter directly (GRADIENT-001)
+            # This avoids .item() call that would break gradient flow
+            crystal_overrides = {'cell_a': cell_a_tensor}
+    
+            # Run forward simulation with tensor override
+            bragg_torch = simulate_forward_torch(
+                inputs=refinement_inputs,
+                detector=geometry_objects["detector"],
+                beam=geometry_objects["beam"],
+                crystal=base_crystal,  # Use base crystal, overrides applied internally
+                experiment=experiment,
+                hkl_indices=hkl_data["indices"],
+                hkl_amplitudes=hkl_data["amplitudes"],
+                spot_scale_override=1.0,
+                device=device,
+                dtype=dtype,
+                crystal_overrides=crystal_overrides  # Pass tensor override
+            )
+    
+            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
+            return loss
+    
+        # Get base cell_a value
+        uc = base_crystal.get_unit_cell()
+        base_cell_a = uc.parameters()[0]
+    
+        # Create differentiable parameter tensor
+        cell_a_param = torch.tensor(base_cell_a, dtype=dtype, device=device, requires_grad=True)
+    
+        # Run gradcheck
+>       gradcheck_passed = gradcheck(
+            loss_fn,
+            (cell_a_param,),
+            eps=1e-6,
+            atol=1e-5,
+            rtol=0.05,
+            raise_exception=True
+        )
+
+tests/dbex/test_gradients.py:230: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+func = <function TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a.<locals>.loss_fn at 0x7ddf37f1b940>
+inputs = (tensor(27.3758, dtype=torch.float64, requires_grad=True),)
+
+    def gradcheck(
+        func: Callable[..., Union[_TensorOrTensors]],  # See Note [VarArg of Tensors]
+        inputs: _TensorOrTensors,
+        *,
+        eps: float = 1e-6,
+        atol: float = 1e-5,
+        rtol: float = 1e-3,
+        raise_exception: bool = True,
+        nondet_tol: float = 0.0,
+        check_undefined_grad: bool = True,
+        check_grad_dtypes: bool = False,
+        check_batched_grad: bool = False,
+        check_batched_forward_grad: bool = False,
+        check_forward_ad: bool = False,
+        check_backward_ad: bool = True,
+        fast_mode: bool = False,
+        masked: Optional[bool] = None,
+    ) -> bool:  # noqa: D400,D205
+        r"""Check gradients computed via small finite differences against analytical
+        gradients wrt tensors in :attr:`inputs` that are of floating point or complex type
+        and with ``requires_grad=True``.
+    
+        The check between numerical and analytical gradients uses :func:`~torch.allclose`.
+    
+        For most of the complex functions we consider for optimization purposes, no notion of
+        Jacobian exists. Instead, gradcheck verifies if the numerical and analytical values of
+        the Wirtinger and Conjugate Wirtinger derivatives are consistent. Because the gradient
+        computation is done under the assumption that the overall function has a real-valued
+        output, we treat functions with complex output in a special way. For these functions,
+        gradcheck is applied to two real-valued functions corresponding to taking the real
+        components of the complex outputs for the first, and taking the imaginary components
+        of the complex outputs for the second. For more details, check out
+        :ref:`complex_autograd-doc`.
+    
+        .. note::
+            The default values are designed for :attr:`input` of double precision.
+            This check will likely fail if :attr:`input` is of less precision, e.g.,
+            ``FloatTensor``.
+    
+        .. note::
+            Gradcheck may fail when evaluated on non-differentiable points
+            because the numerically computed gradients via finite differencing may differ
+            those computed analytically (not necessarily because either is incorrect).
+            For more context, see :ref:`non-differentiable-func-grad`.
+    
+        .. warning::
+           If any checked tensor in :attr:`input` has overlapping memory, i.e.,
+           different indices pointing to the same memory address (e.g., from
+           :func:`torch.expand`), this check will likely fail because the numerical
+           gradients computed by point perturbation at such indices will change
+           values at all other indices that share the same memory address.
+    
+        Args:
+            func (function): a Python function that takes Tensor inputs and returns
+                a Tensor or a tuple of Tensors
+            inputs (tuple of Tensor or Tensor): inputs to the function
+            eps (float, optional): perturbation for finite differences
+            atol (float, optional): absolute tolerance
+            rtol (float, optional): relative tolerance
+            raise_exception (bool, optional): indicating whether to raise an exception if
+                the check fails. The exception gives more information about the
+                exact nature of the failure. This is helpful when debugging gradchecks.
+            nondet_tol (float, optional): tolerance for non-determinism. When running
+                identical inputs through the differentiation, the results must either match
+                exactly (default, 0.0) or be within this tolerance.
+            check_undefined_grad (bool, optional): if ``True``, check if undefined output grads
+                are supported and treated as zeros, for ``Tensor`` outputs.
+            check_batched_grad (bool, optional): if ``True``, check if we can compute
+                batched gradients using prototype vmap support. Defaults to False.
+            check_batched_forward_grad (bool, optional): if ``True``, checks if we can compute
+                batched forward gradients using forward ad and prototype vmap support. Defaults to ``False``.
+            check_forward_ad (bool, optional): if ``True``, check that the gradients computed with forward
+                mode AD match the numerical ones. Defaults to ``False``.
+            check_backward_ad (bool, optional): if ``False``, do not perform any checks that rely on
+                backward mode AD to be implemented. Defaults to ``True``.
+            fast_mode (bool, optional): Fast mode for gradcheck and gradgradcheck is currently only
+                implemented for R to R functions. If none of the inputs and outputs are complex
+                a faster implementation of gradcheck that no longer computes the entire jacobian
+                is run; otherwise, we fall back to the slow implementation.
+            masked (bool, optional): if ``True``, the gradients of unspecified elements of
+                sparse tensors are ignored. Defaults to ``False``.
+        Returns:

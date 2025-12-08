@@ -1,0 +1,136 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_gradients.py::test_gradient_magnitude_diagnostic auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=16384/16384 (100.00%)
+
+=== Gradient Magnitude Diagnostic ===
+
+minimal:
+  Analytical: 2.340067e+04
+  Numerical:  2.340069e+04
+  Ratio (ana/num): 1.00x
+
+dbex_like:
+  Analytical: 2.340067e+04
+  Numerical:  2.340069e+04
+  Ratio (ana/num): 1.00x
+
+with_beam_config:
+  Analytical: 2.340067e+04
+  Numerical:  2.340069e+04
+  Ratio (ana/num): 1.00x
+PASSED
+
+============================== 1 passed in 1.37s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_gradients.py::test_dbex_hkl_grid_gradient auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/16384 (0.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/16384 (0.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/16384 (0.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/16384 (0.00%)
+PASSED
+tests/dbex/test_gradients.py::test_dbex_full_factory_gradient auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/4096 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/4096 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/4096 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[200,200] k=[-3,3] l=[-3,3] hit_rate=0/4096 (0.00%)
+PASSED
+
+=============================== warnings summary ===============================
+tests/dbex/test_gradients.py::test_dbex_full_factory_gradient
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_gradients.py::test_dbex_full_factory_gradient
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_gradients.py::test_dbex_full_factory_gradient
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 2 passed, 3 warnings in 1.96s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_gradients.py::test_simulate_forward_torch_gradient FAILED
+
+=================================== FAILURES ===================================
+_____________________ test_simulate_forward_torch_gradient _____________________
+tests/dbex/test_gradients.py:1054: in test_simulate_forward_torch_gradient
+    passed = gradcheck(loss_fn, (cell_a,), eps=1e-6, atol=1e-5, rtol=0.05)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2075: in _gradcheck_helper
+    func_out = func(*tupled_inputs)
+tests/dbex/test_gradients.py:1036: in loss_fn
+    bragg_torch = simulate_forward_torch(
+dbex/physics/forward.py:239: in simulate_forward_torch
+    detector_config = create_detector_config(
+dbex/refinement/config_factories.py:208: in create_detector_config
+    return DetectorConfig(
+<string>:37: in __init__
+    ???
+../../nanoBragg/src/nanobrag_torch/config.py:358: in __post_init__
+    raise ValueError("Distance must be positive")
+E   ValueError: Distance must be positive
+=============================== warnings summary ===============================
+tests/dbex/test_gradients.py::test_simulate_forward_torch_gradient
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_gradients.py::test_simulate_forward_torch_gradient
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_gradients.py::test_simulate_forward_torch_gradient
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_gradients.py::test_simulate_forward_torch_gradient - V...
+======================== 1 failed, 3 warnings in 1.43s =========================

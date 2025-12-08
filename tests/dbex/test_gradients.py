@@ -610,3 +610,449 @@ class TestDB_AT_010_Gradcheck:
             pytest.fail(
                 f"DB-AT-010 gradcheck failed for {len(failed_tests)} parameter(s):\n{failure_summary}"
             )
+
+
+# B.8.1: Minimal reproduction test bypassing DBEX factories
+def test_minimal_nanobrag_gradcheck():
+    """
+    Minimal reproduction of nanobrag_torch cell parameter gradcheck.
+
+    Bypasses all DBEX factories to isolate the integration layer.
+    This test should PASS if the issue is in DBEX config_factories/helpers.
+
+    Phase B.8.1 (ARCH-GRADIENT-FLOW-001):
+    - Uses parameters matching upstream test: fluence=1e28, eps=1e-6, atol=1e-5, rtol=0.05
+    - Directly constructs nanobrag_torch objects without DBEX factories
+    - If PASS: Confirms issue is in DBEX integration layer
+    - If FAIL: Issue is in nanobrag_torch (unexpected per upstream response)
+
+    References:
+    - inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md (upstream verification)
+    - docs/findings.md GRADIENT-001 (tensor-valued overrides pattern)
+    """
+    import torch
+    from torch.autograd import gradcheck
+    from nanobrag_torch.config import CrystalConfig, DetectorConfig, BeamConfig
+    from nanobrag_torch.models.crystal import Crystal
+    from nanobrag_torch.models.detector import Detector
+    from nanobrag_torch.simulator import Simulator
+
+    device = torch.device("cpu")
+    dtype = torch.float64
+
+    # Differentiable cell parameter (matches upstream test pattern)
+    cell_a = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+
+    def loss_fn(cell_a_param):
+        crystal_config = CrystalConfig(
+            cell_a=cell_a_param,
+            cell_b=100.0,
+            cell_c=100.0,
+            cell_alpha=90.0,
+            cell_beta=90.0,
+            cell_gamma=90.0,
+            N_cells=(5, 5, 5),
+            default_F=100.0,
+        )
+
+        detector_config = DetectorConfig(
+            distance_mm=100.0,
+            pixel_size_mm=0.1,
+            spixels=64,
+            fpixels=64,
+        )
+
+        beam_config = BeamConfig(
+            wavelength_A=1.0,
+            fluence=1e28,
+        )
+
+        crystal = Crystal(config=crystal_config, device=device, dtype=dtype)
+        detector = Detector(config=detector_config, device=device, dtype=dtype)
+
+        simulator = Simulator(
+            crystal=crystal,
+            detector=detector,
+            beam_config=beam_config,
+            device=device,
+            dtype=dtype,
+        )
+
+        result = simulator.run()
+        return result.sum()
+
+    # Run gradcheck with upstream tolerances
+    passed = gradcheck(loss_fn, (cell_a,), eps=1e-6, atol=1e-5, rtol=0.05)
+    assert passed, "Minimal nanobrag_torch gradcheck failed - issue is NOT in DBEX integration"
+
+
+def test_gradient_magnitude_diagnostic():
+    """
+    B.8.2 Diagnostic: Compare gradient magnitudes between minimal and DBEX paths.
+
+    This test captures:
+    1. Analytical gradient magnitude (from autograd)
+    2. Numerical gradient magnitude (from finite differences)
+    3. Their ratio to quantify the mismatch
+
+    Helps identify if the issue is in config_factories, HKL grid, or elsewhere.
+
+    Phase B.8.2 (ARCH-GRADIENT-FLOW-001):
+    - Mimics DBEX path but with simplified detector to isolate magnitude source
+    - Does NOT use gradcheck (which raises on failure), just computes gradients
+    """
+    import torch
+    from nanobrag_torch.config import CrystalConfig, DetectorConfig, BeamConfig
+    from nanobrag_torch.models.crystal import Crystal
+    from nanobrag_torch.models.detector import Detector
+    from nanobrag_torch.simulator import Simulator
+
+    device = torch.device("cpu")
+    dtype = torch.float64
+
+    results = {}
+
+    # Test 1: Minimal path (known to work)
+    cell_a_minimal = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+
+    def minimal_loss(cell_a_param):
+        config = CrystalConfig(
+            cell_a=cell_a_param, cell_b=100.0, cell_c=100.0,
+            cell_alpha=90.0, cell_beta=90.0, cell_gamma=90.0,
+            N_cells=(5, 5, 5), default_F=100.0,
+        )
+        crystal = Crystal(config=config, device=device, dtype=dtype)
+        detector = Detector(DetectorConfig(distance_mm=100.0, pixel_size_mm=0.1, spixels=64, fpixels=64))
+        sim = Simulator(crystal=crystal, detector=detector,
+                       beam_config=BeamConfig(wavelength_A=1.0, fluence=1e28),
+                       device=device, dtype=dtype)
+        return sim.run().sum()
+
+    # Compute analytical gradient
+    loss_minimal = minimal_loss(cell_a_minimal)
+    loss_minimal.backward()
+    grad_analytical_minimal = cell_a_minimal.grad.clone()
+
+    # Compute numerical gradient
+    eps = 1e-6
+    cell_a_plus = torch.tensor(100.0 + eps, dtype=dtype, device=device)
+    cell_a_minus = torch.tensor(100.0 - eps, dtype=dtype, device=device)
+    loss_plus = minimal_loss(cell_a_plus)
+    loss_minus = minimal_loss(cell_a_minus)
+    grad_numerical_minimal = (loss_plus - loss_minus) / (2 * eps)
+
+    ratio_minimal = (grad_analytical_minimal / grad_numerical_minimal).item()
+    results['minimal'] = {
+        'analytical': grad_analytical_minimal.item(),
+        'numerical': grad_numerical_minimal.item(),
+        'ratio': ratio_minimal
+    }
+
+    # Test 2: DBEX-like path with MOSFLM A* = None
+    # (simulates what happens when crystal_overrides triggers None A*)
+    cell_a_dbex = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+
+    def dbex_like_loss(cell_a_param):
+        # Create config with tensor cell_a but mosflm_* set to None (like DBEX does)
+        config = CrystalConfig(
+            cell_a=cell_a_param, cell_b=100.0, cell_c=100.0,
+            cell_alpha=90.0, cell_beta=90.0, cell_gamma=90.0,
+            N_cells=(5, 5, 5), default_F=100.0,
+            mosflm_a_star=None, mosflm_b_star=None, mosflm_c_star=None,  # Explicit None
+        )
+        crystal = Crystal(config=config, device=device, dtype=dtype)
+        detector = Detector(DetectorConfig(distance_mm=100.0, pixel_size_mm=0.1, spixels=64, fpixels=64))
+        sim = Simulator(crystal=crystal, detector=detector,
+                       beam_config=BeamConfig(wavelength_A=1.0, fluence=1e28),
+                       device=device, dtype=dtype)
+        return sim.run().sum()
+
+    # Compute analytical gradient
+    loss_dbex = dbex_like_loss(cell_a_dbex)
+    loss_dbex.backward()
+    grad_analytical_dbex = cell_a_dbex.grad.clone()
+
+    # Compute numerical gradient
+    cell_a_plus = torch.tensor(100.0 + eps, dtype=dtype, device=device)
+    cell_a_minus = torch.tensor(100.0 - eps, dtype=dtype, device=device)
+    loss_plus = dbex_like_loss(cell_a_plus)
+    loss_minus = dbex_like_loss(cell_a_minus)
+    grad_numerical_dbex = (loss_plus - loss_minus) / (2 * eps)
+
+    ratio_dbex = (grad_analytical_dbex / grad_numerical_dbex).item()
+    results['dbex_like'] = {
+        'analytical': grad_analytical_dbex.item(),
+        'numerical': grad_numerical_dbex.item(),
+        'ratio': ratio_dbex
+    }
+
+    # Test 3: With beam_config passed to Crystal (like DBEX helpers.py:198)
+    cell_a_beam = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+
+    def beam_crystal_loss(cell_a_param):
+        config = CrystalConfig(
+            cell_a=cell_a_param, cell_b=100.0, cell_c=100.0,
+            cell_alpha=90.0, cell_beta=90.0, cell_gamma=90.0,
+            N_cells=(5, 5, 5), default_F=100.0,
+        )
+        beam_config = BeamConfig(wavelength_A=1.0, fluence=1e28)
+        # Pass beam_config to Crystal constructor (like DBEX does)
+        crystal = Crystal(config=config, beam_config=beam_config, device=device, dtype=dtype)
+        detector = Detector(DetectorConfig(distance_mm=100.0, pixel_size_mm=0.1, spixels=64, fpixels=64))
+        sim = Simulator(crystal=crystal, detector=detector,
+                       beam_config=beam_config,
+                       device=device, dtype=dtype)
+        return sim.run().sum()
+
+    # Compute analytical gradient
+    loss_beam = beam_crystal_loss(cell_a_beam)
+    loss_beam.backward()
+    grad_analytical_beam = cell_a_beam.grad.clone()
+
+    # Compute numerical gradient
+    loss_plus = beam_crystal_loss(torch.tensor(100.0 + eps, dtype=dtype, device=device))
+    loss_minus = beam_crystal_loss(torch.tensor(100.0 - eps, dtype=dtype, device=device))
+    grad_numerical_beam = (loss_plus - loss_minus) / (2 * eps)
+
+    ratio_beam = (grad_analytical_beam / grad_numerical_beam).item()
+    results['with_beam_config'] = {
+        'analytical': grad_analytical_beam.item(),
+        'numerical': grad_numerical_beam.item(),
+        'ratio': ratio_beam
+    }
+
+    # Print diagnostics
+    print("\n=== Gradient Magnitude Diagnostic ===")
+    for name, data in results.items():
+        print(f"\n{name}:")
+        print(f"  Analytical: {data['analytical']:.6e}")
+        print(f"  Numerical:  {data['numerical']:.6e}")
+        print(f"  Ratio (ana/num): {data['ratio']:.2f}x")
+
+    # Assert all ratios are close to 1.0 (within 5% tolerance = rtol=0.05)
+    for name, data in results.items():
+        assert 0.95 <= abs(data['ratio']) <= 1.05, f"{name}: ratio {data['ratio']:.2f}x not within 5%"
+
+
+def test_dbex_hkl_grid_gradient():
+    """
+    B.8.3 Diagnostic: Test gradient flow through DBEX's build_structure_factor_grid.
+
+    Tests if using DBEX's HKL grid construction introduces gradient issues.
+    """
+    import torch
+    import numpy as np
+    from torch.autograd import gradcheck
+    from nanobrag_torch.config import CrystalConfig, DetectorConfig, BeamConfig
+    from nanobrag_torch.models.crystal import Crystal
+    from nanobrag_torch.models.detector import Detector
+    from nanobrag_torch.simulator import Simulator
+    from dbex.nanobrag_bridge import build_structure_factor_grid
+
+    device = torch.device("cpu")
+    dtype = torch.float64
+
+    # Create synthetic HKL data
+    hkl_indices = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 0, 1], [0, 1, 1]], dtype=np.int32)
+    hkl_amplitudes = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0], dtype=np.float64)
+
+    # Build HKL grid using DBEX bridge
+    hkl_grid, hkl_metadata, asu_map = build_structure_factor_grid(
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
+        device=device,
+        halo=True
+    )
+
+    # Differentiable cell parameter
+    cell_a = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+
+    def loss_fn(cell_a_param):
+        config = CrystalConfig(
+            cell_a=cell_a_param, cell_b=100.0, cell_c=100.0,
+            cell_alpha=90.0, cell_beta=90.0, cell_gamma=90.0,
+            N_cells=(5, 5, 5),
+        )
+        crystal = Crystal(config=config, device=device, dtype=dtype)
+
+        # Attach HKL data from DBEX grid builder
+        crystal.hkl_data = hkl_grid.to(dtype=dtype)
+        crystal.hkl_metadata = hkl_metadata
+
+        detector = Detector(DetectorConfig(distance_mm=100.0, pixel_size_mm=0.1, spixels=64, fpixels=64))
+        sim = Simulator(crystal=crystal, detector=detector,
+                       beam_config=BeamConfig(wavelength_A=1.0, fluence=1e28),
+                       device=device, dtype=dtype)
+        return sim.run().sum()
+
+    # Run gradcheck
+    passed = gradcheck(loss_fn, (cell_a,), eps=1e-6, atol=1e-5, rtol=0.05)
+    assert passed, "DBEX HKL grid path gradcheck failed"
+
+
+def test_dbex_full_factory_gradient():
+    """
+    B.8.4 Diagnostic: Test gradient flow through full DBEX config_factories path.
+
+    Uses create_crystal_config with crystal_overrides to match exact DBEX usage.
+    """
+    import torch
+    import numpy as np
+    from torch.autograd import gradcheck
+    from nanobrag_torch.config import BeamConfig, DetectorConfig
+    from nanobrag_torch.models.crystal import Crystal
+    from nanobrag_torch.models.detector import Detector
+    from nanobrag_torch.simulator import Simulator
+    from dbex.nanobrag_bridge import build_structure_factor_grid
+    from dbex.refinement.config_factories import create_crystal_config
+
+    device = torch.device("cpu")
+    dtype = torch.float64
+
+    # Mock a simple dxtbx Crystal
+    from dxtbx.model import Crystal as DxtbxCrystal
+    from dxtbx.model import Experiment
+
+    # Create a simple cubic crystal
+    dxtbx_crystal = DxtbxCrystal(
+        real_space_a=(100, 0, 0),
+        real_space_b=(0, 100, 0),
+        real_space_c=(0, 0, 100),
+        space_group_symbol="P 1"
+    )
+
+    # Create minimal experiment (no scan/gonio for stills)
+    experiment = Experiment(crystal=dxtbx_crystal)
+
+    # Synthetic HKL
+    hkl_indices = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.int32)
+    hkl_amplitudes = np.array([100.0, 100.0, 100.0], dtype=np.float64)
+
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
+        device=device,
+        halo=True
+    )
+
+    cell_a = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+
+    def loss_fn(cell_a_param):
+        # Use DBEX factory with crystal_overrides (exact DBEX pattern)
+        crystal_overrides = {'cell_a': cell_a_param}
+        crystal_config, _ = create_crystal_config(
+            dxtbx_crystal, experiment, crystal_overrides=crystal_overrides
+        )
+
+        crystal = Crystal(config=crystal_config, device=device, dtype=dtype)
+        crystal.hkl_data = hkl_grid.to(dtype=dtype)
+        crystal.hkl_metadata = hkl_metadata
+
+        detector = Detector(DetectorConfig(distance_mm=100.0, pixel_size_mm=0.1, spixels=64, fpixels=64))
+        sim = Simulator(crystal=crystal, detector=detector,
+                       beam_config=BeamConfig(wavelength_A=1.0, fluence=1e28),
+                       device=device, dtype=dtype)
+        return sim.run().sum()
+
+    # Run gradcheck
+    passed = gradcheck(loss_fn, (cell_a,), eps=1e-6, atol=1e-5, rtol=0.05)
+    assert passed, "DBEX full factory path gradcheck failed"
+
+
+def test_simulate_forward_torch_gradient():
+    """
+    B.8.5 Diagnostic: Test gradient flow through simulate_forward_torch.
+
+    Uses synthetic dxtbx objects to test the full forward path.
+    """
+    import torch
+    import numpy as np
+    from torch.autograd import gradcheck
+    from types import SimpleNamespace
+    from dxtbx.model import Crystal as DxtbxCrystal
+    from dxtbx.model import Beam as DxtbxBeam
+    from dxtbx.model import Detector as DxtbxDetector
+    from dxtbx.model import Panel, Experiment
+
+    from dbex.physics.forward import simulate_forward_torch
+    from dbex.physics.loss import compute_masked_mse_loss
+
+    device = torch.device("cpu")
+    dtype = torch.float64
+
+    # Create synthetic dxtbx crystal
+    dxtbx_crystal = DxtbxCrystal(
+        real_space_a=(100, 0, 0),
+        real_space_b=(0, 100, 0),
+        real_space_c=(0, 0, 100),
+        space_group_symbol="P 1"
+    )
+
+    # Create synthetic dxtbx beam
+    dxtbx_beam = DxtbxBeam(direction=(0, 0, 1), wavelength=1.0)
+
+    # Create synthetic single-panel detector (origin z should be negative for forward-facing detector)
+    dxtbx_detector = DxtbxDetector()
+    panel = dxtbx_detector.add_panel()
+    # dxtbx convention: origin is corner of panel, z is negative for panel facing source
+    # Beam comes from -z direction, so detector at +z from sample doesn't work
+    # For a detector at distance d, origin z = -d (panel normal faces -z)
+    panel.set_frame(
+        fast_axis=(1, 0, 0),
+        slow_axis=(0, -1, 0),  # Standard dxtbx: slow axis often points -y
+        origin=(-3.2, 3.2, -100)  # Panel corner, 100mm in front of sample
+    )
+    panel.set_pixel_size((0.1, 0.1))  # 0.1mm pixels
+    panel.set_image_size((64, 64))  # 64x64 panel
+
+    experiment = Experiment(crystal=dxtbx_crystal, beam=dxtbx_beam, detector=dxtbx_detector)
+
+    # Synthetic HKL
+    hkl_indices = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.int32)
+    hkl_amplitudes = np.array([100.0, 100.0, 100.0], dtype=np.float64)
+
+    # Create mock RefinementInputs
+    panel_shape = (64, 64)
+    target = np.zeros((1, *panel_shape), dtype=np.float32)
+    loss_mask = np.ones((1, *panel_shape), dtype=bool)
+    trusted_mask = np.ones((1, *panel_shape), dtype=bool)
+    sigma_readout = np.full((1, *panel_shape), 3.0, dtype=np.float32)
+
+    inputs = SimpleNamespace(
+        target=target,
+        loss_mask=loss_mask,
+        trusted_mask=trusted_mask,
+        sigma_readout=sigma_readout,
+        panel_slices=None,
+        global_scale_hint=1.0
+    )
+
+    target_torch = torch.tensor(target, dtype=dtype, device=device)
+    loss_mask_torch = torch.tensor(loss_mask, dtype=torch.bool, device=device)
+    sigma_torch = torch.tensor(sigma_readout, dtype=dtype, device=device)
+
+    cell_a = torch.tensor(100.0, dtype=dtype, requires_grad=True, device=device)
+
+    def loss_fn(cell_a_param):
+        crystal_overrides = {'cell_a': cell_a_param}
+
+        bragg_torch = simulate_forward_torch(
+            inputs=inputs,
+            detector=dxtbx_detector,
+            beam=dxtbx_beam,
+            crystal=dxtbx_crystal,
+            experiment=experiment,
+            hkl_indices=hkl_indices,
+            hkl_amplitudes=hkl_amplitudes,
+            spot_scale_override=1.0,
+            device=device,
+            dtype=dtype,
+            crystal_overrides=crystal_overrides
+        )
+
+        loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_torch)
+        return loss
+
+    # Run gradcheck
+    passed = gradcheck(loss_fn, (cell_a,), eps=1e-6, atol=1e-5, rtol=0.05)
+    assert passed, "simulate_forward_torch gradcheck failed"

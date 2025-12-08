@@ -1,0 +1,40 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 174 items / 159 deselected / 15 selected
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_db_at_001_parity.py>
+        <Class TestManifestIntegrity>
+          <Function test_manifest_integrity>
+          <Function test_golden_data_sanity>
+          <Function test_pixel_pitch_guard>
+        <Class TestParityMetrics>
+          <Function test_perfect_match>
+          <Function test_correlation_computation>
+          <Function test_error_metrics>
+          <Function test_sum_ratio>
+          <Function test_localization_metric>
+          <Function test_mask_application>
+          <Function test_edge_cases>
+          <Function test_to_dict_serialization>
+        <Class TestArtifactEmission>
+          <Function test_artifact_emission>
+          <Function test_artifact_emission_minimal>
+        <Class TestDB_AT_001_Parity>
+          <Function test_db_at_001_parity_smoke>
+      <Module test_forward_equivalence_complete.py>
+        <Class TestForwardEquiv>
+          <Function test_DB_AT_001_forward_equiv>
+
+=============== 15/174 tests collected (159 deselected) in 2.18s ===============
+
+Summary:
+- 15 tests selected by DB_AT_001/forward_equiv selectors
+- Tests distributed across 2 modules:
+  - test_db_at_001_parity.py: 14 tests (4 classes)
+  - test_forward_equivalence_complete.py: 1 test (1 class)

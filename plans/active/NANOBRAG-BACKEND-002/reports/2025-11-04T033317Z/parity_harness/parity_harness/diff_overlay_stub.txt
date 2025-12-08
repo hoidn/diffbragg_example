@@ -1,0 +1,6 @@
+# Diff overlay stub (future: PNG heatmap)
+# Predicted shape: (2527, 2463)
+# Target shape: (2527, 2463)
+# Diff range: [-3.19e+04, 9.68e+03]
+# Diff mean: 2.24e-02
+# Diff std: 2.03e+01

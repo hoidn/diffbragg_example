@@ -17,3 +17,7 @@ Key policy: Environment Freeze — the runtime is pre-provisioned and MUST NOT b
 Quick router:
 - prompts/supervisor.md (supervisor rules), prompts/main.md (engineer loop)
 - docs/index.md (docs hub), docs/TESTING_GUIDE.md (pytest selectors), docs/fix_plan.md (ledger), prompts/fsm_analysis.md (FSM)
+
+Simulator import note (nanobrag_torch)
+- The `nanobrag_torch` package imported by DBEX comes from the editable install under `/home/ollie/Documents/nanoBragg/src/nanobrag_torch`, not from the vendored `src/nanobrag-torch` tree inside this repository.
+- Treat `/home/ollie/Documents/nanoBragg` as the authoritative runtime source for `nanobrag_torch` when reasoning about behavior. Under Environment Freeze, edits to that tree count as environment-level changes and MUST follow the same exception rules as other external dependencies (patch file, rebuild commands, findings entry, environment tag), not be assumed to take effect just by touching `src/nanobrag-torch` in this repo.

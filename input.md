@@ -1,101 +1,127 @@
-# Input for Ralph (Loop i=164)
+# Input for Ralph (Loop i=165)
 
 ## Summary
-Execute RUNTIME-VEC-001 Phase A (Evidence & Scope Definition) — confirm nanobrag_torch CLI accessibility, inventory source-weight tests, define artifact policy.
+Execute RUNTIME-VEC-001 Phase B (Validation & Test Execution) — run the existing source-weight test with proper environment variables, capture artifacts, and update test registry docs.
 
 ## BindingForRalph
-- **ActionType:** evidence_collection
-- **DecisionStatus:** exploring
+- **ActionType:** implementation_ready
+- **DecisionStatus:** patch_ready
 - **InitiativeType:** perf
 
 ## SupervisorMode
-none (evidence collection, no specific mode lens)
+none (validation execution)
 
 ## Focus
-RUNTIME-VEC-001 — Runtime Vectorization Checklist Enforcement (Phase A)
+RUNTIME-VEC-001 — Runtime Vectorization Checklist Enforcement (Phase B)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest --collect-only tests/dbex/test_runtime_vectorization.py 2>&1 || echo "Test file may not exist yet"` — check if test file exists
-- No production test execution required for Phase A (evidence collection)
+- `pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec`
+- `pytest --collect-only tests/dbex/test_runtime_vectorization.py`
 
 ## Artifacts
-`plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z/`
+`plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/`
 
 ## Findings Applied (Mandatory)
-- **RUNTIME-001** — Runtime guard for source equal-weighting (relevant policy for this initiative)
-- **PROBE-FREEZE-001** — No new plan-local scripts; evidence collection via existing APIs and inspection
+- **RUNTIME-001** — Gradient tests require `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference
+- **PROBE-FREEZE-001** — No new plan-local scripts; test already exists in production test suite
 
 ## Pointers
-- Plan: `plans/active/RUNTIME-VEC-001/implementation.md` — Phase A checklist
-- Fix-plan row: `docs/fix_plan.md` Tier 1 line 465 — [RUNTIME-VEC-001]
-- Spec refs: `docs/architecture/pytorch_design.md` §1.1.5 (source weighting), `docs/pytorch_runtime_checklist.md` item #4 (source equal-weight)
-- Finding: `docs/findings.md` — RUNTIME-001 (source weight runtime guard)
+- Plan: `plans/active/RUNTIME-VEC-001/implementation.md` — Phase B checklist
+- Fix-plan row: `docs/fix_plan.md` line 466 — [RUNTIME-VEC-001]
+- Test file: `tests/dbex/test_runtime_vectorization.py` — existing test to validate
+- Spec refs: `docs/pytorch_runtime_checklist.md` §4 (source equal-weight rule)
 
 ## ARCH Contracts (mandatory)
 1. **ARCH-CONTRACT-RUNTIME-001**: Source equal-weighting
    - Owner: `nanobrag_torch` simulator runtime (source weight normalization)
-   - Classification: implementation work (test porting)
+   - Classification: implementation validation (existing test verification)
 
 ---
 
 ## Do Now
 
-**Focus:** RUNTIME-VEC-001 Phase A (Evidence & Scope Definition)
+**Focus:** RUNTIME-VEC-001 Phase B (Validation & Test Execution)
 
-### Execute Phase A tasks from `plans/active/RUNTIME-VEC-001/implementation.md`:
+### Execute Phase B tasks from `plans/active/RUNTIME-VEC-001/implementation.md`:
 
-#### A1: Confirm nanobrag_torch CLI accessibility and capture spec references
-1. **Test nanobrag_torch import:**
+#### B1: Validate the existing test (test already exists — no porting needed)
+1. **Confirm test exists:**
    ```bash
-   cd /home/ollie/Documents/diffbragg_example
-   python -c "import nanobrag_torch; print(f'nanobrag_torch version: {getattr(nanobrag_torch, \"__version__\", \"unknown\")}')" 2>&1
+   pytest --collect-only tests/dbex/test_runtime_vectorization.py 2>&1 | tee plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/collect_runtime_vec.log
    ```
-2. **Check for CLI entry points (if any):**
+   Expected: 1 test collected (`test_source_weights_ignored_per_spec`)
+
+2. **Note:** Per Phase A findings (a2_test_inventory.md), this test is already ported from nanoBragg. B1 from implementation.md says "Port..." but the test exists — confirm test validity instead.
+
+#### B2: Execute the test with proper environment
+1. **Run the test with artifact routing:**
    ```bash
-   python -c "from nanobrag_torch import Simulator; print('Simulator import OK')" 2>&1
-   ```
-3. **Capture spec references:**
-   - Read `docs/architecture/pytorch_design.md` §1.1.5 for source weighting design
-   - Read `docs/pytorch_runtime_checklist.md` item #4 for source equal-weight rule
-   - Document relevant excerpts in `plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z/a1_spec_refs.md`
+   mkdir -p plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/artifacts
 
-#### A2: Inventory TestSourceWeights test cases
-1. **Locate existing source-weight tests:**
+   RUNTIME_VEC_ARTIFACT_DIR=plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/artifacts \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec 2>&1 | tee plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/pytest_runtime_vec.log
+   ```
+
+2. **Capture result:**
+   - If PASSED: Proceed to B3
+   - If FAILED: Document blocker, check `blocker_log.txt` in artifact dir, record in summary
+
+#### B3: Verify artifact output
+1. **Check metrics JSON exists:**
    ```bash
-   # Check if nanoBragg tests exist in the workspace
-   find /home/ollie/Documents/nanoBragg -name "*source*weight*" -o -name "test_cli_scaling*" 2>/dev/null | head -20
+   cat plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/artifacts/mapping_metrics.json
    ```
-2. **Inventory test cases from the editable nanobrag_torch source:**
-   - Look in `/home/ollie/Documents/nanoBragg/tests/` for `test_cli_scaling.py` or similar
-   - Document which assertions map to DBEX needs (equal weighting, divergence parity)
-   - Note required fixtures/artifacts
-3. **Write inventory to:**
-   `plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z/a2_test_inventory.md`
+2. **Verify thresholds:**
+   - `correlation >= 0.999` ✓
+   - `|sum_ratio - 1| <= 5e-3` ✓
+3. **If metrics show PASS:** Exit criteria 1 satisfied, proceed to Phase C tasks
 
-#### A3: Define artifact policy and planned pytest selectors
-1. **Artifact policy:**
-   - Define where test metrics should be written on failure (e.g., `$RUNTIME_VEC_ARTIFACT_DIR`)
-   - Define JSON schema for metrics output (optional but recommended)
-2. **Planned pytest selectors:**
-   - Proposed test file: `tests/dbex/test_runtime_vectorization.py`
-   - Proposed test class: `TestRuntimeVectorization`
-   - Proposed test names: `test_source_weights_ignored_per_spec`, `test_source_weights_divergence_parity` (if applicable)
-3. **Environment flags:**
-   - Document any required env vars (e.g., `KMP_DUPLICATE_LIB_OK=TRUE`, device selection)
-4. **Write artifact policy to:**
-   `plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z/a3_artifact_policy.md`
+#### B4: Document Phase B completion or deferral
+1. **Update implementation.md:** Mark B1, B2 as complete (or note deferred scope for B3)
+2. **Create summary.md:** Document test execution results, correlation/sum_ratio metrics
 
-#### A4: Create summary.md
-- Write `plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z/summary.md` documenting:
-  - Phase A completion status (A1/A2/A3 checked)
-  - Key findings (nanobrag_torch accessibility, test inventory count, artifact policy decisions)
-  - Scoped Phase B tasks based on inventory
+---
 
-#### A5: Update implementation.md
-- Mark Phase A tasks (A1, A2, A3) as complete in `plans/active/RUNTIME-VEC-001/implementation.md`
+## Phase C Tasks (Docs Update — Complete in this loop if Phase B passes)
+
+#### C1: Update docs/TESTING_GUIDE.md
+Add RUNTIME-VEC-001 entry under §2 (Test Selectors) or appropriate section:
+
+```markdown
+### Runtime Vectorization Tests (RUNTIME-VEC-001)
+
+**Selector:**
+```bash
+RUNTIME_VEC_ARTIFACT_DIR=/path/to/artifacts \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec
+```
+
+**Status:** Active
+**Exit Criteria:** correlation ≥0.999, |sum_ratio−1| ≤5e-3
+**Artifacts:** `$RUNTIME_VEC_ARTIFACT_DIR/mapping_metrics.json`
+**Reference:** docs/pytorch_runtime_checklist.md §4
+```
+
+#### C2: Update docs/development/TEST_SUITE_INDEX.md
+Add row for RUNTIME-VEC-001 tests:
+
+| Test File | Selector | Status | Description |
+|-----------|----------|--------|-------------|
+| `tests/dbex/test_runtime_vectorization.py` | `-k test_source_weights` | Active | Source equal-weight enforcement per RUNTIME-VEC-001 |
+
+#### C3: Update fix_plan.md Attempts History
+Add Loop i=165 entry to [RUNTIME-VEC-001] section documenting:
+- Test execution result (PASSED/FAILED)
+- Metrics: correlation, sum_ratio
+- Artifacts path
+- Phase B/C completion status
 
 ---
 
@@ -106,45 +132,51 @@ integration
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
 cd /home/ollie/Documents/diffbragg_example
 
-# A1: Test nanobrag_torch accessibility
-python -c "import nanobrag_torch; print('OK')"
+# B1: Collect-only verification
+pytest --collect-only tests/dbex/test_runtime_vectorization.py
 
-# A2: Find existing source-weight tests
-find /home/ollie/Documents/nanoBragg -type f -name "*.py" -exec grep -l "source.*weight\|SourceWeight" {} \; 2>/dev/null
+# B2: Run test with artifact routing
+mkdir -p plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/artifacts
 
-# Create artifacts directory (if needed)
-mkdir -p plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z
+RUNTIME_VEC_ARTIFACT_DIR=plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/artifacts \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec
 
-# A3: Check for existing test file
-ls -la tests/dbex/test_runtime_vectorization.py 2>&1 || echo "File does not exist yet (expected)"
+# B3: Verify artifacts
+cat plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/artifacts/mapping_metrics.json 2>/dev/null || echo "No metrics (test may have failed)"
+
+# C1/C2: Doc updates (edit files manually)
 ```
 
 ## Pitfalls To Avoid
-1. **Do not create new probe scripts** — PROBE-FREEZE-001 applies; use existing test utilities and APIs
-2. **Do not implement tests yet** — Phase A is evidence collection only; Phase B handles implementation
-3. **Do not modify production code** — This is a harness/perf initiative; production changes require separate initiative
-4. **Check nanoBragg source tree** — The editable install is at `/home/ollie/Documents/nanoBragg`, not the vendored `src/nanobrag-torch`
-5. **Document deferral if test suite is minimal** — If nanoBragg has limited source-weight tests, document this and scope Phase B accordingly
+1. **Do not skip RUNTIME_VEC_ARTIFACT_DIR** — test will skip without this env var
+2. **Do not forget KMP_DUPLICATE_LIB_OK** — required for Intel MKL compatibility
+3. **Do not forget NANOBRAGG_DISABLE_COMPILE** — per RUNTIME-001 finding
+4. **Do not create new probe scripts** — PROBE-FREEZE-001 applies
+5. **Do not modify production code** — Phase B is validation only
+6. **Capture all logs** — pytest output + collect-only to reports directory
 
 ## Forbidden This Loop
 - No new plan-local scripts (per PROBE-FREEZE-001)
-- No production code changes
-- No test implementation (Phase B)
+- No production code changes (validation-only loop)
+- No new probes (DecisionStatus=patch_ready)
 
 ## If Blocked
-If nanobrag_torch is not importable or source-weight tests don't exist:
-- Record the blocker in summary.md
-- Document what infrastructure would be needed
-- Consider whether initiative should be deferred or rescoped
-- Mark RUNTIME-VEC-001 as `blocked_missing_upstream_tests` if no TestSourceWeights found
+If test FAILS with CLI error:
+- Check `blocker_log.txt` in artifact directory
+- Record error signature in summary.md
+- Mark RUNTIME-VEC-001 as `blocked_environment_issue` if nanobrag_torch CLI unavailable
+- Do NOT extend probe scripts; record minimal error and escalate
 
 ---
 
-## Exit Criteria Preview (for Phase A)
+## Exit Criteria Validation (for Phase B/C)
 
-| Task | Expected Outcome |
-|------|------------------|
-| A1 | nanobrag_torch imports successfully; spec refs documented |
-| A2 | Inventory of source-weight tests (count + mapping to DBEX) |
-| A3 | Artifact policy + pytest selectors documented |
-| summary.md | Created with Phase A findings |
+| Criterion | Expected | Validation |
+|-----------|----------|------------|
+| Test runs | 1 collected, PASSED | pytest exit code 0 |
+| Correlation | ≥0.999 | mapping_metrics.json |
+| Sum ratio delta | ≤5e-3 | mapping_metrics.json |
+| Docs updated | TESTING_GUIDE.md + TEST_SUITE_INDEX.md | File edits |
+| Attempts History | fix_plan.md Loop i=165 entry | File edit |

@@ -96,9 +96,10 @@ Source Handling and Weighting (Normative)
 - Telemetry SHALL record whether equal weighting or explicit weights were used and the effective weights.
 
 Interpolation Policy (Normative)
-- Stage A (geometry/scale) canonical mode SHALL use nearest‑neighbor sampling of the dense |F| grid (`interpolation=False`). Any Stage‑A run that enables tricubic interpolation is non‑canonical and SHALL be tagged in telemetry (e.g., `stage_a_interpolation_mode="tricubic_experimental"`).
-- Stage B and Stage C SHALL use tricubic interpolation (`interpolation=True`) with a ±1 halo; any `default_F` fallback while interpolating is a conformance failure.
-- Haloed |F| grids SHALL be declared in metadata when interpolation is enabled so tests can assert halo presence.
+- All stages (A, B, C) SHALL use tricubic interpolation (`interpolation=True`) with a ±1 halo as the canonical default. This enables differentiable gradients for cell parameter refinement via the autograd path through query coordinates.
+- Any `default_F` fallback while interpolating is a conformance failure.
+- Haloed |F| grids SHALL be declared in metadata so tests can assert halo presence.
+- Legacy nearest‑neighbor mode (`interpolation=False`) MAY be used for diagnostic comparisons with DiffBragg but is non‑canonical; such runs SHALL be tagged in telemetry (e.g., `interpolation_mode="nearest_neighbor_legacy"`).
 
 Structure Factors (Normative)
 - Dense P1 |F| grid and min/max metadata SHALL be provided to the simulator. Tricubic interpolation SHALL require a ±1 halo; otherwise the simulator falls back to `default_F` at the edge.

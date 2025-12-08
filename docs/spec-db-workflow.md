@@ -50,13 +50,13 @@ Calibration & Unit Conventions (Normative Addendum)
    - **Engine Contract:** The internal Python API (`RefinementEngine` or equivalent) SHALL accept an ordered list of Stage objects and MUST NOT hardcode the Stage A→B→C flow.
    - **Standard Stages (Normative Definitions):**
      - **Interpolation policy (normative)** — canonical Stage physics across shards (see also `spec-db-core.md` §Interpolation Policy):
-       - Stage A (geometry/scale): `interpolation=False` (nearest‑neighbor |F|) is canonical, matching the legacy DiffBragg geometry loop. Tricubic with a haloed |F| grid MAY be used as an explicitly tagged experimental mode; such runs are non‑canonical and SHALL record the mode in telemetry.
-       - Stage B: `interpolation=True` REQUIRED; halo REQUIRED. Any `default_F` fallback with interpolation enabled is a failure.
-       - Stage C: `interpolation=True` REQUIRED; halo REQUIRED. Any `default_F` fallback with interpolation enabled is a failure.
+       - All stages (A, B, C): `interpolation=True` REQUIRED; ±1 halo REQUIRED. Tricubic interpolation is the canonical default to enable differentiable cell parameter gradients through query coordinates.
+       - Any `default_F` fallback with interpolation enabled is a conformance failure.
+       - Legacy nearest‑neighbor mode (`interpolation=False`) MAY be used for diagnostic DiffBragg comparisons but is non‑canonical and SHALL be tagged in telemetry.
      - **Stage A (Geometry & Scale):**
        - Trainable (normative): Unit cell logs/angles, orientation (quaternion → XYZ), global scale. Implementations SHOULD align their parameterization with the `ExperimentModel(param_init="stage_a")` interface in `nanobrag_torch.models.experiment` (see `docs/nanobrag_api.md`).
        - Fixed: Structure factors, detector geometry, source spectrum (unless an explicit Stage‑A detector/beam extension is enabled per implementation-specific initiative).
-       - Physics (Normative): For canonical Stage‑A geometry refinement and all Spec‑DB conformance selectors (DB‑AT‑024/027/028/029), the simulator SHALL use nearest‑neighbor |F| sampling of the dense |F| grid (`interpolation=False`). This matches the legacy dbex→DiffBragg configuration (`interpolate=0` in the Python wrappers). Tricubic (`interpolation=True`) is non‑canonical and MAY be used only in explicitly tagged experimental modes; such runs SHALL NOT claim Spec‑DB Stage‑A conformance and SHALL record interpolation/halo status in telemetry.
+       - Physics (Normative): Stage‑A SHALL use tricubic interpolation (`interpolation=True`) with a ±1 haloed |F| grid to ensure differentiable cell parameter gradients. This supersedes the legacy DiffBragg nearest‑neighbor configuration.
        - Mapping zero-point invariant (normative for mapping‑aligned runs):
          - For any Stage‑A configuration that claims DB‑AT‑024 mapping parity (see `docs/spec-db-conformance.md`), zero geometry parameters (all cell/angle/orientation deltas equal to zero) and baseline scale MUST reproduce the DB‑AT‑024 mapping Bragg tensor produced by `simulate_forward_once`.
          - Implementations SHALL satisfy, at the Stage‑A zero point:

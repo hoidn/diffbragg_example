@@ -24,7 +24,7 @@ Conformance Profiles (Normative)
   - DB‑AT‑022 ROI background semantics (−1 outside ROI, masked MSE).
   - DB‑AT‑023 ADU vs photons policy (flag honored; scale init for ADU mode).
   - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
-  - DB‑AT‑025 HKL interpolation conformance (tricubic halo): when `crystal.interpolate=True`, the dense |F| grid MUST include a ±1 halo; any default_F fallback is a failure. Stage A is canonically `interpolate=False`; any Stage‑A run that enables interpolation is non‑canonical and SHALL be flagged in telemetry per `docs/spec-db-workflow.md`.
+  - DB‑AT‑025 HKL interpolation conformance (tricubic halo): All stages SHALL use `crystal.interpolate=True` with a ±1 haloed |F| grid; any default_F fallback is a conformance failure. Legacy nearest‑neighbor mode MAY be used for diagnostic DiffBragg comparisons but is non‑canonical and SHALL be flagged in telemetry.
   - DB‑AT‑030 Sigma precedence and provenance (map > scalar > external_lookup; error on missing sigma).
 - Stage‑B/C Profile (torch backend):
   - DB‑AT‑031 Stage‑B ASU mapping and modifier sanity (per‑reflection vs shell; interpolation+halo required).
@@ -249,10 +249,10 @@ Acceptance Tests (Normative)
 - Stage‑A refinements that start from different initial configurations (e.g., perturbed geometry or alternate MTZ) MAY exist for robustness/performance experiments, but MUST NOT be treated as canonical mapping‑aligned runs, and MUST NOT be used as the baseline for DB‑AT selectors or mapping‑aligned visualization initiatives.
 
 - DB‑AT‑025 HKL interpolation conformance (tricubic halo)
-  - Setup: enable `crystal.interpolate=True` and run a forward pass using a dense |F| grid built with a declared ±1 halo (metadata flag). Capture telemetry for default_F fallback count.
-  - Expectation: halo present in metadata; default_F fallback count == 0 (no out‑of‑bounds lookups while interpolating). Applies to every stage that enables interpolation. Canonical Stage A is `interpolate=False`; any Stage‑A run that turns interpolation on is non‑canonical and SHALL record that mode in telemetry.
+  - Setup: All stages SHALL use `crystal.interpolate=True` with a dense |F| grid built with a declared ±1 halo (metadata flag). Capture telemetry for default_F fallback count.
+  - Expectation: halo present in metadata; default_F fallback count == 0 (no out‑of‑bounds lookups while interpolating). This applies to ALL stages (A, B, C).
   - Command: (selector TBD; activate once telemetry and halo flag are exposed)
-  - Stage‑A interpolation policy (Normative): For any run claiming Stage‑A conformance (including DB‑AT‑024/027/028/029), Stage A SHALL use nearest‑neighbor |F| sampling (`interpolation=False`), matching the legacy DiffBragg configuration (`interpolate=0` in the Python wrappers). DB‑AT‑025 halo/default_F requirements apply only to stages with interpolation enabled (Stage B, Stage C, or explicitly non‑canonical Stage‑A experiments); Stage A is exempt from halo requirements when `interpolation=False`.
+  - Interpolation policy (Normative): All stages SHALL use tricubic interpolation (`interpolation=True`) with a ±1 haloed |F| grid as the canonical default. This enables differentiable cell parameter gradients through the autograd path. Legacy nearest‑neighbor mode MAY be used for diagnostic DiffBragg comparisons but is non‑canonical and SHALL be tagged in telemetry.
 
 - DB‑AT‑027 Stage‑A zero‑point mapping equivalence
   - Goal: Ensure the Stage‑A zero‑parameter forward model is equivalent to the DB‑AT‑024 mapping forward model at the same geometry, HKL grid, and calibration.
@@ -294,9 +294,7 @@ Acceptance Tests (Normative)
       above), wired via the mapping helpers/fixtures used by DB‑AT‑027/028/029 (e.g. `refgeom_dataload` +
       `build_mapping_stage_a_context` when `DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC` is set).
     - Geometry: deterministic perturbation from `create_perturbed_geometry` (+2/+1/+1% cell stretch, +1.5° Z‑misset).
-    - HKL grid: canonical Stage‑A policy uses nearest‑neighbor (`enable_hkl_interpolation=False` / `interpolation=False`)
-      to match dbex→DiffBragg. Haloed tricubic MAY be run separately as a tagged, non‑canonical diagnostic; such runs are
-      not part of DB‑AT‑028.
+    - HKL grid: canonical policy uses tricubic interpolation (`interpolation=True`) with a ±1 haloed |F| grid to enable differentiable cell parameter gradients.
     - Sigma policy: same as Stage‑A smoke (external tiles when available, else 3.0 ADU).
     - Config: Stage‑A LBFGS `RefinementConfig` as used by the smoke test (ROI sampling, warm cache enabled).
   - Procedure:

@@ -2,7 +2,7 @@
 
 **Initiative Type**: architecture
 **Priority**: Tier 0 (blocks Gradient-Safe Profile conformance)
-**Status**: in_progress (upstream nanobrag_torch gradient fix landed; DBEX integration/verification pending)
+**Status**: in_progress (upstream nanobrag_torch gradient fix landed; spec updated via SPEC-INTERP-TRICUBIC-001 to mandate tricubic interpolation for cell gradients; DBEX integration/verification pending)
 **Created**: 2025-12-07T210000Z (Loop i=137, Galph)
 **Context**: DB-AT-SUITE-CARE-001 Phase B.1 verification (i=136, Ralph) confirmed DB-AT-010 gradcheck regression persists: all 5/5 tests FAILING with disconnected autograd graph. Root cause at that time: gradient flow break in the `simulate_forward_torch` → simulator path prevented analytical gradients from reaching refined parameters (crystal cell, detector distance, beam wavelength). Numerical gradients existed (non-zero sensitivity), but autograd could not compute analytical gradients. Upstream `nanobrag_torch` has since shipped a fix for these “DBEX-GRADIENT-001” blockers (see `inbox/from_nanobragg.md`); remaining work in this initiative is to integrate that version, re-run DB-AT-010, and add a local enforcement test.
 
@@ -124,6 +124,7 @@
 ### Related Initiatives
 - **DB-AT-010**: Member plan under DB-AT-SUITE-CARE-001; Phase D.1-D.3 tasks delegated to this initiative
 - **ARCH-IMPL-CONFORMANCE-001**: Completed Tier-0 architecture initiative (similar enforcement test pattern)
+- **SPEC-INTERP-TRICUBIC-001**: Spec change to mandate tricubic interpolation globally — required for cell parameter gradients to flow through HKL lookup
 
 ---
 

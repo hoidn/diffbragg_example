@@ -1,3 +1,15 @@
+2025-12-08T212500Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=0 action=implementation_ready artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T212500Z/ next_action=phase_b7_dbex_integration_fix
+- Loop i=208 (Galph): **UPSTREAM RESPONSE RECEIVED — BLOCKER LIFTED.** Processed `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`. nanobrag_torch confirms 6/6 cell param gradcheck tests PASS. Issue is confirmed to be in DBEX integration layer.
+  **Root Cause Identified (Supervisor Analysis):**
+  - **Bug 1:** `busing_levy_B_torch()` at `dbex/nanobrag_bridge.py:602-608` uses `.item()` to extract scalars for cctbx, breaking gradient graph
+  - **Bug 2:** A* extraction at `dbex/refinement/stage_a.py:1183-1185` uses `.detach().cpu().numpy()`, breaking gradient graph after B-matrix computation
+  **Fix Scope (Phase B.7):**
+  - B.7.1: Implement pure-PyTorch Busing-Levy B-matrix (no cctbx dependency)
+  - B.7.2: Remove `.detach()` from A* extraction in stage_a.py
+  - B.7.3: Run gradcheck verification
+  **upstream_verified_pattern:** CrystalConfig(cell_a=tensor, ...) works with torch.as_tensor() preserving requires_grad
+  ActionType: implementation_ready. DecisionStatus: root_cause_confirmed (2 bugs identified). Next: Ralph implements Phase B.7 fixes (i=209).
+
 2025-12-08T130000Z focus=SPEC-INTERP-TRICUBIC-001 state=ready_for_implementation dwell=0 action=implementation_ready artifacts=plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/ next_action=phase_b_implementation
 - Loop i=205 (Galph): **FOCUS SWITCH — SPEC-INTERP-TRICUBIC-001 PHASE B IS ACTIONABLE**. Portfolio audit discovered that maintenance mode was incorrect: SPEC-INTERP-TRICUBIC-001 Phase A (spec changes) is COMPLETE, and Phase B (implementation) is ready for delegation.
   **Key discovery**: The portfolio was incorrectly waiting for upstream response (ARCH-GRADIENT-FLOW-001 blocked_pending_upstream), but SPEC-INTERP-TRICUBIC-001 unblocks cell gradient work via a different path — by changing the spec to mandate tricubic interpolation globally. This makes cell parameter gradients flow without any upstream changes needed.

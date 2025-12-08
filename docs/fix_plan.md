@@ -94,7 +94,7 @@
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
 - [DOC-RUNTIME-004] (Restore Runtime Checklist) — **Done** (2025-11-23T024449Z: all exit criteria met, runtime checklist restored with spec citations, references verified, validation artifacts complete)
 - [TORCH-RUNTIME-002] (Runtime Harness Seed) — **Done** (2025-10-28T232744Z: all exit criteria satisfied, TESTING_GUIDE.md updated, selector registry synchronized)
-- [ARCH-TELEMETRY-002] (Telemetry & Probe Simplification) — **pending** (new architecture/hygiene initiative to charter telemetry ownership, prune unused fields, and add guards against new ad‑hoc telemetry dict surfaces; see `plans/active/ARCH-TELEMETRY-002/implementation.md`).
+- [ARCH-TELEMETRY-002] (Telemetry & Probe Simplification) — **in_progress** (Phase A complete 2025-12-07T215000Z: Telemetry charter authored at `docs/architecture/telemetry.md`, inventory built (5 dataclasses, 3 collectors, HDF5 schema), data dependency manifest extended with Telemetry section. Probe shims test green; growth cap test has pre-existing unrelated failure. Phase B next: enforcement test `tests/architecture/test_telemetry_surfaces.py`. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/`).
 
 ### Tier 4: Orchestration & Agent Ops
 **Goal:** Harden orchestration tooling, submodule robustness, and agent operation workflows.

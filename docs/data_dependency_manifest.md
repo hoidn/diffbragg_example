@@ -247,8 +247,65 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - Byte-for-byte compatible with prior `dbex.refine_one._write_torch_outputs` (DIAGNOSTICS-001).
   - Supports multi-stage telemetry (Dict[str, RefinementTelemetry]) for Stage A/B/C aggregation (ARCH-ENGINE-003).
 
+## Telemetry Surfaces (ARCH-TELEMETRY-002)
+
+This section documents telemetry data dependencies for the refinement pipeline. For full ownership and expansion rules, see `docs/architecture/telemetry.md`.
+
+### Primary Telemetry Owners
+
+| Owner Module | Surfaces | Purpose |
+|--------------|----------|---------|
+| `dbex/refinement/interfaces.py` | `StageATelemetry`, `StageBTelemetry`, `StageCTelemetry`, `StagePerfCounters`, `StageResult` | Typed telemetry dataclasses |
+| `dbex/refinement/telemetry_collectors.py` | `StageA/B/CTelemetryCollector` | Observer implementations |
+| `dbex/io/writer.py` | `/torch_diagnostics` HDF5 schema | Telemetry serialization |
+
+### Telemetry Data Flow
+
+```
+Stage LBFGS Closure
+       │
+       ├── on_step(iteration, loss, metrics)
+       ├── on_validation(scope, chi2, payload)
+       │
+       ▼
+TelemetryCollector.finalize()
+       │
+       ▼
+StageResult (typed dataclass)
+       │
+       ├──▶ RefinementEngine.artifacts (Dict[str, StageResult])
+       │
+       ▼
+write_torch_outputs(stage_results=...)
+       │
+       ▼
+HDF5 /torch_diagnostics group
+```
+
+### Canonical Artifacts
+
+| Artifact | Producer | Format | Consumer |
+|----------|----------|--------|----------|
+| `/torch_diagnostics` | `dbex/io/writer.py` | HDF5 group | Analysis tools, tests |
+| `StageResult` | Collectors | Python dataclass | Engine, writer |
+| `baseline_metrics` (v1) | `telemetry_baseline.py` | Dict | Parity probes (optional) |
+
+### IDL Contracts
+
+| Document | Surfaces Covered |
+|----------|-----------------|
+| `docs/architecture/dbex/io/writer.idl.md` | HDF5 schema, ROI payloads |
+| `docs/architecture/dbex/refinement/interfaces.idl.md` | Observer protocol, dataclasses |
+
+### Cross-References
+
+- Telemetry Charter: `docs/architecture/telemetry.md`
+- Telemetry Inventory: `plans/active/ARCH-TELEMETRY-002/reports/.../telemetry_inventory.md`
+- Probe Freeze Policy: PROBE-FREEZE-001 in `docs/findings.md`
+
 ## Maintainer Notes
 
 - When adding a new helper or CLI under `plans/` that consumes dataset assets, append an entry here describing its inputs and overrides.
 - When modifying an existing helper's data sourcing (e.g., swapping HKL defaults), update this manifest and the helper docstring in the same commit.
 - Supervisors should reference this manifest before issuing Do Nows to ensure planned work accounts for the helper's real dependencies.
+- When adding new telemetry surfaces, update the Telemetry section above and the telemetry charter (`docs/architecture/telemetry.md`).

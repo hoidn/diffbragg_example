@@ -1,4 +1,53 @@
-# ARCH-TELEMETRY-002 Loop i=173 Summary
+# ARCH-TELEMETRY-002 Phase A Summary
+
+---
+
+## Ralph Execution (i=173)
+
+### Completion Status
+
+| Task | Status | Artifact |
+|------|--------|----------|
+| A0: Ownership spike | COMPLETE | `ownership_spike.md` |
+| A1: Telemetry charter | COMPLETE | `docs/architecture/telemetry.md` |
+| A2: Telemetry inventory | COMPLETE | `telemetry_inventory.md` |
+| A3: Manifest update | COMPLETE | `docs/data_dependency_manifest.md` (Telemetry section) |
+| A4: Summary | COMPLETE | `summary.md` (this file) |
+
+### Tests Run
+
+| Test | Result |
+|------|--------|
+| `test_probe_shims_delegate_to_owner_clis` | PASS |
+| `test_plan_bin_growth_cap` | FAIL (pre-existing: probe_square_lattice_scaling.py 813 LOC) |
+
+### Key Findings
+
+1. **Primary Owners Identified**: 5 dataclasses (interfaces.py), 3 collectors (telemetry_collectors.py), 1 HDF5 schema (writer.py)
+2. **No mapping_metrics.json**: Pattern does not exist; mapping telemetry embedded in calibration dicts
+3. **IDL Coverage**: Writer and interfaces have IDLs; collectors documented in charter only
+4. **Baseline metrics optional**: Opt-in via `config.enable_stage_a_baseline_metrics`
+
+### Exit Criteria
+
+| Criterion | Status |
+|-----------|--------|
+| A0: Ownership spike exists | PASS |
+| A1: Charter exists | PASS |
+| A2: Inventory exists | PASS |
+| A3: Manifest updated | PASS |
+| A4: Summary exists | PASS |
+| Probe contracts: no regression | PASS (shim test green) |
+
+### Phase B Scope Preview
+
+1. Create `tests/architecture/test_telemetry_surfaces.py` with schema validation
+2. Update supervisor policy to require charter compliance for new telemetry
+3. Phase C cleanup: remove legacy dict paths, add collector IDL
+
+---
+
+# Original Galph Delegation (i=173)
 
 **Loop**: i=173 (Galph)
 **Date**: 2025-12-07T215000Z

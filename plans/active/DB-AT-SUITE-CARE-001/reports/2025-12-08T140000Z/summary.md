@@ -1,5 +1,6 @@
 ### Turn Summary
-Portfolio review confirmed maintenance mode: all Tier 0 items blocked (ARCH-GRADIENT-FLOW-001 awaiting upstream response, ARCH-SIM-CONSTRUCTION-001 blocked pending environment), Tier 1 mostly done.
-Reviewed DB-AT-SUITE-CARE-001 Phase D.2 completion (i=192) and confirmed no immediate onboarding needed for future DB-AT selectors.
-Next: D.4 TEST_SUITE_INDEX hygiene audit — maintenance task to verify selector registry consistency while awaiting Tier 0 unblocks.
-Artifacts: plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/
+
+Completed D.4 TEST_SUITE_INDEX hygiene audit: cross-referenced 26 Active selectors between TEST_SUITE_INDEX.md and TESTING_GUIDE.md, finding zero orphaned or stale entries.
+All selectors verified via pytest --collect-only (189 tests collected); registries are consistent with current artifact paths and environment requirements.
+Next: Continue DB-AT-SUITE-CARE-001 Phase D maintenance or pivot to upstream response on ARCH-GRADIENT-FLOW-001 if available.
+Artifacts: plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/ (test_registry_audit.md, collect_all_tests.log)

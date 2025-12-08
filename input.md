@@ -1,131 +1,124 @@
-# Input — Loop i=194 (Ralph)
+# Input — Loop i=188 (Ralph)
 
 ## Summary
-Execute DB-AT-SUITE-CARE-001 Phase D.4: TEST_SUITE_INDEX hygiene audit for selector registry consistency.
+Portfolio maintenance: D.4 complete, awaiting upstream response for ARCH-GRADIENT-FLOW-001. Optional D.5 lessons-learned documentation available.
 
 ## Focus
-DB-AT-SUITE-CARE-001 — Phase D.4 TEST_SUITE_INDEX Hygiene Audit (Maintenance)
+DB-AT-SUITE-CARE-001 — Phase D Maintenance (Awaiting Upstream)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `none` — Phase D.4 is registry audit, no test execution required (collect-only verification)
+- `none` — Portfolio in maintenance mode; no blocking tests
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T150000Z/`
 
 ---
 
-## Do Now
+## Portfolio Status (Decision Point)
 
-**Focus:** DB-AT-SUITE-CARE-001 — Phase D.4 TEST_SUITE_INDEX Hygiene
+**Tier 0 Status:**
+- **ARCH-GRADIENT-FLOW-001**: `blocked_pending_upstream` — Escalation filed (`inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`). Gradient graph connectivity FIXED, but Jacobian mismatch (~640× magnitude with sign flip) in `nanobrag_torch/models/crystal.py::compute_cell_tensors()` requires upstream audit.
+- **ARCH-SIM-CONSTRUCTION-001**: `blocked_pending_environment` — SQUARE scaling resolved; remaining work blocked on other DBEX-layer issues.
 
-**Implement:** `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/test_registry_audit.md`
+**Tier 1 Status:**
+- **DB-AT-SUITE-CARE-001**: `in_progress` — D.1-D.4 complete, D.3/D.5 pending (low priority)
+- All other Tier 1: done
 
-**Validating selector:** `none` — evidence-only loop (collect-only verification)
+**Available Work:**
+1. **D.5 — Lessons learned archive** (docs-only, low priority): Document acceptance test patterns in `docs/findings.md` or `docs/acceptance_test_patterns.md`
+2. **Wait**: Await upstream response on ARCH-GRADIENT-FLOW-001
 
-**Artifacts path:** `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/`
+---
 
-### Background
+## Do Now (Optional — Maintenance)
 
-DB-AT-SUITE-CARE-001 Phase D is ongoing maintenance. D.1 (regression cadence) and D.2 (future selector scoping) are complete. D.4 tasks audit the test registry for consistency:
+**Focus:** DB-AT-SUITE-CARE-001 — Phase D.5 Lessons Learned (Optional)
 
-Per implementation.md:
-> **D4 — TEST_SUITE_INDEX hygiene**: Periodic audit to ensure all Active selectors in TEST_SUITE_INDEX.md have corresponding entries in TESTING_GUIDE.md with canonical commands and vice versa.
+**Implement:** `docs/findings.md` or `docs/acceptance_test_patterns.md` — Document acceptance test patterns
 
-This loop performs a cross-reference audit between:
-1. `docs/development/TEST_SUITE_INDEX.md` — Test selector registry
-2. `docs/TESTING_GUIDE.md` — Canonical test commands and environment
+**Validating selector:** `none` — Documentation-only
 
-### Tasks
+**Artifacts path:** `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T150000Z/`
 
-| ID | Task | Deliverable |
-|----|------|-------------|
-| D4.1 | Extract all "Active" selectors from TEST_SUITE_INDEX.md | Selector list |
-| D4.2 | Cross-reference selectors with TESTING_GUIDE.md entries | Gap analysis |
-| D4.3 | Run `pytest --collect-only` for each selector pattern to verify collection | Collection verification |
-| D4.4 | Identify any stale/orphaned entries (selector doesn't collect, or missing from one doc) | Orphan list |
-| D4.5 | Author test_registry_audit.md with findings and recommendations | Audit document |
-| D4.6 | Author summary.md | Turn Summary block |
+### If Proceeding with D.5
+
+Document recurring acceptance test patterns observed during DB-AT-SUITE-CARE-001 execution:
+
+| Pattern | Description | Code Example |
+|---------|-------------|--------------|
+| Fixture-sharing | Multiple DB-AT tests share refGeom assets via conftest fixtures | `tests/dbex/conftest.py:smoke_detector_fixture` |
+| Artifact emission | Structured artifact output with environment variable routing | `DBAT0XX_ARTIFACT_DIR` pattern |
+| Skip/xfail guardrails | Tests use `pytest.mark.xfail`/`pytest.mark.skipif` with documented rationale | `test_gradients.py` blocked tests |
+| ROI-level validation | Per-ROI metrics (loss, correlation) validated against thresholds | DB-AT-020/024 implementations |
+
+**Optional tasks:**
+- D5.1: Survey fixture-sharing patterns in `tests/dbex/conftest.py`
+- D5.2: Document artifact emission contract (env vars, JSON schema)
+- D5.3: Catalog skip/xfail patterns with rationale citations
+- D5.4: Author summary.md
+
+**Note:** D.5 is low-priority documentation. If no user need, this loop can be skipped.
 
 ---
 
 ## How-To Map
 
-### D4.1: Extract Active selectors from TEST_SUITE_INDEX.md
+### Check for upstream response
 ```bash
-grep -E "^\| .* \| Active" docs/development/TEST_SUITE_INDEX.md | awk -F'|' '{print $2}' | sed 's/^ *//;s/ *$//'
+ls -la inbox/
+# Look for new files dated after 2025-12-07
 ```
 
-### D4.2: Cross-reference with TESTING_GUIDE.md
-For each selector, check if TESTING_GUIDE.md contains:
-- The selector name/pattern
-- A canonical pytest command
-- Environment variable requirements
-
-### D4.3: Collect-only verification
-```bash
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests -k "<selector_pattern>" 2>&1 | tail -5
-```
-
-### D4.4-D4.6: Author artifacts
-Create `test_registry_audit.md` with:
-- Full selector inventory (ID, Selector Pattern, TEST_SUITE_INDEX Status, TESTING_GUIDE Status, Collection Count)
-- Gap analysis: selectors in one doc but not the other
-- Orphan analysis: selectors that don't collect
-- Recommendations: entries to add/remove/update
+### If upstream responds (ARCH-GRADIENT-FLOW-001)
+1. Read new inbox file
+2. Switch focus to ARCH-GRADIENT-FLOW-001 Phase B.7+
+3. Ignore D.5 tasks
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** modify test files — audit only
-2. **DO NOT** modify production code — registry audit is docs-only
-3. **DO** capture collect-only output for evidence
-4. **DO** note any selectors that reference tests blocked by Tier 0 (e.g., DB-AT-010)
-5. **Environment Freeze:** No package installs
+1. **DO NOT** create new test files — D.5 is docs-only
+2. **DO NOT** modify production code — maintenance mode
+3. **Environment Freeze:** No package installs
+4. **If upstream responds:** Immediately pivot to ARCH-GRADIENT-FLOW-001
 
 ---
 
 ## If Blocked
 
-1. If TEST_SUITE_INDEX.md is empty or malformed: Report as anomaly, check git history
-2. If collect-only fails for environment reasons: Note the selector as "blocked_environment" rather than "orphan"
+Portfolio is already in maintenance mode. No action required if D.5 is deferred.
+
+Document in summary.md: "Portfolio awaiting upstream response. D.5 deferred."
 
 ---
 
 ## Findings Applied
 
-- **TESTING-003**: Use canonical selector patterns from authoritative sources
-- **PROBE-FREEZE-001**: No new scripts — document audit only
+- **PROBE-FREEZE-001**: No new scripts — documentation only
+- **TESTING-003**: Patterns documented should reference canonical selectors from TESTING_GUIDE.md
 
 ---
 
 ## Pointers
 
-- DB-AT-SUITE-CARE-001 implementation.md: `plans/active/DB-AT-SUITE-CARE-001/implementation.md:94-97` (Phase D.4 tasks)
-- TEST_SUITE_INDEX.md: `docs/development/TEST_SUITE_INDEX.md`
-- TESTING_GUIDE.md: `docs/TESTING_GUIDE.md`
+- DB-AT-SUITE-CARE-001 implementation.md: `plans/active/DB-AT-SUITE-CARE-001/implementation.md:91` (D.5 task definition)
+- Escalation file: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`
+- D.4 audit results: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/test_registry_audit.md`
 
 ---
 
-## Next Up (optional)
+## Decision Guidance
 
-If audit reveals significant gaps:
-1. Create follow-up task to sync registries
-2. Consider D.5 (Conformance Profile maintenance) as alternative
+**Option A — Proceed with D.5:**
+- Author lessons-learned documentation
+- Low value-add but maintains loop cadence
 
----
+**Option B — Skip D.5, await upstream:**
+- Create minimal summary.md noting "awaiting upstream"
+- More appropriate if no user need for D.5 documentation
 
-## Portfolio Context (for reference)
-
-**Tier 0 Status:**
-- ARCH-GRADIENT-FLOW-001: `blocked_pending_upstream` (escalation awaiting response)
-- ARCH-SIM-CONSTRUCTION-001: `blocked_pending_environment`
-
-**Tier 1 Status:**
-- DB-AT-SUITE-CARE-001: `in_progress` (Phase D maintenance)
-- Other Tier 1 items: done
-
-**If upstream response arrives:** Interrupt D.4 and switch to ARCH-GRADIENT-FLOW-001 Phase B.7+
+**Recommendation:** Option B unless user specifically requests D.5 documentation.

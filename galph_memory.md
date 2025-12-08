@@ -1,3 +1,16 @@
+2025-12-08T150000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=0 action=review_or_housekeeping artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/ next_action=await_tier0_unblock_or_maintenance
+- Loop i=188 (Galph): **PORTFOLIO IN MAINTENANCE MODE** (Housekeeping). Prior loop (i=187 Ralph) completed DB-AT-SUITE-CARE-001 Phase D.4 TEST_SUITE_INDEX hygiene audit — 26 Active selectors cross-referenced, 0 orphans/stale entries, 189 tests collected. Registries are healthy.
+  **Portfolio status summary (unchanged):**
+  - Tier 0: ALL BLOCKED (ARCH-GRADIENT-FLOW-001 `blocked_pending_upstream` — escalation `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md` awaiting response; ARCH-SIM-CONSTRUCTION-001 `blocked_pending_environment`)
+  - Tier 1: DB-AT-SUITE-CARE-001 `in_progress` (D.4 complete, D.3/D.5 future); other Tier 1 done
+  - Tier 3+: Deferred until Tier 0/1 clear
+  **D.4 Audit Results:** TEST_SUITE_INDEX.md and TESTING_GUIDE.md registries are consistent and healthy. All Active selectors collect tests successfully. Minor recommendation: register `acceptance` pytest mark in pyproject.toml.
+  **Next actionable work candidates (when blockers clear):**
+  1. ARCH-GRADIENT-FLOW-001 Phase B.7+ (await upstream gradient magnitude response)
+  2. DB-AT-SUITE-CARE-001 Phase D.5 (lessons learned documentation — low priority)
+  3. D.3 conformance profile evolution (await new spec-db-conformance.md profiles)
+  ActionType: review_or_housekeeping. DecisionStatus: N/A (maintenance mode). Next: Await upstream response or D.5 documentation task if user requests.
+
 2025-12-08T120000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=0 action=review_or_housekeeping artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T112000Z/ next_action=await_tier0_unblock_or_maintenance
 - Loop i=193 (Galph): **PORTFOLIO IN MAINTENANCE MODE** (Review). Prior loop (i=192 Ralph) completed DB-AT-SUITE-CARE-001 Phase D.2 scoping — inventoried 10 future DB-AT selectors, found 4 already active (026-029), 6 defined in spec but lacking implementations. No immediate onboarding needed.
   **Portfolio status summary:**

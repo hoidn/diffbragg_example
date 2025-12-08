@@ -4,7 +4,8 @@ ID: TORCH-CLI-BRIDGE-ROLLUP-001
 Title: CLI & Bridge Infrastructure Roll-up
 Type: roll-up
 Owner: Galph ↔ Ralph
-Status: in_progress
+Status: done
+Completed: 2025-12-08T100000Z
 
 ## Goals
 
@@ -31,8 +32,8 @@ Per `docs/fix_plan.md:412-416`:
 | Plan ID | Title | Implementation Status | Checklist Status |
 |---------|-------|----------------------|------------------|
 | TORCH-BRIDGE-001 | Bridge DataLoad | Phases A-D complete | Complete |
-| TORCH-CLI-003 | CLI backend flag | Work complete | Checklist stale |
-| TORCH-CLI-004 | ROI score coercion | Work complete | Checklist stale |
+| TORCH-CLI-003 | CLI backend flag | Work complete | Complete |
+| TORCH-CLI-004 | ROI score coercion | Work complete | Complete |
 
 ## Phases Overview
 
@@ -146,14 +147,14 @@ KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py | tee "$AR
 
 ## Phase D — TORCH-CLI-004 Synchronization
 
-**Status:** Pending
+**Status:** Complete (2025-12-08T100000Z)
 **Mode:** Docs
 **Estimated Loops:** 0.5
 
 ### Checklist
-- [ ] D1: Re-run diagnostics test (test_torch_diagnostics_metadata)
-- [ ] D2: Update TORCH-CLI-004 implementation.md all phases → checked
-- [ ] D3: Add fix_plan.md ledger entry or roll-up reference
+- [x] D1: Re-run diagnostics test (test_torch_diagnostics_metadata) — **2/2 PASS** (pre-verified by Galph)
+- [x] D2: Update TORCH-CLI-004 implementation.md all phases → checked
+- [x] D3: Update roll-up member table (Checklist Status → Complete)
 
 ### Validation Commands
 ```bash
@@ -165,21 +166,21 @@ KMP_DUPLICATE_LIB_OK=TRUE pytest -v "tests/dbex/test_refine_one_cli.py::test_tor
 
 ## Phase E — Roll-up Closure
 
-**Status:** Pending
+**Status:** Complete (2025-12-08T100000Z)
 **Mode:** Docs
 **Estimated Loops:** 0.5
 
 ### Checklist
-- [ ] E1: Verify EC1 (CLI backend flag) with evidence
-- [ ] E2: Verify EC2 (telemetry schema) with evidence
-- [ ] E3: Verify EC3 (bridge responsibility) with evidence
-- [ ] E4: Verify EC4 (REPORT-NANOBRAG-STATUS-001 resolved) — pre-satisfied
-- [ ] E5: Update fix_plan.md TORCH-CLI-BRIDGE-ROLLUP-001 status → done
-- [ ] E6: Author final closure summary
+- [x] E1: Verify EC1 (CLI backend flag) with evidence — `docs/spec-db-interfaces.md:7-11`
+- [x] E2: Verify EC2 (telemetry schema) with evidence — `docs/config_crosswalk.md:5-155`
+- [x] E3: Verify EC3 (bridge responsibility) with evidence — `docs/architecture.md:33,141`
+- [x] E4: Verify EC4 (REPORT-NANOBRAG-STATUS-001 resolved) — done 2025-12-08T071251Z
+- [x] E5: Update fix_plan.md TORCH-CLI-BRIDGE-ROLLUP-001 status → done
+- [x] E6: Author final closure summary
 
 ### Artifacts
-- `reports/<TIMESTAMP>/closure_summary.md`
-- Exit criteria evidence matrix
+- `reports/2025-12-08T100000Z/closure_summary.md`
+- Exit criteria evidence matrix (in closure_summary.md)
 
 ---
 
@@ -188,7 +189,8 @@ KMP_DUPLICATE_LIB_OK=TRUE pytest -v "tests/dbex/test_refine_one_cli.py::test_tor
 - Reports root: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/`
 - Phase A: `reports/2025-12-08T073000Z/`
 - Phase B: `reports/2025-12-08T083000Z/`
-- Phase C-E: TBD
+- Phase C: `reports/2025-12-08T090000Z/`
+- Phase D+E: `reports/2025-12-08T100000Z/` (combined closure)
 
 ## Spec References
 

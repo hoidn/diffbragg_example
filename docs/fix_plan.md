@@ -55,7 +55,7 @@
 - [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003) — **pending**.
   - **Governed by:** REFINE-001, REFINE-002, REFINE-003, REFINE-006, REFINE-009, REFINE-010, GRADIENT-001, REFINE-016
   - Ledger entry will consolidate their status and dependencies so portfolio steering can decide which Phase C/D tasks to revive.
-- [TORCH-CLI-BRIDGE-ROLLUP-001] (CLI + bridge backlog TORCH-CLI-003/004 and TORCH-BRIDGE-001) — **in_progress** (Phase A complete 2025-12-08T073000Z; Phases B-E pending). Ensures CLI/backend features and bridge refactors remain on the roadmap with artifact pointers.
+- [TORCH-CLI-BRIDGE-ROLLUP-001] (CLI + bridge backlog TORCH-CLI-003/004 and TORCH-BRIDGE-001) — **done** (2025-12-08T100000Z: Phases A-E complete; all 3 member plans verified + checklists synced; all 4 exit criteria satisfied. Closure artifacts: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T100000Z/`).
 - [FORWARD-EQUIV-COVERAGE-001] (Forward-equivalence harness + parity scaffolding) — **pending**.
   - **Governed by:** PARITY-001, MANIFEST-001
   - Covers `plans/active/FORWARD-EQUIV-001/`, `.../FORWARD-EQUIV-002/`, and `plans/active/PARITY-HARNESS-002/`.

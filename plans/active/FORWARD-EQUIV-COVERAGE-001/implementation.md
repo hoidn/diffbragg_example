@@ -3,7 +3,7 @@
 ## Initiative
 - ID: FORWARD-EQUIV-COVERAGE-001
 - Title: Forward Equivalence & Parity Harness Roll-up
-- Status: in_progress (Phase A complete, blocked by PARITY-001 bug)
+- Status: in_progress (Phase A complete, GAP-1 fixed 2025-12-08T120000Z; Phase B in progress)
 
 ## Goals
 - Consolidate forward equivalence and parity harness infrastructure

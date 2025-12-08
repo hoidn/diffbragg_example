@@ -1,180 +1,115 @@
-# Input for Ralph (Loop i=183)
+# Input for Ralph: FORWARD-EQUIV-COVERAGE-001 Phase B (Closure Validation)
 
 ## Summary
-Fix compute_z_scores() signature mismatch in parity_loader.py:604-607 to unblock FORWARD-EQUIV-COVERAGE-001 closure.
-
-## BindingForRalph
-- **ActionType:** debug→implementation_ready
-- **DecisionStatus:** patch_ready
-- **InitiativeType:** bug fix (signature mismatch)
-
-## SupervisorMode
-Debug → Implementation (bug fix)
+Complete PARITY-HARNESS-002 Phase E closure tasks and FORWARD-EQUIV-COVERAGE-001 Phase B, then prepare roll-up for closure in Phase C.
 
 ## Focus
-FORWARD-EQUIV-COVERAGE-001 — Forward Equivalence & Parity Harness — Phase A.5 (GAP-1 fix)
+`FORWARD-EQUIV-COVERAGE-001` — Forward Equivalence & Parity Harness Roll-up
 
 ## Branch
-integration
+`integration`
 
 ## Mapped Tests
-- `tests/dbex/test_db_at_001_parity.py` (DB_AT_001 selector)
-- `tests/dbex/test_forward_equivalence_complete.py`
-- `tests/dbex/test_forward_equivalence.py`
+- Primary: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001`
+- Collect-only: `pytest --collect-only tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py`
 
 ## Artifacts
-`plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T120000Z/`
-
-## Findings Applied (Mandatory)
-- **TESTING-003**: Use canonical selectors from TESTING_GUIDE.md
-  - Adherence: Use DB_AT_001 selector for validation
-- **DIAGNOSTICS-001**: Artifact directory structure
-  - Adherence: Store artifacts under `reports/2025-12-08T120000Z/`
-
-## Pointers
-- Bug location: `tests/fixtures/parity_loader.py:604-607`
-- Target signature: `dbex/vis/residuals.py:12-18`
-- Spec reference: `docs/spec-db-core.md` (variance = model + sigma_readout²)
-- Phase A summary (prior loop): `plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T110000Z/summary.md`
-
----
-
-## ARCH Contracts (mandatory)
-- **Environment Freeze**: No package installs
-  - Owner: CLAUDE.md
-  - Classification: Bug fix only
-- **Test Registry Sync**: Update if test selector changes
-  - Owner: TESTING-003
-  - Classification: No selector changes expected
+`plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/`
 
 ---
 
 ## Do Now
 
-**Focus:** FORWARD-EQUIV-COVERAGE-001 Phase A.5 (GAP-1 fix)
+**Focus Item:** FORWARD-EQUIV-COVERAGE-001 Phase B
 
-**Implement:** `tests/fixtures/parity_loader.py::write_parity_artifacts` — fix compute_z_scores() call
+**Implement:** PARITY-HARNESS-002 Phase E closure (E1-E3) + FORWARD-EQUIV-COVERAGE-001 B1-B4
 
-**Validating Pytest Selector:** `pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py tests/dbex/test_forward_equivalence.py -k DB_AT_001`
+### Phase B Tasks (FORWARD-EQUIV-COVERAGE-001)
 
-### Background
+**B1: Complete PARITY-HARNESS-002 Phase E closure tasks**
+- [ ] E1 — Exit criteria audit: Re-run the authoritative selector to confirm 15/15 PASS:
+  ```bash
+  KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/pytest_db_at_001_closure.log
+  ```
+- [ ] E2 — Ledger closure: Update `plans/active/PARITY-HARNESS-002/implementation.md` to mark E1-E3 as complete with `[x]`
+- [ ] E3 — Archive readiness: Author `plans/active/PARITY-HARNESS-002/reports/2025-12-08T130000Z/closing/closure_summary.md` with:
+  - Outstanding simulator-dependent TODOs (Phase C was synthetic-only; real nanobrag_torch pending)
+  - Reference to CONFORMANCE-001, TESTING-003, PARITY-001 findings
 
-Phase A reality check (i=182) identified GAP-1:
-- **Bug**: `parity_loader.py:604-607` calls `compute_z_scores(target, predicted)` with 2 args
-- **Target signature** (`residuals.py:12-18`): `compute_z_scores(data, model, variance, mask=None, sigma_floor=None)`
-- **Missing**: Required `variance` positional argument
+**B2: Update docs/TESTING_GUIDE.md**
+- Verify DB_AT_001 selector documentation in section 2 is accurate for the current 15-test suite
+- Add collect-only artifact reference if missing
 
-Per `docs/spec-db-core.md`, variance is computed as:
-```
-variance = model + sigma_readout²
-```
-where `sigma_readout = 5 ADU` (standard detector readout noise).
+**B3: Update docs/development/TEST_SUITE_INDEX.md**
+- Verify unified forward-equiv entries exist for DB_AT_001 selector
+- Confirm row counts match collected tests (15)
 
-### Phase A.5 Tasks
+**B4: Refresh docs/fix_plan.md**
+- Update FORWARD-EQUIV-COVERAGE-001 detailed section status from `pending` to `in_progress (Phase B complete)`
+- Add Attempts History entry for Phase B completion with artifact path
 
-#### A5.1 — Fix parity_loader.py:604-607
-
-Current code (lines 602-607):
-```python
-        # Standardized residual triptych for quick visual inspection.
-        # Use a simple Z-score style residual consistent with dbex.vis helpers.
-        z_scores = compute_z_scores(
-            target,
-            predicted,
-        )
-```
-
-Required fix:
-```python
-        # Standardized residual triptych for quick visual inspection.
-        # Use a simple Z-score style residual consistent with dbex.vis helpers.
-        # Per spec-db-core.md: variance = model + sigma_readout² where sigma_readout=5 ADU
-        sigma_readout = 5.0
-        variance = predicted + sigma_readout ** 2
-        z_scores = compute_z_scores(
-            target,
-            predicted,
-            variance,
-        )
-```
-
-**Note**: `predicted` is the model array, so `variance = predicted + sigma_readout**2` per spec.
-
-#### A5.2 — Run DB_AT_001 Tests
-
-Execute test suite with artifact capture:
+### Capture collect-only evidence:
 ```bash
-cd /home/ollie/Documents/diffbragg_example
-export ART=plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T120000Z
-mkdir -p $ART
-KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py tests/dbex/test_forward_equivalence.py -k DB_AT_001 2>&1 | tee $ART/pytest_db_at_001_fixed.log
+pytest --collect-only tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py -q 2>&1 | tee plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/collect_db_at_001_closure.log
 ```
-
-**Expected**: 15/15 PASS (previously 12/15 with 3 failing on compute_z_scores)
-
-#### A5.3 — Update Summary
-
-Append to or create `$ART/summary.md` documenting:
-1. Fix applied (file:line, before/after)
-2. Test results (15/15 PASS expected)
-3. GAP-1 status: RESOLVED
 
 ---
 
 ## How-To Map
 
-```bash
-# Set environment
-cd /home/ollie/Documents/diffbragg_example
-export ART=plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T120000Z
-mkdir -p $ART
-
-# A5.1: Fix is applied via Edit tool (see Do Now)
-
-# A5.2: Run tests after fix
-KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py tests/dbex/test_forward_equivalence.py -k DB_AT_001 2>&1 | tee $ART/pytest_db_at_001_fixed.log
-
-# A5.3: Write summary via Write tool
-```
+1. Run authoritative pytest selector (expects 15/15 PASS)
+2. Capture collect-only evidence
+3. Update PARITY-HARNESS-002 implementation.md Phase E checkboxes
+4. Create PARITY-HARNESS-002 closing directory and author closure_summary.md
+5. Verify TESTING_GUIDE.md section 2 and TEST_SUITE_INDEX.md have accurate DB_AT_001 entries
+6. Update fix_plan.md FORWARD-EQUIV-COVERAGE-001 status + Attempts History
+7. Author summary.md for this loop
 
 ---
-
-## Forbidden This Loop
-- **No package installs** — Environment Freeze
-- **No new test files** — Fix existing code only
-- **No changes to residuals.py** — Callers must adapt to signature
 
 ## Pitfalls To Avoid
-1. **Use `predicted` for variance base** — `predicted` IS the model; `variance = predicted + sigma_readout²`
-2. **sigma_readout = 5.0 ADU** — Standard detector readout noise per spec-db-core.md
-3. **Do not modify compute_z_scores signature** — Fix the caller, not the callee
-4. **Check test count** — Should be 15 total tests, expecting 15 PASS
+
+1. **Do NOT modify production code** — this is docs/ledger-only closure
+2. **Do NOT skip collect-only capture** — required by TESTING-003
+3. **Do NOT mark roll-up as done yet** — Phase C will close the roll-up
+4. **Do NOT install packages** — Environment Freeze in effect
+5. **Preserve exact test selectors** — use `-k DB_AT_001` not broader patterns
+6. **Archive logs under correct timestamp** — `2025-12-08T130000Z`
+7. **Cross-reference findings** — CONFORMANCE-001, TESTING-003, PARITY-001 must appear in closure docs
+
+---
 
 ## If Blocked
-If tests still fail after fix:
-1. Document the exact error
-2. Check if any OTHER callers of compute_z_scores have the same issue
-3. Record in summary.md and request further investigation
+
+If pytest fails with unexpected errors:
+1. Capture full traceback to artifact directory
+2. Document failure signature in summary.md
+3. Mark Phase B blocked in implementation.md
+4. Do NOT attempt code fixes — report block to Galph
 
 ---
 
-## Exit Criteria Validation (Phase A.5)
+## Findings Applied
 
-| Criterion | Expected | Validation |
-|-----------|----------|------------|
-| A5.1 Fix applied | parity_loader.py:604-607 updated | Edit tool success |
-| A5.2 Tests pass | 15/15 PASS | pytest_db_at_001_fixed.log |
-| A5.3 Summary updated | GAP-1 resolved | summary.md |
+- **CONFORMANCE-001**: DB-AT parity profiles define canonical pytest selectors (`-k DB_AT_0XX`) and `KMP_DUPLICATE_LIB_OK=TRUE` — ADHERED (selector and env var specified)
+- **TESTING-003**: Selector status transitions require `pytest --collect-only` evidence — ADHERED (collect-only capture in How-To Map)
+- **PARITY-001**: Parity thresholds (correlation >= 0.2, localization >= 90%) — REFERENCED in closure docs
 
 ---
 
-## Output Artifacts Expected
+## Pointers
 
-1. `$ART/pytest_db_at_001_fixed.log` — Test execution output showing 15/15 PASS
-2. `$ART/summary.md` — Phase A.5 fix summary
+- PARITY-HARNESS-002 implementation: `plans/active/PARITY-HARNESS-002/implementation.md:24-28` (Phase E checklist)
+- FORWARD-EQUIV-COVERAGE-001 implementation: `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md:39-46` (Phase B checklist)
+- DB_AT_001 spec: `docs/spec-db-conformance.md:23-26`
+- Forward equivalence: `docs/forward_equivalence.md`
+- Test registry: `docs/development/TEST_SUITE_INDEX.md`
+- Testing guide: `docs/TESTING_GUIDE.md:56-90`
+- fix_plan detailed section: `docs/fix_plan.md:425-444`
 
 ---
 
 ## Next Up (optional)
-If 15/15 tests pass after fix:
-- Proceed to Phase B (Closure Validation) to complete PARITY-HARNESS-002 E1-E3
+
+If Phase B completes early:
+- Phase C: Roll-up closure (mark member plans done, update fix_plan.md status to done, author closure_summary.md)

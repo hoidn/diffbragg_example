@@ -1,115 +1,133 @@
-# Input for Ralph: FORWARD-EQUIV-COVERAGE-001 Phase B (Closure Validation)
+# Input for Ralph — Loop i=185
 
 ## Summary
-Complete PARITY-HARNESS-002 Phase E closure tasks and FORWARD-EQUIV-COVERAGE-001 Phase B, then prepare roll-up for closure in Phase C.
+Complete FORWARD-EQUIV-COVERAGE-001 Phase C roll-up closure (docs/ledger updates only).
 
 ## Focus
-`FORWARD-EQUIV-COVERAGE-001` — Forward Equivalence & Parity Harness Roll-up
+**FORWARD-EQUIV-COVERAGE-001** — Forward Equivalence & Parity Harness Roll-up
 
 ## Branch
 `integration`
 
 ## Mapped Tests
-- Primary: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001`
-- Collect-only: `pytest --collect-only tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py`
+- Selector: `-k DB_AT_001` (already validated 15/15 PASS in i=184)
+- Verification: `pytest --collect-only tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001` (evidence already captured)
 
 ## Artifacts
-`plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/`
+`plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/`
 
 ---
 
 ## Do Now
 
-**Focus Item:** FORWARD-EQUIV-COVERAGE-001 Phase B
+**Focus Item:** FORWARD-EQUIV-COVERAGE-001 Phase C (Roll-up Closure)
 
-**Implement:** PARITY-HARNESS-002 Phase E closure (E1-E3) + FORWARD-EQUIV-COVERAGE-001 B1-B4
+### Implement: Phase C Tasks (Docs/Ledger Only)
 
-### Phase B Tasks (FORWARD-EQUIV-COVERAGE-001)
+**C1: Mark member plans done in implementation.md (verify — likely already done)**
+- File: `plans/active/FORWARD-EQUIV-001/implementation.md` — confirm status header says complete/done
+- File: `plans/active/FORWARD-EQUIV-002/implementation.md` — confirm status header says complete/done
+- File: `plans/active/PARITY-HARNESS-002/implementation.md` — confirm status header says complete/done (Phase E closure done in i=184)
 
-**B1: Complete PARITY-HARNESS-002 Phase E closure tasks**
-- [ ] E1 — Exit criteria audit: Re-run the authoritative selector to confirm 15/15 PASS:
-  ```bash
-  KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/pytest_db_at_001_closure.log
-  ```
-- [ ] E2 — Ledger closure: Update `plans/active/PARITY-HARNESS-002/implementation.md` to mark E1-E3 as complete with `[x]`
-- [ ] E3 — Archive readiness: Author `plans/active/PARITY-HARNESS-002/reports/2025-12-08T130000Z/closing/closure_summary.md` with:
-  - Outstanding simulator-dependent TODOs (Phase C was synthetic-only; real nanobrag_torch pending)
-  - Reference to CONFORMANCE-001, TESTING-003, PARITY-001 findings
+**C2: Update fix_plan.md status to done**
+- File: `docs/fix_plan.md`
+- Location: Line ~427-428 (FORWARD-EQUIV-COVERAGE-001 detailed section)
+- Change: `Status: in_progress (Phase B complete; ready for Phase C roll-up closure)` → `Status: **done**`
+- Also update: Line ~58-60 (Execution Roadmap entry for FORWARD-EQUIV-COVERAGE-001) to show `done`
+- Add: Attempts History entry for Phase C (i=185)
 
-**B2: Update docs/TESTING_GUIDE.md**
-- Verify DB_AT_001 selector documentation in section 2 is accurate for the current 15-test suite
-- Add collect-only artifact reference if missing
+**C3: Author closure_summary.md for roll-up**
+- File: `plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/closure_summary.md`
+- Include:
+  - Roll-up completion date/loop
+  - Member plan status matrix (all 3 done)
+  - Exit criteria validation (3/3 met)
+  - Test evidence summary (15/15 PASS, correlation=0.988, localization=1.0)
+  - Outstanding TODOs (simulator-dependent work documented in PARITY-HARNESS-002 closure)
+  - Artifact index
 
-**B3: Update docs/development/TEST_SUITE_INDEX.md**
-- Verify unified forward-equiv entries exist for DB_AT_001 selector
-- Confirm row counts match collected tests (15)
+**C4: Update implementation.md Phase C checkboxes**
+- File: `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md`
+- Mark C1-C4 as [x]
+- Update status header to `done`
 
-**B4: Refresh docs/fix_plan.md**
-- Update FORWARD-EQUIV-COVERAGE-001 detailed section status from `pending` to `in_progress (Phase B complete)`
-- Add Attempts History entry for Phase B completion with artifact path
-
-### Capture collect-only evidence:
-```bash
-pytest --collect-only tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py -q 2>&1 | tee plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/collect_db_at_001_closure.log
-```
+### Validating Selector
+- Verification only (tests already passed in i=184): `pytest --collect-only tests -k DB_AT_001`
+- Evidence capture: `collect_db_at_001_final.log`
 
 ---
 
 ## How-To Map
 
-1. Run authoritative pytest selector (expects 15/15 PASS)
-2. Capture collect-only evidence
-3. Update PARITY-HARNESS-002 implementation.md Phase E checkboxes
-4. Create PARITY-HARNESS-002 closing directory and author closure_summary.md
-5. Verify TESTING_GUIDE.md section 2 and TEST_SUITE_INDEX.md have accurate DB_AT_001 entries
-6. Update fix_plan.md FORWARD-EQUIV-COVERAGE-001 status + Attempts History
-7. Author summary.md for this loop
+```bash
+# Artifacts directory
+mkdir -p plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/
+
+# Verify member plans (read-only check)
+# FORWARD-EQUIV-001, FORWARD-EQUIV-002, PARITY-HARNESS-002 — confirm completion status
+
+# Update fix_plan.md
+# - Line ~58: FORWARD-EQUIV-COVERAGE-001 → done
+# - Line ~427: Status → done
+# - Add Attempts History entry
+
+# Author closure_summary.md
+# See content template below
+
+# Update implementation.md Phase C
+# Mark checkboxes [x], update status header
+
+# Capture collect-only evidence
+pytest --collect-only tests -k DB_AT_001 > plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/collect_db_at_001_final.log 2>&1
+```
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **Do NOT modify production code** — this is docs/ledger-only closure
-2. **Do NOT skip collect-only capture** — required by TESTING-003
-3. **Do NOT mark roll-up as done yet** — Phase C will close the roll-up
-4. **Do NOT install packages** — Environment Freeze in effect
-5. **Preserve exact test selectors** — use `-k DB_AT_001` not broader patterns
-6. **Archive logs under correct timestamp** — `2025-12-08T130000Z`
-7. **Cross-reference findings** — CONFORMANCE-001, TESTING-003, PARITY-001 must appear in closure docs
+1. **DO NOT** run full test suite — tests already validated in i=184 (15/15 PASS)
+2. **DO NOT** modify any production code — this is docs/ledger closure only
+3. **DO NOT** modify test files — already complete
+4. **DO** use exact timestamps for artifacts path (2025-12-08T143000Z)
+5. **DO** update both Execution Roadmap entry AND detailed section in fix_plan.md
+6. **DO** include artifact pointers in Attempts History entry
+7. **DO** respect findings CONFORMANCE-001, TESTING-003 (selector documentation accuracy)
 
 ---
 
 ## If Blocked
 
-If pytest fails with unexpected errors:
-1. Capture full traceback to artifact directory
-2. Document failure signature in summary.md
-3. Mark Phase B blocked in implementation.md
-4. Do NOT attempt code fixes — report block to Galph
+If any unexpected issue arises:
+1. Document the issue in summary.md
+2. Keep FORWARD-EQUIV-COVERAGE-001 status as `in_progress`
+3. Note the block reason in galph_memory.md (via Galph next loop)
 
 ---
 
-## Findings Applied
+## Findings Applied (Mandatory)
 
-- **CONFORMANCE-001**: DB-AT parity profiles define canonical pytest selectors (`-k DB_AT_0XX`) and `KMP_DUPLICATE_LIB_OK=TRUE` — ADHERED (selector and env var specified)
-- **TESTING-003**: Selector status transitions require `pytest --collect-only` evidence — ADHERED (collect-only capture in How-To Map)
-- **PARITY-001**: Parity thresholds (correlation >= 0.2, localization >= 90%) — REFERENCED in closure docs
+| Finding ID | Adherence |
+|------------|-----------|
+| CONFORMANCE-001 | DB_AT_001 selector canonical commands documented |
+| TESTING-003 | collect-only evidence captured, registry entries verified |
+| PARITY-001 | Thresholds (correlation>=0.2, localization>=90%) documented and met |
 
 ---
 
 ## Pointers
 
-- PARITY-HARNESS-002 implementation: `plans/active/PARITY-HARNESS-002/implementation.md:24-28` (Phase E checklist)
-- FORWARD-EQUIV-COVERAGE-001 implementation: `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md:39-46` (Phase B checklist)
-- DB_AT_001 spec: `docs/spec-db-conformance.md:23-26`
-- Forward equivalence: `docs/forward_equivalence.md`
-- Test registry: `docs/development/TEST_SUITE_INDEX.md`
-- Testing guide: `docs/TESTING_GUIDE.md:56-90`
-- fix_plan detailed section: `docs/fix_plan.md:425-444`
+| Document | Relevance |
+|----------|-----------|
+| `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md` | Phase C checklist |
+| `docs/fix_plan.md:425-445` | Detailed section + Attempts History |
+| `docs/fix_plan.md:58-60` | Execution Roadmap entry |
+| `plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/summary.md` | Phase B evidence |
+| `docs/spec-db-conformance.md:23-26` | DB-AT-001 thresholds |
 
 ---
 
-## Next Up (optional)
+## Next Up (Optional)
 
-If Phase B completes early:
-- Phase C: Roll-up closure (mark member plans done, update fix_plan.md status to done, author closure_summary.md)
+If Phase C completes early:
+1. Portfolio review — identify next Tier 1 unblocked item
+2. Candidates: TOOLING-VIS-001, TORCH-REFINE-CLEANUP-001, or blocked item review

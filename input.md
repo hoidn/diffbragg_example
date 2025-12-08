@@ -1,10 +1,10 @@
-# Input for Ralph (Loop i=149)
+# Input for Ralph (Loop i=150)
 
 ## Summary
-DB-AT-021 Phase B: Author mask semantics acceptance tests (harness type, test-only)
+DB-AT-021 Phase C: Registry sync and documentation closure (docs-only)
 
 ## Mode
-TDD
+Docs
 
 ## ActionType
 implementation_ready
@@ -22,39 +22,39 @@ DB-AT-021 — Mask Semantics Guard (Member of DB-AT-SUITE-CARE-001)
 integration
 
 ## Mapped Tests
-- `pytest -v tests -k DB_AT_021` (primary acceptance selector)
+- `pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021` (regression check)
 - `pytest --collect-only tests -k DB_AT_021` (collection validation)
 
 ## Artifacts
-`plans/active/DB-AT-021/reports/2025-12-08T150000Z/`
+`plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
 
 ## Findings Applied (Mandatory)
-- **MASKING-001** (Loss mask coverage <1% is expected for sparse Bragg peaks): Test assertions must NOT flag low coverage as failure.
-- **TESTING-003** (Selector status transitions only after pytest --collect-only confirms >0 tests): Phase C will validate collection before updating TEST_SUITE_INDEX.md.
-- **CONFORMANCE-001** (DB-AT parity selectors use `-k DB_AT_0XX` pattern): Test method naming follows `test_DB_AT_021_*` convention.
-- **DIALS-API polarity** (True=trusted per dials_api.md:16): Test assertions validate boolean dtype with True=trusted polarity.
+- **TESTING-003** (Selector status transitions only after pytest --collect-only confirms >0 tests): Phase C will validate collection before updating TEST_SUITE_INDEX.md. ✅ Applied — Phase B collection log confirms 3 tests.
+- **CONFORMANCE-001** (DB-AT parity selectors use `-k DB_AT_0XX` pattern): Test method naming follows `test_DB_AT_021_*` convention. ✅ Applied — Phase B scaffold conforms.
+- **MASKING-001** (Loss mask coverage <1% is expected for sparse Bragg peaks): Registry entry must NOT flag low coverage as failure. ✅ Applied — will document in TEST_SUITE_INDEX.md notes.
 
-**No relevant findings requiring pre-implementation action** — Phase A confirmed spec alignment.
+**No blocking findings** — Phase C is docs-only; all implementation complete in Phase B.
 
 ## Pointers
 
 ### Spec/Arch/Testing Docs
-- **Spec**: `docs/spec-db-core.md:124` (loss_mask normative formula: `(background >= 0) ∧ trusted_mask`)
+- **Spec**: `docs/spec-db-core.md:124` (loss_mask normative formula)
 - **Spec**: `docs/spec-db-conformance.md:58-61` (DB-AT-021 acceptance criteria)
 - **DIALS API**: `docs/dials_api.md:45-62` (mask polarity conventions)
-- **Architecture**: `docs/architecture.md:165-178` (mask precedence + ADR-07 background sentinel)
-- **Testing Guide**: `docs/TESTING_GUIDE.md` (canonical pytest selectors)
+- **Architecture**: `docs/architecture.md:165-178` (mask precedence + ADR-07)
+- **Testing Guide**: `docs/TESTING_GUIDE.md` §2 (canonical pytest selectors + Active test status registry)
+- **Test Suite Index**: `docs/development/TEST_SUITE_INDEX.md` (comprehensive test metadata registry)
 
 ### Fix Plan
-- `docs/fix_plan.md` line 240 (DB-AT-SUITE-CARE-001 § Member Plan Coordination)
+- `docs/fix_plan.md` line 267-289 (DB-AT-SUITE-CARE-001 § Attempts History)
 
 ### Implementation Plan
-- `plans/active/DB-AT-021/implementation.md` Phase B checklist
+- `plans/active/DB-AT-021/implementation.md` Phase C checklist (C1, C2, C3)
 
-### Phase A Artifacts
-- `plans/active/DB-AT-021/reports/2025-12-08T120000Z/summary.md` (spec alignment + baseline metrics)
-- `plans/active/DB-AT-021/reports/2025-12-08T120000Z/spec_alignment.md` (polarity reconciliation table)
-- `plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.md` (DataLoad metrics: 5.7M trusted pixels, 13K loss_mask pixels)
+### Phase B Artifacts (Evidence for Registry Sync)
+- `plans/active/DB-AT-021/reports/2025-12-08T150000Z/summary.md` (Phase B completion: 3/3 tests PASSED)
+- `plans/active/DB-AT-021/reports/2025-12-08T150000Z/pytest_db_at_021.log` (primary test run, 4.02s)
+- `plans/active/DB-AT-021/reports/2025-12-08T150000Z/collect_db_at_021.log` (3 tests collected)
 
 ## ARCH Contracts (mandatory)
 
@@ -63,114 +63,128 @@ integration
 
 **Contract**: Constructs `loss_mask = (background_image >= 0) ∧ trusted_mask` per spec-db-core.md:124. Background sentinel `-1` excludes pixels outside ROIs. Trusted mask boolean polarity: True=trusted, no inversion.
 
-**Forbidden Duplicates**: Alternative loss_mask construction in:
-- Stage A/B/C helpers (`dbex/refinement/stage_*_impl.py`)
-- Test harness boilerplate (except direct DataLoad API calls for validation)
-- Plan-local diagnostic scripts (must delegate to DataLoad API)
+**Forbidden Duplicates**: Alternative loss_mask construction in Stage A/B/C helpers (validated by Phase B test_DB_AT_021_precedence_guards).
 
-**Failure Classification**: Implementation bug within architecture (Phase A confirmed no duplicate construction detected; Phase B test will enforce precedence).
+**Failure Classification**: No conformance failure detected (Phase B test PASSED with 0 duplicates found).
 
 ## Do Now (hard validity contract)
 
-**Implement**: `tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics`
+**Implement**: Registry sync for `tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics` (docs-only, no production code changes)
 
-Author 3 test methods per Phase B checklist (DB-AT-021 § Phase B):
+Execute 3 Phase C tasks per implementation.md checklist (DB-AT-021 § Phase C):
 
-**B1 — Test Scaffold**:
-1. Create `tests/dbex/test_mask_semantics.py` with `TestDB_AT_021_MaskSemantics` class
-2. Add `refgeom_dataload` fixture (or reuse from `tests/conftest.py` if exists):
-   - Instantiate `DataLoad` with `refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`
-   - Apply `pytest.skip` guard when assets missing (mirror DB-AT-020 pattern)
-3. Ensure test methods are discoverable via `-k DB_AT_021` selector pattern
+**C1 — Evidence Capture**:
+1. Run regression check to validate Phase B tests still pass:
+   ```bash
+   DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1 \
+   DBEX_SMOKE_DETECTOR_SIZE=full \
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021
+   ```
+   Capture output to `plans/active/DB-AT-021/reports/2025-12-08T170000Z/pytest_db_at_021_regression.log`
 
-**B2 — Mask Polarity Checks** (`test_polarity_checks`):
-1. Load `747_mask.pkl` via `DataLoad` fixture
-2. Assert `dataload.trusted_mask.dtype == bool` (DIALS convention)
-3. Validate sample trusted pixel: `assert dataload.trusted_mask[0, 582, 594] == True` (ROI 0 coordinates from baseline probe)
-4. Validate sample untrusted pixel (use baseline probe to identify untrusted coordinates if available, else skip)
-5. Confirm no polarity inversion in production path
+2. Run collection validation to confirm selector pattern functional:
+   ```bash
+   DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1 \
+   DBEX_SMOKE_DETECTOR_SIZE=full \
+   pytest --collect-only tests -k DB_AT_021
+   ```
+   Capture output to `plans/active/DB-AT-021/reports/2025-12-08T170000Z/collect_db_at_021.log`
 
-**B3 — Loss Mask Construction** (`test_loss_mask_construction`):
-1. Extract `background_image` and `trusted_mask` from `DataLoad`
-2. Compute expected: `expected_loss_mask = (background_image >= 0) & trusted_mask`
-3. Extract actual from `RefinementInputs` (call `prepare_refinement_inputs` or inspect `DataLoad.loss_mask` if attribute exists)
-4. Assert `torch.equal(actual_loss_mask, expected_loss_mask)` or numpy equivalent
-5. Validate sentinel handling: assert pixels where `background == -1` are excluded from `loss_mask`
-6. Validate trusted mask precedence: assert pixels where `trusted_mask == False` are excluded even if `background >= 0`
+**Expected Outcomes**:
+- Regression check: 3 passed, 4 warnings, ~4s runtime (match Phase B metrics)
+- Collection validation: 3/181 tests collected (178 deselected), selector pattern confirmed functional
 
-**B4 — ARCH-CONTRACT-MASKING-001 Enforcement** (`test_precedence_guards`):
-1. Use AST or grep to search for duplicate `loss_mask` construction patterns in:
-   - `dbex/refinement/stage_a_impl.py`
-   - `dbex/refinement/stage_b_impl.py`
-   - `dbex/refinement/stage_c_impl.py`
-2. If duplicates found, raise `AssertionError` with file:line references
-3. If no duplicates, assert canonical owner is `prepare_refinement_inputs` (validate via import inspection or doc cross-reference)
-4. Document any exceptions in test comments with justification (if legacy paths exist, cross-ref to findings)
+**C2 — Docs Update**:
+1. **Update `docs/development/TEST_SUITE_INDEX.md`**:
+   - Add DB-AT-021 row after DB-AT-020 row (maintain numerical ordering)
+   - Columns to populate:
+     - **Selector**: `DB-AT-021`
+     - **Status**: `Active`
+     - **Description**: `Mask semantics guard (polarity, loss_mask construction, ARCH-CONTRACT-MASKING-001 precedence)`
+     - **Spec References**: `docs/spec-db-core.md:124`, `docs/dials_api.md:45-62`, `docs/architecture.md:165-178`
+     - **Canonical Command**: `DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1 DBEX_SMOKE_DETECTOR_SIZE=full AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021`
+     - **Environment Flags**: `DBEX_SMOKE_USE_GOLDEN_SIMPLE_CUBIC=1`, `DBEX_SMOKE_DETECTOR_SIZE=full`, `KMP_DUPLICATE_LIB_OK=TRUE`
+     - **Artifact Path**: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
+     - **Runtime Estimate**: `~4s`
+     - **Applied Findings**: `MASKING-001, TESTING-003, CONFORMANCE-001, DIALS-API polarity`
+     - **Skip Behavior**: `test skips when refGeom.expt/refGeom.refl missing (mirrors smoke fixture guard)`
 
-**Validation Commands**:
-```bash
-# Primary acceptance selector
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-pytest -vv tests/dbex/test_mask_semantics.py::TestDB_AT_021_MaskSemantics -k DB_AT_021
+2. **Update `docs/TESTING_GUIDE.md` §2 (Test Taxonomy)**:
+   - Locate "Mask semantics guard" entry (if exists) or add new entry after Reflection ingestion section
+   - Update with:
+     - Test names: `test_DB_AT_021_polarity_checks`, `test_DB_AT_021_loss_mask_construction`, `test_DB_AT_021_precedence_guards`
+     - Canonical metrics (from Phase B summary.md):
+       - Trusted pixels: 5,696,996 (91.5%)
+       - Loss mask pixels: 13,084 (0.2% coverage — sparse Bragg peaks expected per MASKING-001)
+       - Duplicates found: 0 (ARCH-CONTRACT-MASKING-001 enforcement)
+     - Skip guard documentation: test skips when refGeom assets missing
+     - Artifact path: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
 
-# Collection validation (for Phase C registry sync)
-pytest --collect-only tests -k DB_AT_021 > plans/active/DB-AT-021/reports/2025-12-08T150000Z/collect_db_at_021.log 2>&1
-```
+**C3 — Ledger Sync**:
+1. **Update `docs/fix_plan.md` § [DB-AT-SUITE-CARE-001] Attempts History**:
+   - Add new entry after line 288 (DB-AT-020 Phase C entry):
+     ```
+     * 2025-12-08T170000Z (Loop i=150, Ralph) — DB-AT-021 Phase C complete: Registry sync executed (TEST_SUITE_INDEX.md + TESTING_GUIDE.md updated with Active status, canonical commands, artifact paths). Regression check PASSED (3 tests: polarity checks, loss_mask construction, ARCH-CONTRACT-MASKING-001 precedence guards). Collect-only verification confirmed selector pattern (-k DB_AT_021) functional (3 tests collected: test_DB_AT_021_polarity_checks, test_DB_AT_021_loss_mask_construction, test_DB_AT_021_precedence_guards). Member plan closure complete; ready for DB-AT-SUITE-CARE-001 Phase B.4 coordination. Touched: DB-AT-021 Phase C (C1, C2, C3). Tests: pytest -vv tests -k DB_AT_021 (PASSED, ~4s); pytest --collect-only tests -k DB_AT_021 (3 selected). Artifacts: plans/active/DB-AT-021/reports/2025-12-08T170000Z/ (pytest_db_at_021_regression.log, collect_db_at_021.log, summary.md).
+     ```
 
-**Artifacts Destination**: `plans/active/DB-AT-021/reports/2025-12-08T150000Z/`
-- `pytest_db_at_021.log` (primary test run)
+2. **Update `plans/active/DB-AT-021/implementation.md`**:
+   - Mark Phase C tasks (C1/C2/C3) complete with checkmarks
+   - Add timestamp: `✅ 2025-12-08 (Loop i=150)`
+
+**Artifacts Destination**: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
+- `pytest_db_at_021_regression.log` (regression check)
 - `collect_db_at_021.log` (collection validation)
-- `summary.md` (Phase B completion notes)
+- `summary.md` (Phase C completion notes including doc changes summary)
 
-**Touched**: DB-AT-021 Phase B (B1, B2, B3)
+**Touched**: DB-AT-021 Phase C (C1, C2, C3)
 
 ## Forbidden This Loop
-- **No production code edits** (harness type, test-only)
-- **No fix_plan updates** until Phase C (per standard member plan pattern)
-- **No new plan-local diagnostic scripts** (Phase A baseline probe sufficient)
+- **No production code edits** (docs-only per Mode: Docs)
+- **No new test authoring** (Phase B complete)
+- **No plan-local diagnostic scripts** (not needed for registry sync)
 
 ## How-To Map
 
-**Test Authoring Steps**:
-1. Create `tests/dbex/test_mask_semantics.py`
-2. Import `pytest`, `DataLoad`, `prepare_refinement_inputs` (if accessible)
-3. Define `refgeom_dataload` fixture with skip guard (or reuse from conftest)
-4. Author 3 test methods (B2, B3, B4) per specifications above
-5. Run primary selector: `pytest -vv tests -k DB_AT_021`
-6. Run collection validation: `pytest --collect-only tests -k DB_AT_021`
-7. Capture both logs under artifacts directory
-8. Author `summary.md` with test outcomes + metrics
+**Registry Sync Steps**:
+1. Create artifacts directory: `mkdir -p plans/active/DB-AT-021/reports/2025-12-08T170000Z/`
+2. Run regression check (pytest command from C1), capture log
+3. Run collection validation (pytest --collect-only from C1), capture log
+4. Update TEST_SUITE_INDEX.md (add DB-AT-021 row with all metadata)
+5. Update TESTING_GUIDE.md §2 (add/update Mask semantics entry)
+6. Update fix_plan.md Attempts History (add DB-AT-021 Phase C entry at line ~289)
+7. Update implementation.md Phase C checklist (mark C1/C2/C3 complete)
+8. Author summary.md with test outcomes + doc changes summary
 
-**Expected Outcomes**:
-- All 3 tests PASS (polarity, loss_mask construction, precedence guards all validate per spec)
-- Collection log shows ≥3 tests collected with `-k DB_AT_021` pattern
-- No ARCH-CONTRACT-MASKING-001 violations detected (canonical owner is sole source)
+**Expected Doc Diff Summary**:
+- `docs/development/TEST_SUITE_INDEX.md`: +1 row (DB-AT-021)
+- `docs/TESTING_GUIDE.md` §2: +1 entry or updated existing Mask semantics entry
+- `docs/fix_plan.md`: +1 Attempts History entry (~289)
+- `plans/active/DB-AT-021/implementation.md`: Phase C tasks marked complete
 
-**Phase C Preview** (not this loop):
-- Update `docs/TESTING_GUIDE.md` §2 with DB_AT_021 row (Active status, selector command, artifact path)
-- Update `docs/development/TEST_SUITE_INDEX.md` with DB_AT_021 status
-- Update `docs/fix_plan.md` Attempts History with Phase B outcomes
-- Mark DB-AT-021 complete per implementation.md exit criteria
+**Success Criteria**:
+- Regression check PASSES (3/3 tests)
+- Collection validation shows 3 tests collected
+- TEST_SUITE_INDEX.md DB-AT-021 row has all required columns populated
+- fix_plan.md Attempts History entry includes metrics + artifact path
 
 ## Pitfalls To Avoid
-1. **Polarity inversion**: Do NOT apply `~trusted_mask` or `1 - trusted_mask`; DIALS convention is True=trusted (direct polarity).
-2. **Sentinel tolerance**: Background sentinel is `-1` (exact), not `< 0` (per ADR-07).
-3. **Loss mask duplication**: Test must NOT re-implement `(background >= 0) & trusted_mask`; validate canonical owner only.
-4. **Skip guard**: Fixture must `pytest.skip` when canonical assets missing (not fail/error).
-5. **Selector pattern**: Test method names must include `DB_AT_021` substring for `-k DB_AT_021` discovery.
-6. **Type discipline**: This is harness type (test-only); do NOT edit production modules under `dbex/` unless blocking test authoring.
+1. **Stale metrics**: Use Phase B actual metrics (5.7M trusted pixels, 13K loss_mask pixels), not placeholder values.
+2. **Registry inconsistency**: Ensure TEST_SUITE_INDEX.md and TESTING_GUIDE.md both reference same artifact path (2025-12-08T170000Z).
+3. **Ledger insertion point**: Add DB-AT-021 entry AFTER DB-AT-020 entry (line 288) to maintain chronological ordering.
+4. **Skip guard documentation**: Mirror DB-AT-020 pattern (skip when assets missing, not fail/error).
+5. **Type discipline**: This is docs-only (Mode: Docs); do NOT edit production modules under `dbex/` or `tests/` (except implementation.md checklist).
 
 ## If Blocked
-- **Missing DataLoad attribute**: If `DataLoad` lacks `trusted_mask` or `loss_mask` attributes, flag as architecture conformance issue and escalate to supervisor (ARCH-CONTRACT-DATA-LOAD-001 violation).
-- **Duplicate loss_mask construction found**: Flag as ARCH-CONTRACT-MASKING-001 violation; escalate to supervisor with file:line evidence for conformance remediation.
-- **Spec conflicts during test authoring**: If mask polarity or loss_mask formula contradicts Phase A spec alignment, halt and escalate to supervisor for spec_change type handling.
-- **Asset unavailability**: If canonical assets deleted/moved since Phase B.2 validation, re-run asset availability check and update skip guard logic.
+- **Regression check fails**: If Phase B tests now fail, halt and escalate to supervisor with pytest log (potential environment drift or test flakiness).
+- **Collection validation shows ≠3 tests**: If collect-only discovers different test count, halt and escalate (test discovery regression).
+- **Doc template mismatch**: If TEST_SUITE_INDEX.md or TESTING_GUIDE.md schema differs from DB-AT-020 pattern, consult existing rows and adapt format to match.
 
 ## Doc Sync Plan (Conditional)
-**NOT REQUIRED THIS LOOP** — Test authoring (Phase B) does not trigger registry sync. Phase C (next loop) will execute:
-1. Run `pytest --collect-only tests -k DB_AT_021` (already in validation commands above)
-2. Store collection log: `plans/active/DB-AT-021/reports/2025-12-08T150000Z/collect_db_at_021.log`
-3. Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` after tests PASS
+**REQUIRED THIS LOOP** — Phase C execution (registry sync):
+1. Run `pytest --collect-only tests -k DB_AT_021` (already in C1 validation commands)
+2. Store collection log: `plans/active/DB-AT-021/reports/2025-12-08T170000Z/collect_db_at_021.log`
+3. Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` per C2 specifications
 
 ---
 

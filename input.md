@@ -1,203 +1,148 @@
-# Input for Loop i=162 (Ralph)
+# Input for Ralph (Loop i=163)
 
 ## Summary
-Implement SPEC-SQUARE-PARTIALITY-001 Phase B.7: Update partiality test to use 400x400 detector with 7% tolerance, confirming linear Na×Nb×Nc scaling.
+Execute SPEC-SQUARE-PARTIALITY-001 Phase C (Ledger Closure) — update fix_plan.md, ARCH-SIM-CONSTRUCTION-001 implementation.md, test registry docs, and verify initiative closure.
 
-## Mode
-Parity
+## BindingForRalph
+- **ActionType:** implementation_ready
+- **DecisionStatus:** patch_ready
+- **InitiativeType:** spec+tests (spec_change + harness)
 
-## ActionType
-implementation_ready
-
-## DecisionStatus
-patch_ready (Phase B.6 confirmed finite-detector hypothesis; fix is straightforward)
-
-## InitiativeType
-spec+tests
+## SupervisorMode
+Docs (non-binding — registry sync and ledger closure)
 
 ## Focus
-SPEC-SQUARE-PARTIALITY-001 — SQUARE Lattice Spec & Test Alignment (Phase B.7 — Final Test Configuration)
+SPEC-SQUARE-PARTIALITY-001 — SQUARE Lattice Spec & Test Alignment (Phase C)
 
 ## Branch
 integration
 
-## Mapped tests
-- `pytest -vv tests/architecture/test_nanobrag_partiality.py --maxfail=1` (expect PASS after detector size update)
+## Mapped Tests
+- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/architecture/test_nanobrag_partiality.py` — capture collect-only log for registry sync
+- (No pytest execution required — Phase C is docs-only registry sync)
 
 ## Artifacts
-`plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/`
+`plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/`
 
 ## Findings Applied (Mandatory)
-- **SIM-CONSTR-PARTIALITY-001**: Linear scaling confirmed for full solid-angle integration; Phase B.6 verified convergence
-- **PROBE-FREEZE-001**: Modifying existing test file, not creating new probes
+- **SIM-CONSTR-PARTIALITY-001** — Already marked "Resolved (physics clarified 2025-12-08; test updates in Phase B)" with correct linear scaling enforced. No further update needed (C4 satisfied).
+- **PROBE-FREEZE-001** — Respected (no new plan-local scripts created).
 
 ## Pointers
-| Reference | Path | Section/Line |
-|-----------|------|--------------|
-| Phase B.6 Investigation | plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T100000Z/investigation_results.md | Full document |
-| Test File | tests/architecture/test_nanobrag_partiality.py | Lines 58-64 (detector config), 52 (tolerance) |
-| Implementation Plan | plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md | Phase B.7 |
+- Plan: `plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md` — Phase C checklist
+- Fix-plan row: `docs/fix_plan.md` Tier 1 — [SPEC-SQUARE-PARTIALITY-001] and [ARCH-SIM-CONSTRUCTION-001]
+- Test registry: `docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`
+- Finding: `docs/findings.md` line 168 — SIM-CONSTR-PARTIALITY-001 (already Resolved)
 
-## ARCH Contracts (Mandatory)
-| Contract ID | Doc Pointer | Owner Module/API | Failure Classification |
-|-------------|-------------|------------------|------------------------|
-| SIM-CONSTR-PARTIALITY-001 | docs/findings.md | tests/architecture/test_nanobrag_partiality.py | Resolved (Phase B.6 confirmed physics) |
-
-## Do Now (Hard Validity Contract)
-
-### Focus: SPEC-SQUARE-PARTIALITY-001 Phase B.7 — Final Test Configuration
-
-### Implement:
-
-1. **B7.1 — Update detector size in test**:
-   Edit `tests/architecture/test_nanobrag_partiality.py` lines 58-64:
-   ```python
-   detector_config = DetectorConfig(
-       distance_mm=100.0,
-       pixel_size_mm=0.1,
-       spixels=400,  # Updated from 10 to 400 per Phase B.6 investigation
-       fpixels=400,  # Updated from 10 to 400 per Phase B.6 investigation
-       oversample=test_oversample,
-   )
-   ```
-
-2. **B7.2 — Update tolerance to 7%**:
-   Edit `tests/architecture/test_nanobrag_partiality.py` line 52:
-   ```python
-   tolerance = 0.07  # 7% tolerance (from 5%) per Phase B.6: oscillatory convergence around linear
-   ```
-
-3. **B7.3 — Update docstring**:
-   Add note about detector size requirement to docstring (lines 32-46):
-   ```python
-   NOTE: Test uses 400×400 pixel detector to ensure full solid-angle integration.
-   Smaller detectors (e.g., 10×10) show partial-integration effects that deviate
-   from linear scaling. See plans/active/SPEC-SQUARE-PARTIALITY-001/reports/
-   2025-12-08T100000Z/investigation_results.md for finite-detector analysis.
-   ```
-
-4. **B7.4 — Run test and capture output**:
-   ```bash
-   mkdir -p plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z
-   KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/architecture/test_nanobrag_partiality.py --maxfail=1 2>&1 | tee plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/pytest_final.log
-   ```
-
-5. **B7.5 — Verify test passes**:
-   - Expected: PASSED with relative_error < 7%
-   - If FAIL: Check logs, may need additional tolerance adjustment
-
-6. **B7.6 — Update implementation.md**:
-   Add Phase B.7 section marking tasks B7.1-B7.6 complete
-
-7. **B7.7 — Create summary.md**:
-   Write `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/summary.md` with:
-   - Detector change rationale (400×400 from 10×10)
-   - Tolerance change rationale (7% from 5%)
-   - Test result
-   - Phase B completion status
-
-### Validating pytest selector(s):
-- `pytest -vv tests/architecture/test_nanobrag_partiality.py --maxfail=1`
-
-### Artifacts Path:
-`plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/`
-
-### Initiative type consistent:
-spec+tests ✓ (updating test configuration and tolerance)
-
-## Touched
-SPEC-SQUARE-PARTIALITY-001 Phase B.7 (B7.1, B7.2, B7.3, B7.4, B7.5, B7.6, B7.7)
-
-## Forbidden This Loop
-- No new probes (PROBE-FREEZE-001)
-- No production code changes
-- Do not modify probe script logic
-- Do not revert to 10×10 detector
-
-## How-To Map
-
-### Step 1: Update detector size (B7.1)
-Edit `tests/architecture/test_nanobrag_partiality.py` lines 58-64:
-
-**Current:**
-```python
-detector_config = DetectorConfig(
-    distance_mm=100.0,
-    pixel_size_mm=0.1,
-    spixels=10,
-    fpixels=10,
-    oversample=test_oversample,
-)
-```
-
-**Change to:**
-```python
-detector_config = DetectorConfig(
-    distance_mm=100.0,
-    pixel_size_mm=0.1,
-    spixels=400,  # 400×400 for full solid-angle integration (see Phase B.6)
-    fpixels=400,  # 400×400 for full solid-angle integration (see Phase B.6)
-    oversample=test_oversample,
-)
-```
-
-### Step 2: Update tolerance (B7.2)
-Edit `tests/architecture/test_nanobrag_partiality.py` line 52:
-
-**Current:**
-```python
-tolerance = 0.05  # 5% tolerance for integrated intensity
-```
-
-**Change to:**
-```python
-tolerance = 0.07  # 7% tolerance: oscillatory convergence around linear at 400×400 (see Phase B.6)
-```
-
-### Step 3: Update docstring (B7.3)
-Add note after line 46 in the docstring:
-
-```python
-NOTE: Test uses 400×400 pixel detector to ensure full solid-angle integration.
-Smaller detectors (e.g., 10×10) show partial-integration effects. See Phase B.6.
-```
-
-### Step 4: Run test (B7.4)
-```bash
-KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/architecture/test_nanobrag_partiality.py --maxfail=1 2>&1 | tee plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/pytest_final.log
-```
-
-### Step 5: Verify (B7.5)
-Check pytest output for PASSED status.
-
-### Step 6: Update implementation.md (B7.6)
-Add Phase B.7 checklist section with all tasks marked [x].
-
-### Step 7: Write summary (B7.7)
-Create summary.md in artifacts directory.
-
-## Pitfalls To Avoid
-1. **Do NOT use 100×100** — Phase B.6 showed 191% error at 100×100; need 400×400+
-2. **Keep oversample=13** — Do not reduce; it's needed for subpixel sampling
-3. **7% not 5%** — Phase B.6 showed oscillatory convergence; 500×500 had 5.72% and 600×600 had 7.80%
-4. **Run with KMP_DUPLICATE_LIB_OK=TRUE** — Required for torch/MKL compatibility
-5. **Capture full log** — Need evidence for Phase C closure
-
-## If Blocked
-- If test still fails at 7%: try 8% tolerance (500×500 showed 5.72%, margin exists)
-- If memory error: try 300×300 (still 3× area of 10×10 in each direction)
-- If runtime too long: note time in summary but don't reduce detector (correctness > speed)
-
-## Performance Note
-400×400 detector with oversample=13 creates 400×400×13×13 = 27,040,000 subpixels per simulation.
-Test may take 30-60 seconds. This is acceptable for architecture enforcement tests.
+## ARCH Contracts (mandatory)
+1. **ARCH-CONTRACT-TESTING-003**: Test registry synchronization — tests/architecture selectors must appear in TEST_SUITE_INDEX.md
+   - Owner: `docs/development/TEST_SUITE_INDEX.md`
+   - Classification: implementation work (registry sync pending for partiality test)
 
 ---
 
-**Galph Note**: Phase B.6 investigation (i=161) confirmed the finite-detector hypothesis:
-- 10×10 → +3022% error (31× linear)
-- 400×400 → +6.08% error
-- 500×500 → +5.72% error (minimum)
-- 600×600 → +7.80% error (oscillation)
+## Do Now
 
-400×400 with 7% tolerance is the conservative choice: captures oscillatory convergence while validating linear physics.
+**Focus:** SPEC-SQUARE-PARTIALITY-001 Phase C (Ledger Closure)
+
+### Implement: `docs/fix_plan.md` + `docs/development/TEST_SUITE_INDEX.md` + `docs/TESTING_GUIDE.md` + `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md`
+
+Execute Phase C tasks (C1-C4) to close the initiative:
+
+#### C1: Update `docs/fix_plan.md` (2 edits)
+1. **Mark SPEC-SQUARE-PARTIALITY-001 as done:**
+   - Find the [SPEC-SQUARE-PARTIALITY-001] row in Tier 1
+   - Change status from `in_progress` to `done`
+   - Update description: `Phase C complete (ledger closure 2025-12-08T130000Z)`
+   - Add Attempts History entry for Phase C
+2. **Update ARCH-SIM-CONSTRUCTION-001 status note:**
+   - Add a note in the ARCH-SIM-CONSTRUCTION-001 description referencing that SQUARE scaling expectation mismatch has been resolved via SPEC-SQUARE-PARTIALITY-001
+   - Keep status as `blocked_pending_environment` (remaining issues are DBEX-side, not SQUARE scaling)
+
+#### C2: Update `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md`
+- Near the top or in a prominent location, add a note:
+  ```
+  **SQUARE Lattice Resolved (2025-12-08):** The SQUARE lattice expectation mismatch (C.34-C.39 probes) has been resolved by SPEC-SQUARE-PARTIALITY-001. The correct physics is: peak height ∝ (Na·Nb·Nc)², integrated intensity ∝ Na·Nb·Nc. Tests now enforce linear scaling. See `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/`. Future work should NOT reopen vendor edits for SQUARE scaling unless Spec-DB changes.
+  ```
+
+#### C3: Update test registry docs
+1. **`docs/development/TEST_SUITE_INDEX.md`** — Add a row for the partiality test:
+   ```markdown
+   | SQUARE Lattice Partiality | `tests/architecture/test_nanobrag_partiality.py` | Active | `docs/spec-db-core.md:60-140`, `docs/findings.md::SIM-CONSTR-PARTIALITY-001` | Validates SQUARE lattice scaling: integrated intensity ∝ Na×Nb×Nc (linear, NOT squared). Uses 400×400 detector for full solid-angle integration per Phase B.6 investigation. 7% tolerance accommodates sinc² sidelobe oscillations. 2 tests (cpu/cuda). Runtime: ~12s. Environment: `KMP_DUPLICATE_LIB_OK=TRUE`. First added 2025-12-08 (SPEC-SQUARE-PARTIALITY-001). |
+   ```
+   (Insert in the appropriate location in the table, e.g., after the ARCH-GRADIENT-FLOW-001 row)
+
+2. **`docs/TESTING_GUIDE.md`** — Add a brief entry in §2 (Quick Reference Commands) if not already present. Minimal addition:
+   ```markdown
+   | SQUARE Lattice Partiality | `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/architecture/test_nanobrag_partiality.py` | spec-db-core.md:60-140 |
+   ```
+   (If §2 doesn't have a table, add a brief subsection or append to existing architecture tests section)
+
+#### C4: Verify finding closure (already done)
+- **SIM-CONSTR-PARTIALITY-001** is already marked "Resolved" at line 168 of `docs/findings.md`
+- No additional edit required — just confirm during review
+
+#### C5: Update implementation.md
+- Mark Phase C tasks (C1-C4) as complete in `plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md`
+
+#### C6: Create summary.md
+- Write `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/summary.md` documenting:
+  - Phase C completion
+  - Links to all artifact locations
+  - Initiative exit criteria status (all 4 should be met)
+
+#### C7: Capture collect-only log
+- Run: `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/architecture/test_nanobrag_partiality.py > plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/collect_partiality.log 2>&1`
+
+### Validation
+After edits, verify:
+1. `docs/fix_plan.md` shows SPEC-SQUARE-PARTIALITY-001 status=done
+2. `docs/development/TEST_SUITE_INDEX.md` contains partiality test row
+3. `plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md` shows all Phase C tasks checked
+4. Collect-only log exists at artifacts path
+
+---
+
+## How-To Map
+
+```bash
+# Set environment
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+
+# Capture collect-only for registry sync
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/architecture/test_nanobrag_partiality.py > plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/collect_partiality.log 2>&1
+
+# Verify test collection (should show 2 tests)
+cat plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/collect_partiality.log | tail -5
+```
+
+## Pitfalls To Avoid
+1. **Do not change test logic** — Phase C is docs-only; the partiality test already works per Phase B.7
+2. **Do not create new plan-local scripts** — PROBE-FREEZE-001 applies
+3. **Do not unblock ARCH-SIM-CONSTRUCTION-001** — it remains blocked for other reasons (DBEX layer issues); only add the SQUARE scaling resolution note
+4. **Preserve existing fix_plan.md structure** — edit in place, don't reformat entire sections
+5. **Match TEST_SUITE_INDEX.md format** — follow existing row structure exactly
+
+## Forbidden This Loop
+- No new probes
+- No test logic changes
+- No production code changes
+- Do not mark ARCH-SIM-CONSTRUCTION-001 as done or unblocked
+
+## If Blocked
+If any registry file is unexpectedly missing or corrupt:
+- Record the blocker in summary.md
+- Skip that specific sync task
+- Complete other Phase C tasks
+- Mark SPEC-SQUARE-PARTIALITY-001 as `done_with_caveat` noting the blocked doc sync
+
+---
+
+## Exit Criteria Check (for summary.md)
+
+| # | Criterion | Status |
+|---|-----------|--------|
+| 1 | Spec text explicitly states peak vs integrated SQUARE scaling | ✅ Phase A (SIM-CONSTR-PARTIALITY-001 updated 2025-12-08) |
+| 2 | test_nanobrag_partiality.py enforces linear scaling, passes | ✅ Phase B.7 (2/2 PASS, 400×400 detector, 7% tolerance) |
+| 3 | ARCH-SIM-CONSTRUCTION-001 ledger/impl updated re SQUARE resolution | 🔲 Phase C.1, C.2 |
+| 4 | Test registry synchronized (TESTING_GUIDE.md, TEST_SUITE_INDEX.md) | 🔲 Phase C.3 |

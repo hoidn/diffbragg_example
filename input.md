@@ -1,152 +1,152 @@
-# Input for Ralph (Loop i=175)
+# Input for Ralph (Loop i=176)
 
 ## Summary
-Execute ARCH-TELEMETRY-002 Phase C — Cleanup & Closure sweep to complete the initiative.
+Execute REPORT-NANOBRAG-STATUS-001 Phase A — Inventory HDF5 outputs and scope the progress reporting pack.
 
 ## BindingForRalph
-- **ActionType:** review_or_housekeeping
-- **DecisionStatus:** validated
-- **InitiativeType:** architecture
+- **ActionType:** evidence_collection
+- **DecisionStatus:** exploring
+- **InitiativeType:** tooling
 
 ## SupervisorMode
-Docs (closure documentation + validation sweep)
+Docs (reporting pack scoping — no code changes)
 
 ## Focus
-ARCH-TELEMETRY-002 — Telemetry & Probe Simplification — Phase C (Cleanup & Closure)
+REPORT-NANOBRAG-STATUS-001 — Nanobrag Progress Reporting Pack — Phase A (Evidence Collection)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest -v tests/architecture/test_telemetry_surfaces.py` (must PASS — validation of Phase B)
-- `pytest -v tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis` (must PASS — no regression)
-- `pytest -v tests/architecture/test_gradient_contracts.py` (must PASS — architecture suite sanity)
+- None — this is a reporting/evidence-only loop; no production test validation required
 
 ## Artifacts
-`plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z/`
+`plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/`
 
 ## Findings Applied (Mandatory)
-- **PROBE-FREEZE-001** (Plan-local probe policy): No new probes; Phase C is closure only
-  - Adherence: No scripts created; validation of existing enforcement
-- **ARCH-STAGE-CTX-001/002** (Stage context ownership): Telemetry dict guardrails validated
-  - Adherence: Exit criterion 4 already satisfied via Phase B
-- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Closure artifacts follow established patterns
-  - Adherence: Artifacts routed to `reports/2025-12-08T000000Z/`
+- **PROBE-FREEZE-001** (Plan-local probe policy): No new probes; read-only evidence collection
+  - Adherence: No scripts created; only existing HDF5 parsing via Python inline
+- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Artifacts follow established JSON/markdown patterns
+  - Adherence: Artifacts routed to `reports/2025-12-08T010000Z/`
+- No other findings directly applicable to this reporting task
 
 ## Pointers
-- Implementation plan: `plans/active/ARCH-TELEMETRY-002/implementation.md` (Phase C checklist)
-- Telemetry charter: `docs/architecture/telemetry.md`
-- Telemetry inventory: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/telemetry_inventory.md`
-- Phase B summary: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T220000Z/summary.md`
-- Fix plan entry: `docs/fix_plan.md` lines 230-250
-- Findings ledger: `docs/findings.md`
+- Implementation plan: `plans/active/REPORT-NANOBRAG-STATUS-001/implementation.md`
+- Integration plan (reference): `plans/nanobrag_integration_plan.md` (thinned version)
+- Spec references: `docs/spec-db-workflow.md` (Stage A/B/C), `docs/spec-db-core.md` (telemetry fields)
+- Fix plan entry: `docs/fix_plan.md` lines 512-528
+- PERF-WARM-SIM-001 telemetry contract (reuse): `roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`
 
 ---
 
 ## ARCH Contracts (mandatory)
-- **ARCH-STAGE-CTX-001/002** (Stage Context Ownership): Already validated in Phase B
-  - Owner: `dbex/refinement/telemetry_collectors.py`, `dbex/refinement/interfaces.py`
-  - Classification: Closure — no new enforcement needed
-- **PROBE-FREEZE-001** (Probe Policy): Already validated in Phase B
-  - Owner: `prompts/supervisor.md::diagnostic_script_policy`, `tests/architecture/test_probe_contracts.py`
-  - Classification: Closure — no new enforcement needed
+- **Environment Freeze**: No package installs; read-only HDF5 parsing
+  - Owner: CLAUDE.md
+  - Classification: Evidence collection — if plotting libraries unavailable, emit JSON/tables only
 
 ---
 
 ## Do Now
 
-**Focus:** ARCH-TELEMETRY-002 Phase C — Cleanup & Closure
+**Focus:** REPORT-NANOBRAG-STATUS-001 Phase A — Inventory & Evidence Collection
 
 ### Background
-- Phase A complete (i=173, commit 744cea60): Charter, inventory, manifest section authored
-- Phase B complete (i=174, commit 4d8943a6): Enforcement test, supervisor policy, probe contracts cross-ref
+This initiative delivers a meeting-ready progress pack showing current nanobrag refinement telemetry (loss traces, parameter deltas) and representative ROI visuals. Per implementation.md:
+- Scope: reporting only, no runtime/toolchain changes
+- Inputs: existing HDF5 outputs from `dbex.refine_one --backend nanobrag` runs
+- Deliverables: `reports/nanobrag_validation.md` + JSON summaries
 
-**Exit Criteria Status:**
-1. ✅ Charter exists + linked in docs/index.md
-2. ✅ Inventory exists (manifest + reports)
-3. ✅ Enforcement test exists + passes (3 tests)
-4. ✅ Supervisor policy + probe contracts updated
-5. ⏳ Partial — tests pass, but `docs/findings.md` guardrail update pending
+### Phase A Tasks
 
-### Phase C Tasks
+#### A1 — Inventory HDF5 Outputs
 
-#### C1 — Review Telemetry Inventory for Unused Fields
-
-Using the Phase A inventory (`plans/active/ARCH-TELEMETRY-002/reports/2025-12-07T215000Z/telemetry_inventory.md`), identify any telemetry fields that:
-- Are NOT referenced in Spec-DB (`docs/spec-db-*.md`)
-- Are NOT consumed by active tests
-- Are NOT documented in `docs/data_dependency_manifest.md`
-- Are NOT used by active plan artifacts
-
-**Expected outcome:** Either:
-- (a) Find at least one unused field and document it as deprecated (per Exit Criterion 2), OR
-- (b) Confirm all fields are in use with evidence (grep/references)
-
-If all fields are in active use, document this finding and mark Exit Criterion 2 as "all fields in use — no deprecation needed."
-
-**Output:** `reports/2025-12-08T000000Z/field_audit.md`
-
-#### C2 — Update docs/findings.md with Guardrail Entry
-
-Add a new finding entry for ARCH-TELEMETRY-002 guardrails:
-
-```markdown
-### TELEMETRY-GUARD-001: Telemetry Ownership Enforcement (Active)
-**Added:** 2025-12-08 (ARCH-TELEMETRY-002 Phase C)
-**Status:** Active
-**Consumers:** [ARCH-TELEMETRY-002], test selectors `tests/architecture/test_telemetry_surfaces.py`
-
-**Description:** Telemetry surfaces in `dbex/` are governed by the ownership charter at `docs/architecture/telemetry.md`. Primary owners (interfaces.py, telemetry_collectors.py, writer.py) define production telemetry; secondary owners (telemetry_baseline.py, artifacts.py, mapping.py) define diagnostics. New telemetry fields must follow expansion rules (§5) and be validated by `test_telemetry_surfaces.py`.
-
-**Code References:**
-- Enforcement test: `tests/architecture/test_telemetry_surfaces.py`
-- Charter: `docs/architecture/telemetry.md`
-- Supervisor policy: `prompts/supervisor.md::telemetry_charter_compliance`
-
-**Remediation:** Before adding telemetry fields:
-1. Check charter §2-3 for owner module
-2. Follow expansion rules in §5
-3. Run `pytest -v tests/architecture/test_telemetry_surfaces.py`
-```
-
-**Output:** Edit `docs/findings.md`
-
-#### C3 — Run Architecture Test Slice
-
-Run the full architecture test slice to validate no regressions:
+Search for recent HDF5 files generated by the torch backend:
 
 ```bash
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -v tests/architecture/test_telemetry_surfaces.py \
-       tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis \
-       tests/architecture/test_gradient_contracts.py \
-       --tb=short | tee $ARTIFACT_DIR/architecture_test_slice.log
+# Find recent HDF5 outputs with /torch_diagnostics group
+find . -name "*.h5" -o -name "*.hdf5" -mtime -30 2>/dev/null | head -20
 ```
 
-**Expected:** All tests PASS
+For each candidate, check if it has the `/torch_diagnostics` group:
 
-**Output:** `reports/2025-12-08T000000Z/architecture_test_slice.log`
-
-#### C4 — Update fix_plan.md Status
-
-Update ARCH-TELEMETRY-002 status from `in_progress` to `done`:
-- Line 97 (Execution Roadmap): Update status
-- Line 232: Update Status field
-
-Add final Attempts History entry:
-```
-* 2025-12-08T000000Z (Loop i=175, Ralph) — **Phase C complete** (closure): C1 field audit (all fields in use OR 1+ deprecated), C2 findings.md TELEMETRY-GUARD-001 added, C3 architecture test slice PASSED (X tests), C4 status updated to done. **ALL EXIT CRITERIA MET**: Charter ✅, Inventory ✅, Enforcement test ✅, Policy updated ✅, Tests pass + findings updated ✅. Initiative ready for archive. Artifacts: `plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z/`.
+```python
+import h5py
+with h5py.File(path, 'r') as f:
+    if 'torch_diagnostics' in f:
+        print(f"{path}: HAS torch_diagnostics")
+        print(f"  Keys: {list(f['torch_diagnostics'].keys())}")
 ```
 
-**Output:** Edit `docs/fix_plan.md`
+**Expected outcome:** List of viable HDF5 files with torch backend telemetry
 
-#### C5 — Author Summary
+**Output:** `reports/2025-12-08T010000Z/hdf5_inventory.md`
 
-Create `reports/2025-12-08T000000Z/summary.md` with:
-1. Phase C task completion status
-2. Exit criteria validation (all 5)
-3. Test results
-4. Archive readiness assessment
+#### A2 — Select Best Candidate
+
+From the inventory, select the most recent viable file that has:
+- `/torch_diagnostics` group
+- Loss trace arrays (`loss_trace_sample` or similar)
+- Parameter delta fields (if Stage A refinement was run)
+- ROI datasets (`data/roi*`, `model/roi*`, etc.) — optional
+
+**Output:** Record selected file path in `reports/2025-12-08T010000Z/selected_hdf5.txt`
+
+#### A3 — Parse Telemetry Schema
+
+For the selected file, extract and document the telemetry schema:
+
+```python
+import h5py
+import json
+
+with h5py.File(selected_path, 'r') as f:
+    diag = f['torch_diagnostics']
+    schema = {}
+    for key in diag.keys():
+        if isinstance(diag[key], h5py.Dataset):
+            schema[key] = {
+                'shape': list(diag[key].shape),
+                'dtype': str(diag[key].dtype),
+                'sample': diag[key][...].tolist()[:5] if diag[key].size < 100 else "large"
+            }
+
+    # Also check ROI datasets if present
+    if 'data' in f:
+        schema['_roi_datasets'] = list(f['data'].keys())[:10]
+
+print(json.dumps(schema, indent=2))
+```
+
+**Output:** `reports/2025-12-08T010000Z/telemetry_schema.json`
+
+#### A4 — Plan-vs-Status Matrix Draft
+
+Review `plans/nanobrag_integration_plan.md` and current implementation status to draft the matrix structure:
+
+| Phase | Status | Evidence |
+|-------|--------|----------|
+| Phase 0 (Foundation) | ? | |
+| Phase 1 (Stage A) | ? | |
+| Phase 2 (Stage B) | ? | |
+| Phase 3 (Stage C) | ? | |
+| Phase 4 (DIALS Integration) | ? | |
+| Phase 5 (Validation) | ? | |
+
+Cross-reference with:
+- `docs/fix_plan.md` Tier 0-2 initiative statuses
+- Test suite status (`docs/TESTING_GUIDE.md`)
+- Recent smoke test results
+
+**Output:** `reports/2025-12-08T010000Z/plan_status_matrix_draft.md`
+
+#### A5 — Author Phase A Summary
+
+Create `reports/2025-12-08T010000Z/summary.md` with:
+1. HDF5 inventory results
+2. Selected file and rationale
+3. Telemetry schema overview
+4. Plan-vs-status matrix draft
+5. Phase B scope (next: parse telemetry, generate report)
 
 ---
 
@@ -155,79 +155,76 @@ Create `reports/2025-12-08T000000Z/summary.md` with:
 ```bash
 # Set environment
 cd /home/ollie/Documents/diffbragg_example
-export ARTIFACT_DIR=plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z
+export ARTIFACT_DIR=plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z
 
-# C1: Audit telemetry inventory
-# Read inventory at reports/2025-12-07T215000Z/telemetry_inventory.md
-# Search for each field in spec-db, tests, manifest
-# Write findings to $ARTIFACT_DIR/field_audit.md
+# A1: Find HDF5 files (recent 30 days)
+find . -name "*.h5" -o -name "*.hdf5" -mtime -30 2>/dev/null | head -30
 
-# C2: Add findings.md entry
-# Use Edit tool to add TELEMETRY-GUARD-001 entry
+# For each candidate, check torch_diagnostics (inline Python)
+python3 -c "
+import h5py
+import sys
+path = sys.argv[1]
+try:
+    with h5py.File(path, 'r') as f:
+        if 'torch_diagnostics' in f:
+            print(f'HAS torch_diagnostics: {list(f[\"torch_diagnostics\"].keys())}')
+        else:
+            print('NO torch_diagnostics')
+except Exception as e:
+    print(f'ERROR: {e}')
+" <path>
 
-# C3: Run architecture test slice
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
-pytest -v tests/architecture/test_telemetry_surfaces.py \
-       tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis \
-       tests/architecture/test_gradient_contracts.py \
-       --tb=short 2>&1 | tee $ARTIFACT_DIR/architecture_test_slice.log
-
-# C4: Update fix_plan.md
-# Use Edit tool to update status and add Attempts History
-
-# C5: Write summary
-# Use Write tool to create summary.md
+# A3: Parse schema (Python -c or script)
+# A4: Review plans/nanobrag_integration_plan.md for phase checklist
+# A5: Author summary.md
 ```
 
 ---
 
 ## Forbidden This Loop
-- **No telemetry schema changes** — Closure only; do not modify production telemetry
-- **No new probes** — Phase C is validation/closure
-- **No implementation code changes** — Docs and tests only
+- **No code changes** — Reporting/evidence only
+- **No package installs** — Environment Freeze
+- **No new probes/scripts** — Use inline Python for HDF5 parsing
 
 ## Pitfalls To Avoid
-1. **Don't invent deprecations** — Only mark fields as deprecated if grep shows no consumers
-2. **Don't skip findings.md update** — Exit criterion 5 requires this
-3. **Keep audit evidence concrete** — Document grep commands and results
-4. **Run full test slice** — Don't shortcut with single test
+1. **Don't run refinement** — Only parse existing outputs
+2. **Don't modify HDF5 files** — Read-only access
+3. **If no HDF5 with torch_diagnostics found** — Document as blocker, recommend running torch backend smoke to generate artifacts
+4. **JSON fallback** — If h5py import fails, document as environment blocker
 
 ## If Blocked
-If field audit is inconclusive:
-1. Document the ambiguity in `field_audit.md`
-2. Mark Exit Criterion 2 as "all fields appear in use — no deprecation candidates identified"
-3. Proceed with C2-C5 regardless
-4. Note in summary that future audit may identify deprecation candidates
+If no viable HDF5 files found:
+1. Document the search in `hdf5_inventory.md`
+2. Note which test/smoke command would generate such outputs
+3. Mark initiative as blocked_pending_artifacts
+4. Recommend running: `pytest tests/dbex/test_torch_refine_smoke.py -k stage_a --tb=short`
 
 ---
 
-## Exit Criteria Validation
+## Exit Criteria Validation (Phase A)
 
 | Criterion | Expected | Validation |
 |-----------|----------|------------|
-| EC1 | Charter linked in docs/index.md | Already satisfied (Phase B) |
-| EC2 | At least one field deprecated OR all in use documented | C1 field_audit.md |
-| EC3 | Enforcement test passes | C3 test_slice.log |
-| EC4 | Supervisor policy + probe contracts updated | Already satisfied (Phase B) |
-| EC5 | Tests pass + findings.md updated | C2 + C3 |
+| HDF5 inventory | At least 1 candidate with torch_diagnostics | hdf5_inventory.md |
+| Telemetry schema | Key fields documented | telemetry_schema.json |
+| Plan-vs-status draft | Matrix structure defined | plan_status_matrix_draft.md |
+| Summary authored | Phase A + Phase B scope | summary.md |
 
 ---
 
 ## Output Artifacts Expected
 
-1. `plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z/field_audit.md`
-2. `docs/findings.md` (edited — TELEMETRY-GUARD-001 added)
-3. `plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z/architecture_test_slice.log`
-4. `docs/fix_plan.md` (edited — status updated to done)
-5. `plans/active/ARCH-TELEMETRY-002/reports/2025-12-08T000000Z/summary.md`
+1. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/hdf5_inventory.md`
+2. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/selected_hdf5.txt`
+3. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/telemetry_schema.json`
+4. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/plan_status_matrix_draft.md`
+5. `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/summary.md`
 
 ---
 
 ## Implement Target
-`docs/findings.md::TELEMETRY-GUARD-001` + `docs/fix_plan.md` status update
+Evidence collection only — no production code changes
 
 ## Validating Pytest Selectors
-```bash
-pytest -v tests/architecture/test_telemetry_surfaces.py tests/architecture/test_probe_contracts.py::test_probe_shims_delegate_to_owner_clis tests/architecture/test_gradient_contracts.py
-```
+None — reporting/evidence loop

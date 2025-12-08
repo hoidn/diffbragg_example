@@ -60,10 +60,10 @@
   - **Governed by:** PARITY-001, MANIFEST-001
   - Covers `plans/active/FORWARD-EQUIV-001/`, `.../FORWARD-EQUIV-002/`, and `plans/active/PARITY-HARNESS-002/`.
 - [TOOLING-VIS-001] (Mapping-aligned visualization tooling) — **pending**. Plan exists with recent reports; ledger coverage will document progress on canonical visuals.
-- [DOCS-ROADMAP-001] (Roadmap documentation refresh) — **pending**. Needs ledger visibility so doc graph changes are tracked alongside implementation.
+- [DOCS-ROADMAP-001] (Roadmap documentation refresh) — **done** (2025-11-24T150000Z: All phases complete; plan thinned 305→146 lines).
 - [RUNTIME-VEC-001] (Runtime vectorization checklist enforcement) — **done** (2025-12-08T160000Z: Phase B/C complete. Test validated: correlation=1.0, sum_ratio_delta=0.0. Exit criterion #1 satisfied. Artifacts: `plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/`).
 - [REPORT-NANOBRAG-STATUS-001] (Status reporting scripts) — **pending**. Keeps the reporting automation plan on the roadmap.
-- [NANOBRAG-GOLDEN-001] (Golden dataset capture + maintenance) — **pending**. Ledger entry will document refresh cadence and outstanding action items.
+- [NANOBRAG-GOLDEN-001] (Golden dataset capture + maintenance) — **done** (2025-11-04T030000Z: All phases A-D complete; canonical dataset captured with parity harness integration).
 - [FINDINGS-LEDGER-002] (Findings ledger upkeep and knowledge base maintenance) — **done** (2025-12-07T124500Z: All phases complete except deferred B.3+C.2. Exit criteria 4/4 satisfied. Closure summary: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/closure_summary.md`). Full implementation plan authored 2025-12-03: Phase A (ledger audit + citation fixes + inventory), Phase B (cross-linking findings ↔ fix-plan), Phase C (cadence/automation). **Phase A.2 complete (2025-12-03T120250Z)**: Fixed REFINE-005 duplicate entry to include code citations; achieved **100% path:line coverage (86/86 findings)**. Status breakdown: Active=74, Resolved=10, Deferred=1, Retracted=1. **Phase B.2 complete (2025-12-07T080000Z)**: Established reciprocal cross-links between `docs/findings.md` and `docs/fix_plan.md`. Updated 7 existing Tier 1 & Tier 2 initiatives with "Governed by" lines. Created 2 new initiatives: [PHYSICS-LOSS-CONSISTENCY] (Tier 1, 5 findings), [ARCH-STAGE-CONTEXT-CONSOLIDATION] (Tier 2, 2 findings). Annotated 58/74 Active findings (78.4%) with "**Consumers:** [INITIATIVE-ID]." metadata. **Coverage target met:** ≥78% ✅. Artifacts: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T080000Z/{summary.md,consumer_map_v2.json,add_consumers.py}`. **Phase B.3 DEFERRED** (archive/retire candidates require pytest validation). **Phase C complete (2025-12-07T100000Z)**: Delivered cadence checklist template (`cadence_checklist.md`) with 5-phase quarterly maintenance workflow; updated `docs/index.md` § Knowledge Base Ledger and `docs/fix_plan.md` Working Agreements with cadence cross-references. C.2 (automation hook) deferred — manual cadence sufficient. Artifacts: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T100000Z/{summary.md,planning_notes.md}`.
 - [SPEC-SQUARE-PARTIALITY-001] (SQUARE Lattice Spec & Test Alignment) — **done** (Phase C complete 2025-12-08T130000Z: Physics clarified by `inbox/nanobrag_torch_response_2025_12_08.md` — peak height ∝ `(Na·Nb·Nc)²`, integrated intensity ∝ `Na·Nb·Nc`. Phase A: updated `docs/findings.md::SIM-CONSTR-PARTIALITY-001` to demote `(Na·Nb·Nc)²` integrated expectation and promote linear law. Phase B: updated `tests/architecture/test_nanobrag_partiality.py` to enforce linear scaling with 400×400 detector for full solid-angle integration (7% tolerance for sinc² sidelobe oscillations); 2/2 tests PASS. Phase C: ledger closure, test registry sync. Artifacts: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/`. Working plan: `plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md`.)
 
@@ -459,7 +459,7 @@
 
 ### [DOCS-ROADMAP-001] Roadmap Documentation Refresh
 - Depends on: PORTFOLIO-STATUS (archive hygiene)
-- Status: pending
+- Status: done (2025-11-24T150000Z: All phases A-C complete per implementation.md; normative duplication eliminated, plan thinned 305→146 lines)
 - Type: docs
 - Priority: Low
 - Tier: 1
@@ -477,7 +477,7 @@
 
 ### [RUNTIME-VEC-001] Runtime Vectorization Checklist Enforcement
 - Depends on: None
-- Status: pending
+- Status: done (2025-12-08T160000Z: Phase B/C complete; test validated correlation=1.0, sum_ratio_delta=0.0; exit criterion #1 satisfied)
 - Type: perf
 - Priority: Medium
 - Tier: 1
@@ -529,7 +529,7 @@
 
 ### [NANOBRAG-GOLDEN-001] Golden Dataset Capture + Maintenance
 - Depends on: None
-- Status: pending
+- Status: done (2025-11-04T030000Z: All phases A-D complete per implementation.md; canonical dataset captured, manifest validated, parity harness integrated)
 - Type: harness
 - Priority: Medium
 - Tier: 1

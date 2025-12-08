@@ -1,0 +1,40 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 15 items
+
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag PASSED   [  6%]
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend PASSED [ 13%]
+tests/dbex/test_refine_one_cli.py::test_parser_accepts_sigma_map_flag PASSED [ 20%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend PASSED [ 26%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend PASSED [ 33%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator PASSED [ 40%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration PASSED [ 46%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_requires_sigma_rdout PASSED [ 53%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_accepts_sigma_map PASSED [ 60%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_accepts_external_lookup_sigma_map PASSED [ 66%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz PASSED [ 73%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0] PASSED [ 80%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0] PASSED [ 86%]
+tests/dbex/test_refine_one_cli.py::test_refined_mtz_missing_file_fails_fast PASSED [ 93%]
+tests/dbex/test_refine_one_cli.py::test_refined_mtz_telemetry_provenance PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 15 passed, 4 warnings in 3.15s ========================

@@ -1,0 +1,17 @@
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend
+tests/dbex/test_refine_one_cli.py::test_parser_accepts_sigma_map_flag
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_requires_sigma_rdout
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_accepts_sigma_map
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_accepts_external_lookup_sigma_map
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0]
+tests/dbex/test_refine_one_cli.py::test_refined_mtz_missing_file_fails_fast
+tests/dbex/test_refine_one_cli.py::test_refined_mtz_telemetry_provenance
+
+15 tests collected in 0.75s

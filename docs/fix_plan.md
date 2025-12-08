@@ -486,6 +486,16 @@
     - Thresholds: correlation ≥0.999, |sum_ratio−1| ≤5e-3
     - Next: Phase B — validate existing DBEX test, update TESTING_GUIDE.md
     - Artifacts: `plans/active/RUNTIME-VEC-001/reports/2025-12-08T140000Z/` (a1_spec_refs.md, a2_test_inventory.md, a3_artifact_policy.md, summary.md)
+  * 2025-12-08T160000Z (i=165) — Phase B/C complete:
+    - B1: Test exists — 1 test collected (`test_source_weights_ignored_per_spec`) via `pytest --collect-only`
+    - B2: Test PASSED with proper environment: `RUNTIME_VEC_ARTIFACT_DIR`, `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`
+    - B3: Metrics validated: correlation=1.0 (≥0.999 ✓), sum_ratio=1.0, sum_ratio_delta=0.0 (≤5e-3 ✓), pass=true
+    - C1: Updated `docs/TESTING_GUIDE.md` §2 (Runtime vectorization row) with fresh artifacts path
+    - C2: Added RUNTIME-VEC-001 row to `docs/development/TEST_SUITE_INDEX.md`
+    - C3: fix_plan entry updated (this entry)
+    - Exit criterion #1 satisfied: smoke selector mapped with validated metrics
+    - Next: Phase B3 (optional) — additional TestSourceWeights coverage or scope closure
+    - Artifacts: `plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/` (pytest_runtime_vec.log, collect_runtime_vec.log, artifacts/mapping_metrics.json, artifacts/source_weight_test_summary.txt, summary.md)
 
 ### [REPORT-NANOBRAG-STATUS-001] Status Reporting Scripts
 - Depends on: None

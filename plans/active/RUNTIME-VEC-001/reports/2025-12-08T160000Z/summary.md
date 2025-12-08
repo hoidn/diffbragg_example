@@ -1,3 +1,39 @@
+# RUNTIME-VEC-001 Loop i=165 Summary (Ralph Execution)
+
+## Ralph Phase B/C Results (2025-12-08T160000Z)
+
+### What Shipped
+- Validated existing `test_source_weights_ignored_per_spec` test via collect-only (1 test collected)
+- Executed test with proper environment variables: `RUNTIME_VEC_ARTIFACT_DIR`, `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`
+- Test PASSED with excellent metrics: correlation=1.0 (threshold ≥0.999), sum_ratio_delta=0.0 (threshold ≤5e-3)
+- Updated `docs/TESTING_GUIDE.md` §2 with fresh artifact paths and runtime metrics
+- Added RUNTIME-VEC-001 row to `docs/development/TEST_SUITE_INDEX.md`
+- Updated `docs/fix_plan.md` Attempts History with Loop i=165 entry
+- Updated `plans/active/RUNTIME-VEC-001/implementation.md` marking Phase B/C complete
+
+### Metrics Summary
+| Metric | Value | Threshold | Status |
+|--------|-------|-----------|--------|
+| Correlation | 1.0 | ≥0.999 | PASS |
+| Sum ratio | 1.0 | n/a | n/a |
+| Sum ratio delta | 0.0 | ≤5e-3 | PASS |
+| Runtime | ~2.9s | n/a | n/a |
+
+### Exit Criteria Validation
+- Exit criterion #1 satisfied: smoke selector mapped with validated metrics
+- Phase B3 (additional test coverage) deferred as optional enhancement
+
+### Next Step
+Phase B3 (optional): Port additional `TestSourceWeights*` coverage (divergence correlation checks, CLI parity metrics). Current test validates primary exit criterion.
+
+### Turn Summary (Ralph)
+Validated RUNTIME-VEC-001 Phase B: test exists (1 collected), executes with proper env vars, PASSED with correlation=1.0 and sum_ratio_delta=0.0.
+Updated docs (TESTING_GUIDE.md, TEST_SUITE_INDEX.md) and fix_plan.md with Loop i=165 artifacts and metrics.
+Exit criterion #1 satisfied; Phase B3 deferred for optional enhancement.
+Artifacts: `plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/` (pytest_runtime_vec.log, artifacts/mapping_metrics.json)
+
+---
+
 # RUNTIME-VEC-001 Loop i=165 Summary (Galph Planning)
 
 ## Actor

@@ -8,12 +8,12 @@
 - [x] A3: Define artifact policy for the ported tests (e.g., write metrics JSON into `$RUNTIME_VEC_ARTIFACT_DIR` on failure) and document planned pytest selectors + environment flags.
   - **Result:** Policy defined with `RUNTIME_VEC_ARTIFACT_DIR` env var; documented in `reports/2025-12-08T140000Z/a3_artifact_policy.md`
 
-## Phase B — Implementation & Tests
-- [ ] B1: Port the equal-weight enforcement test (`TestSourceWeights::test_source_weights_ignored_per_spec`) into `tests/dbex/test_runtime_vectorization.py`, reusing DBEX-friendly helpers and temporary sourcefiles.
-- [ ] B2: Ensure the new test runs via the mapped selector (`pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec`) with GPU-neutral guardrails; capture targeted pytest log and collect-only output under `plans/active/RUNTIME-VEC-001/reports/<timestamp>/`.
-- [ ] B3: Refine remaining `TestSourceWeights*` coverage (divergence correlation checks, CLI parity metrics) or document deferral with TODO and thresholds if scope-limited this loop.
+## Phase B — Implementation & Tests (COMPLETE — Loop i=165)
+- [x] B1: Test already exists in `tests/dbex/test_runtime_vectorization.py` (ported in prior loop). Validated 1 test collected via `pytest --collect-only`.
+- [x] B2: Test PASSED via mapped selector with env vars `RUNTIME_VEC_ARTIFACT_DIR`, `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`. Metrics: correlation=1.0 (≥0.999 ✓), sum_ratio=1.0 (|Δ|=0.0 ≤5e-3 ✓). Artifacts: `reports/2025-12-08T160000Z/` (pytest_runtime_vec.log, collect_runtime_vec.log, artifacts/mapping_metrics.json).
+- [ ] B3: Deferred — remaining `TestSourceWeights*` coverage (divergence correlation checks, CLI parity metrics). Current test validates exit criterion #1 (smoke selector mapped with validated metrics). Additional coverage documented as optional enhancement.
 
-## Phase C — Validation & Documentation
-- [ ] C1: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to promote the runtime vectorization row from Planned to Active with command, env flags, artifact paths, and metrics overview.
-- [ ] C2: Append fix_plan Attempts History detailing commands, artifacts, and findings references (RUNTIME-001, source weighting tolerances); create/update `docs/findings.md` if new runtime guardrails surface.
-- [ ] C3: Archive pytest/collect logs with environment context under `plans/active/RUNTIME-VEC-001/reports/<timestamp>/commands/` or equivalent, ensuring rerun reproducibility.
+## Phase C — Validation & Documentation (COMPLETE — Loop i=165)
+- [x] C1: Updated `docs/TESTING_GUIDE.md` §2 (Runtime vectorization row) and `docs/development/TEST_SUITE_INDEX.md` with fresh artifacts path, runtime, environment, and findings refs.
+- [x] C2: fix_plan Attempts History updated with Loop i=165 entry (correlation/sum_ratio metrics, artifact paths, exit criterion #1 satisfied).
+- [x] C3: Artifacts archived: `plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/` (pytest_runtime_vec.log, collect_runtime_vec.log, artifacts/mapping_metrics.json, artifacts/source_weight_test_summary.txt, summary.md).

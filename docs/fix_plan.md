@@ -553,6 +553,21 @@
   * 2025-12-07T220000Z — see docs/fix_plan_archive.md for details.
   * ... (see docs/fix_plan_archive.md and plans/active/ORCH-CLI-FALLBACK-001/reports/ for full Attempts History and metrics).
 
+### [ROI-MAPPING-ALIGN-001] Stage-A / Mapping ROI Alignment & Parity
+- Depends on: DB-AT-SUITE-CARE-001 (DB-AT acceptance gates), DBAT-SMOKE-GOLDEN-001 (golden vs smoke config alignment), ARCH-SIM-CONSTRUCTION-001 (simulator construction evidence)
+- Status: pending
+- Type: architecture
+- Priority: High (DB-AT-028/029 ROI CC correctness)
+- Tier: 1
+- Owner/Date: (unassigned) / 2025-12-08
+- Exit Criteria:
+  1. Canonical ROI contract documented and enforced for DB-AT-024/027/028/029, with mapping and Stage-A paths shown to share identical ROI sets for the golden simple_cubic configuration.
+  2. ROI parity probe(s) demonstrate either (a) improved ROI CC on smoke when using unified/golden ROIs, or (b) strong evidence that ROI miscalculation is not the dominant cause of the negative CC.
+  3. At least one regression selector guards ROI parity between mapping and Stage-A fixtures; `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` are updated with selector names and collect-only logs under this initiative.
+- Working Plan: `plans/active/ROI-MAPPING-ALIGN-001/implementation.md`
+- Attempts History:
+  * 2025-12-08T200000Z (planning) — Created ROI-MAPPING-ALIGN-001 implementation plan to investigate whether inconsistent ROI calculation between golden mapping and Stage-A smoke paths contributes to the persistent negative ROI CC on DB-AT-028/029. Scoped Phase A probes to compare ROI layouts and CC for golden vs smoke vs unified configurations, Phase B fixes to factor a canonical ROI builder, and Phase C spec/test updates. No code changes yet; artifacts: `plans/active/ROI-MAPPING-ALIGN-001/implementation.md`.
+
 ### [SUPERVISOR] Supervisor Agent Documentation & Roadmap
 - Depends on: AGENTS.md supervisor rules, prompts/supervisor.md
 - Status: pending

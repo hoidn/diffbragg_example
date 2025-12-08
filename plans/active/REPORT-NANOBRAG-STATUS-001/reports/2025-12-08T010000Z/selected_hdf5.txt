@@ -1,0 +1,13 @@
+./plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5
+
+Selected because:
+1. Contains loss trace arrays (refine_loss_trace_full, refine_loss_trace_sample)
+2. Shows Stage A refinement convergence: 981638.31 -> 979335.56 over 10 iterations
+3. Structured dtype allows iteration-indexed analysis
+4. Full ROI structure (92 ROIs) for visual inspection
+
+Alternative candidate:
+./stage_a_refinement_output/stage_a_refinement.h5
+- Most recent by mtime
+- Has canonical_detector_distances_mm telemetry
+- Does not have loss traces

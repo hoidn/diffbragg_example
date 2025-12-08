@@ -1,0 +1,88 @@
+{
+  "_source_file": "./plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5",
+  "_inventory_date": "2025-12-08T010000Z",
+  "_initiative": "REPORT-NANOBRAG-STATUS-001",
+
+  "torch_diagnostics": {
+    "refine_loss_trace_full": {
+      "shape": [3],
+      "dtype": "structured: [('iteration', '<i4'), ('loss', '<f8')]",
+      "description": "Full loss trace with iteration indices",
+      "sample": [
+        {"iteration": 0, "loss": 981638.3125},
+        {"iteration": 5, "loss": 979336.0},
+        {"iteration": 10, "loss": 979335.5625}
+      ],
+      "analysis": {
+        "initial_loss": 981638.3125,
+        "final_loss": 979335.5625,
+        "improvement_pct": 0.235,
+        "iterations": 10,
+        "converged": true
+      }
+    },
+    "refine_loss_trace_sample": {
+      "shape": [10],
+      "dtype": "float64",
+      "description": "Per-iteration loss samples",
+      "sample_first_5": [981638.3125, 981531.1875, 992109.5, 979731.75, 979512.0625],
+      "sample_last_5": [979336.0, 979335.625, 979384.4375, 979335.5625, 979335.5625]
+    },
+    "stage_A": {
+      "refine_loss_trace_full": {
+        "shape": [3],
+        "dtype": "structured: [('iteration', '<i4'), ('loss', '<f8')]",
+        "description": "Stage A loss trace (mirrors top-level)",
+        "sample": [
+          {"iteration": 0, "loss": 981638.3125},
+          {"iteration": 5, "loss": 979336.0},
+          {"iteration": 10, "loss": 979335.5625}
+        ]
+      },
+      "refine_loss_trace_sample": {
+        "shape": [10],
+        "dtype": "float64",
+        "description": "Stage A per-iteration loss samples"
+      }
+    }
+  },
+
+  "roi_datasets": {
+    "count": 92,
+    "roi_shape": [12, 12],
+    "groups": {
+      "data": {"dtype": "float64", "description": "Observed ROI intensities"},
+      "bg": {"dtype": "float64", "description": "Background estimates"},
+      "bragg": {"dtype": "float32", "description": "Simulated Bragg intensities (torch output)"},
+      "model": {"dtype": "float64", "description": "Combined model (bragg + bg)"},
+      "variance": {"dtype": "float64", "description": "Variance estimates per pixel"}
+    }
+  },
+
+  "global_metrics": {
+    "score": {
+      "shape": [92],
+      "dtype": "float64",
+      "description": "Per-ROI scores (correlation or similar)"
+    },
+    "bragg_scale": {
+      "shape": [92],
+      "dtype": "float64",
+      "description": "Per-ROI Bragg scaling factors"
+    }
+  },
+
+  "schema_gaps": {
+    "missing_fields": [
+      "param_deltas (refined parameter snapshots)",
+      "optimizer_config (learning rate, optimizer type)",
+      "hkl_source (provenance: refined vs raw MTZ)",
+      "stage_B telemetry",
+      "stage_C telemetry",
+      "forward_time_ms (per PERF-WARM-SIM-001)",
+      "roi_count_* (per PERF-WARM-SIM-001)",
+      "cache_mode (per PERF-WARM-SIM-001)"
+    ],
+    "note": "Current telemetry captures Stage A loss traces only; full spec requires additional fields per docs/spec-db-core.md and docs/spec-db-workflow.md"
+  }
+}

@@ -62,7 +62,7 @@
 - [TOOLING-VIS-001] (Mapping-aligned visualization tooling) — **pending**. Plan exists with recent reports; ledger coverage will document progress on canonical visuals.
 - [DOCS-ROADMAP-001] (Roadmap documentation refresh) — **done** (2025-11-24T150000Z: All phases complete; plan thinned 305→146 lines).
 - [RUNTIME-VEC-001] (Runtime vectorization checklist enforcement) — **done** (2025-12-08T160000Z: Phase B/C complete. Test validated: correlation=1.0, sum_ratio_delta=0.0. Exit criterion #1 satisfied. Artifacts: `plans/active/RUNTIME-VEC-001/reports/2025-12-08T160000Z/`).
-- [REPORT-NANOBRAG-STATUS-001] (Status reporting scripts) — **pending**. Keeps the reporting automation plan on the roadmap.
+- [REPORT-NANOBRAG-STATUS-001] (Status reporting scripts) — **in_progress** (2025-12-08T010000Z i=176: Phase A complete; HDF5 inventory/telemetry schema/plan-vs-status matrix drafted. Phase B pending: convergence tables + validation report).
 - [NANOBRAG-GOLDEN-001] (Golden dataset capture + maintenance) — **done** (2025-11-04T030000Z: All phases A-D complete; canonical dataset captured with parity harness integration).
 - [FINDINGS-LEDGER-002] (Findings ledger upkeep and knowledge base maintenance) — **done** (2025-12-07T124500Z: All phases complete except deferred B.3+C.2. Exit criteria 4/4 satisfied. Closure summary: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T124500Z/closure_summary.md`). Full implementation plan authored 2025-12-03: Phase A (ledger audit + citation fixes + inventory), Phase B (cross-linking findings ↔ fix-plan), Phase C (cadence/automation). **Phase A.2 complete (2025-12-03T120250Z)**: Fixed REFINE-005 duplicate entry to include code citations; achieved **100% path:line coverage (86/86 findings)**. Status breakdown: Active=74, Resolved=10, Deferred=1, Retracted=1. **Phase B.2 complete (2025-12-07T080000Z)**: Established reciprocal cross-links between `docs/findings.md` and `docs/fix_plan.md`. Updated 7 existing Tier 1 & Tier 2 initiatives with "Governed by" lines. Created 2 new initiatives: [PHYSICS-LOSS-CONSISTENCY] (Tier 1, 5 findings), [ARCH-STAGE-CONTEXT-CONSOLIDATION] (Tier 2, 2 findings). Annotated 58/74 Active findings (78.4%) with "**Consumers:** [INITIATIVE-ID]." metadata. **Coverage target met:** ≥78% ✅. Artifacts: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T080000Z/{summary.md,consumer_map_v2.json,add_consumers.py}`. **Phase B.3 DEFERRED** (archive/retire candidates require pytest validation). **Phase C complete (2025-12-07T100000Z)**: Delivered cadence checklist template (`cadence_checklist.md`) with 5-phase quarterly maintenance workflow; updated `docs/index.md` § Knowledge Base Ledger and `docs/fix_plan.md` Working Agreements with cadence cross-references. C.2 (automation hook) deferred — manual cadence sufficient. Artifacts: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-07T100000Z/{summary.md,planning_notes.md}`.
 - [SPEC-SQUARE-PARTIALITY-001] (SQUARE Lattice Spec & Test Alignment) — **done** (Phase C complete 2025-12-08T130000Z: Physics clarified by `inbox/nanobrag_torch_response_2025_12_08.md` — peak height ∝ `(Na·Nb·Nc)²`, integrated intensity ∝ `Na·Nb·Nc`. Phase A: updated `docs/findings.md::SIM-CONSTR-PARTIALITY-001` to demote `(Na·Nb·Nc)²` integrated expectation and promote linear law. Phase B: updated `tests/architecture/test_nanobrag_partiality.py` to enforce linear scaling with 400×400 detector for full solid-angle integration (7% tolerance for sinc² sidelobe oscillations); 2/2 tests PASS. Phase C: ledger closure, test registry sync. Artifacts: `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T130000Z/`. Working plan: `plans/active/SPEC-SQUARE-PARTIALITY-001/implementation.md`.)
@@ -511,7 +511,7 @@
 
 ### [REPORT-NANOBRAG-STATUS-001] Status Reporting Scripts
 - Depends on: None
-- Status: pending
+- Status: in_progress (Phase A complete; Phase B pending)
 - Type: tooling
 - Priority: Low
 - Tier: 1
@@ -525,6 +525,15 @@
 - Working Plan: `plans/active/REPORT-NANOBRAG-STATUS-001/implementation.md`
 - Attempts History:
   * 2025-12-05T150000Z — see docs/fix_plan_archive.md for details.
+  * 2025-12-08T010000Z (i=176) — Phase A complete:
+    - A1: HDF5 inventory — 6 files scanned, 3 with torch_diagnostics content
+    - A2: Selected `plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5` (loss traces, Stage A convergence 981638→979335)
+    - A3: Telemetry schema documented — gaps identified (param_deltas, optimizer_config, hkl_source missing)
+    - A4: Plan-vs-status matrix drafted (Integration Phases 0-4 done, Phase 5 in progress; Stage A done, Stage B partial, Stage C blocked)
+    - A5: Summary authored with Phase B scope
+    - Exit criteria: 4/4 Phase A criteria PASS
+    - Next: Phase B — parse telemetry, generate convergence tables, draft `reports/nanobrag_validation.md`
+    - Artifacts: `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/` (hdf5_inventory.md, selected_hdf5.txt, telemetry_schema.json, plan_status_matrix_draft.md, summary.md)
   * ... (see docs/fix_plan_archive.md and plans/active/REPORT-NANOBRAG-STATUS-001/reports/ for full Attempts History and metrics).
 
 ### [NANOBRAG-GOLDEN-001] Golden Dataset Capture + Maintenance

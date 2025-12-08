@@ -1,0 +1,144 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 5 items
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a FAILED [ 20%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_gamma FAILED [ 40%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance FAILED [ 60%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_beam_wavelength FAILED [ 80%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck FAILED [100%]
+
+=================================== FAILURES ===================================
+_______ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a ________
+tests/dbex/test_gradients.py:230: in test_db_at_010_gradcheck_crystal_cell_a
+    gradcheck_passed = gradcheck(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1633: in _slow_gradcheck
+    raise GradcheckError(
+E   torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+E   numerical:tensor([[-2.7041e+11]], dtype=torch.float64)
+E   analytical:tensor([[70231870.5887]], dtype=torch.float64)
+----------------------------- Captured stdout call -----------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217740/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217630/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217920/24896004 (97.28%)
+_____ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_gamma ______
+tests/dbex/test_gradients.py:317: in test_db_at_010_gradcheck_crystal_cell_gamma
+    gradcheck_passed = gradcheck(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1633: in _slow_gradcheck
+    raise GradcheckError(
+E   torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+E   numerical:tensor([[4.2277e+11]], dtype=torch.float64)
+E   analytical:tensor([[45705654.8692]], dtype=torch.float64)
+----------------------------- Captured stdout call -----------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217584/24896004 (97.27%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217714/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217402/24896004 (97.27%)
+______ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_detector_distance ______
+tests/dbex/test_gradients.py:407: in test_db_at_010_gradcheck_detector_distance
+    gradcheck_passed = gradcheck(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1633: in _slow_gradcheck
+    raise GradcheckError(
+E   torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+E   numerical:tensor([[-1.8902e+12]], dtype=torch.float64)
+E   analytical:tensor([[10848982.5807]], dtype=torch.float64)
+----------------------------- Captured stdout call -----------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=24599396/24896004 (98.81%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=24599404/24896004 (98.81%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=24599525/24896004 (98.81%)
+_______ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_beam_wavelength _______
+tests/dbex/test_gradients.py:495: in test_db_at_010_gradcheck_beam_wavelength
+    gradcheck_passed = gradcheck(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1633: in _slow_gradcheck
+    raise GradcheckError(
+E   torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+E   numerical:tensor([[-1.1508e+12]], dtype=torch.float64)
+E   analytical:tensor([[-3.6910e+09]], dtype=torch.float64)
+----------------------------- Captured stdout call -----------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=24647900/24896004 (99.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=24647269/24896004 (99.00%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=24648029/24896004 (99.00%)
+_______________ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck _______________
+tests/dbex/test_gradients.py:551: in test_db_at_010_gradcheck
+    self.test_db_at_010_gradcheck_crystal_cell_a(
+tests/dbex/test_gradients.py:230: in test_db_at_010_gradcheck_crystal_cell_a
+    gradcheck_passed = gradcheck(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1633: in _slow_gradcheck
+    raise GradcheckError(
+E   torch.autograd.gradcheck.GradcheckError: Jacobian mismatch for output 0 with respect to input 0,
+E   numerical:tensor([[-1.9118e+10]], dtype=torch.float64)
+E   analytical:tensor([[68935154.9178]], dtype=torch.float64)
+----------------------------- Captured stdout call -----------------------------
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217688/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217623/24896004 (97.28%)
+auto-selected 2-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=24217685/24896004 (97.28%)
+=============================== warnings summary ===============================
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_gamma
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_beam_wavelength
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck
+================== 5 failed, 4 warnings in 160.82s (0:02:40) ===================

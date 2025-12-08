@@ -1,175 +1,231 @@
-# Input for Ralph (Loop i=147)
+# Loop i=148 — DB-AT-021 Phase A (Mask Semantics Guard Reality Check)
 
-**Summary**: DB-AT-020 Phase C registry sync & documentation (close out reflection ingestion acceptance test)
+## Summary
+Execute DB-AT-021 Phase A reality check: validate refGeom asset availability (cross-ref DB-AT-SUITE-CARE-001 Phase B.2), reconcile mask polarity semantics across 3 spec docs, run baseline DataLoad probe (trusted_mask counts, loss_mask construction, ROI intersection), and scope Phase B test scaffold.
 
-**Mode**: Docs
+## Mode
+none (planning/evidence — no production code edits, no test authoring this loop)
 
-**ActionType**: implementation_ready
+## ActionType
+planning
 
-**DecisionStatus**: patch_ready
+## DecisionStatus
+exploring (first Phase A for DB-AT-021; reality check + baseline metrics to ground Phase B assertions)
 
-**InitiativeType**: harness
+## InitiativeType
+harness
 
-**Focus**: [DB-AT-020] — Reflection Ingestion Sanity
+## Focus
+DB-AT-021 — Mask Semantics Guard (member plan of DB-AT-SUITE-CARE-001 roll-up)
 
-**Branch**: integration
+## Branch
+integration
 
-**Mapped tests**:
-- `pytest --collect-only tests -k DB_AT_020` (registry verification)
-- `pytest -vv tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox` (regression check)
+## Mapped tests
+None (Phase A is planning/evidence only; Phase B will author tests/dbex/test_mask_semantics.py)
 
-**Artifacts**: `plans/active/DB-AT-020/reports/2025-12-08T100000Z/`
+## Artifacts
+`plans/active/DB-AT-021/reports/2025-12-08T120000Z/`
 
-**Findings Applied (Mandatory)**:
-- **TESTING-003** (Acceptance test registry maintenance): Phase C registry sync is normative requirement; update `docs/development/TEST_SUITE_INDEX.md` row for DB-AT-020 with status=Active, spec refs, canonical command, artifact paths ✓
-- **CONFORMANCE-001** (Acceptance test patterns): Ensure DB-AT-020 follows canonical selector pattern (`-k DB_AT_020`) and refGeom skip guards per spec-db-conformance.md ✓
-- **DIAGNOSTICS-001** (Diagnostic artifact expectations): Validate Phase C artifacts include pytest logs + collect-only output under initiative reports/ directory ✓
+## Findings Applied (Mandatory)
 
-**ARCH Contracts (mandatory)**:
+**MASKING-001** (Canonical mask precedence per spec-db-core.md:47):
+- **Code**: `dbex/data_load.py` (trusted_mask extraction), `dbex/refinement/inputs.py` (loss_mask = (background >= 0) & trusted_mask)
+- **Adherence**: Phase A validates DataLoad correctly exposes trusted_mask attribute; baseline probe confirms loss_mask construction matches spec; Phase B will author enforcement test.
 
-1. **ARCH-CONTRACT-DATA-LOAD-001** (Canonical DataLoad API)
-   - **Owner**: `dbex/data_load.py::DataLoad` class
-   - **Classification**: Implementation bug within architecture (test validates owner API correctly)
-   - **Relevant sections**: `docs/spec-db-core.md:22` (bbox exclusivity), `docs/dials_api.md:10-32` (reflection schema)
+**TESTING-003** (Acceptance test registry maintenance):
+- **Code**: `docs/development/TEST_SUITE_INDEX.md` (status table rows for DB-AT-XXX selectors)
+- **Adherence**: Phase C will update TEST_SUITE_INDEX.md with DB-AT-021 row (deferred to Phase C per Phase A/B/C pattern).
 
-2. **TESTING-003** (Test registry synchronization)
-   - **Owner**: `docs/development/TEST_SUITE_INDEX.md` + `docs/TESTING_GUIDE.md`
-   - **Classification**: Implementation bug (registry out of sync with test reality)
-   - **Relevant sections**: `docs/findings.md:TESTING-003`, `plans/active/FINDINGS-LEDGER-002/cadence_checklist.md`
+**CONFORMANCE-001** (DB-AT acceptance criteria alignment):
+- **Code**: `docs/spec-db-conformance.md` (DB-AT-021 mask polarity validation criteria)
+- **Adherence**: Phase A spec alignment task (A2) reconciles spec-db-conformance.md acceptance criteria with spec-db-core.md normative polarity rules.
 
-3. **ARCH-CONTRACT-CONFORMANCE-PROFILE-001** (Workflow Integration Profile)
-   - **Owner**: `docs/spec-db-conformance.md` § Workflow Integration Profile
-   - **Classification**: Implementation complete, documentation update required
-   - **Relevant sections**: DB-AT-SUITE-CARE-001 implementation.md Phase C2
-
----
-
-## Do Now
-
-**Implement**: Phase C documentation updates (no production code changes)
-
-1. **C1 — Evidence capture**:
-   - Run `pytest -v tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox` (regression check, expect PASS)
-   - Run `pytest --collect-only tests -k DB_AT_020` (registry verification)
-   - Archive both logs under `plans/active/DB-AT-020/reports/2025-12-08T100000Z/`
-
-2. **C2 — Docs update**:
-   - Update `docs/development/TEST_SUITE_INDEX.md`:
-     - Find DB-AT-020 row (if exists) or add new row
-     - Set status: `Active`
-     - Add spec references: `spec-db-core.md:22`, `dials_api.md:10-32`, `architecture.md:122`
-     - Add canonical command: `DBEX_SMOKE_DETECTOR_SIZE=full AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox`
-     - Add environment flags: `DBEX_SMOKE_DETECTOR_SIZE=full`, `KMP_DUPLICATE_LIB_OK=TRUE`
-     - Add artifact path: `plans/active/DB-AT-020/reports/2025-12-08T100000Z/`
-     - Add runtime estimate: `~1.2s` (from Phase B pytest log)
-     - Add applied findings: `TESTING-003`, `CONFORMANCE-001`, `MASKING-001`
-
-   - Update `docs/TESTING_GUIDE.md` §2 (Acceptance Test Selectors):
-     - Add DB-AT-020 entry with selector pattern: `-k DB_AT_020`
-     - Cross-reference TEST_SUITE_INDEX.md for full metadata
-     - Note skip behavior: test skips if `refGeom.refl` missing (mirrors smoke fixture guard per `tests/dbex/conftest.py::refgeom_dataload`)
-
-3. **C3 — Ledger sync**:
-   - Update `docs/fix_plan.md` § [DB-AT-SUITE-CARE-001] Attempts History:
-     - Add entry: `2025-12-08T100000Z (Loop i=147, Ralph) — DB-AT-020 Phase C complete: Registry sync executed (TEST_SUITE_INDEX.md + TESTING_GUIDE.md updated with Active status, canonical commands, artifact paths). Regression check PASSED (92 ROIs, bbox/panel assertions green). Collect-only verification confirmed selector pattern (-k DB_AT_020) functional. Member plan closure complete; ready for DB-AT-SUITE-CARE-001 Phase B.4 coordination. Artifacts: plans/active/DB-AT-020/reports/2025-12-08T100000Z/ (pytest_db_at_020_regression.log, collect_db_at_020.log, summary.md).`
-
-   - Update `plans/active/DB-AT-020/implementation.md`:
-     - Mark Phase C tasks (C1/C2/C3) complete with checkmarks + timestamp `✅ 2025-12-08 (Loop i=147)`
-
-4. **Create summary.md**:
-   - Write `plans/active/DB-AT-020/reports/2025-12-08T100000Z/summary.md`:
-     - Document Phase C completion (all tasks done)
-     - Note pytest outcomes (regression PASS, collect-only verified)
-     - List doc updates (2 files modified: TEST_SUITE_INDEX.md, TESTING_GUIDE.md)
-     - Provide next steps: DB-AT-020 ready for closure; DB-AT-SUITE-CARE-001 Phase B.4 can proceed with next member plan
-
-**Validating pytest selectors**:
-- Primary: `pytest -vv tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox` (regression check)
-- Secondary: `pytest --collect-only tests -k DB_AT_020` (registry verification)
-
-**Touched**: DB-AT-020 Phase C (C1, C2, C3)
-
-**Forbidden This Loop**:
-- No production code changes (docs-only loop per Mode: Docs)
-- Do not extend plan-local diagnostic scripts
-- Do not run full test suite (only DB-AT-020 selectors)
-
----
-
-## How-To Map
-
-**Environment**:
-```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export DBEX_SMOKE_DETECTOR_SIZE=full
-export KMP_DUPLICATE_LIB_OK=TRUE
-```
-
-**Commands**:
-```bash
-# C1 - Regression check
-cd /home/ollie/Documents/diffbragg_example
-pytest -vv tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox \
-  | tee plans/active/DB-AT-020/reports/2025-12-08T100000Z/pytest_db_at_020_regression.log
-
-# C1 - Collect-only verification
-pytest --collect-only tests -k DB_AT_020 \
-  | tee plans/active/DB-AT-020/reports/2025-12-08T100000Z/collect_db_at_020.log
-```
-
-**Doc update targets**:
-- `docs/development/TEST_SUITE_INDEX.md` (add/update DB-AT-020 row)
-- `docs/TESTING_GUIDE.md` §2 (add DB-AT-020 selector entry)
-- `docs/fix_plan.md` § [DB-AT-SUITE-CARE-001] Attempts History (append entry)
-- `plans/active/DB-AT-020/implementation.md` (mark Phase C complete)
-
-**Artifact destinations**:
-- All pytest logs → `plans/active/DB-AT-020/reports/2025-12-08T100000Z/`
-- Summary markdown → `plans/active/DB-AT-020/reports/2025-12-08T100000Z/summary.md`
-
----
-
-## Pitfalls To Avoid
-
-1. **Type discipline**: This is harness work (registry sync); do not retype to feature/bugfix/perf
-2. **No stacking**: Phase B passed; this is clean closure work (no cliff, no parity localization needed)
-3. **Evidence→Action**: Phase B provided concrete metrics (92 ROIs, 12×12 dimensions, 100% conformance); Phase C documents those in registry
-4. **Findings paydown**: TESTING-003 explicitly requires registry sync; this loop satisfies that requirement
-5. **Implementation floor**: After docs-only loop, DB-AT-020 must be marked complete or justify why not
-6. **No shadow pipelines**: This is pure docs work; no new scripts allowed
-7. **Probe saturation**: N/A (docs-only, no probes)
-8. **SYNC must close**: No SYNC occurred; this reminder is not applicable
-9. **Repeat-signature freeze**: N/A (first Phase C loop for this selector)
-10. **Environment freeze**: No package installs; only doc file edits + pytest runs
-
----
-
-## If Blocked
-
-- If pytest regression fails: investigate failure signature, compare to Phase B baseline (92 ROIs, bbox assertions), escalate if DataLoad API changed
-- If collect-only shows 0 collected items: verify test file name/path, check if refGeom.refl missing (expected skip), document in summary.md
-- If TEST_SUITE_INDEX.md schema unclear: consult `docs/development/testing_strategy.md` §2.6 for row format examples
-- If TESTING_GUIDE.md §2 missing: create new section "DB-AT Acceptance Test Selectors" with DB-AT-020 as first entry
-
----
+**RUNTIME-001** (Runtime execution guardrails):
+- **Code**: `docs/TESTING_GUIDE.md` (canonical environment flags for acceptance tests)
+- **Adherence**: Phase B test scaffold will follow TESTING_GUIDE.md selector patterns (KMP_DUPLICATE_LIB_OK=TRUE, DBEX_SMOKE_DETECTOR_SIZE=full).
 
 ## Pointers
 
-**SPEC**:
-- `docs/spec-db-conformance.md` § DB-AT-020 (acceptance criteria)
-- `docs/spec-db-core.md:22` (bbox exclusivity)
-- `docs/dials_api.md:10-32` (reflection schema)
+### SPEC
+- **docs/spec-db-core.md:47-55** — Mask Polarity & Loss Mask Construction (normative)
+- **docs/dials_api.md:45-62** — Reflection Table Flags Column (Flags.integrated bitmask semantics)
+- **docs/spec-db-conformance.md** — DB-AT-021 acceptance criteria
 
-**ARCH**:
-- `docs/architecture.md:122` (DataLoad runtime guards)
-- `plans/active/DB-AT-SUITE-CARE-001/implementation.md` (roll-up context)
+### ARCH
+- **docs/architecture.md:165-178** — Mask Handling Contract (trusted_mask precedence)
+- **docs/architecture/module_map.md** — DataLoad module ownership
 
-**Testing Docs**:
-- `docs/TESTING_GUIDE.md` (canonical commands, environment flags)
-- `docs/development/TEST_SUITE_INDEX.md` (registry schema)
-- `docs/development/testing_strategy.md` §2.6 (acceptance test patterns)
+### Testing Docs
+- **docs/TESTING_GUIDE.md** — Canonical selector patterns, fixture reuse
+- **docs/development/TEST_SUITE_INDEX.md** — Test registry (DB-AT-021 row to be added in Phase C)
 
-**Fix Plan**:
-- `docs/fix_plan.md:249-270` (DB-AT-SUITE-CARE-001 section)
-- `plans/active/DB-AT-020/implementation.md` (member plan phases)
-- `plans/active/DB-AT-020/reports/2025-12-08T070000Z/summary.md` (Phase B completion evidence)
+### Member Plan References
+- **plans/active/DB-AT-021/implementation.md** — Phase A/B/C checklist (just authored this loop)
+- **plans/active/DB-AT-SUITE-CARE-001/implementation.md** — Roll-up Phase B.4 coordination
+- **plans/active/DB-AT-020/implementation.md** — Phase A precedent (reality check pattern)
+- **plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md** — Centralized refGeom asset checksums (cross-ref for A1)
+
+## ARCH Contracts (mandatory)
+
+**ARCH-CONTRACT-DATA-LOAD-001** (DataLoad API ownership):
+- **Owner module/API**: `dbex.data_load.DataLoad` (owns reflection table → trusted_mask extraction)
+- **Forbidden duplicates**: Direct `.refl` file mask extraction outside DataLoad
+- **Classification**: Implementation audit (Phase A verifies DataLoad correctly exposes trusted_mask attribute; no duplicates expected)
+
+**ARCH-CONTRACT-MASKING-001** (Mask Precedence):
+- **Owner module/API**: `dbex.refinement.inputs.prepare_refinement_inputs` (owns canonical loss_mask construction per spec-db-core.md:55)
+- **Forbidden duplicates**: Alternative `loss_mask` construction logic in Stage A/B/C helpers or test harness
+- **Classification**: Arch conformance verification (Phase A confirms no duplicates; Phase B will author enforcement test validating canonical construction)
+
+## Do Now (hard validity contract)
+
+**Focus**: DB-AT-021 — Mask Semantics Guard (Phase A)
+
+**Implement**: Planning only (no production code edits this loop)
+
+**Validating pytest**: None (Phase A is planning/evidence; Phase B will author tests/dbex/test_mask_semantics.py)
+
+**Artifacts path**: `plans/active/DB-AT-021/reports/2025-12-08T120000Z/`
+
+**Initiative type**: harness
+
+**Phase A Deliverables** (4 artifacts):
+
+1. **asset_availability.md**:
+   - Cross-reference DB-AT-SUITE-CARE-001 Phase B.2 asset validation (i=143) for refGeom.expt/refl checksums
+   - Validate `747_mask.pkl` exists at repo root (file size, readability check)
+   - Document skip behavior if assets missing (mirror DB-AT-020 smoke fixture guard)
+
+2. **spec_alignment.md**:
+   - Reconcile mask polarity semantics across 3 docs:
+     - `docs/spec-db-core.md:47-55` (normative: trusted=True, background sentinel=-1, loss_mask construction)
+     - `docs/dials_api.md:45-62` (Flags.integrated bitmask mapping to trusted_mask)
+     - `docs/architecture.md:165-178` (mask precedence rules: trusted ∩ ROI ∩ background_valid)
+   - Identify conflicts OR confirm alignment
+   - Document ARCH-CONTRACT-MASKING-001 canonical owner (prepare_refinement_inputs)
+
+3. **baseline_probe.md**:
+   - Run lightweight DataLoad inspection (use existing `refGeom.expt`, `refGeom.refl`, `747_mask.pkl`):
+     ```python
+     from dbex.data_load import DataLoad
+     dl = DataLoad("refGeom.expt", "refGeom.refl", "scaled.mtz", "747_mask.pkl")
+     # Metrics:
+     # - trusted_mask.shape (should match panel dimensions from expt)
+     # - trusted_mask.dtype (should be bool)
+     # - Trusted pixel counts: np.sum(dl.trusted_mask), np.sum(~dl.trusted_mask)
+     # - loss_mask construction: loss_mask = (dl.background_image >= 0) & dl.trusted_mask
+     # - Sample ROI intersection: Pick ROI 0, compute trusted ∩ ROI ∩ background_valid
+     ```
+   - Capture ≥3 metrics: trusted counts, loss_mask construction validation, sample ROI pixel count
+   - Thin wrapper rule: Keep probe <100 LOC, call DataLoad API directly
+
+4. **summary.md**:
+   - Phase A completion notes (A1/A2/A3 status)
+   - Key findings (asset status, spec conflicts if any, baseline metrics)
+   - **Phase B scoping**: Test scaffold design (TestDB_AT_021_MaskSemantics, 3 test methods: polarity checks, loss_mask construction, precedence guards)
+   - Next loop preview (Phase B implementation)
+
+**Touched**: DB-AT-021 Phase A (A1, A2, A3)
+
+## Forbidden This Loop
+
+- No production code edits (`dbex/`, `tests/` implementation files)
+- No test authoring (deferred to Phase B)
+- No registry updates (deferred to Phase C)
+- No fix_plan.md Attempts History updates until Phase A complete
+
+## How-To Map
+
+### Asset Availability Check (A1)
+```bash
+# Cross-reference B.2 validation
+cat plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T020000Z/asset_validation.md
+
+# Validate 747_mask.pkl
+ls -lh 747_mask.pkl
+file 747_mask.pkl
+
+# Document in asset_availability.md
+```
+
+### Spec Alignment (A2)
+```bash
+# Read 3 spec sections
+cat docs/spec-db-core.md | sed -n '47,55p'  # Mask polarity normative
+cat docs/dials_api.md | sed -n '45,62p'     # Flags.integrated bitmask
+cat docs/architecture.md | sed -n '165,178p' # Mask precedence
+
+# Reconcile in spec_alignment.md
+```
+
+### Baseline Probe (A3)
+```python
+# Thin wrapper probe script (save as plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.py)
+import numpy as np
+from dbex.data_load import DataLoad
+
+# Load canonical assets
+dl = DataLoad("refGeom.expt", "refGeom.refl", "scaled.mtz", "747_mask.pkl")
+
+# Metrics
+metrics = {
+    "trusted_mask_shape": dl.trusted_mask.shape,
+    "trusted_mask_dtype": dl.trusted_mask.dtype,
+    "trusted_pixel_count": int(np.sum(dl.trusted_mask)),
+    "untrusted_pixel_count": int(np.sum(~dl.trusted_mask)),
+    "loss_mask_construction_formula": "(background >= 0) & trusted_mask",
+    "loss_mask_pixel_count": int(np.sum((dl.background_image >= 0) & dl.trusted_mask)),
+    "sample_roi_index": 0,
+    "sample_roi_trusted_pixels": int(np.sum(dl.trusted_mask[dl.pids[0],
+                                                             dl.roi_bboxes[0,1]:dl.roi_bboxes[0,3],
+                                                             dl.roi_bboxes[0,0]:dl.roi_bboxes[0,2]]))
+}
+
+# Write to baseline_probe.md
+with open("plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.md", "w") as f:
+    f.write("# DB-AT-021 Phase A Baseline Probe\n\n")
+    for k, v in metrics.items():
+        f.write(f"- **{k}**: {v}\n")
+```
+
+Run probe:
+```bash
+cd /home/ollie/Documents/diffbragg_example
+python plans/active/DB-AT-021/reports/2025-12-08T120000Z/baseline_probe.py
+```
+
+## Pitfalls To Avoid
+
+1. **Type discipline**: Do not author tests in Phase A (harness type, planning phase) — defer to Phase B
+2. **Spec conflicts**: If mask polarity semantics conflict between spec-db-core.md and dials_api.md, prioritize spec-db-core.md (normative) and document DIALS mapping notes
+3. **Shadow pipeline guard**: Keep baseline probe <100 LOC; call DataLoad API directly; do not re-implement mask extraction logic
+4. **Fixture sharing**: Note in summary.md that `refgeom_dataload` fixture can be reused from test_reflection_ingestion.py (or extract to conftest.py if shared across 3+ member plans)
+5. **Asset cross-ref**: Use DB-AT-SUITE-CARE-001 Phase B.2 checksums (i=143) for refGeom.expt/refl; do not recompute
+6. **Skip guard**: Document that Phase B tests must skip when assets missing (mirror DB-AT-020 pattern)
+7. **No fix_plan updates**: Phase A Attempts History appended in Phase C only (after full member plan closure)
+8. **PROBE-FREEZE-001**: Baseline probe must be thin wrapper (<100 LOC); if it exceeds, switch to manual inspection + notes in baseline_probe.md
+
+## If Blocked
+
+**Asset unavailable**:
+- Cross-check DB-AT-SUITE-CARE-001 Phase B.2 validation (i=143) — assets were VALID 5 loops ago
+- If missing, mark DB-AT-021 blocked_pending_asset_regeneration and escalate to DB-AT-SUITE-CARE-001 coordination
+
+**Spec conflicts**:
+- Prioritize spec-db-core.md (normative)
+- Document conflict in spec_alignment.md with hypothesis for resolution
+- Flag for supervisor review in summary.md
+
+**Probe failures**:
+- If DataLoad raises errors, capture error signature in baseline_probe.md
+- Mark Phase A blocked_pending_dataload_fix and escalate to ARCH-CONTRACT-DATA-LOAD-001 conformance review
+
+## Doc Sync Plan (Conditional)
+
+Not applicable (Phase A does not modify tests; registry updates deferred to Phase C).
+
+---
+
+**Input authored**: 2025-12-08T120000Z (Loop i=148, Galph)
+**Next loop actor**: Ralph (executes Phase A tasks, produces 4 artifacts, scopes Phase B)

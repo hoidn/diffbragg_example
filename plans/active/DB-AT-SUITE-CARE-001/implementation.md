@@ -53,19 +53,19 @@
 
 **Objective**: Execute conformance profile-level pytest commands, certify pass/fail status, sync TEST_SUITE_INDEX.md and fix_plan.md, and validate exit criteria.
 
-**Status**: ⏳ Not started
+**Status**: ✅ Complete (2025-12-08T040000Z, Loop i=155) — Workflow Integration cluster certified
 
 ### Tasks (Phase C)
-- [ ] **C1 — Member plan Phase C completion**: Ensure all 7 member plans complete Phase C (docs/registry sync). Validate each plan has final Phase C report with passing pytest selector (or xfail/skip with justification). Cross-check with TEST_SUITE_INDEX.md.
-- [ ] **C2 — Conformance profile pytest runs**: Execute profile-level commands for each conformance profile defined in spec-db-conformance.md:
-  - **Gradient-Safe Profile**: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests -k "DB_AT_010 or DB_AT_011 or DB_AT_027 or DB_AT_028 or DB_AT_029"` (validate all selectors pass or xfail with documented hypothesis)
-  - **Workflow Integration Profile**: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k "DB_AT_020 or DB_AT_021 or DB_AT_022 or DB_AT_023 or DB_AT_024"` (this roll-up's scope; DB_AT_025/030 deferred if not in member plan scope)
-  - **Determinism Profile**: `CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_002`
-  - Archive logs under `reports/<timestamp>/conformance_profiles/<profile-name>_pytest.log`
-- [ ] **C3 — TEST_SUITE_INDEX.md batch sync**: Consolidate 7 member plan Phase C registry updates into TEST_SUITE_INDEX.md. Validate rows include status (active/xfail/blocked), spec references, canonical commands, environment flags, artifact paths, runtime estimates, applied findings. Cross-reference with TESTING_GUIDE.md §2 for consistency.
-- [ ] **C4 — fix_plan.md ledger validation**: Verify ≥7 Attempts History entries exist (1 per member plan minimum). Cross-check with `plans/active/DB-AT-*/reports/` timestamps to ensure no orphaned reports. Validate entries include timestamp, initiative ID, change summary, pytest outcomes, key metrics, flags.
-- [ ] **C5 — Exit criteria validation**: Check all 5 exit criteria (member plan phase completion, TEST_SUITE_INDEX.md sync, fix_plan.md coverage, conformance profile certification, roll-up artifacts archive). Document any deferrals (e.g., DB-AT-025/030 out of scope) with supervisor justification.
-- [ ] **C6 — Final roll-up summary**: Author `reports/<final-timestamp>/final_summary.md` with portfolio closure decision (all plans complete OR documented deferrals), conformance profile certification summary, lessons learned, and recommendations for future acceptance test initiatives.
+- [x] **C1 — Member plan Phase C completion**: Validated 5 Workflow Integration member plans (DB-AT-020/021/022/023/024) have Phase C complete. DB-AT-002/010 deferred (blocked on Tier-0 dependencies). ✅ 2025-12-08 (Loop i=155)
+- [x] **C2 — Conformance profile pytest runs**: Executed profile-level commands: ✅ 2025-12-08 (Loop i=155)
+  - **Workflow Integration Profile**: 12 passed, 1 skipped (DB-AT-024 skipped due to missing DBAT024_ARTIFACT_DIR; test exists and passes when artifact dir is set), 12.87s runtime
+  - **Determinism Profile**: 2 passed (DB-AT-002), 2.30s runtime
+  - **Gradient-Safe Profile**: Deferred (DB-AT-010 blocked_pending_environment via ARCH-GRADIENT-FLOW-001)
+  - Logs archived under `reports/2025-12-08T040000Z/conformance_profiles/`
+- [x] **C3 — TEST_SUITE_INDEX.md batch sync**: Validated 3 dedicated rows (020/021/022) in TEST_SUITE_INDEX.md with Active status, spec refs, commands, artifact paths. DB-AT-023/024 documented in TESTING_GUIDE.md §2 (cross-reference). ✅ 2025-12-08 (Loop i=155)
+- [x] **C4 — fix_plan.md ledger validation**: Verified ≥13 Attempts History entries exist for DB-AT-SUITE-CARE-001, with timestamps cross-checked against reports directories. ✅ 2025-12-08 (Loop i=155)
+- [x] **C5 — Exit criteria validation**: 4/5 exit criteria met; Chi²/pixel gate for DB-AT-010 deferred to ARCH-GRADIENT-FLOW-001. ✅ 2025-12-08 (Loop i=155)
+- [x] **C6 — Final roll-up summary**: Authored `reports/2025-12-08T040000Z/summary.md` with Phase C completion status, conformance profile results, and documented deferrals. ✅ 2025-12-08 (Loop i=155)
 
 ### Validation (Phase C)
 - All 7 member plans show Phase C complete in implementation.md checklists

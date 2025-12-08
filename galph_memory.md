@@ -1,3 +1,14 @@
+2025-12-08T214500Z focus=ARCH-GRADIENT-FLOW-001 state=partial dwell=1 action=implemented_partial artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T212500Z/ next_action=investigate_magnitude_mismatch
+- Loop i=209 (Ralph): **Phase B.7 PARTIAL SUCCESS — Graph connectivity RESTORED.** Implemented both fixes from supervisor input.md.
+  **Changes Made:**
+  - B.7.1 DONE: Pure-PyTorch B-matrix at `nanobrag_bridge.py:558-680`. Verified vs cctbx: max diff 3.47e-18. Gradient verified: a.grad = -0.000127 (non-zero).
+  - B.7.2 DONE: Removed `.detach()` from A* extraction at `stage_a.py:1183-1195,1238-1255`. Tensors now flow to crystal_overrides.
+  **Test Results (DB-AT-010):**
+  - Analytical gradients NOW NON-ZERO: cell_a=7.04e7, cell_gamma=4.64e7 (were zero before fix)
+  - **Graph connectivity verified** — this fixes the original "disconnected graph" issue
+  - Magnitude mismatch remains: 843× (cell_a), 19,352× (cell_gamma)
+  **Insight for Supervisor:** The fixes addressed scalar extraction (`.item()`) and detachment (`.detach()`) but magnitude mismatch persists. Per upstream, this is a separate issue — possibly fluence scaling, unit conversion, or internal DBEX computations. The graph IS connected now; magnitude is a different debug path.
+
 2025-12-08T212500Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=0 action=implementation_ready artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T212500Z/ next_action=phase_b7_dbex_integration_fix
 - Loop i=208 (Galph): **UPSTREAM RESPONSE RECEIVED — BLOCKER LIFTED.** Processed `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`. nanobrag_torch confirms 6/6 cell param gradcheck tests PASS. Issue is confirmed to be in DBEX integration layer.
   **Root Cause Identified (Supervisor Analysis):**

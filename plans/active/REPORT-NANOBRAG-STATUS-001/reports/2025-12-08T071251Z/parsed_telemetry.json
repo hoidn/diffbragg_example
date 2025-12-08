@@ -1,0 +1,41 @@
+{
+  "hdf5_source": "./plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/nanobrag_stage_progress.h5",
+  "parse_date": "2025-12-08T071251Z",
+  "initiative": "REPORT-NANOBRAG-STATUS-001",
+  "phase": "B",
+  "loss_trace": [
+    {"iteration": 0, "loss": 981638.3125},
+    {"iteration": 5, "loss": 979336.0},
+    {"iteration": 10, "loss": 979335.5625}
+  ],
+  "loss_samples": [
+    981638.3125,
+    981531.1875,
+    992109.5,
+    979731.75,
+    979512.0625,
+    979336.0,
+    979335.625,
+    979384.4375,
+    979335.5625,
+    979335.5625
+  ],
+  "summary": {
+    "roi_count": 92,
+    "initial_loss": 981638.3125,
+    "final_loss": 979335.5625,
+    "loss_delta": -2302.75,
+    "improvement_pct": 0.2346,
+    "total_iterations": 10,
+    "best_iteration": 10,
+    "convergence_status": "ok"
+  },
+  "schema_gaps": [
+    "param_deltas",
+    "optimizer_config",
+    "hkl_source",
+    "forward_time_ms",
+    "roi_count_metrics",
+    "cache_mode"
+  ]
+}

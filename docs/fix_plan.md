@@ -511,7 +511,7 @@
 
 ### [REPORT-NANOBRAG-STATUS-001] Status Reporting Scripts
 - Depends on: None
-- Status: in_progress (Phase A complete; Phase B pending)
+- Status: done (2025-12-08T071251Z: Phase B complete; all 4 exit criteria PASS)
 - Type: tooling
 - Priority: Low
 - Tier: 1
@@ -534,6 +534,15 @@
     - Exit criteria: 4/4 Phase A criteria PASS
     - Next: Phase B — parse telemetry, generate convergence tables, draft `reports/nanobrag_validation.md`
     - Artifacts: `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T010000Z/` (hdf5_inventory.md, selected_hdf5.txt, telemetry_schema.json, plan_status_matrix_draft.md, summary.md)
+  * 2025-12-08T071251Z (i=177) — Phase B complete:
+    - B1: Telemetry parsed from selected HDF5 — loss trace 981638→979335 (0.2346% improvement), 92 ROIs
+    - B2: `reports/nanobrag_validation.md` updated — HDF5 source, loss tables, phase/stage status, schema gaps, Stage C regression
+    - B3: Convergence table generated — iteration-by-iteration loss with LBFGS observations
+    - B4: Stage C regression cross-referenced — PERF-WARM-SIM-001 linked, +0.067% chi² documented
+    - B5: Summary authored — Phase B closure with exit criteria validation
+    - Exit criteria: 4/4 Phase B criteria PASS; 4/4 Initiative exit criteria PASS
+    - Metrics: Loss improvement 0.2346%, 92 ROIs, convergence ok
+    - Artifacts: `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-12-08T071251Z/` (parsed_telemetry.json, convergence_table.md, summary.md)
   * ... (see docs/fix_plan_archive.md and plans/active/REPORT-NANOBRAG-STATUS-001/reports/ for full Attempts History and metrics).
 
 ### [NANOBRAG-GOLDEN-001] Golden Dataset Capture + Maintenance

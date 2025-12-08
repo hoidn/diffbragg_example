@@ -52,9 +52,9 @@
 - [TORCH-GEOMETRY-SYNC-001] (Geometry convergence/parity/UB realign initiatives) — **done** (2025-12-08T200000Z: Roll-up complete; see detailed section line 357).
   - **Governed by:** GEOMETRY-001, GEOMETRY-002, GEOMETRY-003, GEOMETRY-004, CONFIG-001, DXTBX-001, HKL-ORIENT-001, CONVERGENCE-001
   - Covers `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/`, `.../TORCH-GEOMETRY-PARITY-002/`, `.../TORCH-GEOMETRY-PARITY-003/`, and `.../TORCH-GEOMETRY-UB-REALIGN-001/`.
-- [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003) — **pending**.
+- [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003/004) — **in_progress** (2025-12-08T150000Z: Phase A scoped; implementation.md authored with 6 member plans, dependency map, and classification criteria. Artifacts: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/`).
   - **Governed by:** REFINE-001, REFINE-002, REFINE-003, REFINE-006, REFINE-009, REFINE-010, GRADIENT-001, REFINE-016
-  - Ledger entry will consolidate their status and dependencies so portfolio steering can decide which Phase C/D tasks to revive.
+  - Roll-up consolidates 6 member plans (001/002/002D/002E/003/004); TORCH-REFINE-004 is complete (all phases done), others have pending phases gated on Tier 0 blockers or low-priority deferrals. Working plan: `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md`.
 - [TORCH-CLI-BRIDGE-ROLLUP-001] (CLI + bridge backlog TORCH-CLI-003/004 and TORCH-BRIDGE-001) — **done** (2025-12-08T100000Z: Phases A-E complete; all 3 member plans verified + checklists synced; all 4 exit criteria satisfied. Closure artifacts: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T100000Z/`).
 - [FORWARD-EQUIV-COVERAGE-001] (Forward-equivalence harness + parity scaffolding) — **done** (2025-12-08T143000Z: Phases A-C complete; all 3 member plans done; all 3 exit criteria satisfied. Closure artifacts: `plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/`).
   - **Governed by:** PARITY-001, MANIFEST-001

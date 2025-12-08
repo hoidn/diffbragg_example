@@ -1,106 +1,109 @@
-# Input for Ralph — Loop i=185
+# Input for Ralph — Loop i=186
 
 ## Summary
-Complete FORWARD-EQUIV-COVERAGE-001 Phase C roll-up closure (docs/ledger updates only).
+Execute TORCH-REFINE-CLEANUP-001 Phase A (Member Plan Reality Check) to audit 6 TORCH-REFINE member plans and classify remaining work.
 
 ## Focus
-**FORWARD-EQUIV-COVERAGE-001** — Forward Equivalence & Parity Harness Roll-up
+**TORCH-REFINE-CLEANUP-001** — Stage A/B/C Refinement Probes Consolidation Roll-up
 
 ## Branch
 `integration`
 
 ## Mapped Tests
-- Selector: `-k DB_AT_001` (already validated 15/15 PASS in i=184)
-- Verification: `pytest --collect-only tests/dbex/test_db_at_001_parity.py tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001` (evidence already captured)
+- Selector: `pytest --collect-only tests/dbex/test_torch_refine_smoke.py` (inventory existing selectors)
+- No test execution this loop — planning/audit only
 
 ## Artifacts
-`plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/`
+`plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/`
 
 ---
 
 ## Do Now
 
-**Focus Item:** FORWARD-EQUIV-COVERAGE-001 Phase C (Roll-up Closure)
+**Focus Item:** TORCH-REFINE-CLEANUP-001 Phase A (Member Plan Reality Check)
 
-### Implement: Phase C Tasks (Docs/Ledger Only)
+### Implement: Phase A Tasks (Audit & Classification)
 
-**C1: Mark member plans done in implementation.md (verify — likely already done)**
-- File: `plans/active/FORWARD-EQUIV-001/implementation.md` — confirm status header says complete/done
-- File: `plans/active/FORWARD-EQUIV-002/implementation.md` — confirm status header says complete/done
-- File: `plans/active/PARITY-HARNESS-002/implementation.md` — confirm status header says complete/done (Phase E closure done in i=184)
+**A1: Audit each member plan's implementation.md**
+Read and verify completion status for:
+- `plans/active/TORCH-REFINE-001/implementation.md` — Expected: Phase A complete, B/C pending
+- `plans/active/TORCH-REFINE-002/implementation.md` — Expected: Phases 1-3 complete, Phase 4 delegated to 002D
+- `plans/active/TORCH-REFINE-002D/implementation.md` — Expected: Phase 0-1 complete, Phase 2-3 pending
+- `plans/active/TORCH-REFINE-002E/implementation.md` — Expected: Phase A largely complete, Phase B partial, Phase C pending
+- `plans/active/TORCH-REFINE-003/implementation.md` — Expected: All phases pending
+- `plans/active/TORCH-REFINE-004/implementation.md` — Expected: All phases complete
 
-**C2: Update fix_plan.md status to done**
-- File: `docs/fix_plan.md`
-- Location: Line ~427-428 (FORWARD-EQUIV-COVERAGE-001 detailed section)
-- Change: `Status: in_progress (Phase B complete; ready for Phase C roll-up closure)` → `Status: **done**`
-- Also update: Line ~58-60 (Execution Roadmap entry for FORWARD-EQUIV-COVERAGE-001) to show `done`
-- Add: Attempts History entry for Phase C (i=185)
+**A2: Identify blocking dependencies**
+Cross-reference with `docs/fix_plan.md` Tier 0 status:
+- ARCH-GRADIENT-FLOW-001: `blocked_pending_upstream` — affects 002E gradient work
+- ARCH-SIM-CONSTRUCTION-001: `blocked_pending_environment` — affects DB-AT-028/029 acceptance criteria
+Document which pending phases are gated on these blockers.
 
-**C3: Author closure_summary.md for roll-up**
-- File: `plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/closure_summary.md`
+**A3: Classify remaining work**
+For each pending phase, assign one of:
+- **revive**: Can proceed now (no Tier 0 blockers, low complexity)
+- **blocked**: Requires Tier 0 resolution first
+- **deferred**: Low priority, can wait indefinitely
+
+**A4: Author member_plan_status_audit.md**
+- File: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/member_plan_status_audit.md`
 - Include:
-  - Roll-up completion date/loop
-  - Member plan status matrix (all 3 done)
-  - Exit criteria validation (3/3 met)
-  - Test evidence summary (15/15 PASS, correlation=0.988, localization=1.0)
-  - Outstanding TODOs (simulator-dependent work documented in PARITY-HARNESS-002 closure)
-  - Artifact index
+  - Status matrix (from implementation.md §Member Plans)
+  - Dependency map (which plans block which)
+  - Classification for each pending phase (revive/blocked/deferred)
+  - Recommendation for Phase B decisions
 
-**C4: Update implementation.md Phase C checkboxes**
-- File: `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md`
-- Mark C1-C4 as [x]
-- Update status header to `done`
+**A5: Author summary.md**
+- File: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/summary.md`
+- Include:
+  - Phase A completion confirmation
+  - Key findings (e.g., TORCH-REFINE-004 ready for archive)
+  - Next steps (Phase B portfolio decision)
 
 ### Validating Selector
-- Verification only (tests already passed in i=184): `pytest --collect-only tests -k DB_AT_001`
-- Evidence capture: `collect_db_at_001_final.log`
+```bash
+# Capture collect-only for refinement smoke tests
+pytest --collect-only tests/dbex/test_torch_refine_smoke.py > plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/collect_refine_smoke.log 2>&1
+```
 
 ---
 
 ## How-To Map
 
 ```bash
-# Artifacts directory
-mkdir -p plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/
+# Artifacts directory (already created)
+# plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/
 
-# Verify member plans (read-only check)
-# FORWARD-EQUIV-001, FORWARD-EQUIV-002, PARITY-HARNESS-002 — confirm completion status
+# Read each member plan implementation.md (already done by Galph — verify checkboxes)
 
-# Update fix_plan.md
-# - Line ~58: FORWARD-EQUIV-COVERAGE-001 → done
-# - Line ~427: Status → done
-# - Add Attempts History entry
+# Author member_plan_status_audit.md with classification matrix
 
-# Author closure_summary.md
-# See content template below
+# Author summary.md
 
-# Update implementation.md Phase C
-# Mark checkboxes [x], update status header
-
-# Capture collect-only evidence
-pytest --collect-only tests -k DB_AT_001 > plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T143000Z/collect_db_at_001_final.log 2>&1
+# Capture collect-only
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_torch_refine_smoke.py > plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/collect_refine_smoke.log 2>&1
 ```
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** run full test suite — tests already validated in i=184 (15/15 PASS)
-2. **DO NOT** modify any production code — this is docs/ledger closure only
-3. **DO NOT** modify test files — already complete
-4. **DO** use exact timestamps for artifacts path (2025-12-08T143000Z)
-5. **DO** update both Execution Roadmap entry AND detailed section in fix_plan.md
-6. **DO** include artifact pointers in Attempts History entry
-7. **DO** respect findings CONFORMANCE-001, TESTING-003 (selector documentation accuracy)
+1. **DO NOT** run full test suite — collect-only only for inventory
+2. **DO NOT** modify production code — this is planning/audit only
+3. **DO NOT** modify member plan implementation.md files this loop — audit only
+4. **DO** verify completion status against actual checkboxes in implementation.md
+5. **DO** cross-reference fix_plan.md for current Tier 0 blocker status
+6. **DO** use exact timestamp for artifacts path (2025-12-08T150000Z)
+7. **DO** document blocking dependency chain clearly
 
 ---
 
 ## If Blocked
 
-If any unexpected issue arises:
-1. Document the issue in summary.md
-2. Keep FORWARD-EQUIV-COVERAGE-001 status as `in_progress`
-3. Note the block reason in galph_memory.md (via Galph next loop)
+If any member plan implementation.md is missing or corrupted:
+1. Document the gap in summary.md
+2. Note which plans could not be audited
+3. Keep TORCH-REFINE-CLEANUP-001 status as `in_progress`
 
 ---
 
@@ -108,9 +111,10 @@ If any unexpected issue arises:
 
 | Finding ID | Adherence |
 |------------|-----------|
-| CONFORMANCE-001 | DB_AT_001 selector canonical commands documented |
-| TESTING-003 | collect-only evidence captured, registry entries verified |
-| PARITY-001 | Thresholds (correlation>=0.2, localization>=90%) documented and met |
+| REFINE-001 | Stage A nucleus warm-start + clamp pattern |
+| REFINE-002 | 0.1% nucleus baseline gate |
+| GRADIENT-001 | Tensor overrides preserve autograd (crystal_overrides passthrough) |
+| TESTING-003 | collect-only evidence captured |
 
 ---
 
@@ -118,16 +122,16 @@ If any unexpected issue arises:
 
 | Document | Relevance |
 |----------|-----------|
-| `plans/active/FORWARD-EQUIV-COVERAGE-001/implementation.md` | Phase C checklist |
-| `docs/fix_plan.md:425-445` | Detailed section + Attempts History |
-| `docs/fix_plan.md:58-60` | Execution Roadmap entry |
-| `plans/active/FORWARD-EQUIV-COVERAGE-001/reports/2025-12-08T130000Z/summary.md` | Phase B evidence |
-| `docs/spec-db-conformance.md:23-26` | DB-AT-001 thresholds |
+| `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md` | Phase A checklist |
+| `docs/fix_plan.md:55-57` | TORCH-REFINE-CLEANUP-001 ledger entry |
+| `docs/fix_plan.md:22-33` | Tier 0 blockers status |
+| `plans/active/TORCH-REFINE-00X/implementation.md` | Member plans to audit |
+| `tests/dbex/test_torch_refine_smoke.py` | Refinement smoke selectors |
 
 ---
 
 ## Next Up (Optional)
 
-If Phase C completes early:
-1. Portfolio review — identify next Tier 1 unblocked item
-2. Candidates: TOOLING-VIS-001, TORCH-REFINE-CLEANUP-001, or blocked item review
+If Phase A completes early:
+1. Begin Phase B.1: Confirm TORCH-REFINE-004 ready for archive
+2. Draft deferral notes for blocked phases

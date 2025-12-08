@@ -455,3 +455,16 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
   - DB-AT-010: Remains 5/5 FAIL until upstream gradient magnitude bug is fixed
   
   **Insight (not in planning docs):** The gradient magnitude ratios (1000×-76000×) vary significantly by parameter type. Crystal parameters (cell_a, cell_gamma) have smaller mismatches (~1000-5000×) while geometry parameters (detector_distance) have larger mismatches (~76000×). This pattern suggests the gradient bug may be localized in the geometry → pixel mapping chain rather than the crystal physics chain. Worth investigating when upstream responds.
+
+2025-12-08T220000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=7 action=review_or_housekeeping artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T220000Z/ next_action=await_tier0_unblock
+- Loop i=207 (Galph): **PORTFOLIO IN MAINTENANCE MODE** (No Change). Checked inbox/outbox for upstream response.
+  **Discovery:** Clarification request `to_nanobrag_cell_gradient_clarification_2025_12_08.md` found in nanoBragg inbox (dated 2025-12-08T13:13). This was sent by prior Ralph loop (i=207) asking whether crystal cell parameter gradients are covered by the beam/detector fix. No response in nanoBragg outbox yet (last update 2025-12-07T19:55).
+  **Portfolio status summary (unchanged):**
+  - Tier 0: ALL BLOCKED (ARCH-GRADIENT-FLOW-001 `blocked_pending_upstream` awaiting crystal gradient response; ARCH-SIM-CONSTRUCTION-001 `blocked_pending_environment`)
+  - Tier 1: DB-AT-SUITE-CARE-001 `in_progress` (D.1-D.4 complete, D.5 optional)
+  - Tier 3+: Deferred until Tier 0/1 clear
+  **Upstream status summary:**
+  - Beam/detector gradient fix: AVAILABLE (`dbex-gradient-blockers-fix-report.md` 2025-12-07T18:31) — fixes wavelength, fluence, distance
+  - Crystal cell gradient fix: PENDING — clarification request sent, no response yet
+  **Implementation floor exemption**: No viable implementation focus available (all Tier 0 blocked). Maintenance mode persists.
+  ActionType: review_or_housekeeping. DecisionStatus: N/A (maintenance mode). Next: Await upstream response for crystal gradient clarification.

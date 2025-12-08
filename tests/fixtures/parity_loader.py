@@ -22,7 +22,7 @@ from typing import Any, Dict, NamedTuple, Optional
 import numpy as np
 import scipy.stats
 
-from dbex.vis import compute_z_scores, plot_triptych
+from dbex.vis import plot_triptych
 
 
 class GoldenData(NamedTuple):
@@ -601,17 +601,16 @@ def write_parity_artifacts(
 
         # Standardized residual triptych for quick visual inspection.
         # Use a simple Z-score style residual consistent with dbex.vis helpers.
-        z_scores = compute_z_scores(
-            target,
-            predicted,
-        )
+        # Per spec-db-core.md: variance = model + sigma_readout² where sigma_readout=5 ADU
+        # plot_triptych computes z_scores internally from variance
+        sigma_readout = 5.0
+        variance = predicted + sigma_readout ** 2
         triptych_path = parity_dir / "diff_triptych.png"
         plot_triptych(
             target,
             predicted,
-            z_scores,
-            out_path=triptych_path,
-            title="Parity residuals (target vs predicted)",
+            variance,
+            filename=str(triptych_path),
         )
         artifacts["diff_triptych_png"] = str(triptych_path)
 

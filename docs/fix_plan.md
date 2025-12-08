@@ -319,6 +319,7 @@
   * 2025-12-08T040000Z (Loop i=155, Ralph) — **Phase C complete**: Workflow Integration 12/13 passed, Determinism 2/2 passed. 4/5 exit criteria met (Chi²/pixel deferred for DB-AT-010).
   * 2025-12-08T140000Z (Loop i=194, Ralph) — **Phase D.4 complete**: TEST_SUITE_INDEX hygiene audit — 26 Active selectors, 189 tests collected, zero orphans. **Registry health: GOOD**.
   * 2025-12-08T240000Z (Loop i=202, Galph) — **Maintenance mode**: Tier 0 blocked (ARCH-GRADIENT-FLOW-001 + ARCH-SIM-CONSTRUCTION-001). D.1-D.4 complete, D.5 optional. Awaiting upstream response.
+  * 2025-12-09T000000Z (Loop i=212, Ralph) — **Maintenance mode continues**: Checked nanoBragg outbox and DBEX inbox — no new responses. Two outstanding upstream requests: `mosaic_gradient_bug_2025_12_08.md` (HIGH, blocks ARCH-GRADIENT-FLOW-001) and `chunked_interpolation_request_2025_12_09.md` (MEDIUM, blocks PERF-GPU-MEM-001). Portfolio status unchanged. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T000000Z/`.
   * ... (see plans/active/DB-AT-SUITE-CARE-001/reports/ for full Attempts History and metrics).
 
 ### [MAP-SCALE-SYNC-001] Calibration Ladder Synchronization (MAP-SCALE-001—005)

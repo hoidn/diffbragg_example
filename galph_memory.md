@@ -1,3 +1,17 @@
+2025-12-08T230000Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=2 action=implementation_ready artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/ next_action=phase_b8_magnitude_debug
+- Loop i=210 (Galph): **Phase B.8 delegation — Debug magnitude mismatch.** Prior loop (i=209, Ralph) achieved partial success: graph connectivity restored but magnitude mismatch (843×-19,352×) persists.
+  **Analysis (This Loop):**
+  - Reviewed gradcheck log: numerical=5.94e10 vs analytical=7.04e7 for cell_a (843× ratio)
+  - Upstream hypothesis ranking: (1) double unit conversion, (2) remaining scalar extraction, (3) fluence mismatch
+  - DBEX integration path traced: forward.py:199 → create_crystal_config → crystal_config.cell_a assignment → helpers.py:198 Crystal()
+  - Searched for remaining `.item()/.detach()` calls — many exist for telemetry but should not be in gradient path
+  **Phase B.8 Scope:**
+  - B.8.1: Isolate nanobrag_torch directly (bypass DBEX) to confirm upstream gradients work
+  - B.8.2: Add diagnostic prints to trace DBEX integration path
+  - B.8.3: Check for duplicate B-matrix computation
+  - B.8.4: Compare fluence/scale values between DBEX and upstream tests
+  ActionType: implementation_ready. DecisionStatus: debugging_protocol_ready (4 diagnostic tasks). Applied findings: GRADIENT-002 (magnitude mismatch), RUNTIME-001 (compile guard), PROBE-FREEZE-001 (T1 probes). Next: Ralph executes Phase B.8 (i=210).
+
 2025-12-08T214500Z focus=ARCH-GRADIENT-FLOW-001 state=partial dwell=1 action=implemented_partial artifacts=plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T212500Z/ next_action=investigate_magnitude_mismatch
 - Loop i=209 (Ralph): **Phase B.7 PARTIAL SUCCESS — Graph connectivity RESTORED.** Implemented both fixes from supervisor input.md.
   **Changes Made:**

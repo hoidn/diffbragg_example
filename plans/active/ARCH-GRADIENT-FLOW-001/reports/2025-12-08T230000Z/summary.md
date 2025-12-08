@@ -1,3 +1,17 @@
+### Turn Summary (Loop i=210 — Galph Phase B.8 Delegation)
+
+Analyzed Phase B.7 partial success results: graph connectivity is restored (analytical gradients non-zero) but magnitude mismatch persists (843× for cell_a, 19352× for cell_gamma).
+
+Traced DBEX integration path from forward.py through config_factories to helpers.py Crystal() instantiation; identified upstream hypotheses: double unit conversion, remaining scalar extraction, or fluence mismatch.
+
+Delegated Phase B.8 debugging protocol: (1) isolate nanobrag_torch directly, (2) add diagnostic prints, (3) check duplicate B-matrix computation, (4) compare fluence values.
+
+Next: Ralph executes Phase B.8 diagnostic tasks to isolate magnitude mismatch source.
+
+Artifacts: plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T230000Z/
+
+---
+
 # Turn Summary — Phase B.6 Implementation
 
 **Loop:** i=171
@@ -8,7 +22,7 @@
 
 ---
 
-### Turn Summary
+### Turn Summary (Loop i=171)
 
 1. **Shipped:** Single-line fix at `forward.py:196` — added `crystal_overrides=crystal_overrides` to `create_crystal_config` call
 2. **Progress:** Fix eliminated "disconnected graph" error; gradient now flows through Crystal cell parameter path

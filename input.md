@@ -1,166 +1,109 @@
-# Input for Ralph — Loop i=187
+# Input — Loop i=188 (Ralph)
 
 ## Summary
-Execute TORCH-REFINE-CLEANUP-001 Phase B (Portfolio Decision & Archival) — archive TORCH-REFINE-004, update blocked/revive member plan statuses, and sync ledger.
+Execute TORCH-REFINE-CLEANUP-001 Phase C: run smoke tests, archive artifacts, mark roll-up done.
 
 ## Focus
-**TORCH-REFINE-CLEANUP-001** — Stage A/B/C Refinement Probes Consolidation Roll-up
+TORCH-REFINE-CLEANUP-001 — Stage A/B/C Refinement Probes Consolidation Roll-up
 
 ## Branch
-`integration`
+integration
 
 ## Mapped Tests
-- Selector: `pytest --collect-only tests/dbex/test_torch_refine_smoke.py` (verify no regressions from archive)
-- No test execution this loop — docs/ledger closure only
+- `tests/dbex/test_torch_refine_smoke.py` (6 tests: Stage A expansion, Stage B modifiers, Stage C microslip)
 
 ## Artifacts
-`plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/`
+`plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T091543Z/`
 
 ---
 
 ## Do Now
 
-**Focus Item:** TORCH-REFINE-CLEANUP-001 Phase B (Portfolio Decision & Archival)
+**Focus:** TORCH-REFINE-CLEANUP-001 — Phase C closure
 
-### Implement: Phase B Tasks (Archive + Ledger Updates)
+**Implement:** `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md::Phase_C` (C1-C3 checkboxes)
 
-**B1: Archive TORCH-REFINE-004**
-```bash
-# Move TORCH-REFINE-004 to archive
-mv plans/active/TORCH-REFINE-004 archive/plans/TORCH-REFINE-004
-```
+**Validating selector:** `tests/dbex/test_torch_refine_smoke.py` (expect 6/6 PASS or 6/6 collected with minimal skip)
 
-Author closure summary at `archive/plans/TORCH-REFINE-004/closure_summary.md`:
-- Status: All phases complete (2025-11-24T140000Z)
-- Exit criteria: 4/4 met (per-reflection mode operational, ASU mapping, shell mode fallback, telemetry complete)
-- Reports: 16 summary.md files in reports directory
-- Tests: `test_stage_b_shell_modifiers`, `test_stage_b_per_reflection_smoke` (both PASS)
+**Artifacts path:** `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T091543Z/`
 
-**B2: Queue revive-classified phases**
-Update `docs/fix_plan.md` TORCH-REFINE-CLEANUP-001 entry with revive priority queue:
-- TORCH-REFINE-002D: Priority HIGH — Remove xfail, restore ≥0.2% Stage A gate (remaining: P2.1-P2.2, P3.1-P3.2)
-- TORCH-REFINE-001: Priority MEDIUM — Phase B full-trace telemetry, Phase C CLI wiring (remaining: B1-B2, C1-C2)
+### Tasks
 
-**B3: Update blocked member plan implementation.md files**
-Add deferral/blocked rationale to:
-
-1. `plans/active/TORCH-REFINE-002E/implementation.md` — Add status note:
-   ```
-   ## Status Update (2025-12-08)
-   **Blocked on:** ARCH-GRADIENT-FLOW-001 (blocked_pending_upstream)
-   - Phase B/C gradient work requires resolution of Jacobian magnitude/sign discrepancy
-   - Escalation: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`
-   - Phase A diagnostics complete — geometry encoding gap understood
-   ```
-
-2. `plans/active/TORCH-REFINE-003/implementation.md` — Add status note:
-   ```
-   ## Status Update (2025-12-08)
-   **Blocked on:** Stage A gate restoration
-   - Depends on TORCH-REFINE-002D (xfail removal) and TORCH-REFINE-002E (gradient flow)
-   - Will unblock once 002D restores ≥0.2% improvement gate
-   ```
-
-3. `plans/active/TORCH-REFINE-002/implementation.md` — Add delegation note:
-   ```
-   ## Status Update (2025-12-08)
-   **Status:** done (delegated to TORCH-REFINE-002D)
-   - Phases 1-3 complete
-   - Phase 4 (HKL perturbation) tracked in TORCH-REFINE-002D
-   ```
-
-**B4: Update fix_plan.md TORCH-REFINE-CLEANUP-001 entry**
-Add Attempts History entry:
-```
-* 2025-12-08T200000Z (Loop i=187, Ralph) — **Phase B complete**: B1: Archived TORCH-REFINE-004 with closure summary. B2: Documented revive priority queue (002D HIGH, 001 MEDIUM). B3: Updated blocked member plan implementation.md files (002E, 003, 002) with status notes. B4: Updated fix_plan entry. Touched: Phase B (B1-B4). Tests: collect-only verification. Artifacts: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/`.
-```
-
-**B5: Update implementation.md Phase B checkboxes**
-Mark B1-B4 as complete in `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md`.
-
-**B6: Author summary.md**
-- File: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/summary.md`
-- Include Phase B completion confirmation and next steps (Phase C smoke test validation)
-
-### Validating Selector
-```bash
-# Verify TORCH-REFINE-004 archive moved correctly
-ls -la archive/plans/TORCH-REFINE-004/
-
-# Capture collect-only for refinement smoke tests (should still collect 6)
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_torch_refine_smoke.py > plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/collect_refine_smoke.log 2>&1
-```
+| ID | Task | Deliverable |
+|----|------|-------------|
+| C1 | Run Stage A/B smoke tests | `pytest_refine_smoke.log` with PASS/FAIL status |
+| C2 | Archive Phase C artifacts | Log + summary files in reports directory |
+| C3 | Mark roll-up done | Update fix_plan.md (Execution Roadmap line 55 + detailed section status) |
+| C4 | Update implementation.md | Mark Phase C checkboxes complete |
+| C5 | Author summary.md | Turn Summary block for this loop |
 
 ---
 
 ## How-To Map
 
+### C1: Run smoke tests
 ```bash
-# B1: Archive TORCH-REFINE-004
-mv plans/active/TORCH-REFINE-004 archive/plans/TORCH-REFINE-004
-# Author closure_summary.md
-
-# B2-B4: Update docs/fix_plan.md, member plan implementation.md files
-
-# B5: Update TORCH-REFINE-CLEANUP-001/implementation.md checkboxes
-
-# B6: Author summary.md
-
-# Validation
-ls -la archive/plans/TORCH-REFINE-004/
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_torch_refine_smoke.py > plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/collect_refine_smoke.log 2>&1
+KMP_DUPLICATE_LIB_OK=TRUE \
+  DBEX_SMOKE_DETECTOR_SIZE=small \
+  pytest -v tests/dbex/test_torch_refine_smoke.py \
+  2>&1 | tee plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T091543Z/pytest_refine_smoke.log
 ```
+
+Expected: 6/6 PASS (or 6 collected with minimal skips due to environment). The archive operation (moving TORCH-REFINE-004) should not affect test execution since tests import from `dbex/` and `tests/`, not from `plans/active/`.
+
+### C3: fix_plan.md updates
+1. Execution Roadmap line ~55: Change status from `in_progress` to `done`
+2. Detailed section (~line 388): Update status from `in_progress (Phase B complete)` to `done (Phase C complete)`
+3. Add Attempts History entry for this loop
+
+### C4: implementation.md updates
+Mark checkboxes:
+- [x] C1: Run relevant test selectors (Stage A/B smoke)
+- [x] C2: Archive artifacts under reports directory
+- [x] C3: Mark roll-up done if no actionable work remains
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** delete any files — move to archive only
-2. **DO NOT** modify production code — this is ledger/docs only
-3. **DO NOT** change test files — preserve test selectors
-4. **DO** use exact paths for archive (`archive/plans/TORCH-REFINE-004/`)
-5. **DO** verify archive contents exist after move
-6. **DO** preserve all reports directories in archive
-7. **DO** update all 3 blocked member plan implementation.md files (002E, 003, 002)
-8. **DO** add Attempts History entry with artifact path
+1. **DO** use `DBEX_SMOKE_DETECTOR_SIZE=small` for quick smoke validation (full-detector is not required for regression check)
+2. **DO** capture pytest output to log file in artifacts directory
+3. **DO NOT** modify test files or production code — this is docs/ledger closure only
+4. **DO NOT** run gradcheck tests — only smoke selectors needed
+5. **DO** verify 6 tests collected before concluding
+6. **DO** update BOTH Execution Roadmap AND detailed section in fix_plan.md
+7. **Environment Freeze:** No package installs. If tests fail due to import errors, document the failure and mark as regression to investigate.
 
 ---
 
 ## If Blocked
 
-If archive move fails (permissions, path issues):
-1. Document the error in summary.md
-2. Keep TORCH-REFINE-004 in plans/active/
-3. Mark B1 as blocked with error message
-4. Continue with B2-B4 (can complete independently)
+1. If smoke tests fail with regressions, capture the failure log and do NOT mark as done
+2. Document the regression in summary.md and update fix_plan.md with blocked status
+3. Create a follow-on item in the Revive Priority Queue if needed
 
 ---
 
-## Findings Applied (Mandatory)
+## Findings Applied
 
-| Finding ID | Adherence |
-|------------|-----------|
-| REFINE-001 | Stage A nucleus warm-start + clamp pattern (documented in 002D revive queue) |
-| REFINE-002 | 0.1% nucleus baseline gate (002D priority: restore ≥0.2% gate) |
-| GRADIENT-001 | Tensor overrides preserve autograd (002E blocked rationale) |
-| TESTING-003 | collect-only evidence captured |
-| PROBE-FREEZE-001 | No new scripts created (archive move only) |
+- **TESTING-003**: Use canonical pytest selectors from TESTING_GUIDE.md
+- **PROBE-FREEZE-001**: No new probe scripts — use existing test infrastructure
+- **REFINE-001/002**: Stage A nucleus telemetry and baseline gates are in scope for smoke validation
 
 ---
 
 ## Pointers
 
-| Document | Relevance |
-|----------|-----------|
-| `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md:49-56` | Phase B checklist |
-| `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/member_plan_status_audit.md` | Classification matrix |
-| `docs/fix_plan.md:55-57` | TORCH-REFINE-CLEANUP-001 ledger entry |
-| `plans/active/TORCH-REFINE-004/implementation.md` | Archive candidate verification |
+- implementation.md: `plans/active/TORCH-REFINE-CLEANUP-001/implementation.md:59-63` (Phase C checklist)
+- fix_plan.md Execution Roadmap: `docs/fix_plan.md:55` (TORCH-REFINE-CLEANUP-001 status)
+- fix_plan.md detailed section: `docs/fix_plan.md:386-408`
+- Phase B summary: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T200000Z/summary.md`
+- Member plan audit: `plans/active/TORCH-REFINE-CLEANUP-001/reports/2025-12-08T150000Z/member_plan_status_audit.md`
 
 ---
 
-## Next Up (Optional)
+## Next Up (optional)
 
-If Phase B completes early:
-1. Begin Phase C.1: Run Stage A/B smoke selectors to confirm no regressions
-2. Verify collect-only still shows 6 tests after archive move
+If Phase C completes successfully and time permits:
+1. **TORCH-REFINE-002D** (HIGH priority revive): P2.1 xfail removal work
+2. **DB-AT-SUITE-CARE-001** Phase D.2: Next regression cadence check

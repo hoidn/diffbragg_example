@@ -1,3 +1,17 @@
+2025-12-08T130000Z focus=SPEC-INTERP-TRICUBIC-001 state=ready_for_implementation dwell=0 action=implementation_ready artifacts=plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/ next_action=phase_b_implementation
+- Loop i=205 (Galph): **FOCUS SWITCH — SPEC-INTERP-TRICUBIC-001 PHASE B IS ACTIONABLE**. Portfolio audit discovered that maintenance mode was incorrect: SPEC-INTERP-TRICUBIC-001 Phase A (spec changes) is COMPLETE, and Phase B (implementation) is ready for delegation.
+  **Key discovery**: The portfolio was incorrectly waiting for upstream response (ARCH-GRADIENT-FLOW-001 blocked_pending_upstream), but SPEC-INTERP-TRICUBIC-001 unblocks cell gradient work via a different path — by changing the spec to mandate tricubic interpolation globally. This makes cell parameter gradients flow without any upstream changes needed.
+  **Spec changes already landed (Phase A):**
+  - `docs/spec-db-core.md:98-102` — All stages SHALL use tricubic (`interpolation=True`) with ±1 halo
+  - `docs/spec-db-workflow.md:52-59` — All stages: `interpolation=True` REQUIRED
+  - `docs/spec-db-conformance.md` — DB-AT-025 updated to require tricubic for all stages
+  **Implementation needed (Phase B):**
+  - Change `dbex/refinement/config.py:40` default from `enable_hkl_interpolation: bool = False` to `True`
+  - Update test comments for legacy parity tests that explicitly set `False`
+  - Run Stage A smoke and partiality tests to validate
+  **Impact**: After Phase B, ARCH-GRADIENT-FLOW-001 will be unblocked (cell parameter gradients will flow via tricubic interpolation through query coordinates).
+  ActionType: implementation_ready. DecisionStatus: patch_ready (single-line config change + test comment updates). Next: Ralph executes Phase B (i=206).
+
 2025-12-08T114433Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=20 action=review_or_housekeeping artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T114433Z/ next_action=await_tier0_unblock
 - Loop i=204 (Galph): **PORTFOLIO IN MAINTENANCE MODE** (No Change). Verified inbox and nanoBragg outbox — no new responses since our escalation (2025-12-07 21:24).
   **Portfolio status summary (unchanged):**

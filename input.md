@@ -1,91 +1,144 @@
-# Input — Loop i=205 (Ralph)
+# Input — Loop i=206 (Ralph)
 
 ## Summary
-Portfolio maintenance mode continues — no upstream response received. All Tier 0 initiatives blocked. No implementation work available.
+Implement SPEC-INTERP-TRICUBIC-001 Phase B: Wire `interpolation=True` as the canonical default per updated specs.
 
 ## Focus
-DB-AT-SUITE-CARE-001 — Maintenance Mode (Awaiting Upstream)
+SPEC-INTERP-TRICUBIC-001 — Global Tricubic Interpolation Default (Phase B: Implementation)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `none` — No actionable work; portfolio in maintenance mode
+- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_convergence --smoke-detector-size=small` — Verify Stage A still converges with tricubic
+- `pytest -v tests/architecture/test_nanobrag_partiality.py` — Partiality tests (2 tests, expect PASS)
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T114433Z/`
+`plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/`
 
 ---
 
-## Portfolio Status
+## Context
 
-**All Tier 0 initiatives are blocked.** No implementation work available until upstream responds.
+**SPEC-INTERP-TRICUBIC-001 Phase A is COMPLETE.** The specs have been updated:
+- `docs/spec-db-core.md:98-102` — All stages SHALL use tricubic (`interpolation=True`) with ±1 halo
+- `docs/spec-db-workflow.md:52-59` — All stages: `interpolation=True` REQUIRED
+- `docs/spec-db-conformance.md` — DB-AT-025 updated to require tricubic for all stages
 
-| Tier | Initiative | Status | Blocker |
-|------|------------|--------|---------|
-| 0 | ARCH-GRADIENT-FLOW-001 | blocked_pending_upstream | Awaiting nanobrag_torch gradient magnitude audit |
-| 0 | ARCH-SIM-CONSTRUCTION-001 | blocked_pending_environment | SQUARE scaling resolved; other issues pending |
-| 0 | ARCH-REFACTOR-001 | blocked_pending_architecture | Blocked by ARCH-SIM-CONSTRUCTION-001 |
-| 1 | DB-AT-SUITE-CARE-001 | in_progress | D.1-D.4 complete; D.5 optional |
-| 1 | ROI-MAPPING-ALIGN-001 | pending | Blocked by ARCH-SIM-CONSTRUCTION-001 |
+**Root cause of cell gradient failures (ARCH-GRADIENT-FLOW-001):**
+Stage A was using nearest-neighbor HKL lookup (`interpolation=False`), which uses `torch.round()` — zero gradient by construction. Cell parameter gradients require tricubic interpolation to flow through query coordinates.
 
-**Upstream escalation status:**
-- Escalation filed: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md` (Dec 7 21:24)
-- No new response in nanoBragg outbox since Dec 7 19:55
+**Implementation needed:** Change the default from `False` to `True` and update any tests that explicitly set `False` for legacy parity testing.
 
 ---
 
 ## Do Now
 
-**No implementation tasks.** Portfolio in maintenance mode.
+**Implement: `dbex/refinement/config.py::RefinementConfig.enable_hkl_interpolation`**
 
-**If upstream responds** (new file in nanoBragg outbox or DBEX inbox):
-1. Read the response
-2. Switch focus to ARCH-GRADIENT-FLOW-001 Phase B.7+
-3. Ignore maintenance tasks
+### B1: Change default to `True`
 
-**If no response**:
-- Author minimal summary confirming maintenance mode
-- No code changes required
+Edit `dbex/refinement/config.py:40`:
+```python
+# OLD:
+enable_hkl_interpolation: bool = False
+
+# NEW:
+enable_hkl_interpolation: bool = True
+```
+
+### B2: Update test files that hard-code `False`
+
+Search for tests with `enable_hkl_interpolation=False` and update them:
+
+1. `tests/dbex/test_stage_a_smoke_parity.py:266` — This test explicitly sets `False` for DB-AT-028/029 legacy parity. **UPDATE**: Add a comment noting this is legacy mode for parity testing, not canonical behavior:
+   ```python
+   enable_hkl_interpolation=False,  # Legacy: nearest-neighbor for DiffBragg parity (non-canonical)
+   ```
+
+2. `tests/dbex/test_stage_a_smoke_parity.py:745` — Same pattern, add legacy comment.
+
+3. `tests/dbex/test_stage_a_smoke_parity.py:201` — Docstring mentions nearest-neighbor. **UPDATE** docstring to note this is legacy mode.
+
+### B3: Run validation tests
+
+```bash
+# Verify Stage A still works with tricubic
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_convergence --smoke-detector-size=small
+
+# Verify partiality tests pass
+pytest -v tests/architecture/test_nanobrag_partiality.py
+```
+
+### B4: Archive artifacts
+
+Create `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/summary.md` with:
+- Config change applied
+- Test results
+- Any issues encountered
 
 ---
 
 ## How-To Map
 
-### Check for upstream response
+### Change config default
 ```bash
-ls -la inbox/
-# Look for new files dated after 2025-12-07
-ls -la /home/ollie/Documents/nanoBragg/outbox/
-# Look for new files dated after 2025-12-07 19:55
+# The edit is at line 40 of config.py
+# Change: enable_hkl_interpolation: bool = False
+# To: enable_hkl_interpolation: bool = True
+```
+
+### Run tests
+```bash
+cd /home/ollie/Documents/diffbragg_example
+
+# Stage A smoke (should pass with new default)
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_convergence --smoke-detector-size=small 2>&1 | tee plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/pytest_stage_a.log
+
+# Partiality tests
+pytest -v tests/architecture/test_nanobrag_partiality.py 2>&1 | tee plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T130000Z/pytest_partiality.log
 ```
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** create implementation work when none exists
-2. **DO NOT** modify production code — maintenance mode
+1. **DO NOT** change the Stage B halo requirement — Stage B still requires `has_halo=True` in hkl_metadata
+2. **DO NOT** remove explicit `False` settings in legacy parity tests — just add clarifying comments
 3. **Environment Freeze:** No package installs
-4. **DO NOT** proceed with low-priority D.5 unless user requests
+4. **DO NOT** modify nanobrag_torch — only DBEX config and tests
+5. **Device/dtype neutrality:** The change is config-only, no tensor operations affected
 
 ---
 
 ## If Blocked
 
-Portfolio is already in maintenance mode. Document in summary.md: "Awaiting upstream response."
+If Stage A smoke test fails with tricubic:
+1. Capture full error in artifacts
+2. Check if HKL grid has halo (`hkl_metadata["has_halo"]`)
+3. Document in summary.md and mark Phase B blocked
 
 ---
 
 ## Findings Applied
 
-No relevant findings — maintenance mode only.
+- **GRADIENT-001** (Crystal overrides for gradient preservation): Phase B maintains override pattern compatibility
+- **REFINE-005** (Stage B interpolation requirement): Stage B already requires tricubic; this aligns Stage A
+- **TESTING-003** (Canonical selectors): Using documented selectors from TESTING_GUIDE.md
 
 ---
 
 ## Pointers
 
-- Escalation file: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`
-- ARCH-GRADIENT-FLOW-001 implementation.md: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md`
-- galph_memory.md: Loop i=204 entry
-- **Dwell observation:** Maintenance mode persists for 20+ loops — escalation outstanding since Dec 7
+- SPEC-INTERP-TRICUBIC-001 implementation.md: `plans/active/SPEC-INTERP-TRICUBIC-001/implementation.md`
+- Config file: `dbex/refinement/config.py:40`
+- Spec reference: `docs/spec-db-core.md:98-102`
+- Related initiative: ARCH-GRADIENT-FLOW-001 (cell gradient enablement — unblocked by this work)
+
+---
+
+## Next Up (optional)
+
+After Phase B completes:
+- Phase C: Run DB-AT-010 gradcheck to verify cell parameter gradients now flow
+- Update ARCH-GRADIENT-FLOW-001 status from blocked_pending_upstream to in_progress

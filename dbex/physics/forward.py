@@ -168,10 +168,13 @@ def simulate_forward_torch(
         dtype = torch.float32
 
     # Build structure factor grid (SCALE-001: unscaled)
+    # halo=True adds ±1 padding per REFINE-005/TORCH-REFINE-002D to prevent
+    # tricubic interpolation boundary discontinuities that break gradcheck
     hkl_grid, hkl_metadata, asu_map = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
-        device=device
+        device=device,
+        halo=True
     )
 
     # Ensure hkl_grid is correct dtype

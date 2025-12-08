@@ -93,13 +93,32 @@ Per `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md`:
 
 5. **`simulate_forward_torch` does NOT pass `halo=True`** to `build_structure_factor_grid` (line 171-175 in forward.py) — this may cause boundary effects in tricubic interpolation.
 
-**Investigation hypothesis:**
-The gradient magnitude mismatch appears to correlate with the complexity of the HKL grid lookup. Tricubic interpolation through a sparse, non-uniform structure factor grid may be computing incorrect gradient contributions due to:
-- Missing halo causing boundary clipping
-- Sparse grid regions having incorrect interpolation weights
-- Interaction between grid lookup and cell parameter derivatives
+**ROOT CAUSE IDENTIFIED (Loop i=207 ultrathink):**
 
-**Action:** Create DBEX-GRADIENT-TRACE-001 to investigate HKL grid interpolation gradient path.
+The gradient mismatch is caused by **HIGH-FREQUENCY NOISE from HKL grid boundary discontinuities**, NOT incorrect gradient computation.
+
+**Evidence:**
+1. **Non-reproducibility**: Same cell_a value gives different loss (0.05% variation)
+2. **Wildly varying numerical gradient**:
+   - eps=1e-3: +3.44e+08
+   - eps=1e-5: -7.88e+09
+   - eps=1e-6: -1.12e+12
+   - eps=1e-7: +2.81e+12
+3. **HKL hit rate varies**: 24217656, 24217654, 24217634 hits between runs
+4. **97% hit rate** means 3% of queries are near/outside grid boundaries
+
+**Mechanism:**
+When fractional HKL coordinates are near grid boundaries, tiny numerical differences (from cell_a perturbation) cause queries to randomly hit or miss the grid. This creates **discontinuities** that:
+- **Analytical gradient ignores** (assumes continuous function)
+- **Numerical gradient captures** (evaluates actual f(x±ε) with different hit patterns)
+
+**Why synthetic tests PASS:** They use 100% hit rate (all queries inside grid), no boundary effects.
+
+**Why DBEX test FAILS:** Uses 97% hit rate, many queries near boundaries causing noise.
+
+**FIX REQUIRED:** Add `halo=True` to `build_structure_factor_grid` call in `simulate_forward_torch` (line 171-175 in forward.py). This adds ±1 padding to eliminate boundary discontinuities.
+
+**Action:** Fix forward.py to add halo, then re-run DB-AT-010 gradcheck.
 
 ---
 

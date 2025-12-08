@@ -337,6 +337,7 @@
 - Working Plan: `plans/active/MAP-SCALE-SYNC-001/implementation.md`
 - Attempts History:
   * See docs/fix_plan_archive.md (snapshot 2025-12-07) and plans/active/MAP-SCALE-SYNC-001/reports/ for full Attempts History.
+  * 2025-12-08T180000Z i=166 (Ralph): **MAP-SCALE-003 Phase A (Telemetry Design) COMPLETE.** Audited `dbex/io/writer.py` diagnostics emission, traced refined MTZ loading path, confirmed 4 downstream test consumers. **Key finding:** Structure-factor telemetry (SCALE-003) is **already fully implemented** at `writer.py:196-200`. No gaps identified; no production code changes required. Tests: not run (Mode: Docs). Artifacts: `plans/active/MAP-SCALE-003/reports/2025-12-08T180000Z/{telemetry_audit.md,mtz_loading_trace.md,downstream_consumers.md,summary.md}`. Next: Review Phase B/C scope or consider closing MAP-SCALE-003 as complete.
 
 ### [PHYSICS-LOSS-001] Variance-Weighted Loss Parity and Telemetry
 - Depends on: MAP-SCALE-SYNC-001 (calibration precedence)

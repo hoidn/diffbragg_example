@@ -1,3 +1,116 @@
+# MAP-SCALE-003 Phase A Summary (Ralph Execution)
+
+**Loop:** i=166
+**Date:** 2025-12-08
+**Actor:** Ralph (Implementation Engineer)
+**Mode:** Evidence Collection (Docs)
+**ActionType:** evidence_collection
+**DecisionStatus:** exploring
+**InitiativeType:** spec_change
+
+---
+
+## Executive Summary
+
+Phase A (Telemetry Design) is **COMPLETE**. The structure-factor telemetry described in SCALE-003 is **already fully implemented** in the codebase. No gaps were identified.
+
+---
+
+## Key Findings
+
+### A1: Telemetry Audit
+
+**Finding:** Structure-factor provenance telemetry is ALREADY PRESENT at `dbex/io/writer.py:196-200`.
+
+The `/torch_diagnostics` HDF5 group includes:
+- `hkl_source` — "refined" or "raw"
+- `hkl_n_reflections` — reflection count
+- `hkl_mean_amplitude` — mean |F| value
+- `hkl_path` — MTZ file path
+
+**Gap Analysis:** No missing fields. Implementation matches SCALE-003 requirements.
+
+### A2: MTZ Loading Trace
+
+**Call Chain Traced:**
+```
+refine_one.py:main()
+  → run_nanobrag_backend()
+    → load_refined_mtz() [line 388]
+    → build_structure_factor_grid() [line 409]
+    → write_torch_outputs() [line 691]
+      → hkl_telemetry emitted [writer.py:196-200]
+```
+
+**Hook Points:** Already implemented at:
+- Post `load_refined_mtz` — Sets `hkl_source`, `hkl_path`
+- Telemetry dict construction — `refine_one.py:646-651`
+- Writer emission — `writer.py:196-200`
+
+### A3: Downstream Consumers
+
+**Tests Validated:**
+| Test | Location | Purpose |
+|------|----------|---------|
+| `test_nanobrag_backend_uses_refined_mtz` | test_refine_one_cli.py:765 | Refined MTZ loading |
+| `test_refined_mtz_missing_file_fails_fast` | test_refine_one_cli.py:1158 | SCALE-007 enforcement |
+| `test_refined_mtz_telemetry_provenance` | test_refine_one_cli.py:1263 | Telemetry validation |
+| `test_db_at_024_mapping_smoke` | test_mapping_consistency.py:188 | Acceptance test |
+
+**Backward Compatibility:** **NO RISK.** Schema is stable; all tests already expect these fields.
+
+---
+
+## Phase A Exit Criteria
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| Telemetry audit complete | **PASS** | `telemetry_audit.md` written |
+| MTZ loading trace complete | **PASS** | `mtz_loading_trace.md` written |
+| Downstream consumers assessed | **PASS** | `downstream_consumers.md` written |
+| Summary authored | **PASS** | This file |
+| No production code changed | **PASS** | `git status` shows no staged changes |
+
+---
+
+## Implications for Phases B/C
+
+Since the telemetry is already implemented:
+
+1. **Phase B (Guard Implementation):** May focus on additional validation guards or edge case handling rather than new telemetry emission.
+
+2. **Phase C (Test Coverage):** Existing tests already validate the telemetry. May focus on expanding coverage for edge cases (e.g., malformed MTZ, missing columns).
+
+3. **Alternative Scope:** The initiative may be **CLOSED** as the original SCALE-003 telemetry requirement is satisfied, or re-scoped to address related needs.
+
+---
+
+## Recommendations
+
+1. **Review Phase B/C scope** — Original telemetry implementation already complete.
+2. **Consider closing MAP-SCALE-003** — If no additional requirements exist.
+3. **Document finding in fix_plan.md** — Mark SCALE-003 telemetry as implemented.
+
+---
+
+## Artifacts Produced
+
+- `telemetry_audit.md` — Current diagnostics schema documentation
+- `mtz_loading_trace.md` — Call chain diagram and hook point analysis
+- `downstream_consumers.md` — Test coverage and backward compatibility assessment
+- `summary.md` — This file (Ralph execution summary)
+
+---
+
+### Turn Summary
+
+Phase A evidence collection complete. Audited `dbex/io/writer.py` telemetry emission, traced refined MTZ loading path from CLI to writer, and confirmed 4 downstream test consumers validate the schema. **Key finding: Structure-factor telemetry (SCALE-003) is already fully implemented.** No gaps identified; no production code changes required. Recommend reviewing Phase B/C scope or closing initiative as complete.
+
+Artifacts: `plans/active/MAP-SCALE-003/reports/2025-12-08T180000Z/` — `telemetry_audit.md`, `mtz_loading_trace.md`, `downstream_consumers.md`, `summary.md`
+
+---
+---
+
 # MAP-SCALE-003 Loop i=166 Summary (Galph Planning)
 
 ## Actor

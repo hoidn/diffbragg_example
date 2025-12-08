@@ -414,10 +414,16 @@ class TestBeamCrystalConfigMapping:
 
     @pytest.fixture
     def mock_experiment_stills(self):
-        """Create mock Experiment for stills (no scan)."""
+        """Create mock Experiment for stills (no scan).
+
+        ARCH-SIM-CONSTRUCTION-001: Must mock crystal.to_dict() to return a real
+        dict (not Mock) so .get() returns None for missing keys rather than Mock.
+        """
         expt = Mock()
         expt.scan = None
         expt.goniometer = None
+        # Mock crystal.to_dict() to return empty dict (no mosaic metadata)
+        expt.crystal.to_dict.return_value = {}
         return expt
 
     def test_beam_wavelength(self, mock_beam):

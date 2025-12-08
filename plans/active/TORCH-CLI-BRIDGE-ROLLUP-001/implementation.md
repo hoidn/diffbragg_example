@@ -30,7 +30,7 @@ Per `docs/fix_plan.md:412-416`:
 
 | Plan ID | Title | Implementation Status | Checklist Status |
 |---------|-------|----------------------|------------------|
-| TORCH-BRIDGE-001 | Bridge DataLoad | Phases A-C complete | Phase D pending |
+| TORCH-BRIDGE-001 | Bridge DataLoad | Phases A-D complete | Complete |
 | TORCH-CLI-003 | CLI backend flag | Work complete | Checklist stale |
 | TORCH-CLI-004 | ROI score coercion | Work complete | Checklist stale |
 
@@ -72,16 +72,21 @@ Per `docs/fix_plan.md:412-416`:
 
 ## Phase B — TORCH-BRIDGE-001 Closeout
 
-**Status:** Pending
+**Status:** Complete (2025-12-08T083000Z)
 **Mode:** Docs
 **Estimated Loops:** 1
 
 ### Checklist
-- [ ] B1: Re-run bridge + smoke pytest modules with fresh logs
-- [ ] B2: Update fix_plan.md TORCH-BRIDGE-001 status → done
-- [ ] B3: Update TESTING_GUIDE.md §2 and TEST_SUITE_INDEX.md
-- [ ] B4: Run pytest --collect-only; save collection logs
-- [ ] B5: Mark TORCH-BRIDGE-001 Phase D complete in implementation.md
+- [x] B1: Re-run bridge + smoke pytest modules with fresh logs
+- [x] B2: Update fix_plan.md TORCH-BRIDGE-001 status → done
+- [x] B3: Update TESTING_GUIDE.md §2 and TEST_SUITE_INDEX.md
+- [x] B4: Run pytest --collect-only; save collection logs
+- [x] B5: Mark TORCH-BRIDGE-001 Phase D complete in implementation.md
+
+### Phase B Artifacts
+- `reports/2025-12-08T083000Z/pytest_bridge.log` — 27 passed, 1 skipped
+- `reports/2025-12-08T083000Z/collect_bridge.log` — 28 tests collected
+- `reports/2025-12-08T083000Z/summary.md` — Phase B closure summary
 
 ### Validation Commands
 ```bash
@@ -162,7 +167,8 @@ KMP_DUPLICATE_LIB_OK=TRUE pytest -v "tests/dbex/test_refine_one_cli.py::test_tor
 
 - Reports root: `plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/`
 - Phase A: `reports/2025-12-08T073000Z/`
-- Phase B-E: TBD
+- Phase B: `reports/2025-12-08T083000Z/`
+- Phase C-E: TBD
 
 ## Spec References
 

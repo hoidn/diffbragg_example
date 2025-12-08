@@ -3,7 +3,7 @@
 ID: TORCH-BRIDGE-001
 Title: Bridge DataLoad to `nanobrag_torch`
 Owner: Unassigned
-Status: in_progress
+Status: done
 
 ## Goals
 - Prepare tensors and configs consumable by `nanobrag_torch` while preserving DBEX tensor ordering and mask semantics.
@@ -59,10 +59,15 @@ Status: in_progress
 
 ## Phase D — Closeout
 ### Checklist
-- [ ] D1: Re-run bridge + smoke pytest modules with refGeom assets present; capture fresh log + metrics under a new reports timestamp.
-- [ ] D2: Update ledgers/docs for wrap-up (fix_plan status → done, final Attempts History entry with Metrics/Artifacts, note dataset requirement for future parity work).
-- [ ] D3: Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` Implementation Coverage entries (bridge/config/smoke) if missing or outdated.
-- [ ] D4: Run `pytest --collect-only` for `tests/dbex/test_nanobrag_bridge.py`, `tests/dbex/test_nanobrag_bridge_configs.py`, and `tests/dbex/test_nanobrag_smoke.py`; save logs under the new report path.
+- [x] D1: Re-run bridge + smoke pytest modules with refGeom assets present; capture fresh log + metrics under a new reports timestamp.
+- [x] D2: Update ledgers/docs for wrap-up (fix_plan status → done, final Attempts History entry with Metrics/Artifacts, note dataset requirement for future parity work).
+- [x] D3: Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` Implementation Coverage entries (bridge/config/smoke) if missing or outdated.
+- [x] D4: Run `pytest --collect-only` for `tests/dbex/test_nanobrag_bridge.py`, `tests/dbex/test_nanobrag_bridge_configs.py`, and `tests/dbex/test_nanobrag_smoke.py`; save logs under the new report path.
+
+**Completed:** 2025-12-08T083000Z
+**Artifacts:** plans/active/TORCH-CLI-BRIDGE-ROLLUP-001/reports/2025-12-08T083000Z/
+**Tests:** 27 passed, 1 skipped (test_sample_to_source_vector intentionally skipped)
+**Notes:** Test fixture updated to mock experiment.crystal.to_dict() per ARCH-SIM-CONSTRUCTION-001 code path added post-Phase C. Registry entries confirmed current in both TESTING_GUIDE.md and TEST_SUITE_INDEX.md.
 
 ## Artifacts Index
 - Reports root: `plans/active/TORCH-BRIDGE-001/reports/`

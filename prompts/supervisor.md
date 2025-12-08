@@ -291,7 +291,7 @@
 
 
       <step id='6'>
-        - Implementation delegation: size up an appropriate unit of work (e.g. one or more plan phases or checklist items) to delegate to ralph and clarify the interactions between this unit of work and all other parts of the system
+        - Implementation delegation: size up an appropriate unit of work (e.g. one or more plan phases or checklist items) to delegate to ralph and clarify the interactions between this unit of work and all other parts of the system. For all work that tracks an existing initiative / plan, refer to the relevant implementation.md phase(s)
         - IMPORTANT: neither Evidence nor Planning nor Review are valid for implementation delegation / input.md. Delegation means either of code (tests or implementation) or of debugging. All other actions are galph-only. 
       </step>
 
@@ -304,7 +304,6 @@
 
       <step id="8" name="Write or refresh input.md">
         - Produce a complete <code>input.md</code> that satisfies all constraints in <input_md_requirements/>.  
-        - Reference T2 scripts (per <scriptization_policy/>) when appropriate
       </step>
 
       <step id="9" name="Apply loop discipline and retrospective cadence">

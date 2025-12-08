@@ -341,6 +341,96 @@ class TestDB_AT_010_Gradcheck:
 
         assert gradcheck_passed, "Gradcheck failed for crystal cell_gamma parameter"
 
+    def test_db_at_010_gradcheck_cell_a_no_mosaic(
+        self,
+        refinement_inputs,
+        geometry_objects,
+        hkl_data,
+        artifact_dir
+    ):
+        """
+        DB-AT-010 Workaround: Verify cell_a gradients with mosaic bypass.
+
+        ARCH-GRADIENT-FLOW-001 Phase B.9: Tests the hypothesis that the gradient
+        magnitude mismatch is caused by the mosaic code path in nanobrag_torch.
+        By passing experiment=None, we bypass mosaic metadata extraction
+        (config_factories.py:380), keeping mosaic_spread_deg=0.0.
+
+        If this test PASSES while test_db_at_010_gradcheck_crystal_cell_a FAILS,
+        it confirms the mosaic code path is the root cause.
+        """
+        from dbex.physics.forward import simulate_forward_torch
+        from dbex.physics.loss import compute_masked_mse_loss
+
+        device = torch.device('cpu')
+        dtype = torch.float64
+
+        # Convert inputs to torch
+        target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
+        loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+
+        # Get base crystal config
+        base_crystal = geometry_objects["crystal"]
+        # NOTE: experiment=None bypasses mosaic metadata extraction (ARCH-GRADIENT-FLOW-001 B.9)
+
+        def loss_fn(cell_a_tensor):
+            crystal_overrides = {'cell_a': cell_a_tensor}
+
+            # Pass experiment=None to bypass mosaic extraction
+            bragg_torch = simulate_forward_torch(
+                inputs=refinement_inputs,
+                detector=geometry_objects["detector"],
+                beam=geometry_objects["beam"],
+                crystal=base_crystal,
+                experiment=None,  # WORKAROUND: bypass mosaic_spread_deg extraction
+                hkl_indices=hkl_data["indices"],
+                hkl_amplitudes=hkl_data["amplitudes"],
+                spot_scale_override=1.0,
+                device=device,
+                dtype=dtype,
+                crystal_overrides=crystal_overrides
+            )
+
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
+            return loss
+
+        # Get base cell_a value
+        uc = base_crystal.get_unit_cell()
+        base_cell_a = uc.parameters()[0]
+
+        # Create differentiable parameter tensor
+        cell_a_param = torch.tensor(base_cell_a, dtype=dtype, device=device, requires_grad=True)
+
+        # Run gradcheck
+        gradcheck_passed = gradcheck(
+            loss_fn,
+            (cell_a_param,),
+            eps=1e-6,
+            atol=1e-5,
+            rtol=0.05,
+            raise_exception=True
+        )
+
+        # Emit metrics
+        metrics = {
+            "parameter": "crystal_cell_a_no_mosaic",
+            "base_value": float(base_cell_a),
+            "gradcheck_passed": gradcheck_passed,
+            "workaround": "experiment=None to bypass mosaic extraction",
+            "eps": 1e-6,
+            "atol": 1e-5,
+            "rtol": 0.05,
+            "device": str(device),
+            "dtype": str(dtype)
+        }
+
+        metrics_file = artifact_dir / "gradcheck_crystal_cell_a_no_mosaic.json"
+        with open(metrics_file, 'w') as f:
+            json.dump(metrics, f, indent=2)
+
+        assert gradcheck_passed, "Gradcheck failed for crystal cell_a (no mosaic) parameter"
+
     def test_db_at_010_gradcheck_detector_distance(
         self,
         refinement_inputs,

@@ -21,3 +21,7 @@ Quick router:
 Simulator import note (nanobrag_torch)
 - The `nanobrag_torch` package imported by DBEX comes from the editable install under `/home/ollie/Documents/nanoBragg/src/nanobrag_torch`, not from the vendored `src/nanobrag-torch` tree inside this repository.
 - Treat `/home/ollie/Documents/nanoBragg` as the authoritative runtime source for `nanobrag_torch` when reasoning about behavior. Under Environment Freeze, edits to that tree count as environment-level changes and MUST follow the same exception rules as other external dependencies (patch file, rebuild commands, findings entry, environment tag), not be assumed to take effect just by touching `src/nanobrag-torch` in this repo.
+
+## External blockers policy 
+- External blockers are solved by writing a request to the maintainers of the respective project and then waiting for a response. For example, a request to the nanoBragg 
+ project would be sent to ~/Documents/nanoBragg/inbox/. The nanobragg maintainers would adress it and then file their response to ./inbox/

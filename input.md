@@ -1,66 +1,46 @@
-# Input — Loop i=188 (Ralph)
+# Input — Loop i=189 (Ralph)
 
 ## Summary
-Portfolio maintenance: D.4 complete, awaiting upstream response for ARCH-GRADIENT-FLOW-001. Optional D.5 lessons-learned documentation available.
+Portfolio maintenance mode continues — no upstream response received. All Tier 0 initiatives blocked.
 
 ## Focus
-DB-AT-SUITE-CARE-001 — Phase D Maintenance (Awaiting Upstream)
+DB-AT-SUITE-CARE-001 — Maintenance Mode (Awaiting Upstream)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `none` — Portfolio in maintenance mode; no blocking tests
+- `none` — No actionable work; portfolio in maintenance mode
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T150000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T160000Z/`
 
 ---
 
-## Portfolio Status (Decision Point)
+## Portfolio Status
 
-**Tier 0 Status:**
-- **ARCH-GRADIENT-FLOW-001**: `blocked_pending_upstream` — Escalation filed (`inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`). Gradient graph connectivity FIXED, but Jacobian mismatch (~640× magnitude with sign flip) in `nanobrag_torch/models/crystal.py::compute_cell_tensors()` requires upstream audit.
-- **ARCH-SIM-CONSTRUCTION-001**: `blocked_pending_environment` — SQUARE scaling resolved; remaining work blocked on other DBEX-layer issues.
+**All Tier 0 initiatives are blocked.** No implementation work available until upstream responds.
 
-**Tier 1 Status:**
-- **DB-AT-SUITE-CARE-001**: `in_progress` — D.1-D.4 complete, D.3/D.5 pending (low priority)
-- All other Tier 1: done
-
-**Available Work:**
-1. **D.5 — Lessons learned archive** (docs-only, low priority): Document acceptance test patterns in `docs/findings.md` or `docs/acceptance_test_patterns.md`
-2. **Wait**: Await upstream response on ARCH-GRADIENT-FLOW-001
+| Tier | Initiative | Status | Blocker |
+|------|------------|--------|---------|
+| 0 | ARCH-GRADIENT-FLOW-001 | blocked_pending_upstream | Awaiting nanobrag_torch gradient magnitude audit |
+| 0 | ARCH-SIM-CONSTRUCTION-001 | blocked_pending_environment | SQUARE scaling resolved; other issues pending |
+| 1 | DB-AT-SUITE-CARE-001 | in_progress | D.1-D.4 complete; D.5 optional |
 
 ---
 
-## Do Now (Optional — Maintenance)
+## Do Now
 
-**Focus:** DB-AT-SUITE-CARE-001 — Phase D.5 Lessons Learned (Optional)
+**No implementation tasks.** Portfolio in maintenance mode.
 
-**Implement:** `docs/findings.md` or `docs/acceptance_test_patterns.md` — Document acceptance test patterns
+**If upstream responds** (new file in `inbox/`):
+1. Read the response
+2. Switch focus to ARCH-GRADIENT-FLOW-001 Phase B.7+
+3. Ignore maintenance tasks
 
-**Validating selector:** `none` — Documentation-only
-
-**Artifacts path:** `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T150000Z/`
-
-### If Proceeding with D.5
-
-Document recurring acceptance test patterns observed during DB-AT-SUITE-CARE-001 execution:
-
-| Pattern | Description | Code Example |
-|---------|-------------|--------------|
-| Fixture-sharing | Multiple DB-AT tests share refGeom assets via conftest fixtures | `tests/dbex/conftest.py:smoke_detector_fixture` |
-| Artifact emission | Structured artifact output with environment variable routing | `DBAT0XX_ARTIFACT_DIR` pattern |
-| Skip/xfail guardrails | Tests use `pytest.mark.xfail`/`pytest.mark.skipif` with documented rationale | `test_gradients.py` blocked tests |
-| ROI-level validation | Per-ROI metrics (loss, correlation) validated against thresholds | DB-AT-020/024 implementations |
-
-**Optional tasks:**
-- D5.1: Survey fixture-sharing patterns in `tests/dbex/conftest.py`
-- D5.2: Document artifact emission contract (env vars, JSON schema)
-- D5.3: Catalog skip/xfail patterns with rationale citations
-- D5.4: Author summary.md
-
-**Note:** D.5 is low-priority documentation. If no user need, this loop can be skipped.
+**If no response**:
+- This loop can be skipped or minimal summary authored
+- D.5 documentation is low-priority and optional
 
 ---
 
@@ -72,53 +52,36 @@ ls -la inbox/
 # Look for new files dated after 2025-12-07
 ```
 
-### If upstream responds (ARCH-GRADIENT-FLOW-001)
-1. Read new inbox file
-2. Switch focus to ARCH-GRADIENT-FLOW-001 Phase B.7+
-3. Ignore D.5 tasks
+### If upstream responds
+1. Read new inbox file for gradient magnitude analysis
+2. Update ARCH-GRADIENT-FLOW-001 implementation.md with new phase
+3. Switch focus from DB-AT-SUITE-CARE-001 to gradient work
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** create new test files — D.5 is docs-only
+1. **DO NOT** create implementation work when none exists
 2. **DO NOT** modify production code — maintenance mode
 3. **Environment Freeze:** No package installs
-4. **If upstream responds:** Immediately pivot to ARCH-GRADIENT-FLOW-001
+4. **DO NOT** proceed with low-priority D.5 unless user requests
 
 ---
 
 ## If Blocked
 
-Portfolio is already in maintenance mode. No action required if D.5 is deferred.
-
-Document in summary.md: "Portfolio awaiting upstream response. D.5 deferred."
+Portfolio is already in maintenance mode. Document in summary.md: "Awaiting upstream response."
 
 ---
 
 ## Findings Applied
 
-- **PROBE-FREEZE-001**: No new scripts — documentation only
-- **TESTING-003**: Patterns documented should reference canonical selectors from TESTING_GUIDE.md
+No relevant findings — maintenance mode only.
 
 ---
 
 ## Pointers
 
-- DB-AT-SUITE-CARE-001 implementation.md: `plans/active/DB-AT-SUITE-CARE-001/implementation.md:91` (D.5 task definition)
 - Escalation file: `inbox/to_nanobrag_gradient_magnitude_2025_12_07.md`
+- ARCH-GRADIENT-FLOW-001 implementation.md: `plans/active/ARCH-GRADIENT-FLOW-001/implementation.md`
 - D.4 audit results: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T140000Z/test_registry_audit.md`
-
----
-
-## Decision Guidance
-
-**Option A — Proceed with D.5:**
-- Author lessons-learned documentation
-- Low value-add but maintains loop cadence
-
-**Option B — Skip D.5, await upstream:**
-- Create minimal summary.md noting "awaiting upstream"
-- More appropriate if no user need for D.5 documentation
-
-**Recommendation:** Option B unless user specifically requests D.5 documentation.

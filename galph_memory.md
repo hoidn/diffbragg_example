@@ -173,3 +173,30 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
 **Affected code**: `tests/dbex/test_nanobrag_bridge_configs.py::mock_experiment_stills` fixture needed updating after ARCH-SIM-CONSTRUCTION-001 added `config_factories.py:380-383` (calls `experiment.crystal.to_dict().get('ML_half_mosaicity_deg', None)`).
 
 **Lesson**: When production code evolves to access new nested attributes on fixture objects, audit Mock fixtures for auto-creation gaps. This pattern may affect other test files using Mock experiment objects.
+
+---
+### Ralph Debugging Insight (Loop i=189)
+
+**GRADIENT-CORRECTNESS-001**: After upstream nanobrag_torch gradient connectivity fixes (`as_tensor_preserving_grad()`, Detector.distance property), DB-AT-010 still fails 5/5 with a DIFFERENT failure signature: gradients NOW EXIST (non-zero analytical values) but are INCORRECT (magnitude mismatch + sign flip).
+
+**Evidence:**
+| Parameter | Numerical | Analytical | Ratio | Sign |
+|-----------|-----------|------------|-------|------|
+| crystal_cell_a | -2.04e+11 | 6.98e+07 | ~2900× | opposite |
+| crystal_cell_gamma | 2.89e+11 | 4.64e+07 | ~6200× | opposite |
+| detector_distance | -1.25e+12 | 1.04e+07 | ~120000× | opposite |
+| beam_wavelength | 9.16e+11 | -3.62e+09 | ~250× | opposite |
+
+**Key observations:**
+1. **All parameters affected**: Issue is systemic, not parameter-specific (crystal, detector, beam all fail)
+2. **Sign flip pattern**: All analytical gradients have opposite sign to numerical — suggests a global sign error or inverted chain somewhere
+3. **Variable magnitude ratios**: 250× to 120000× suggests issue may be at different depths in the chain for different parameters
+
+**Hypothesis (0.7 confidence)**: The crystallographic/physics forward pass has a systemic gradient computation error. Possibilities:
+- Non-differentiable operation used where differentiable alternative exists
+- Incorrect chain rule application in crystallographic formulas
+- Sign convention mismatch in coordinate system (possibly reciprocal vs real space)
+
+**Lesson**: Graph connectivity fixes (tensor preservation) are necessary but not sufficient for gradient correctness. The underlying physics/math computations must also be differentiable AND correctly differentiated.
+
+**Next action**: Escalation to nanobrag_torch maintainers should clarify that the original issue (crystal cell gradient magnitude) was NOT addressed. The gradient audit must examine `compute_cell_tensors()` and the forward simulation chain, not just tensor init patterns.

@@ -1027,3 +1027,44 @@ class StageCContext:
     validation_scope: str  # "roi" | "panel"
     misset_deg_for_crystal: Any  # torch.Tensor (xyz Euler angles, degrees)
     _apply_baseline_detector_prior: Callable[[], None]
+
+
+@dataclass
+class StageAInputContext:
+    """
+    Input parameters for Stage A LBFGS parameter building.
+
+    Consolidates the 13 positional parameters of _build_stage_a_params into
+    a single typed context per ARCH-STAGE-CONTEXT-CONSOLIDATION Phase B.
+
+    This dataclass contains the inputs needed to BUILD Stage A parameters,
+    distinct from StageAContext which contains the OUTPUTS (cached models, simulators).
+
+    Fields sourced from _build_stage_a_params signature:
+        crystal: DIALS crystal object
+        detector: DIALS detector object
+        beam: DIALS beam object
+        inputs: DataLoad instance with target data and masks
+        baseline_crystal: Reference crystal for parameter initialization
+        baseline_detector: Reference detector for parameter initialization
+        hkl_grid: Structure factor grid tensor [n_h, n_k, n_l]
+        hkl_metadata: Dict with grid dimensions, halo status, etc.
+        sigma_floor_sq_cache: Device-keyed cache for sigma_floor² tensors
+        device: Target torch device
+        dtype: Target torch dtype
+
+    IDL Contract Reference:
+        docs/architecture/dbex/refinement/context.idl.md
+        ARCH-STAGE-CONTEXT-CONSOLIDATION Phase B.1
+    """
+    crystal: Any
+    detector: Any
+    beam: Any
+    inputs: Any
+    baseline_crystal: Any
+    baseline_detector: Any
+    hkl_grid: torch.Tensor
+    hkl_metadata: Dict[str, Any]
+    sigma_floor_sq_cache: Dict[torch.device, torch.Tensor]
+    device: torch.device
+    dtype: torch.dtype

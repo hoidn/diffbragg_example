@@ -19,11 +19,11 @@
 
 ### Tier 0: Refinement Architecture Finish
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place, and align ARCH docs/contracts with implementation via enforcement tests.
-- [ARCH-GRADIENT-FLOW-001] (Gradient Flow Restoration — DB-AT-010 Unblock) — **in_progress** (2025-12-09T030000Z: **Phase B.8 — DBEX gradient magnitude investigation.** Loop i=217 identified two separate blockers: (1) cell param magnitude mismatch (843-19352×) — **DBEX-side fix actionable now** per upstream response confirming nanobrag_torch cell gradients work (6/6 tests PASS), (2) mosaic gradient bug — **upstream fix pending** (request filed `mosaic_gradient_bug_2025_12_08.md`). Graph connectivity restored Loop i=209; magnitude fix in progress. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T030000Z/`)
-  - **Governed by:** GRADIENT-001, RUNTIME-001, TESTING-003
-  - **Two separate blockers:** (1) Cell magnitude → DBEX investigation (ACTIVE), (2) Mosaic gradient → upstream (PENDING)
-  - **Workaround (if needed):** Force `mosaic_spread_deg=0.0` in gradient tests (disables mosaicity refinement)
-  - **Next:** Phase B.8 — unit conversion audit in `config_factories.py`, minimal reproduction bypassing DBEX factories
+- [ARCH-GRADIENT-FLOW-001] (Gradient Flow Restoration — DB-AT-010 Unblock) — **blocked_pending_upstream** (2025-12-09T080000Z: **Phase B.9 COMPLETE — mosaic code path confirmed as root cause.** Loop i=219 verified: gradcheck PASSES with `mosaic_spread_deg=0.0`, FAILS with real mosaic parameters (1017× Jacobian mismatch). Cell magnitude issue is NOT DBEX-side — it's coupled to mosaic code path in nanobrag_torch. Upstream fix request filed: `mosaic_gradient_bug_2025_12_08.md`. Awaiting upstream response. Artifacts: `plans/active/ARCH-GRADIENT-FLOW-001/reports/2025-12-08T234500Z/`)
+  - **Governed by:** GRADIENT-001, GRADIENT-003, RUNTIME-001, TESTING-003
+  - **ROOT CAUSE CONFIRMED:** Mosaic code path in nanobrag_torch (triggered when `ML_half_mosaicity_deg > 0`) has a gradient bug — analytical gradients are ~1000× smaller than numerical
+  - **Workaround:** Force `mosaic_spread_deg=0.0` in gradient tests (validated test exists: `test_db_at_010_gradcheck_cell_a_no_mosaic`)
+  - **Next:** Await upstream response to `mosaic_gradient_bug_2025_12_08.md`, then apply fix and verify DB-AT-010 passes
 - [SPEC-INTERP-TRICUBIC-001] (Global Tricubic Interpolation Default) — **done** (2025-12-08T233000Z: **HKL sparsity hypothesis SUPERSEDED.** Loop i=210 investigation confirmed that gradcheck passes with real HKL data (97% hit rate) when `mosaic_spread_deg=0.0` (ratio=1.00×). The actual root cause is the mosaic code path in nanobrag_torch, not HKL grid discontinuities. Phase A/B goals achieved (tricubic interpolation enabled globally); Phase C architecture decision no longer needed — the issue is upstream. Artifacts: `plans/active/SPEC-INTERP-TRICUBIC-001/reports/2025-12-08T140000Z/`)
 - [ARCH-IMPL-CONFORMANCE-001] (Architecture / Implementation contract alignment) — **done** (2025-12-07T054500Z: Phases A-B complete; ARCH-CONTRACT-002/003 delivered with enforcement tests; exit criteria 3.5/4 satisfied; artifacts under `archive/plans/ARCH-IMPL-CONFORMANCE-001/reports/2025-12-07T054500Z/initiative_closure_summary.md`)
 - [DIAG-NANOBRAGG-OVERSAMPLE-001] (nanobrag_torch oversample parameter investigation) — **done** (2025-12-09T153000Z: Phase F HKL stats + Stage-A instrumentation closed out diagnostics; artifacts under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/` now cover oversample, beam flux, and HKL evidence)
@@ -263,7 +263,7 @@
 ### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
 - Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)
 - Blocks: DB-AT-SUITE-CARE-001 portfolio advancement, Gradient-Safe Profile conformance
-- Status: **in_progress** (Phase B.8: DBEX gradient magnitude investigation — graph connectivity restored Loop i=209, magnitude mismatch remains. Two separate blockers: (1) cell param magnitude → DBEX-side fix actionable now, (2) mosaic gradient → upstream fix pending)
+- Status: **blocked_pending_upstream** (Phase B.9 COMPLETE: Mosaic code path confirmed as root cause. Loop i=219 verified gradcheck PASSES with `mosaic_spread_deg=0.0`, FAILS with real mosaic parameters (1017× Jacobian mismatch). Upstream fix request filed `mosaic_gradient_bug_2025_12_08.md`. Awaiting response.)
 - Type: architecture
 - Priority: Tier 0 (blocks conformance profile)
 - Owner/Date: Galph ↔ Ralph / 2025-12-08

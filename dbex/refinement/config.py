@@ -155,6 +155,13 @@ class RefinementConfig:
     # Optional JSON output path for baseline metrics dump (env: DBEX_STAGE_A_BASELINE_METRICS_PATH)
     stage_a_baseline_metrics_path: Optional[str] = None
 
+    # GPU memory optimization (PERF-GPU-MEM-001)
+    # Number of detector rows to process per chunk in simulator.run().
+    # When None (default), full vectorization is used. Set to 128 for 24GB GPUs,
+    # 64 for 12GB, or 32 for 8GB to avoid OOM during reconstruction.
+    # See inbox/pixel-batching-implementation-response-2025-12-08.md for details.
+    pixel_batch_size: Optional[int] = None
+
     # Device and dtype for PyTorch operations
     device: str = "cpu"
     dtype: Any = torch.float32  # Actual dtype at runtime

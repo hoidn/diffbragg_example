@@ -525,7 +525,8 @@ class StageC:
                         detector_model = Detector(detector_config, device=device, dtype=dtype)
                         simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
 
-                    panel_bragg = simulator.run()
+                    # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                    panel_bragg = simulator.run(pixel_batch_size=config.pixel_batch_size)
 
                     bragg_panels.append(panel_bragg)
                     target_panels.append(target_t[pid])
@@ -1233,7 +1234,8 @@ class StageC:
                     detector_model = Detector(detector_config, device=device, dtype=dtype)
                     simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
 
-                panel_bragg = simulator.run()
+                # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                panel_bragg = simulator.run(pixel_batch_size=config.pixel_batch_size)
 
                 # Apply Stage A's log-scale clamp logic in final Stage C reconstruction
                 max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)

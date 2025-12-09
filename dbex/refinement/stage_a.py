@@ -435,7 +435,8 @@ class StageA:
             # Build zero-iteration Bragg stack from warmed simulators
             try:
                 with torch.no_grad():
-                    bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
+                    # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                    bragg_samples = [simulator.run(pixel_batch_size=config.pixel_batch_size) for simulator in stage_a_ctx.simulators]
                     bragg_stack = torch.stack(bragg_samples, dim=0)
 
                     # Apply spot_scale_override per SCALE-002 using canonical API
@@ -534,7 +535,8 @@ class StageA:
             model_mean = None
             try:
                 with torch.no_grad():
-                    bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
+                    # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                    bragg_samples = [simulator.run(pixel_batch_size=config.pixel_batch_size) for simulator in stage_a_ctx.simulators]
                     bragg_stack = torch.stack(bragg_samples, dim=0)
                     model_mean = float(bragg_stack.mean().item())
             except Exception:
@@ -1392,7 +1394,8 @@ class StageA:
                             dtype=dtype
                         )
 
-                    bragg_patch = simulator.run()
+                    # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                    bragg_patch = simulator.run(pixel_batch_size=config.pixel_batch_size)
                     bragg_scaled = bragg_patch * torch.exp(log_scale_clamped)
 
                     # NOTE: In the current Stage A implementation, `bragg_scaled` plays the role

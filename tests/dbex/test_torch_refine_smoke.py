@@ -424,6 +424,9 @@ def test_stage_a_expansion(
         sigma_readout_provenance=(
             "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
         ),
+        # PERF-GPU-MEM-001: Enable chunked execution to avoid OOM on 24GB GPUs
+        # Using 32 rows to account for tricubic interpolation overhead
+        pixel_batch_size=32,
     )
 
     # Create perturbed geometry (TORCH-REFINE-002D)

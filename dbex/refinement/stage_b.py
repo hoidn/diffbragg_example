@@ -1047,7 +1047,8 @@ class StageB:
                     sigma_subset = sigma_readout_t[pid, slow_slice, fast_slice].to(device=eval_device, dtype=dtype)
 
                     simulator = roi_entry.simulator
-                    bragg_patch = simulator.run()
+                    # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                    bragg_patch = simulator.run(pixel_batch_size=config.pixel_batch_size)
                     log_scale_clamped = torch.clamp(log_scale_eval, min=-10.0, max=10.0)
                     bragg_scaled = bragg_patch * torch.exp(log_scale_clamped)
 
@@ -1074,7 +1075,8 @@ class StageB:
                 for pid in panel_ids:
                     if use_warm_eval:
                         simulator = stage_b_eval_stage_a_ctx.simulators[pid]
-                        bragg_panel = simulator.run()
+                        # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                        bragg_panel = simulator.run(pixel_batch_size=config.pixel_batch_size)
                     else:
                         detector_config = create_detector_config(
                             panel=detector[pid],
@@ -1103,7 +1105,8 @@ class StageB:
                         crystal_model.hkl_data = hkl_grid_modified
                         crystal_model.hkl_metadata = hkl_metadata
                         simulator = Simulator(detector=detector_model, crystal=crystal_model, device=eval_device, dtype=dtype)
-                        bragg_panel = simulator.run()
+                        # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+                        bragg_panel = simulator.run(pixel_batch_size=config.pixel_batch_size)
 
                     target_panel = target_t[pid].to(device=eval_device, dtype=dtype)
                     loss_mask_panel = loss_mask_t[pid].to(device=eval_device)

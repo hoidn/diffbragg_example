@@ -547,7 +547,8 @@ def _compute_panel_loss(
                     dtype=dtype
                 )
 
-            bragg_panel = simulator.run()
+            # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+            bragg_panel = simulator.run(pixel_batch_size=config.pixel_batch_size)
             bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
 
             # Extract panel-specific tensors
@@ -641,7 +642,8 @@ def _compute_panel_loss(
                     device=device,
                     dtype=dtype
                 )
-            bragg_panels.append(simulator.run())
+            # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+            bragg_panels.append(simulator.run(pixel_batch_size=config.pixel_batch_size))
 
         bragg_stacked = torch.stack(bragg_panels, dim=0)
         bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)

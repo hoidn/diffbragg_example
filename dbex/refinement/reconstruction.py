@@ -429,8 +429,10 @@ def build_final_bragg_from_stage_a_telemetry(
     if apply_baseline_alignment:
         # Step 1: Run simulators once to get raw cold-path outputs
         bragg_cold_panels = []
+        # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+        pixel_batch = getattr(config, 'pixel_batch_size', None) if config is not None else None
         for pid, sim in zip(sampled_panel_ids, simulators):
-            bragg_cold_panels.append(sim.run())
+            bragg_cold_panels.append(sim.run(pixel_batch_size=pixel_batch))
 
         # Step 2: Stack cold panels and compute masked mean
         bragg_cold_stack = torch.stack(bragg_cold_panels, dim=0)
@@ -562,7 +564,9 @@ def build_final_bragg_from_stage_a_telemetry(
         if apply_baseline_alignment and pid < len(bragg_cold_panels):
             bragg_panel = bragg_cold_panels[pid]
         else:
-            bragg_panel = sim.run()
+            # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+            pixel_batch = getattr(config, 'pixel_batch_size', None) if config is not None else None
+            bragg_panel = sim.run(pixel_batch_size=pixel_batch)
 
         # DEBUG: print first panel's raw output
         if pid == 0:
@@ -1013,7 +1017,9 @@ def build_final_bragg_from_stage_b_telemetry(
 
         for pid in range(n_panels):
             simulator = stage_a_ctx.simulators[pid]
-            bragg_panel = simulator.run()
+            # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+            pixel_batch = getattr(config, 'pixel_batch_size', None) if config is not None else None
+            bragg_panel = simulator.run(pixel_batch_size=pixel_batch)
             log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
             bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
             bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
@@ -1053,7 +1059,9 @@ def build_final_bragg_from_stage_b_telemetry(
                 calibration_metadata=getattr(config, 'calibration_metadata', None),
             )
             simulator.interpolate = True
-            bragg_panel = simulator.run()
+            # PERF-GPU-MEM-001: Pass pixel_batch_size for chunked execution on memory-constrained GPUs
+            pixel_batch = getattr(config, 'pixel_batch_size', None) if config is not None else None
+            bragg_panel = simulator.run(pixel_batch_size=pixel_batch)
             log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
             bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
             bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)

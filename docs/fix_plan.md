@@ -148,7 +148,7 @@
 ### [ARCH-SIM-CONSTRUCTION-001] Simulator Construction Convention Alignment (Training vs Reconstruction)
 - Depends on: None
 - Blocks: ARCH-REFACTOR-001 Phase D.3
-- Status: **in_progress** (2025-12-09T200000Z: Unblocked for active debugging. SQUARE lattice scaling physics resolved by SPEC-SQUARE-PARTIALITY-001 — integrated intensity scales linearly as Na·Nb·Nc, not quadratically. DB-AT-028/029 failures (chi²≈2.1e5, ROI corr≈-0.05) remain and require debugging the reconstruction vs Stage A simulator construction parity. Phase C work in progress — next step is to instrument and compare the two simulator construction paths to find the divergence causing negative correlation. Exit criteria unchanged.)
+- Status: **blocked_pending_environment** (2025-12-09T203900Z: Status corrected to match roadmap and lifecycle_decision.md. 39 loops (C.1-C.39) exceeded 6-loop budget. Root cause: F_latt at 11% of expected amplitude (4206.5 vs 38,048) indicates sincg bug in nanobrag_torch. Recommended unblock: Option A — maintainer investigation. See `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/lifecycle_decision.md`.)
 - Type: architecture
 - Priority: Highest (Tier 0 blocker)
 - Tier: 0
@@ -266,7 +266,7 @@
 ### [ARCH-GRADIENT-FLOW-001] Gradient Flow Restoration (DB-AT-010 Unblock)
 - Depends on: DB-AT-SUITE-CARE-001 Phase B.1 verification (evidence source)
 - Blocks: DB-AT-SUITE-CARE-001 portfolio advancement, Gradient-Safe Profile conformance
-- Status: **unblocked** (2025-12-09T060000Z: **UPSTREAM FIX RECEIVED — Phase B.10 ready.** Response `inbox/mosaic-gradient-fix-response-2025-12-08.md`: mosaic gradient bug fixed in nanobrag_torch commit `1df032c2` via deterministic seeding + reparameterization trick. Root cause: `torch.randn()` without seeded generator caused gradcheck to compare gradients across different random rotations. Fix uses `torch.Generator` + frozen noise scaled by `mosaic_spread_rad`. All 6 upstream gradient tests pass.)
+- Status: **done** (2025-12-09T220000Z: **Phase B.10 COMPLETE.** All 6 DB-AT-010 gradcheck tests PASS. Upstream mosaic seed fix (`1df032c2`) verified available. DBEX integration issue identified: variance-weighted chi-squared loss uses IRLS with detached variance, which is correct physics but incompatible with `torch.autograd.gradcheck`. Fix: test fixtures now use MSE loss path (`sigma_readout=None`) for gradcheck validation. See GRADIENT-004 finding.)
 - Type: architecture
 - Priority: Tier 0 (blocks conformance profile)
 - Owner/Date: Galph ↔ Ralph / 2025-12-08

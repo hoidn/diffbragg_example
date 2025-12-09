@@ -1,7 +1,7 @@
-# Ralph Input — Loop i=246
+# Ralph Input — Loop i=247
 
 ## Summary
-Portfolio remains in stable maintenance mode. No new upstream responses. Awaiting user direction or external unblock.
+Portfolio remains in stable maintenance mode. Status drift corrected in fix_plan.md. Awaiting user direction for unblock action.
 
 ## Focus
 Portfolio Maintenance (no active initiative)
@@ -13,7 +13,7 @@ Portfolio Maintenance (no active initiative)
 none — maintenance mode (no implementation work)
 
 ## Artifacts
-`plans/active/SUPERVISOR/reports/2025-12-08T203900Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T203900Z/`
 
 ---
 
@@ -21,39 +21,51 @@ none — maintenance mode (no implementation work)
 
 **Action Type:** Maintenance / Review
 
+### Status Drift Corrections Applied This Loop (i=246)
+
+1. **ARCH-SIM-CONSTRUCTION-001**: Detailed section (line 151) incorrectly showed `in_progress` — corrected to `blocked_pending_environment` to match roadmap and lifecycle_decision.md
+2. **ARCH-GRADIENT-FLOW-001**: Detailed section (line 269) showed `unblocked` — corrected to `done` to match roadmap
+
 ### Portfolio Status
 
-The portfolio remains stable:
-
 **Completed (Tier 0-3):**
-- ARCH-GRADIENT-FLOW-001: 6/6 gradcheck tests PASS
-- PERF-GPU-MEM-001: pixel_batch_size=32 threading validated
-- DB-AT-SUITE-CARE-001: D.1-D.4 complete
-- All roll-ups closed: TORCH-CLI-BRIDGE, FORWARD-EQUIV-COVERAGE, MAP-SCALE-SYNC, TORCH-GEOMETRY-SYNC
+- ARCH-GRADIENT-FLOW-001: **done** — 6/6 gradcheck tests PASS
+- PERF-GPU-MEM-001: **done** — pixel_batch_size=32 threading validated
+- DB-AT-SUITE-CARE-001: **done** — D.1-D.4 complete
+- All roll-ups: closed (TORCH-CLI-BRIDGE, FORWARD-EQUIV-COVERAGE, MAP-SCALE-SYNC, TORCH-GEOMETRY-SYNC)
 - Tooling/observability: ARCH-TELEMETRY-002, SPEC-SQUARE-PARTIALITY-001 done
 
 **Blocked (requires external input):**
-- ARCH-SIM-CONSTRUCTION-001: blocked_pending_environment (F_latt 11% of expected amplitude; sincg bug in nanobrag_torch suspected; maintainer investigation recommended per lifecycle_decision.md)
-- ARCH-REFACTOR-001: blocked_pending_architecture (depends on ARCH-SIM-CONSTRUCTION-001)
-- PHYSICS-LOSS-CONSISTENCY: pending (depends on ARCH-REFACTOR-001)
-- PERF-WARM-SIM-001: blocked (Stage C panel-loss path diverges)
+- **ARCH-SIM-CONSTRUCTION-001**: blocked_pending_environment — F_latt at 11% of expected amplitude (4206.5 vs 38,048); sincg bug in nanobrag_torch suspected; 39 loops exceeded budget
+- **ARCH-REFACTOR-001**: blocked_pending_architecture (depends on ARCH-SIM-CONSTRUCTION-001)
+- **PHYSICS-LOSS-CONSISTENCY**: pending (depends on ARCH-REFACTOR-001)
+- **PERF-WARM-SIM-001**: blocked (Stage C panel-loss path diverges)
 
 **Tier 4 (low priority, needs scoping):**
-- SUPERVISOR: scoped_low_priority (living documentation)
-- HARDEN-SUBMODULE-ROBUSTNESS: pending (needs scoping)
-- ORCH-ROBUST-001, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001: pending stubs
+- SUPERVISOR: scoped_low_priority
+- HARDEN-SUBMODULE-ROBUSTNESS, ORCH-ROBUST-001, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001: pending stubs
 
-### Maintenance Tasks (if proceeding)
+### Recommended Unblock Action (User Choice)
+
+Per `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/lifecycle_decision.md`:
+
+**Option A (Recommended)**: File sincg investigation request to nanobrag_torch maintainers
+- Evidence: F_latt at 11% of expected amplitude
+- Oversample=1 achieves 0.0005% error, proving HKL/beam correct
+- Deficit appears in raw subpixel sum before omega application
+- Request: Investigate sincg lattice factor computation in nanobrag_torch
+
+**Option B**: Relax DB-AT-028/029 acceptance criteria (risk: masks physics bugs)
+
+**Option C**: Prioritize Tier 4 orchestration work or new user-driven feature
+
+---
+
+## Maintenance Tasks (if proceeding)
 
 1. **Inbox/Outbox Check**: Done — no new responses since Dec 8 18:38
-2. **Fix Plan Hygiene**: No drift detected
+2. **Fix Plan Hygiene**: Status drift corrected this loop
 3. **Status**: Portfolio healthy, awaiting unblock
-
-### Next Actions (User Choice)
-
-1. **Option A (Recommended)**: File sincg investigation request to nanobrag_torch maintainers per ARCH-SIM-CONSTRUCTION-001/lifecycle_decision.md Option A
-2. **Option B**: Prioritize Tier 4 orchestration work if no physics work desired
-3. **Option C**: New feature/bug work if user has specific requests
 
 ---
 

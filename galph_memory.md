@@ -1053,3 +1053,14 @@ expt.crystal.to_dict.return_value = {}  # Returns empty dict, .get() works corre
   **Remaining blockers:** All blocked items depend on ARCH-SIM-CONSTRUCTION-001 (spec/expectation mismatch reclassified) or environment work outside agent scope. Portfolio is in stable maintenance mode — no actionable implementation work without external input.
   
   ActionType: review_or_housekeeping. DecisionStatus: portfolio_stable. Next: Maintenance mode until external unblock or user-driven priority change.
+
+2025-12-09T203900Z focus=DB-AT-SUITE-CARE-001 state=maintenance dwell=0 action=review_or_housekeeping artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T203900Z/ next_action=maintenance_continue
+- Loop i=246 (Galph): **MAINTENANCE MODE** (Status Drift Correction). Checked inbox/outbox — no new upstream responses since Dec 8 18:38. **STATUS DRIFT DETECTED AND CORRECTED**: (1) fix_plan.md detailed section line 151 showed ARCH-SIM-CONSTRUCTION-001 as `in_progress` but should be `blocked_pending_environment` per lifecycle_decision.md — CORRECTED. (2) fix_plan.md detailed section line 269 showed ARCH-GRADIENT-FLOW-001 as `unblocked` but roadmap correctly shows `done` — CORRECTED to match roadmap.
+  **Portfolio status (unchanged):**
+  - Tier 0: 7 done, ARCH-SIM-CONSTRUCTION-001 blocked_pending_environment (F_latt 11%, sincg bug suspected), ARCH-REFACTOR-001 blocked_pending_architecture
+  - Tier 1-3: All complete or blocked by Tier 0
+  - Tier 4: Low priority orchestration items pending
+  **Outstanding upstream requests in nanoBragg inbox:** (1) ARCH-SIM-CONSTRUCTION-001 sincg investigation NOT YET FILED (Option A from lifecycle_decision.md). No pending mosaic/chunked requests anymore — those were resolved.
+  **User action suggested:** Per lifecycle_decision.md Option A, recommend filing sincg bug investigation request to nanobrag_torch maintainers. Evidence: F_latt at 11% of expected amplitude.
+  **Implementation floor exemption**: No viable implementation focus available. Maintenance mode persists.
+  ActionType: review_or_housekeeping. DecisionStatus: N/A (maintenance mode). Next: Await user direction — either (A) file sincg investigation request, (B) prioritize Tier 4, or (C) new user-driven work.

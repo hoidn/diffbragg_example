@@ -1,7 +1,7 @@
-# Ralph Input — Loop i=245
+# Ralph Input — Loop i=246
 
 ## Summary
-Portfolio is in stable maintenance mode. All critical Tier 0-3 work complete. Awaiting external unblock for ARCH-SIM-CONSTRUCTION-001 or user-driven priority change.
+Portfolio remains in stable maintenance mode. No new upstream responses. Awaiting user direction or external unblock.
 
 ## Focus
 Portfolio Maintenance (no active initiative)
@@ -13,7 +13,7 @@ Portfolio Maintenance (no active initiative)
 none — maintenance mode (no implementation work)
 
 ## Artifacts
-`plans/active/PORTFOLIO-STATUS/reports/2025-12-09T200000Z/`
+`plans/active/SUPERVISOR/reports/2025-12-08T203900Z/`
 
 ---
 
@@ -23,39 +23,37 @@ none — maintenance mode (no implementation work)
 
 ### Portfolio Status
 
-The portfolio has reached a stable state:
+The portfolio remains stable:
 
 **Completed (Tier 0-3):**
 - ARCH-GRADIENT-FLOW-001: 6/6 gradcheck tests PASS
 - PERF-GPU-MEM-001: pixel_batch_size=32 threading validated
 - DB-AT-SUITE-CARE-001: D.1-D.4 complete
-- All roll-ups (TORCH-CLI-BRIDGE, FORWARD-EQUIV-COVERAGE, MAP-SCALE-SYNC, TORCH-GEOMETRY-SYNC): done
-- Tooling/observability (ARCH-TELEMETRY-002, DOC-RUNTIME-004, TORCH-RUNTIME-002): done
+- All roll-ups closed: TORCH-CLI-BRIDGE, FORWARD-EQUIV-COVERAGE, MAP-SCALE-SYNC, TORCH-GEOMETRY-SYNC
+- Tooling/observability: ARCH-TELEMETRY-002, SPEC-SQUARE-PARTIALITY-001 done
 
 **Blocked (requires external input):**
-- ARCH-SIM-CONSTRUCTION-001: blocked_pending_environment (spec/expectation mismatch)
+- ARCH-SIM-CONSTRUCTION-001: blocked_pending_environment (F_latt 11% of expected amplitude; sincg bug in nanobrag_torch suspected; maintainer investigation recommended per lifecycle_decision.md)
 - ARCH-REFACTOR-001: blocked_pending_architecture (depends on ARCH-SIM-CONSTRUCTION-001)
-- PHYSICS-LOSS-CONSISTENCY: blocked (depends on ARCH-REFACTOR-001)
+- PHYSICS-LOSS-CONSISTENCY: pending (depends on ARCH-REFACTOR-001)
 - PERF-WARM-SIM-001: blocked (Stage C panel-loss path diverges)
 
-**Tier 4 (low priority):**
+**Tier 4 (low priority, needs scoping):**
 - SUPERVISOR: scoped_low_priority (living documentation)
 - HARDEN-SUBMODULE-ROBUSTNESS: pending (needs scoping)
-- ORCH-ROBUST-001: pending (stub)
-- ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001: pending
+- ORCH-ROBUST-001, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001: pending stubs
 
 ### Maintenance Tasks (if proceeding)
 
-1. **Inbox/Outbox Check**: Verify no new upstream responses
-2. **Fix Plan Hygiene**: Verify Execution Roadmap statuses are current
-3. **Test Registry Health**: Optional collect-only validation
+1. **Inbox/Outbox Check**: Done — no new responses since Dec 8 18:38
+2. **Fix Plan Hygiene**: No drift detected
+3. **Status**: Portfolio healthy, awaiting unblock
 
-### If User-Driven Priority Change
+### Next Actions (User Choice)
 
-Await user input for:
-- ARCH-SIM-CONSTRUCTION-001 spec clarification path
-- Tier 4 orchestration work prioritization
-- New feature requests or bug reports
+1. **Option A (Recommended)**: File sincg investigation request to nanobrag_torch maintainers per ARCH-SIM-CONSTRUCTION-001/lifecycle_decision.md Option A
+2. **Option B**: Prioritize Tier 4 orchestration work if no physics work desired
+3. **Option C**: New feature/bug work if user has specific requests
 
 ---
 
@@ -69,10 +67,9 @@ Await user input for:
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** start new implementation work without supervisor approval
+1. **DO NOT** start new implementation without supervisor approval
 2. **DO NOT** make production code changes in maintenance mode
-3. **DO** check inbox/outbox for any new upstream responses
-4. **DO** document any status drift findings
+3. **DO** wait for user direction or external unblock
 
 ---
 
@@ -91,5 +88,5 @@ No relevant findings — maintenance mode.
 ## Pointers
 
 - `docs/fix_plan.md:16-124` — Execution Roadmap
-- `plans/active/SUPERVISOR/reports/2025-12-09T020000Z/portfolio_health.md` — Latest portfolio status
-- `galph_memory.md` — Latest loop i=244 entry
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/lifecycle_decision.md` — ARCH-SIM-CONSTRUCTION-001 blocking rationale + unblock options
+- `galph_memory.md` — Latest loop i=246 entry

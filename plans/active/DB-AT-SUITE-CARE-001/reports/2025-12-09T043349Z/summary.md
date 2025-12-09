@@ -1,31 +1,34 @@
 ### Turn Summary
 
-Portfolio maintenance loop — verified no new upstream responses in either inbox (DBEX: Dec 8 18:32, nanoBragg: Dec 8 14:51).
-Confirmed fix_plan.md status for ARCH-SIM-CONSTRUCTION-001 is correctly set to `blocked_pending_environment` matching lifecycle_decision.md.
-Next: Continue awaiting user direction for unblock action (Option A: maintainer investigation recommended) or new priorities.
+Filed sincg aggregation investigation request to nanoBragg maintainers per ARCH-SIM-CONSTRUCTION-001 lifecycle_decision.md Option A.
+Bug is NOT in sincg kernel (verified <1e-4% vs reference) — it's in subpixel aggregation when oversample>1 (F_latt 11% of expected, intensity 9.4%).
+Next: Await upstream response to `~/Documents/nanoBragg/inbox/sincg_aggregation_bug_investigation_2025_12_09.md`.
 
-Artifacts: plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T043349Z/
+Artifacts: plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T043349Z/ (summary.md)
 
 ---
 
-## Loop i=247 (Ralph) — Maintenance Check
+## Loop i=247 (Ralph) — Maintainer Request Filed
 
-**Mode:** Maintenance / Review (no active initiative)
+**Mode:** Active (ARCH-SIM-CONSTRUCTION-001 Option A execution)
 
-**Inbox/Outbox Verification:**
-- DBEX inbox (`inbox/`): Latest response Dec 8 18:32 (`pixel-batching-implementation-response-2025-12-08.md`) — already processed
-- nanoBragg inbox (`~/Documents/nanoBragg/inbox/`): Latest file Dec 8 14:51 (`chunked_interpolation_request_2025_12_09.md`) — this is an outgoing request, no new responses
+**Action Taken:**
+1. Investigated sincg bug evidence from 39 diagnostic loops (C.1-C.39)
+2. Confirmed sincg kernel is CORRECT:
+   - Per-axis sincg matches NumPy float64 reference to < 1e-4% median relative error
+   - oversample=1 achieves 0.0005% error (virtually perfect parity)
+3. Identified bug location: **subpixel AGGREGATION** when oversample > 1
+   - F_latt amplitude: 11% of expected (4206.5 vs 38,048)
+   - Intensity: 9.4% of expected (deficit in raw subpixel sum BEFORE omega)
+4. Filed maintainer request: `~/Documents/nanoBragg/inbox/sincg_aggregation_bug_investigation_2025_12_09.md`
 
-**Fix Plan Status Verification:**
-- ARCH-SIM-CONSTRUCTION-001: `blocked_pending_environment` ✓ (matches lifecycle_decision.md)
-- ARCH-REFACTOR-001: `blocked_pending_architecture` ✓ (depends on ARCH-SIM-CONSTRUCTION-001)
-- PHYSICS-LOSS-CONSISTENCY: `pending` ✓ (depends on ARCH-REFACTOR-001)
-- PERF-WARM-SIM-001: `blocked` ✓ (Stage C panel-loss divergence)
+**Request Contents:**
+- Executive summary with proof sincg kernel is NOT the bug
+- Bug location hypothesis (3 candidate code paths)
+- Minimal Python reproducer
+- Key diagnostic evidence from probes
+- Impact assessment (blocks DB-AT-028, DB-AT-029, Tier 0 initiatives)
 
-**Portfolio Health:** UNCHANGED. All Tier 0-3 complete or blocked. Tier 4 pending stubs await user scoping.
+**Portfolio Status:** ARCH-SIM-CONSTRUCTION-001 remains `blocked_pending_environment`, now with active maintainer request.
 
-**Recommended Unblock Action:** Option A — file sincg investigation request to nanobrag_torch maintainers. See `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/lifecycle_decision.md`.
-
-**Action Taken:** Verification only. No code changes. No new implementation work permitted in maintenance mode.
-
-**Next:** Await user direction or external unblock.
+**Next:** Await upstream response to sincg aggregation investigation.

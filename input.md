@@ -1,4 +1,4 @@
-# Ralph Input — Loop i=227
+# Ralph Input — Loop i=232
 
 ## Summary
 Maintenance check — await upstream responses for mosaic gradient bug and chunked interpolation requests.
@@ -13,7 +13,7 @@ DB-AT-SUITE-CARE-001 — Maintenance Mode (all Tier 0 blocked pending upstream)
 `none — maintenance-only`
 
 ## Artifacts
-`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T120000Z/`
+`plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T004550Z/`
 
 ---
 
@@ -43,7 +43,7 @@ ls -la ~/Documents/nanoBragg/inbox/
 **M.2 — Document status:**
 
 If no new responses:
-1. Create `plans/active/DB-AT-SUITE-CARE-001/reports/<timestamp>/summary.md`
+1. Create `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T004550Z/summary.md`
 2. Record: "No new upstream responses. Outstanding: mosaic_gradient_bug (HIGH), chunked_interpolation (MEDIUM)"
 
 If new response found:
@@ -72,6 +72,7 @@ If new response found:
 
 **Tier 1:**
 - DB-AT-SUITE-CARE-001: `in_progress` (D.1-D.4 complete, D.5 optional, maintenance mode)
+- TOOLING-VIS-001: `substantial_progress` (Phase D blocked by DB-AT-027/028/029)
 - Others: done or blocked by Tier 0
 
 ---

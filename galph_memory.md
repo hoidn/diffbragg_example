@@ -1,3 +1,18 @@
+2025-12-08T185000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=40 action=upstream_response_analysis artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T185000Z/ next_action=await_upstream_response
+- Loop i=234 (Galph): **UPSTREAM RESPONSE ANALYSIS — Cell Gradient Response Processed.**
+  **NEW INBOX FILE DISCOVERED:** `inbox/nanobrag_torch_cell_gradient_response_2025_12_08.md` (Dec 8 13:23).
+  **Response Summary:** Upstream confirms all 6 cell parameter gradient tests PASS in nanobrag_torch. They suggest issue is in DBEX integration layer (unit conversion, `.item()` calls, or fluence scaling).
+  **Key Reconciliation:** Upstream tests use `mosaic_spread_deg=0` by default. Our Phase B.9 (i=219-220) confirmed the issue is **mosaic-specific**:
+  - `mosaic_spread_deg = 0.0`: gradcheck PASSES (ratio=1.00×)
+  - `mosaic_spread_deg > 0`: gradcheck FAILS (ratio=100-1000×)
+  **Conclusion:** Both data points are consistent. The cell gradient response confirms DBEX integration is correct for non-mosaic paths. The mosaic code path bug is the remaining blocker.
+  **Outstanding Requests:**
+  - `mosaic_gradient_bug_2025_12_08.md` — HIGH priority, **still awaiting response**, blocks DB-AT-010 (ARCH-GRADIENT-FLOW-001)
+  - `chunked_interpolation_request_2025_12_09.md` — MEDIUM priority, blocks OOM fix (PERF-GPU-MEM-001)
+  **Action Taken:** Analyzed upstream response, verified DBEX config_factories.py passes cell parameters directly to CrystalConfig without unit conversion. No action required on DBEX side for cell gradients — the mosaic bug is the blocker.
+  **Portfolio Status:** UNCHANGED. All Tier 0-1 actionable initiatives blocked pending upstream mosaic fix.
+  ActionType: upstream_response_analysis. DecisionStatus: N/A (upstream response processed, mosaic bug still pending). Next: Continue awaiting mosaic gradient bug response.
+
 2025-12-08T175000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=39 action=maintenance_check artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T175000Z/ next_action=await_upstream_response
 - Loop i=233 (Galph): **MAINTENANCE CHECK — NO NEW UPSTREAM RESPONSES.**
   **Inbox/Outbox Check:** Verified nanoBragg outbox (last update Dec 7 19:55) and DBEX inbox (last update Dec 8 13:23) — no new responses to pending requests.

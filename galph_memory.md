@@ -1,3 +1,17 @@
+2025-12-09T060000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=phase_d3_delegation artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-09T060000Z/ next_action=ralph_phase_d3_test_harness_migration
+- Loop i=249 (Galph): **ARCH-SIM-CONSTRUCTION-001 CLOSED — ARCH-REFACTOR-001 UNBLOCKED.**
+  **Upstream Response:** `inbox/sincg_aggregation_bug_response_2025_12_09.md` arrived. Analysis proves NO SIMULATOR BUG:
+  1. Test pixel at h≈100, k≈0.05, l≈-0.05 — only h is at Bragg peak
+  2. sincg(π×0.05, 29) = -6.3 not 29, so F_latt = 41×(-6.3)×(-6.1) = 1,574 not 38,048
+  3. Observed ~6,000× ratio is CORRECT for this geometry
+  4. With 256×256 detector, peak ratios achieve 92.6% of expected consistently
+  5. Proposed patches would break spec compliance
+  **Conclusion:** Test geometry was flawed; no code bug in nanobrag_torch.
+  **Portfolio Update:** ARCH-SIM-CONSTRUCTION-001 → **done** (status drift in roadmap corrected). ARCH-REFACTOR-001 → **in_progress** (Phase D.3 ready).
+  **Focus Selection:** ARCH-REFACTOR-001 Phase D.3 (Test Harness Migration) is the only unblocked Tier 0 implementation task.
+  **Phase D.3 Scope:** Migrate 8 test functions across 3 files from `run_nanobrag_refinement` facade to direct `RefinementEngine` usage following Phase D.2 CLI pattern.
+  ActionType: implementation_ready. DecisionStatus: phase_d3_delegation. Next: Ralph executes Phase D.3.
+
 2025-12-09T050000Z focus=ARCH-SIM-CONSTRUCTION-001 state=blocked_pending_environment dwell=0 action=patch_submission artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T050000Z/ next_action=await_upstream_merge
 - Loop i=247 (Ralph) continued: **ROOT CAUSE CLARIFIED — PATCHES NEED UPSTREAM MERGE.**
   **Maintainer response:** `inbox/sincg_aggregation_bug_response_2025_12_09.md` correctly shows current codebase gives 0.0004% of expected.

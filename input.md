@@ -1,80 +1,61 @@
-# Ralph Input — Loop i=243
+# Ralph Input — Loop i=245
 
 ## Summary
-Tier 4 focus: Scope SUPERVISOR initiative (agent meta-documentation) or run acceptance test verification now that OOM is resolved.
+Portfolio is in stable maintenance mode. All critical Tier 0-3 work complete. Awaiting external unblock for ARCH-SIM-CONSTRUCTION-001 or user-driven priority change.
 
 ## Focus
-SUPERVISOR — Supervisor Agent Documentation & Roadmap (Tier 4)
+Portfolio Maintenance (no active initiative)
 
 ## Branch
 `integration`
 
 ## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py` — Stage A/B/C smoke suite (verify OOM fix holds)
-- `tests/architecture/test_nanobrag_partiality.py` — Physics parity validation
+none — maintenance mode (no implementation work)
 
 ## Artifacts
-`plans/active/SUPERVISOR/reports/2025-12-09T020000Z/`
+`plans/active/PORTFOLIO-STATUS/reports/2025-12-09T200000Z/`
 
 ---
 
-## Do Now (Debug + Verification)
+## Do Now (Maintenance)
 
-**Focus Item:** SUPERVISOR — Tier 4 Scoping + Portfolio Verification
+**Action Type:** Maintenance / Review
 
-**Action Type:** Debug (verify OOM fix) + Planning (Tier 4 scoping)
+### Portfolio Status
 
-### Background
+The portfolio has reached a stable state:
 
-Portfolio status as of Loop i=242:
-- **PERF-GPU-MEM-001:** DONE — `pixel_batch_size=32` threading complete
-- **ARCH-GRADIENT-FLOW-001:** DONE — 6/6 gradcheck tests PASS
-- **DB-AT-SUITE-CARE-001:** DONE — D.1-D.4 complete
-- **Tier 0-3:** All blocked or done
-- **Tier 4:** Multiple pending (SUPERVISOR, HARDEN-SUBMODULE-ROBUSTNESS, ORCH-* items)
+**Completed (Tier 0-3):**
+- ARCH-GRADIENT-FLOW-001: 6/6 gradcheck tests PASS
+- PERF-GPU-MEM-001: pixel_batch_size=32 threading validated
+- DB-AT-SUITE-CARE-001: D.1-D.4 complete
+- All roll-ups (TORCH-CLI-BRIDGE, FORWARD-EQUIV-COVERAGE, MAP-SCALE-SYNC, TORCH-GEOMETRY-SYNC): done
+- Tooling/observability (ARCH-TELEMETRY-002, DOC-RUNTIME-004, TORCH-RUNTIME-002): done
 
-### Tasks
+**Blocked (requires external input):**
+- ARCH-SIM-CONSTRUCTION-001: blocked_pending_environment (spec/expectation mismatch)
+- ARCH-REFACTOR-001: blocked_pending_architecture (depends on ARCH-SIM-CONSTRUCTION-001)
+- PHYSICS-LOSS-CONSISTENCY: blocked (depends on ARCH-REFACTOR-001)
+- PERF-WARM-SIM-001: blocked (Stage C panel-loss path diverges)
 
-**V.1 — Verify Stage A/B/C smoke suite passes with OOM fix:**
+**Tier 4 (low priority):**
+- SUPERVISOR: scoped_low_priority (living documentation)
+- HARDEN-SUBMODULE-ROBUSTNESS: pending (needs scoping)
+- ORCH-ROBUST-001: pending (stub)
+- ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001: pending
 
-```bash
-mkdir -p plans/active/SUPERVISOR/reports/2025-12-09T020000Z
+### Maintenance Tasks (if proceeding)
 
-# Run Stage A smoke with pixel batching (already wired in test)
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-  pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  --smoke-detector-size=small -v \
-  2>&1 | tee plans/active/SUPERVISOR/reports/2025-12-09T020000Z/stage_a_smoke.log
-```
+1. **Inbox/Outbox Check**: Verify no new upstream responses
+2. **Fix Plan Hygiene**: Verify Execution Roadmap statuses are current
+3. **Test Registry Health**: Optional collect-only validation
 
-If Stage A passes, run additional smokes:
+### If User-Driven Priority Change
 
-```bash
-# Stage B smoke (if exists and is mapped)
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-  pytest tests/dbex/test_torch_refine_smoke.py -k "stage_b" --smoke-detector-size=small -v \
-  2>&1 | tee plans/active/SUPERVISOR/reports/2025-12-09T020000Z/stage_b_smoke.log
-
-# Partiality parity (physics validation)
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-  pytest tests/architecture/test_nanobrag_partiality.py -v \
-  2>&1 | tee plans/active/SUPERVISOR/reports/2025-12-09T020000Z/partiality.log
-```
-
-**V.2 — Document portfolio health:**
-
-Create `plans/active/SUPERVISOR/reports/2025-12-09T020000Z/portfolio_health.md` with:
-1. Tier 0-4 status summary
-2. Test pass/fail counts
-3. Blockers and their dependencies
-4. Next actionable items
-
-**V.3 — SUPERVISOR initiative scoping (if time permits):**
-
-Review `plans/active/SUPERVISOR/` directory (if exists) or create scoping document:
-- What documentation needs updating?
-- What agent roadmap items are outstanding?
-- Exit criteria for SUPERVISOR initiative
+Await user input for:
+- ARCH-SIM-CONSTRUCTION-001 spec clarification path
+- Tier 4 orchestration work prioritization
+- New feature requests or bug reports
 
 ---
 
@@ -82,52 +63,33 @@ Review `plans/active/SUPERVISOR/` directory (if exists) or create scoping docume
 
 - nanobrag_torch source: `/home/ollie/Documents/nanoBragg/src/nanobrag_torch`
 - DBEX source: `/home/ollie/Documents/diffbragg_example`
-- Required flags: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
 - GPU: 24GB (OOM fix validated with pixel_batch_size=32)
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO** use `KMP_DUPLICATE_LIB_OK=TRUE` to avoid Intel MKL conflicts
-2. **DO** archive all pytest logs to the artifacts directory
-3. **DO NOT** make production code changes — this is verification + scoping only
-4. **DO** document any failures clearly with error signatures
-5. **DO** update `galph_memory.md` with verification results
+1. **DO NOT** start new implementation work without supervisor approval
+2. **DO NOT** make production code changes in maintenance mode
+3. **DO** check inbox/outbox for any new upstream responses
+4. **DO** document any status drift findings
 
 ---
 
 ## If Blocked
 
-If smoke tests fail:
-1. Capture the full error output
-2. Determine if it's OOM-related or a different issue
-3. Document in artifacts and report to supervisor
+N/A — maintenance mode is the expected state.
 
 ---
 
 ## Findings Applied (Mandatory)
 
-- **RUNTIME-001**: NANOBRAGG_DISABLE_COMPILE=1 required for stable GPU execution
-  - Adherence: Included in test commands
-- **GRADIENT-004**: Use MSE loss path for gradcheck validation
-  - Adherence: Test fixtures already configured per ARCH-GRADIENT-FLOW-001
+No relevant findings — maintenance mode.
 
 ---
 
 ## Pointers
 
-- `docs/fix_plan.md:117-123` — Tier 4 initiatives
-- `plans/active/PERF-GPU-MEM-001/reports/2025-12-09T000000Z/summary.md` — OOM fix validation
-- `galph_memory.md:1-15` — Loop i=242 portfolio cleanup
-
----
-
-## Next Up (optional)
-
-If all verification passes:
-- Proceed with SUPERVISOR scoping or ORCH-ROBUST-001 scoping
-- Consider running full detector smoke if memory allows
-
-If verification blocked:
-- Document failures and return to supervisor for triage
+- `docs/fix_plan.md:16-124` — Execution Roadmap
+- `plans/active/SUPERVISOR/reports/2025-12-09T020000Z/portfolio_health.md` — Latest portfolio status
+- `galph_memory.md` — Latest loop i=244 entry

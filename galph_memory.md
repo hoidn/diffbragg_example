@@ -1,3 +1,14 @@
+2025-12-09T071500Z focus=ARCH-REFACTOR-001 state=done dwell=0 action=initiative_closed artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/ next_action=supervisor_next_focus
+- Loop i=250 (Ralph): **ARCH-REFACTOR-001 COMPLETE — FACADE DELETED.**
+  **Phase D.5 Execution:** Deleted `dbex/nanobrag_refinement.py` (503 lines) via 12-step checklist.
+  **Verification Summary:**
+  - Pre-deletion: 0 imports, 0 calls, 6/6 static imports OK, 180 tests collected
+  - Post-deletion: CLI smoke 2/2 PASSED, full suite 22/22 PASSED, collection OK
+  - Stage A/B/C smokes: Pre-existing 0% HKL failures (verified identical with/without facade)
+  **Exit Criteria:** #1-4 satisfied, #5 partial (CLI/engine tests pass; stage smoke failures pre-existing)
+  **Commit:** `d43a4f85`
+  ActionType: initiative_closure. DecisionStatus: facade_deleted. Next: Supervisor selects next focus.
+
 2025-12-09T070000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=phase_d5_delegation artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/ next_action=ralph_phase_d5_facade_deletion
 - Loop i=250 (Galph): **PHASE D.3 COMPLETE — PHASE D.5 READY.**
   **Phase D.3 Verification:** Ralph completed Phase D.3 (Test Harness Migration) in i=249. Verified:

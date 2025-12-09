@@ -1,0 +1,300 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 180 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Package refinement>
+        <Module test_scaling_utils.py>
+          <Class TestApplySqrtSpotScale>
+            <Function test_no_metadata>
+            <Function test_no_spot_scale_override_key>
+            <Function test_spot_scale_override_zero>
+            <Function test_spot_scale_override_positive>
+            <Function test_shape_preservation_single_panel>
+            <Function test_shape_preservation_panel_mode>
+            <Function test_realistic_spot_scale_override>
+            <Function test_error_negative_spot_scale_override>
+            <Function test_error_nan_spot_scale_override>
+            <Function test_error_inf_spot_scale_override>
+            <Function test_dtype_preservation>
+      <Module test_artifact_parity.py>
+        <Function test_stage_a_artifact_matches_helper>
+        <Function test_stage_b_artifact_matches_helper_shell_mode>
+        <Function test_stage_a_cached_zero_iter_bragg_matches_initial_reconstruction>
+        <Function test_stage_a_cold_path_respects_telemetry_baseline>
+      <Module test_background_semantics.py>
+        <Class TestBackgroundSemantics>
+          <Function test_DB_AT_022_sentinel_complement>
+          <Function test_DB_AT_022_guard_enforcement>
+          <Function test_DB_AT_022_roi_coverage_metrics>
+      <Module test_bridge_custom_override.py>
+        <Function test_custom_override_exploratory>
+      <Module test_bridge_mapping.py>
+        <Function test_dials_mapping_parity>
+      <Module test_calibration_policy.py>
+        <Class TestCalibrationPolicy>
+          <Function test_DB_AT_023_photon_conversion_correctness>
+          <Function test_DB_AT_023_adu_mode_metadata>
+          <Function test_DB_AT_023_invalid_adu_per_photon_guard>
+          <Function test_DB_AT_023_photon_vs_adu_loss_mask_consistency>
+      <Module test_data_load_sigma_map.py>
+        <Function test_sigma_map_loader_formats[npy]>
+        <Function test_sigma_map_loader_formats[npz_single]>
+        <Function test_sigma_map_loader_formats[npz_named]>
+        <Function test_sigma_map_loader_formats[pkl_tuple]>
+        <Function test_sigma_map_loader_shape_mismatch>
+        <Function test_sigma_map_loader_rejects_non_positive>
+        <Function test_external_lookup_sigma_map_ingestion>
+        <Function test_external_lookup_shape_or_value_errors>
+      <Module test_db_at_001_parity.py>
+        <Class TestManifestIntegrity>
+          <Function test_manifest_integrity>
+          <Function test_golden_data_sanity>
+          <Function test_pixel_pitch_guard>
+        <Class TestParityMetrics>
+          <Function test_perfect_match>
+          <Function test_correlation_computation>
+          <Function test_error_metrics>
+          <Function test_sum_ratio>
+          <Function test_localization_metric>
+          <Function test_mask_application>
+          <Function test_edge_cases>
+          <Function test_to_dict_serialization>
+        <Class TestArtifactEmission>
+          <Function test_artifact_emission>
+          <Function test_artifact_emission_minimal>
+        <Class TestDB_AT_001_Parity>
+          <Function test_db_at_001_parity_smoke>
+      <Module test_diffbragg_tmp.py>
+        <Function test_scratch_dir_default>
+        <Function test_scratch_dir_subdirectories>
+        <Function test_scratch_dir_user_provided>
+        <Function test_scratch_dir_keep_scratch>
+        <Function test_concurrent_diffbragg_runs>
+        <Function test_scratch_cleanup>
+        <Function test_scratch_dir_no_geom_out_pollution>
+      <Module test_experiment_parity.py>
+        <Function test_parity_small_fixture>
+      <Module test_forward_determinism.py>
+        <Class TestForwardDeterminism>
+          <Function test_DB_AT_002_same_seed>
+          <Function test_DB_AT_002_diff_seed>
+      <Module test_forward_equivalence_complete.py>
+        <Class TestForwardEquiv>
+          <Function test_DB_AT_001_forward_equiv>
+      <Module test_geometry_current.py>
+        <Function test_derive_u_matrix_roundtrip>
+        <Function test_derive_u_matrix_edge_case_identity>
+      <Module test_gradients.py>
+        <Class TestDB_AT_010_Gradcheck>
+          <Function test_db_at_010_gradcheck_crystal_cell_a>
+          <Function test_db_at_010_gradcheck_crystal_cell_gamma>
+          <Function test_db_at_010_gradcheck_cell_a_no_mosaic>
+          <Function test_db_at_010_gradcheck_detector_distance>
+          <Function test_db_at_010_gradcheck_beam_wavelength>
+          <Function test_db_at_010_gradcheck>
+        <Function test_minimal_nanobrag_gradcheck>
+        <Function test_gradient_magnitude_diagnostic>
+        <Function test_dbex_hkl_grid_gradient>
+        <Function test_dbex_full_factory_gradient>
+        <Function test_simulate_forward_torch_gradient>
+      <Module test_mapping_consistency.py>
+        <Class TestDB_AT_024_Mapping>
+          <Function test_db_at_024_mapping_smoke>
+      <Module test_mask_semantics.py>
+        <Class TestDB_AT_021_MaskSemantics>
+          <Function test_DB_AT_021_polarity_checks>
+          <Function test_DB_AT_021_loss_mask_construction>
+          <Function test_DB_AT_021_precedence_guards>
+      <Module test_nanobrag_bridge.py>
+        <Class TestPrepareRefinementInputs>
+          <Function test_tensor_contract>
+          <Function test_sigma_readout_broadcast_and_conversion>
+          <Function test_mask_polarity>
+          <Function test_pixel_pitch_guard>
+          <Function test_tuple_mask_input>
+      <Module test_nanobrag_bridge_configs.py>
+        <Class TestDetectorConfigMapping>
+          <Function test_beam_center_swap>
+          <Function test_sample_to_source_vector>
+          <Function test_detector_convention_dials>
+          <Function test_mask_array_float_conversion>
+          <Function test_pixel_size_and_dimensions>
+          <Function test_distance_mm>
+          <Function test_detector_basis_reconstruction_from_real_geom>
+          <Function test_returns_real_nanobrag_torch_config>
+          <Function test_detector_model_roundtrip>
+        <Class TestBeamCrystalConfigMapping>
+          <Function test_beam_wavelength>
+          <Function test_polarization_factor_parity_default>
+          <Function test_polarization_metadata_extraction>
+          <Function test_polarization_fallback>
+          <Function test_crystal_unit_cell_parameters>
+          <Function test_mosflm_astar_injection>
+          <Function test_stills_phi_defaults>
+          <Function test_crystal_misset_zero_default>
+          <Function test_returns_real_nanobrag_torch_beam_config>
+          <Function test_returns_real_nanobrag_torch_crystal_config>
+          <Function test_crystal_model_roundtrip>
+      <Module test_nanobrag_smoke.py>
+        <Class TestSmokeHarness>
+          <Function test_single_experiment_flow>
+          <Function test_masked_mse_and_shapes>
+        <Function test_artifact_generation>
+      <Module test_physics_loss_current.py>
+        <Function test_variance_weighted_loss_basic_clamping>
+        <Function test_variance_weighted_loss_zero_mask>
+        <Function test_variance_weighted_loss_zero_variance_floor>
+        <Function test_variance_weighted_loss_negative_model>
+      <Module test_refine_one_cli.py>
+        <Function test_parser_has_backend_flag>
+        <Function test_parser_rejects_invalid_backend>
+        <Function test_parser_accepts_sigma_map_flag>
+        <Function test_main_dispatches_to_diffbragg_backend>
+        <Function test_main_dispatches_to_nanobrag_backend>
+        <Function test_nanobrag_backend_runs_simulator>
+        <Function test_nanobrag_backend_applies_calibration>
+        <Function test_nanobrag_backend_requires_sigma_rdout>
+        <Function test_nanobrag_backend_accepts_sigma_map>
+        <Function test_nanobrag_backend_accepts_external_lookup_sigma_map>
+        <Function test_nanobrag_backend_uses_refined_mtz>
+        <Function test_torch_diagnostics_metadata[cli_override-3.0]>
+        <Function test_torch_diagnostics_metadata[external_lookup-5.0]>
+        <Function test_refined_mtz_missing_file_fails_fast>
+        <Function test_refined_mtz_telemetry_provenance>
+      <Module test_refinement_context.py>
+        <Function test_build_refinement_context_copies_job_context_metadata>
+        <Function test_build_refinement_context_explicit_metadata_overrides_job_context>
+        <Function test_build_job_context_rejects_invalid_sigma_reference>
+        <Function test_build_job_context_rejects_empty_sigma_provenance>
+        <Function test_build_job_context_validates_hkl_metadata_has_halo>
+        <Function test_build_job_context_accepts_valid_inputs>
+      <Module test_refinement_engine.py>
+        <Function test_engine_executes_mock_stage>
+        <Function test_engine_requires_context>
+      <Module test_reflection_ingestion.py>
+        <Class TestReflectionIngestion>
+          <Function test_DB_AT_020_reflection_bbox>
+          <Function test_DB_AT_020_panel_alignment>
+      <Module test_roi_analysis.py>
+        <Class TestScoreROIPayloads>
+          <Function test_recovers_known_scale_and_score>
+          <Function test_injected_checker_and_log_fn>
+          <Function test_multiple_rois_with_different_scales>
+          <Function test_variance_floor_enforcement>
+          <Function test_sigma_parameter_validation>
+      <Module test_runtime_vectorization.py>
+        <Class TestRuntimeVectorization>
+          <Function test_source_weights_ignored_per_spec>
+      <Module test_sim_factory.py>
+        <Function test_panel_and_stitched_shapes>
+        <Function test_factory_cuda>
+      <Module test_stage_a_adam_tooling.py>
+        <Function test_stage_a_components_dataclass>
+        <Function test_stage_a_debug_config_dataclass>
+        <Function test_create_debug_run_dir>
+        <Function test_write_commands_txt>
+        <Function test_build_dataload_real_assets>
+        <Function test_setup_environment_determinism>
+        <Function test_stage_a_forward_smoke>
+        <Function test_zero_point_check_integration>
+        <Function test_cli_help_succeeds>
+        <Function test_cli_phase_1_backward_compat>
+      <Module test_stage_a_mapping_equiv.py>
+        <Function test_db_at_027_zero_point_parity>
+        <Function test_db_at_027_zero_point_forward_only>
+      <Module test_stage_a_smoke_parity.py>
+        <Function test_db_at_028_loss_scale_sanity>
+        <Function test_db_at_029_structure_parity>
+        <Function test_stage_a_baseline_metrics_dump>
+      <Module test_stage_b_asu_mapping.py>
+        <Function test_asu_mapping_p1>
+        <Function test_asu_mapping_p432>
+        <Function test_asu_halo_handling>
+        <Function test_asu_friedel_pairs>
+        <Function test_apply_asu_modifiers>
+      <Module test_stage_b_cpu_fallback.py>
+        <Function test_stage_b_params_cpu_fallback_clones_stage_a_ctx>
+        <Function test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled>
+        <Function test_stage_b_params_no_cpu_fallback_when_config_disabled>
+        <Function test_stage_b_baseline_guard_diff_payload>
+      <Module test_torch_refine_smoke.py>
+        <Function test_stage_a_expansion>
+        <Function test_stage_a_expansion_incremental_ub>
+        <Function test_stage_a_engine_delegation_telemetry>
+        <Function test_stage_c_detector_microslip>
+        <Function test_stage_b_shell_modifiers>
+        <Function test_stage_b_per_reflection_smoke>
+      <Module test_u_matrix_gradcheck.py>
+        <Function test_quaternion_roundtrip>
+        <Function test_u_matrix_closure_gradcheck>
+      <Module test_ub_parameterization_roundtrip.py>
+        <Function test_db_at_026_orientation_zero_point>
+        <Function test_db_at_026_cell_zero_point>
+        <Function test_db_at_026_mapping_parity>
+        <Function test_db_at_026_gradient_flow>
+      <Module test_vis_triptych.py>
+        <Function test_triptych_layout>
+        <Function test_z_score_calculation>
+        <Function test_z_score_masking>
+      <Module test_vis_triptych_smoke.py>
+        <Function test_triptych_from_roi_slice>
+        <Function test_compute_z_scores_array_output>
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_stage_a_adam_tooling.py:304
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_adam_tooling.py:304: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/dbex/test_stage_a_mapping_equiv.py:160
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_mapping_equiv.py:160: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_027 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_027
+
+tests/dbex/test_stage_b_cpu_fallback.py:389
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_b_cpu_fallback.py:389: PytestUnknownMarkWarning: Unknown pytest.mark.mini - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mini
+
+tests/dbex/test_ub_parameterization_roundtrip.py:51
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:104
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:150
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:150: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:213
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:213: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 180 tests collected in 2.92s =========================

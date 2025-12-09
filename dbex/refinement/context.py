@@ -1068,3 +1068,54 @@ class StageAInputContext:
     sigma_floor_sq_cache: Dict[torch.device, torch.Tensor]
     device: torch.device
     dtype: torch.dtype
+
+
+@dataclass
+class StageBInputContext:
+    """
+    Input parameters for Stage B shell modifier parameter building.
+
+    Consolidates the 16 positional parameters of _build_stage_b_params into
+    a single typed context per ARCH-STAGE-CONTEXT-CONSOLIDATION Phase B.
+
+    This dataclass contains the inputs needed to BUILD Stage B parameters,
+    distinct from StageBContext which contains the OUTPUTS (shell modifiers, telemetry).
+
+    Fields sourced from _build_stage_b_params signature (stage_b.py:93-111):
+        device: Target torch device
+        dtype: Target torch dtype
+        stage_a_ctx: Optional Stage A context dict or StageAContext
+        canonical_baseline: Baseline calibration dictionary
+        n_panels: Number of detector panels
+        sampled_panel_ids: List of panel IDs being processed
+        sigma_floor_sq_cache: Device-keyed cache for sigma_floor² tensors
+        use_stage_a_roi_mode: Whether to use ROI mode from Stage A
+        crystal: DIALS crystal object
+        hkl_metadata: Dict with grid dimensions, halo status, etc.
+        hkl_grid: Structure factor grid tensor [n_h, n_k, n_l]
+        detector: DIALS detector object
+        beam: DIALS beam object
+        inputs: DataLoad instance with target data and masks
+        panel_slices: List of (row_slice, col_slice) tuples for panel extraction
+        context: Optional RefinementContext with pre-computed maps
+
+    IDL Contract Reference:
+        docs/architecture/dbex/refinement/context.idl.md
+        ARCH-STAGE-CONTEXT-CONSOLIDATION Phase B.2
+    """
+    device: torch.device
+    dtype: torch.dtype
+    stage_a_ctx: Optional[Dict[str, Any]]
+    canonical_baseline: Dict[str, Any]
+    n_panels: int
+    sampled_panel_ids: List[int]
+    sigma_floor_sq_cache: Dict[torch.device, torch.Tensor]
+    use_stage_a_roi_mode: bool
+    crystal: Any
+    hkl_metadata: Dict[str, Any]
+    hkl_grid: torch.Tensor
+    detector: Any
+    beam: Any
+    inputs: Any
+    panel_slices: List[Tuple[slice, slice]]
+    context: Optional[Any] = None

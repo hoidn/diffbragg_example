@@ -99,33 +99,49 @@ class StageA:
 
     def _build_stage_a_params(
         self,
-        crystal,
-        detector,
-        inputs,
         config: 'RefinementConfig',
-        device,
-        dtype,
-        hkl_grid,
-        hkl_metadata,
-        sigma_floor_sq_cache,
-        baseline_crystal,
-        baseline_detector,
-        beam
+        input_ctx: 'StageAInputContext'
     ):
         """
         Build trainable parameters for Stage A LBFGS refinement.
+
+        ARCH-STAGE-CONTEXT-CONSOLIDATION Phase C.1: Refactored from 13 positional
+        parameters to single typed context. Config kept separate as it's commonly
+        overridden and already typed.
 
         Supports 3 parameterization modes:
         - cell + misset (default)
         - U-matrix (config.use_u_matrix_parameterization=True)
         - incremental UB (config.use_incremental_ub=True)
 
+        Args:
+            config: RefinementConfig instance
+            input_ctx: StageAInputContext with crystal, detector, beam, inputs, etc.
+
         Returns:
             Dict with keys: params, param_values, telemetry_state, stage_a_context, optimizer
+
+        IDL Contract Reference:
+            docs/architecture/dbex/refinement/context.idl.md
         """
         from dbex.refinement.context import StageAContext
+        from dbex.refinement.context import StageAInputContext
         from dbex.refinement.context import StageATelemetryState
         from dbex.refinement.stage_a_utils import _get_sigma_floor_sq_tensor, _build_stage_a_context
+
+        # Unpack input context for backwards compatibility with existing function body
+        # (ARCH-STAGE-CONTEXT-CONSOLIDATION Phase C.1)
+        crystal = input_ctx.crystal
+        detector = input_ctx.detector
+        beam = input_ctx.beam
+        inputs = input_ctx.inputs
+        baseline_crystal = input_ctx.baseline_crystal
+        baseline_detector = input_ctx.baseline_detector
+        hkl_grid = input_ctx.hkl_grid
+        hkl_metadata = input_ctx.hkl_metadata
+        sigma_floor_sq_cache = input_ctx.sigma_floor_sq_cache
+        device = input_ctx.device
+        dtype = input_ctx.dtype
 
         # Initialize refinement parameters
         # Stage A expansion: global scale + full crystal (a/b/c logs, alpha/beta/gamma bounded, orientation)
@@ -1800,19 +1816,24 @@ class StageA:
             )
 
         # STEP 1: Build Stage A parameters
-        helper1_result = self._build_stage_a_params(
+        # ARCH-STAGE-CONTEXT-CONSOLIDATION Phase C.1: Construct typed input context
+        from dbex.refinement.context import StageAInputContext
+        input_ctx = StageAInputContext(
             crystal=crystal,
             detector=detector,
+            beam=beam,
             inputs=refinement_inputs,
-            config=self._config,
-            device=device,
-            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,
             sigma_floor_sq_cache=sigma_floor_sq_cache,
-            baseline_crystal=baseline_crystal,
-            baseline_detector=baseline_detector,
-            beam=beam
+            device=device,
+            dtype=dtype,
+        )
+        helper1_result = self._build_stage_a_params(
+            config=self._config,
+            input_ctx=input_ctx
         )
 
         # Unpack helper1 result

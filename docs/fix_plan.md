@@ -148,7 +148,7 @@
 ### [ARCH-SIM-CONSTRUCTION-001] Simulator Construction Convention Alignment (Training vs Reconstruction)
 - Depends on: None
 - Blocks: ARCH-REFACTOR-001 Phase D.3
-- Status: **blocked_pending_environment** (2025-12-09T203900Z: Status corrected to match roadmap and lifecycle_decision.md. 39 loops (C.1-C.39) exceeded 6-loop budget. Root cause: F_latt at 11% of expected amplitude (4206.5 vs 38,048) indicates sincg bug in nanobrag_torch. Recommended unblock: Option A — maintainer investigation. See `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/lifecycle_decision.md`.)
+- Status: **blocked_pending_environment** (2025-12-09T043349Z: **Maintainer request filed** per Option A. Request `~/Documents/nanoBragg/inbox/sincg_aggregation_bug_investigation_2025_12_09.md` documents: sincg kernel correct (oversample=1 achieves 0.0005% error), bug in subpixel aggregation when oversample>1 (F_latt 11% of expected, intensity 9.4% of expected). See `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2026-01-13T200000Z/lifecycle_decision.md` for full evidence.)
 - Type: architecture
 - Priority: Highest (Tier 0 blocker)
 - Tier: 0
@@ -163,6 +163,7 @@
 - Attempts History:
   * 2025-12-02T233717Z (Phase A.1 complete — see docs/fix_plan_archive.md for details.
   * 2026-01-13T150000Z — see docs/fix_plan_archive.md for details.
+  * 2025-12-09T043349Z (Loop i=247, Ralph) — **Maintainer request filed** per Option A from lifecycle_decision.md. Filed `~/Documents/nanoBragg/inbox/sincg_aggregation_bug_investigation_2025_12_09.md` with evidence: (1) sincg kernel verified correct (per-axis matches NumPy float64 reference to <1e-4%), (2) oversample=1 achieves 0.0005% error proving HKL/beam correct, (3) oversample>1 shows 9.4% of expected intensity, (4) F_latt amplitude 11% of expected (4206.5 vs 38,048), (5) deficit enters BEFORE omega application in raw subpixel sum. Request asks upstream to investigate subpixel accumulation logic in `compute_physics_for_position()` for SQUARE shape.
   * ... (see docs/fix_plan_archive.md and plans/active/ARCH-SIM-CONSTRUCTION-001/reports/ for full Attempts History and metrics).
 
 ### [ARCH-IMPL-CONFORMANCE-001] Architecture / Implementation Contract Alignment

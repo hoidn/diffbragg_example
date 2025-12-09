@@ -1,162 +1,215 @@
-# Ralph Input — Loop i=249
+# Ralph Input — Loop i=250
 
 ## Summary
-Migrate test harness files from facade pattern to direct RefinementEngine usage, completing ARCH-REFACTOR-001 Phase D.3.
+Delete the `dbex/nanobrag_refinement.py` facade file (Phase D.5), completing ARCH-REFACTOR-001.
 
 ## Focus
-ARCH-REFACTOR-001 — Phase D.3 Test Harness Migration
+ARCH-REFACTOR-001 — Phase D.5 Facade Deletion
 
 ## Branch
 `integration`
 
 ## Mapped Tests
 ```
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
 tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
 tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
 tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
-tests/dbex/test_stage_a_smoke_parity.py::test_stage_a_mapping_to_refine_roundtrip
 ```
 
 ## Artifacts
-`plans/active/ARCH-REFACTOR-001/reports/2025-12-09T060000Z/`
+`plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/`
 
 ---
 
 ## Do Now
 
-**Focus Item:** ARCH-REFACTOR-001 Phase D.3
-**Action Type:** Implementation (Test Harness Migration)
+**Focus Item:** ARCH-REFACTOR-001 Phase D.5
+**Action Type:** Implementation (Facade Deletion)
 
-### Context
+### Implement: `dbex/nanobrag_refinement.py` — DELETE FILE
 
-ARCH-SIM-CONSTRUCTION-001 is now **DONE** — upstream confirmed no simulator bug existed (test geometry was flawed). ARCH-REFACTOR-001 Phase D.3 is unblocked.
+Execute the 12-step deletion checklist from `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/deletion_checklist.md`.
 
-Phase D.2 (CLI Refactor) provides the reference pattern. The CLI now:
-1. Builds `JobContext` then `RefinementContext` via `build_refinement_context()`
-2. Instantiates `RefinementEngine` with conditional stage list
-3. Calls `engine.run({"context": refinement_context})`
-4. Extracts artifacts from `engine._artifacts`
+### Step-by-Step Execution
 
-### Implement (Phase D.3 Scope)
+#### Pre-Deletion Verification (Steps 1-4)
 
-Migrate these files from `run_nanobrag_refinement` facade to direct `RefinementEngine` usage:
-
-#### File 1: `tests/dbex/test_torch_refine_smoke.py`
-
-Target functions (6 total):
-- `test_stage_a_expansion`
-- `test_stage_a_engine_delegation_telemetry`
-- `test_stage_b_shell_modifiers`
-- `test_stage_c_detector_microslip`
-- `test_stage_b_asu_mapping_smoke`
-- `test_stage_c_stage_a_baseline_detector_dist`
-
-**Pattern to apply:**
-1. Change imports: remove `run_nanobrag_refinement`, add `RefinementEngine`, `build_refinement_context`, `StageA`, `StageB`, `StageC`
-2. Replace facade call with Engine pattern (see `dbex/refine_one.py::run_nanobrag_backend()` for reference)
-3. Ensure test assertions still validate the same telemetry/artifacts
-
-#### File 2: `tests/dbex/test_stage_a_smoke_parity.py`
-
-Target function (1 total):
-- `test_stage_a_mapping_to_refine_roundtrip`
-
-**Pattern:** Same as File 1.
-
-#### File 3: `dbex/tools/stage_a_adam.py`
-
-Target function (1 total):
-- `run_debug_refinement` (lines ~350-400)
-
-**Pattern:** Same as File 1 (production tooling).
-
-### How-To Map
-
-1. **Read the reference implementation:**
-   - `dbex/refine_one.py::run_nanobrag_backend()` (lines ~270-350)
-
-2. **Key imports to add:**
-   ```python
-   from dbex.refinement.engine import RefinementEngine
-   from dbex.refinement.context import build_refinement_context
-   from dbex.refinement.stage_a import StageA
-   from dbex.refinement.stage_b import StageB
-   from dbex.refinement.stage_c import StageC
+1. **Step 1 — Import Verification:**
+   ```bash
+   rg "from.*nanobrag_refinement import|import.*nanobrag_refinement" --type py \
+     | grep -v "^plans/" \
+     | grep -v "^docs/" \
+     | grep -v "^logs/" \
+     | grep -v "^archive/" \
+     > plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/remaining_imports.txt 2>&1
+   cat plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/remaining_imports.txt
    ```
+   **Expected:** Empty file (verified by supervisor — zero imports in dbex/ and tests/)
 
-3. **Key imports to remove:**
-   ```python
-   from dbex.nanobrag_refinement import run_nanobrag_refinement
+2. **Step 2 — Call Site Verification:**
+   ```bash
+   rg "run_nanobrag_refinement\(" --type py \
+     | grep -v "^plans/" \
+     | grep -v "^docs/" \
+     | grep -v "^logs/" \
+     | grep -v "^archive/" \
+     | grep -v "^dbex/nanobrag_refinement.py:" \
+     > plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/remaining_calls.txt 2>&1
+   cat plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/remaining_calls.txt
    ```
+   **Expected:** Empty file
 
-4. **Engine instantiation pattern:**
-   ```python
-   # Build context
-   refinement_context = build_refinement_context(
-       job_context=job_context,
-       baseline_detector=baseline_detector  # if enable_stage_c
-   )
-
-   # Build stage list
-   stages = [StageA()]
-   if enable_stage_b:
-       stages.append(StageB())
-   if enable_stage_c:
-       stages.append(StageC())
-
-   # Run engine
-   engine = RefinementEngine(stages=stages)
-   result = engine.run({"context": refinement_context})
-
-   # Extract artifacts
-   telemetry = engine._artifacts.get("telemetry")
+3. **Step 3 — Module Dependency Check:**
+   ```bash
+   python -c "import dbex.refine_one; print('refine_one OK')" && \
+   python -c "import dbex.refinement.engine; print('engine OK')" && \
+   python -c "import dbex.refinement.stage_a; print('stage_a OK')" && \
+   python -c "import dbex.refinement.stage_b; print('stage_b OK')" && \
+   python -c "import dbex.refinement.stage_c; print('stage_c OK')" && \
+   python -c "from dbex.refinement.config import RefinementConfig; print('config OK')" && \
+   python -c "from dbex.refinement import RefinementConfig; print('__init__ re-export OK')"
    ```
+   **Expected:** All 7 imports succeed
 
-5. **Validation command:**
+4. **Step 4 — Test Collection Verification:**
    ```bash
    AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest --collect-only tests/dbex/ 2>&1 \
+     | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/collection_check_pre.log \
+     | tail -5
+   ```
+   **Expected:** "collected X items" (no errors)
+
+#### Deletion Execution (Step 5-6)
+
+5. **Step 5 — Delete Facade:**
+   ```bash
+   git rm dbex/nanobrag_refinement.py
+   ls -la dbex/nanobrag_refinement.py 2>&1 \
+     | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/deletion_confirmation.txt
+   ```
+   **Expected:** "No such file or directory"
+
+6. **Step 6 — Update Module Exports (if needed):**
+   ```bash
+   grep "nanobrag_refinement" dbex/__init__.py
+   ```
+   **If matches:** Remove those lines. **If empty:** No action needed.
+
+#### Post-Deletion Verification (Steps 7-11)
+
+7. **Step 7 — Static Import Verification (repeat Step 3):**
+   Same 7 import checks — all must pass without ImportError
+
+8. **Step 8 — CLI Smoke Test:**
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata 2>&1 \
+     | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/pytest_cli_post_deletion.log
+   ```
+   **Gate:** Test PASSED
+
+9. **Step 9 — Stage Smoke Tests:**
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small \
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
    pytest -vv \
      tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
      tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
      tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-     tests/dbex/test_stage_a_smoke_parity.py \
-     --smoke-detector-size=small \
-     2>&1 | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-09T060000Z/pytest_phase_d3.log
+     --smoke-detector-size=small 2>&1 \
+     | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/pytest_stage_smokes_post_deletion.log
    ```
+   **Gate:** 3/3 tests PASSED
+
+10. **Step 10 — Full Test Suite:**
+    ```bash
+    AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+    DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small \
+    KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+    pytest -vv \
+      tests/dbex/test_refine_one_cli.py \
+      tests/dbex/test_refinement_engine.py \
+      tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
+      tests/dbex/test_physics_loss_current.py \
+      --smoke-detector-size=small 2>&1 \
+      | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/pytest_full_suite_post_deletion.log
+    ```
+    **Gate:** All tests PASSED
+
+11. **Step 11 — Collection Verification (repeat Step 4):**
+    ```bash
+    AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+    KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+    pytest --collect-only tests/dbex/ 2>&1 \
+      | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/collection_check_post.log \
+      | tail -5
+    ```
+    **Expected:** "collected X items" (no errors)
+
+12. **Step 12 — Documentation Grep (informational):**
+    ```bash
+    rg "nanobrag_refinement" docs/ \
+      > plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/doc_references.txt
+    ```
+    **Note:** Non-blocking; docs updated in future cycle.
+
+---
+
+## Commit Message Template
+
+```
+ARCH-REFACTOR-001 Phase D.5: Delete nanobrag_refinement.py facade
+
+All consumers migrated to RefinementEngine:
+- CLI (refine_one.py)
+- Test harness (test_torch_refine_smoke.py, test_stage_a_mapping_equiv.py)
+- Tooling (stage_a_adam.py)
+- Config imports (test_refinement_engine.py, test_stage_b_cpu_fallback.py)
+
+Pre-deletion verification: PASSED (Steps 1-4)
+Post-deletion verification: PASSED (Steps 7-11)
+
+Exit Criteria #2 satisfied: Facade deleted, Engine is sole path.
+
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/
+
+[Claude Code]
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+```
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** change test assertions — only migrate the refinement call pattern
-2. **DO NOT** change telemetry structure or field names
-3. **DO** preserve all fixture setup/teardown logic unchanged
-4. **DO** follow the exact Engine pattern from Phase D.2 CLI refactor
-5. **DO NOT** remove facade imports from files outside Phase D.3 scope
-6. **DO** check for `baseline_detector` usage — it's required for Stage C context building
-7. **DO** maintain backward compatibility — tests should produce identical telemetry values
+1. **DO NOT** delete the file before completing Steps 1-4 pre-deletion checks
+2. **DO** capture all verification output to artifact files
+3. **DO** use the exact rollback command if ANY post-deletion check fails: `git checkout HEAD -- dbex/nanobrag_refinement.py`
+4. **DO NOT** commit until ALL 11 verification steps pass
+5. **DO** update `docs/fix_plan.md` ARCH-REFACTOR-001 status to `done` after successful deletion
+6. **DO NOT** touch plan-local probe scripts — they are explicitly out of scope
 
 ---
 
 ## If Blocked
 
-If any test fails after migration:
-1. Capture the full pytest output with `-vv --tb=long`
-2. Compare the Engine call path with the CLI reference implementation
-3. Check if `refinement_context` has all required fields
-4. Document the specific failure mode in artifacts
-5. Mark D.3 blocked and return to supervisor with findings
+If any verification step fails:
+1. Capture the full error output
+2. Run rollback: `git checkout HEAD -- dbex/nanobrag_refinement.py`
+3. Document which step failed and the error message
+4. Mark Phase D.5 blocked with specific failure cause
+5. Return to supervisor with findings
 
 ---
 
 ## Findings Applied (Mandatory)
 
-- **ARCH-ENGINE-002**: RefinementEngine protocol — engine accepts `{"context": RefinementContext}` dict
-- **ARCH-FACTORY-001**: Factory scope — simulators come from context, not constructed inline
+- **ARCH-ENGINE-002**: RefinementEngine is the sole refinement path after deletion
+- **ARCH-REFACTOR-001 Exit Criteria**: Criterion #2 requires facade deletion
 - **RUNTIME-001**: Test env vars — use canonical `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
 - **TESTING-003**: Mapped test selectors from `docs/TESTING_GUIDE.md`
 
@@ -164,15 +217,15 @@ If any test fails after migration:
 
 ## Pointers
 
-- `plans/active/ARCH-REFACTOR-001/implementation.md:363-385` — Phase D checklist and scope
-- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md` — CLI migration pattern
-- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/` — Phase D.2 CLI refactor artifacts
-- `dbex/refine_one.py:270-350` — Reference implementation (Engine pattern)
-- `docs/fix_plan.md:129-146` — ARCH-REFACTOR-001 exit criteria
+- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/deletion_checklist.md` — Full 12-step procedure
+- `plans/active/ARCH-REFACTOR-001/implementation.md:382-385` — Phase D.5 checklist reference
+- `docs/fix_plan.md:136-141` — ARCH-REFACTOR-001 Exit Criteria
 
 ---
 
-## Next Up (Optional)
+## Next Up
 
-If Phase D.3 completes successfully:
-- Phase D.5: Facade Deletion (delete `dbex/nanobrag_refinement.py`)
+After successful Phase D.5 completion:
+- Mark ARCH-REFACTOR-001 status `done` in `docs/fix_plan.md`
+- Update `galph_memory.md` with initiative closure
+- Consider Phase E (Legacy Isolation) if DiffBragg backend needs attention

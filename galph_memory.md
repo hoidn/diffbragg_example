@@ -1,3 +1,13 @@
+2025-12-09T070000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=phase_d5_delegation artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-09T070000Z/ next_action=ralph_phase_d5_facade_deletion
+- Loop i=250 (Galph): **PHASE D.3 COMPLETE — PHASE D.5 READY.**
+  **Phase D.3 Verification:** Ralph completed Phase D.3 (Test Harness Migration) in i=249. Verified:
+  - Zero `from dbex.nanobrag_refinement import` in `dbex/` and `tests/` (grep confirmed empty)
+  - Remaining imports only in plan-local probes (`plans/active/*/bin/*.py`) — documented as out-of-scope
+  - RefinementConfig imports now from `dbex.refinement.config` (19 files)
+  **Phase D.5 Scope (Facade Deletion):** Delete `dbex/nanobrag_refinement.py` (~656 lines) following 12-step deletion_checklist.md.
+  **Pre-Deletion State:** All Phase D prerequisites satisfied (D.1-D.4 complete). Production/test code uses RefinementEngine directly.
+  ActionType: implementation_ready. DecisionStatus: phase_d5_delegation. Next: Ralph executes 12-step facade deletion.
+
 2025-12-09T060000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=phase_d3_delegation artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-09T060000Z/ next_action=ralph_phase_d3_test_harness_migration
 - Loop i=249 (Galph): **ARCH-SIM-CONSTRUCTION-001 CLOSED — ARCH-REFACTOR-001 UNBLOCKED.**
   **Upstream Response:** `inbox/sincg_aggregation_bug_response_2025_12_09.md` arrived. Analysis proves NO SIMULATOR BUG:

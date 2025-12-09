@@ -1,0 +1,204 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cpu] PASSED [ 50%]
+tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cuda] FAILED [100%]
+
+=================================== FAILURES ===================================
+___________________ test_square_lattice_applies_ncells[cuda] ___________________
+
+device = 'cuda'
+
+    @pytest.mark.parametrize("device", ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"])
+    def test_square_lattice_applies_ncells(device):
+        """
+        Test that SQUARE lattice applies Na·Nb·Nc (linear) scaling for integrated intensity.
+    
+        ARCH-CONTRACT: docs/findings.md::SIM-CONSTR-PARTIALITY-001 (Resolved 2025-12-08)
+        Owner: nanobrag_torch.simulator.compute_physics_for_position (SQUARE branch)
+        Contract: Integrated/summed intensity scales as Na×Nb×Nc (linear)
+    
+        Physics (per inbox/nanobrag_torch_response_2025_12_08.md):
+        - Peak height scales as (Na×Nb×Nc)² (sinc² peak)
+        - Peak width scales as 1/(Na×Nb×Nc)
+        - Integral = peak × width ∝ Na×Nb×Nc (linear)
+    
+        This test:
+        1. Runs the simulator with N_cells=(1,1,1) to get base intensity I₁
+        2. Runs with N_cells=(Na,Nb,Nc) to get scaled intensity I₂
+        3. Verifies that I₂/I₁ ≈ Na×Nb×Nc within 7% tolerance
+    
+        NOTE: Test uses 400×400 pixel detector to ensure full solid-angle integration.
+        Smaller detectors (e.g., 10×10) show partial-integration effects. See Phase B.6.
+        """
+        # Test parameters
+        Na, Nb, Nc = 41, 29, 32
+        expected_ratio = Na * Nb * Nc  # Linear scaling for integrated intensity
+        # SIM-CONSTR-PARTIALITY-001: Linear scaling may have some pixel-sampling deviation
+        tolerance = 0.07  # 7% tolerance: oscillatory convergence around linear at 400×400 (see Phase B.6)
+    
+        # Create configs
+        # ARCH-SIM-CONSTRUCTION-001 C.39: Test with oversample>1 to validate omega compensation
+        test_oversample = 13
+    
+        detector_config = DetectorConfig(
+            distance_mm=100.0,
+            pixel_size_mm=0.1,
+            spixels=400,  # 400×400 for full solid-angle integration (see Phase B.6)
+            fpixels=400,  # 400×400 for full solid-angle integration (see Phase B.6)
+            oversample=test_oversample,
+        )
+    
+        beam_config = BeamConfig()  # Use defaults (wavelength_A=1.0)
+    
+        # Run 1: N_cells=(1,1,1)
+        crystal_config_base = CrystalConfig(
+            default_F=100.0,  # Constant structure factor
+            N_cells=(1, 1, 1),
+            shape=CrystalShape.SQUARE,
+        )
+    
+        crystal_base = Crystal(crystal_config_base, device=device)
+        detector = Detector(detector_config, device=device)
+    
+        # ARCH-SIM-CONSTRUCTION-001 C.35: Enable partiality stats to capture steps_scalar
+        debug_config = {'collect_partiality_stats': True}
+    
+        sim_base = Simulator(
+            crystal=crystal_base,
+            detector=detector,
+            crystal_config=crystal_config_base,
+            beam_config=beam_config,
+            device=device,
+            debug_config=debug_config,
+        )
+    
+>       image_base = sim_base.run()
+
+tests/architecture/test_nanobrag_partiality.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../nanoBragg/src/nanobrag_torch/simulator.py:1437: in run
+    physics_intensity_flat, physics_intensity_pre_polar_flat = self._compute_physics_for_position(
+../../nanoBragg/src/nanobrag_torch/simulator.py:747: in _compute_physics_for_position
+    return self._compiled_compute_physics(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pixel_coords_angstroms = tensor([[ 1.0000e+09,  2.0096e+08, -2.0096e+08],
+        [ 1.0000e+09,  2.0096e+08, -2.0088e+08],
+        [ 1.0000e+09...8],
+        [ 1.0000e+09, -1.9896e+08,  1.9888e+08],
+        [ 1.0000e+09, -1.9896e+08,  1.9896e+08]], device='cuda:0')
+rot_a = tensor([[[ 1.0000e-08, -4.3711e-16, -4.3711e-16]]], device='cuda:0')
+rot_b = tensor([[[ 0.0000e+00,  1.0000e-08, -4.3711e-16]]], device='cuda:0')
+rot_c = tensor([[[0.0000e+00, 0.0000e+00, 1.0000e-08]]], device='cuda:0')
+rot_a_star = tensor([[[0.0100, -0.0000, 0.0000]]], device='cuda:0')
+rot_b_star = tensor([[[4.3711e-10, 1.0000e-02, -0.0000e+00]]], device='cuda:0')
+rot_c_star = tensor([[[4.3711e-10, 4.3711e-10, 1.0000e-02]]], device='cuda:0')
+incident_beam_direction = tensor([-1., -0., -0.], device='cuda:0')
+wavelength = tensor(1., device='cuda:0'), source_weights = None, dmin = 0.0
+crystal_get_structure_factor = <bound method Crystal.get_structure_factor of <nanobrag_torch.models.crystal.Crystal object at 0x7ee4d8e6b8e0>>
+N_cells_a = tensor(1., device='cuda:0'), N_cells_b = tensor(1., device='cuda:0')
+N_cells_c = tensor(1., device='cuda:0')
+crystal_shape = <CrystalShape.SQUARE: 'square'>, crystal_fudge = 1.0
+apply_polarization = True, kahn_factor = tensor(0., device='cuda:0')
+polarization_axis = tensor([0., 0., 1.], device='cuda:0')
+
+    def compute_physics_for_position(
+        # Geometry inputs
+        pixel_coords_angstroms: torch.Tensor,
+        rot_a: torch.Tensor,
+        rot_b: torch.Tensor,
+        rot_c: torch.Tensor,
+        rot_a_star: torch.Tensor,
+        rot_b_star: torch.Tensor,
+        rot_c_star: torch.Tensor,
+        # Beam parameters
+        incident_beam_direction: torch.Tensor,
+        wavelength: torch.Tensor,
+        source_weights: Optional[torch.Tensor] = None,
+        # Beam configuration (dmin culling)
+        dmin: float = 0.0,
+        # Crystal structure factor function
+        crystal_get_structure_factor: Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor] = None,
+        # Crystal parameters for lattice factor
+        N_cells_a: int = 0,
+        N_cells_b: int = 0,
+        N_cells_c: int = 0,
+        crystal_shape: CrystalShape = CrystalShape.SQUARE,
+        crystal_fudge: float = 1.0,
+        # Polarization parameters (PERF-PYTORCH-004 P3.0b)
+        apply_polarization: bool = True,
+        kahn_factor: float = 1.0,
+        polarization_axis: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Compute physics (Miller indices, structure factors, intensity) for given positions.
+    
+        This is a pure function with no instance state dependencies, enabling safe cross-instance
+        kernel caching for torch.compile optimization (PERF-PYTORCH-004 Phase 0).
+    
+        REFACTORING NOTE (PERF-PYTORCH-004 Phase 0):
+        This function was refactored from a bound method (`Simulator._compute_physics_for_position`)
+        to a module-level pure function to enable safe cross-instance kernel caching with torch.compile.
+        Caching bound methods is unsafe because they capture `self`, which can lead to silent
+        correctness bugs when the cached kernel is reused across different simulator instances
+        with different state.
+    
+        All required state is now passed as explicit parameters, ensuring that:
+        1. The function has no hidden dependencies on instance state
+        2. torch.compile can safely cache compiled kernels across instances
+        3. The function's behavior is fully determined by its inputs
+        4. Testing and debugging are simplified (pure function properties)
+    
+        This is the core physics calculation that must be done per-subpixel for proper
+        anti-aliasing. Each subpixel samples a slightly different position in reciprocal
+        space, leading to different Miller indices and structure factors.
+    
+        VECTORIZED OVER SOURCES: This function supports batched computation over
+        multiple sources (beam divergence/dispersion). When multiple sources are provided,
+        the computation is vectorized across the source dimension, eliminating the Python loop.
+    
+        Args:
+            pixel_coords_angstroms: Pixel/subpixel coordinates in Angstroms (S, F, 3) or (batch, 3)
+            rot_a, rot_b, rot_c: Rotated real-space lattice vectors (N_phi, N_mos, 3)
+            rot_a_star, rot_b_star, rot_c_star: Rotated reciprocal vectors (N_phi, N_mos, 3)
+            incident_beam_direction: Incident beam direction.
+                - Single source: shape (3,)
+                - Multiple sources: shape (n_sources, 3)
+            wavelength: Wavelength in Angstroms.
+                - Single source: scalar
+                - Multiple sources: shape (n_sources,) or (n_sources, 1, 1)
+            source_weights: Optional per-source weights for multi-source accumulation.
+                Shape: (n_sources,). If None, equal weighting is assumed.
+            dmin: Minimum d-spacing for resolution culling (0 = no culling)
+            crystal_get_structure_factor: Function to look up structure factors for (h0, k0, l0)
+            N_cells_a/b/c: Number of unit cells in each direction
+            crystal_shape: Crystal shape enum for lattice structure factor calculation
+            crystal_fudge: Fudge factor for lattice structure factor
+            apply_polarization: Whether to apply Kahn polarization correction (default True)
+            kahn_factor: Polarization factor for Kahn correction (0=unpolarized, 1=fully polarized)
+            polarization_axis: Polarization axis unit vector (3,) or broadcastable shape
+    
+        Returns:
+            intensity: Computed intensity |F|^2 integrated over phi and mosaic
+                - Single source: shape (S, F) or (batch,)
+                - Multiple sources: weighted sum across sources, shape (S, F) or (batch,)
+        """
+        # Detect if we have batched sources
+        is_multi_source = incident_beam_direction.dim() == 2
+        n_sources = incident_beam_direction.shape[0] if is_multi_source else 1
+    
+        # Calculate scattering vectors
+        pixel_squared_sum = torch.sum(
+>           pixel_coords_angstroms * pixel_coords_angstroms, dim=-1, keepdim=True
+        )
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 310.00 MiB. GPU 0 has a total capacity of 23.56 GiB of which 14.31 MiB is free. Process 1517304 has 22.54 GiB memory in use. Including non-PyTorch memory, this process has 948.00 MiB memory in use. Of the allocated memory 630.59 MiB is allocated by PyTorch, and 11.41 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+../../nanoBragg/src/nanobrag_torch/simulator.py:106: OutOfMemoryError
+=========================== short test summary info ============================
+FAILED tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cuda]
+========================= 1 failed, 1 passed in 17.50s =========================

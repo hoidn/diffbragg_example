@@ -5,7 +5,7 @@
 - Title: Simulator Construction Convention Alignment (Training vs Reconstruction)
 - Owner: Galph ↔ Ralph
 - Spec Owner: docs/spec-db-core.md §§20-40, docs/architecture/calibration_scaling.md
-- Status: in_progress
+- Status: **in_progress** (unblocked 2025-12-09T200000Z)
 - Type: architecture
 - Priority: Highest (blocks ARCH-REFACTOR-001 Phase D.3)
 - Tier: 0
@@ -13,6 +13,28 @@
 ---
 
 **SQUARE Lattice Resolved (2025-12-08):** The SQUARE lattice expectation mismatch (C.34-C.39 probes) has been resolved by SPEC-SQUARE-PARTIALITY-001. The correct physics is: peak height ∝ (Na·Nb·Nc)², integrated intensity ∝ Na·Nb·Nc. Tests now enforce linear scaling. See `plans/active/SPEC-SQUARE-PARTIALITY-001/reports/2025-12-08T110000Z/`. Future work should NOT reopen vendor edits for SQUARE scaling unless Spec-DB changes.
+
+---
+
+**Current State (2025-12-09T200000Z):** Initiative unblocked for active debugging.
+
+**What's done:**
+- Phase A (evidence collection): Complete
+- Phase C.1-C.14: Various fixes landed (mask coverage, N_cells parity, cold-path alignment, telemetry)
+- C.13: Stage A vs mapping parity **SATISFIED** (max|Δ|=3.9e-3 ADU)
+- C.14: Cold-path baseline alignment **COMPLETE**
+- SQUARE lattice physics: **RESOLVED** (not a simulator bug)
+
+**What's still failing:**
+- DB-AT-028: chi²/pixel ≈ 2.1e5 (spec: ≤1e2)
+- DB-AT-029: ROI correlation ≈ -0.05 (spec: ≥0.2)
+
+**Key insight:** The SQUARE lattice debugging (C.27-C.39) was a red herring. The physics is correct. The DB-AT failures indicate a **structural mismatch** between reconstruction output and experimental data, not an intensity scaling issue.
+
+**Next debugging focus:** Determine why reconstruction `bragg_before` is **anticorrelated** with target data. Possible causes:
+1. Geometry mismatch (reconstruction uses wrong detector/crystal parameters)
+2. HKL assignment mismatch (wrong reflections being simulated)
+3. Mask mismatch (reconstruction and test harness using different masks)
 
 ---
 

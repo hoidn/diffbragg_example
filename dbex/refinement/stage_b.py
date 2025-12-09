@@ -92,32 +92,22 @@ class StageB:
 
     def _build_stage_b_params(
         self,
-        device: torch.device,
-        dtype: torch.dtype,
-        stage_a_ctx: Optional[Dict[str, Any]],
-        canonical_baseline: Dict[str, Any],
-        n_panels: int,
-        sampled_panel_ids: List[int],
-        sigma_floor_sq_cache: Dict[torch.device, torch.Tensor],
-        use_stage_a_roi_mode: bool,
-        crystal,
-        hkl_metadata: Dict[str, Any],
-        hkl_grid: torch.Tensor,
-        detector,
-        beam,
-        inputs,
-        panel_slices: List[Tuple[slice, slice]],
-        context: Optional[Any] = None,
+        config: 'RefinementConfig',
+        input_ctx: 'StageBInputContext',
     ) -> Dict[str, Any]:
         """
         Build Stage B shell modifier parameters, optimizer, and telemetry state.
 
         ARCH-REFACTOR-001 Phase C.4: Inlined from stage_b_impl.py so StageB owns parameter building.
+        ARCH-STAGE-CONTEXT-CONSOLIDATION Phase C.2: Signature refactored to use single typed context.
 
         Args:
-            context: Optional RefinementContext with pre-computed asu_map, hkl_indices_grid, halo_mask
-                    (ARCH-REFINE-001 Phase B.3). If provided and asu_map is available, Stage B reuses
-                    it instead of calling compute_hkl_asu_map to avoid cctbx dependency and duplicating work.
+            config: RefinementConfig instance with device, dtype, optimizer params, etc.
+            input_ctx: StageBInputContext with all 16 input parameters (device, dtype, stage_a_ctx,
+                      canonical_baseline, n_panels, sampled_panel_ids, sigma_floor_sq_cache,
+                      use_stage_a_roi_mode, crystal, hkl_metadata, hkl_grid, detector, beam,
+                      inputs, panel_slices, context). The context field contains optional
+                      pre-computed asu_map, hkl_indices_grid, halo_mask (ARCH-REFINE-001 Phase B.3).
 
         Returns:
             param_values: Dict containing:
@@ -138,6 +128,27 @@ class StageB:
                 - full_stage_b_indices: List[int]
                 - default_f_fallback_count: int
         """
+        # ARCH-STAGE-CONTEXT-CONSOLIDATION Phase C.2: Unpack input context
+        # Import StageBInputContext locally to avoid circular imports
+        from dbex.refinement.context import StageBInputContext  # noqa: F401
+
+        device = input_ctx.device
+        dtype = input_ctx.dtype
+        stage_a_ctx = input_ctx.stage_a_ctx
+        canonical_baseline = input_ctx.canonical_baseline
+        n_panels = input_ctx.n_panels
+        sampled_panel_ids = input_ctx.sampled_panel_ids
+        sigma_floor_sq_cache = input_ctx.sigma_floor_sq_cache
+        use_stage_a_roi_mode = input_ctx.use_stage_a_roi_mode
+        crystal = input_ctx.crystal
+        hkl_metadata = input_ctx.hkl_metadata
+        hkl_grid = input_ctx.hkl_grid
+        detector = input_ctx.detector
+        beam = input_ctx.beam
+        inputs = input_ctx.inputs
+        panel_slices = input_ctx.panel_slices
+        context = input_ctx.context
+
         # PERF-WARM-011: Compute CPU fallback condition FIRST so we can use it for device-aware parameter init
         # When config.stage_b_full_eval_on_cpu is True, device is CUDA, and ROI mode is disabled,
         # route Stage B panel-mode closures/validations to CPU to avoid GPU OOM
@@ -1382,7 +1393,9 @@ class StageB:
 
         # STEP 1: Build Stage B parameters
         # ARCH-REFACTOR-001 Phase C.4: Use inlined method instead of stage_b_impl helper
-        param_values = self._build_stage_b_params(
+        # ARCH-STAGE-CONTEXT-CONSOLIDATION Phase C.2: Construct typed input context
+        from dbex.refinement.context import StageBInputContext
+        stage_b_input_ctx = StageBInputContext(
             device=device,
             dtype=dtype,
             stage_a_ctx=stage_a_ctx,
@@ -1399,6 +1412,10 @@ class StageB:
             inputs=refinement_inputs,
             panel_slices=refinement_inputs.panel_slices,
             context=ctx,  # ARCH-REFINE-001 Phase B.3: Thread context for asu_map reuse
+        )
+        param_values = self._build_stage_b_params(
+            config=self._config,
+            input_ctx=stage_b_input_ctx,
         )
 
         # Add frozen Stage A tensors to param_values (required by helper2)

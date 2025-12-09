@@ -108,16 +108,21 @@ def refinement_inputs(data_load_instance):
     Prepare RefinementInputs from DataLoad for gradient tests.
 
     Uses default ADU mode (no calibration) to simplify gradient setup.
-    Provides deterministic sigma_readout=3.0 ADU for variance-weighted loss testing (PHYSICS-LOSS-001).
+    Uses sigma_readout=None for MSE loss to ensure gradcheck compatibility.
+
+    IMPORTANT: The variance-weighted chi-squared loss (with sigma_readout) uses IRLS
+    with a detached variance denominator (spec-db-core.md:57-68). This is correct physics
+    for refinement but INCOMPATIBLE with torch.autograd.gradcheck because the numerical
+    gradient uses different variance values for f(x+eps) and f(x-eps). For DB-AT-010
+    gradcheck validation, we use MSE loss (sigma_readout=None) to verify gradient flow.
+
+    See also: PHYSICS-LOSS-001 finding, docs/physics/loss.idl.md §API notes.
     """
     from dbex.refinement.inputs import prepare_refinement_inputs
-    import numpy as np
-
-    # Deterministic sigma_readout for variance-weighted loss testing
-    # Use 3.0 ADU as a representative readout noise value (typical for modern detectors)
-    sigma_array = np.full_like(data_load_instance.data, 3.0, dtype=np.float32)
 
     # Use default ADU mode for simplicity
+    # sigma_readout=None → MSE loss path for gradcheck compatibility
+    # (variance-weighted chi-squared uses IRLS detach which breaks gradcheck)
     inputs = prepare_refinement_inputs(
         data=data_load_instance.data,
         background_image=data_load_instance.background_image,
@@ -126,7 +131,7 @@ def refinement_inputs(data_load_instance):
         pids=data_load_instance.pids,
         detector=data_load_instance.detector,
         adu_per_photon=None,  # ADU mode
-        sigma_readout=sigma_array  # PHYSICS-LOSS-001: variance-weighted loss path
+        sigma_readout=None  # MSE loss path for gradcheck compatibility
     )
 
     return inputs
@@ -188,7 +193,8 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
-        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+        # sigma_readout=None → MSE loss path for gradcheck compatibility
+        sigma_readout_torch = None
 
         # Get base crystal config
         base_crystal = geometry_objects["crystal"]
@@ -215,7 +221,7 @@ class TestDB_AT_010_Gradcheck:
                 crystal_overrides=crystal_overrides  # Pass tensor override
             )
 
-            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            # Compute MSE loss (sigma_readout=None for gradcheck compatibility)
             loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 
@@ -275,7 +281,8 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
-        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+        # sigma_readout=None → MSE loss path for gradcheck compatibility
+        sigma_readout_torch = None
 
         # Get base crystal
         base_crystal = geometry_objects["crystal"]
@@ -302,7 +309,7 @@ class TestDB_AT_010_Gradcheck:
                 crystal_overrides=crystal_overrides  # Pass tensor override
             )
 
-            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            # Compute MSE loss (sigma_readout=None for gradcheck compatibility)
             loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 
@@ -368,7 +375,8 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
-        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+        # sigma_readout=None → MSE loss path for gradcheck compatibility
+        sigma_readout_torch = None
 
         # Get base crystal config
         base_crystal = geometry_objects["crystal"]
@@ -452,7 +460,8 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
-        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+        # sigma_readout=None → MSE loss path for gradcheck compatibility
+        sigma_readout_torch = None
 
         # Get base detector
         base_detector = geometry_objects["detector"]
@@ -486,7 +495,7 @@ class TestDB_AT_010_Gradcheck:
                 detector_overrides=detector_overrides
             )
 
-            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            # Compute MSE loss (sigma_readout=None for gradcheck compatibility)
             loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 
@@ -542,7 +551,8 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
-        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
+        # sigma_readout=None → MSE loss path for gradcheck compatibility
+        sigma_readout_torch = None
 
         # Get base objects
         base_detector = geometry_objects["detector"]
@@ -574,7 +584,7 @@ class TestDB_AT_010_Gradcheck:
                 beam_overrides=beam_overrides
             )
 
-            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            # Compute MSE loss (sigma_readout=None for gradcheck compatibility)
             loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 

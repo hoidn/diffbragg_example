@@ -664,22 +664,21 @@
 
 ### [SUPERVISOR] Supervisor Agent Documentation & Roadmap
 - Depends on: AGENTS.md supervisor rules, prompts/supervisor.md
-- Status: pending
+- Status: **scoped_low_priority** (2025-12-09T020000Z: LOW priority living documentation; no blocking use cases)
 - Type: docs
-- Priority: Medium (Meta-documentation)
+- Priority: Low (Meta-documentation — revisit if coordination issues emerge)
 - Tier: 4
 - Owner/Date: Galph / 2025-12-07
 - Exit Criteria:
-  1. Supervisor operational guide documented with decision trees
-  2. Roadmap assessment methodology captured in `plans/active/SUPERVISOR/`
-  3. Integration between Galph and Ralph workflows clarified
-  4. Meta-analysis patterns documented for portfolio steering
+  1. EC-1: Portfolio management rules documented in `docs/` or `AGENTS.md`
+  2. EC-2: Galph/Ralph coordination patterns documented
+  3. EC-3: Decision: Archive vs. Living Documentation determination made ✓
 - Working Plan: `plans/active/SUPERVISOR/implementation.md`
 - Spec References: AGENTS.md, prompts/supervisor.md
 - Attempts History:
   * 2025-11-24T153000Z — see docs/fix_plan_archive.md for details.
   * 2025-12-04T050000Z (Phase C.3.1 implementatio... — see docs/fix_plan_archive.md for details.
-  * ... (see docs/fix_plan_archive.md and plans/active/SUPERVISOR/reports/ for full Attempts History and metrics).
+  * 2025-12-09T020000Z (Loop i=243, Ralph) — **SCOPED AS LOW PRIORITY.** Re-verified OOM fix (Stage A 41s PASS, Stage B 587s PASS, partiality CPU PASS, CUDA OOM expected). Portfolio health documented (Tier 0-3 blocked/done, Tier 4 pending). SUPERVISOR initiative scoped as LOW priority living documentation per EC-3 — coordination patterns working well, no formalization needed. Artifacts: `plans/active/SUPERVISOR/reports/2025-12-09T020000Z/`.
 
 ### [ARCH-BRIDGE-RESP-001] — **archived** (2025-12-03T093500Z, see docs/fix_plan_archive_2025-12-02.md)
 - Writer / bridge responsibility split complete

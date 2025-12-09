@@ -29,4 +29,4 @@ tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke
     self._raw_data = flex.int(np.fromstring(array_string, np.int32))
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====== 1 passed, 1 skipped, 4 deselected, 6 warnings in 578.90s (0:09:38) ======
+====== 1 passed, 1 skipped, 4 deselected, 6 warnings in 586.78s (0:09:46) ======

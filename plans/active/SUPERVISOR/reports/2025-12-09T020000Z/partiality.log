@@ -101,7 +101,7 @@ rot_b_star = tensor([[[4.3711e-10, 1.0000e-02, -0.0000e+00]]], device='cuda:0')
 rot_c_star = tensor([[[4.3711e-10, 4.3711e-10, 1.0000e-02]]], device='cuda:0')
 incident_beam_direction = tensor([-1., -0., -0.], device='cuda:0')
 wavelength = tensor(1., device='cuda:0'), source_weights = None, dmin = 0.0
-crystal_get_structure_factor = <bound method Crystal.get_structure_factor of <nanobrag_torch.models.crystal.Crystal object at 0x7ee4d8e6b8e0>>
+crystal_get_structure_factor = <bound method Crystal.get_structure_factor of <nanobrag_torch.models.crystal.Crystal object at 0x7b63b1bc5730>>
 N_cells_a = tensor(1., device='cuda:0'), N_cells_b = tensor(1., device='cuda:0')
 N_cells_c = tensor(1., device='cuda:0')
 crystal_shape = <CrystalShape.SQUARE: 'square'>, crystal_fudge = 1.0
@@ -196,9 +196,9 @@ polarization_axis = tensor([0., 0., 1.], device='cuda:0')
         pixel_squared_sum = torch.sum(
 >           pixel_coords_angstroms * pixel_coords_angstroms, dim=-1, keepdim=True
         )
-E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 310.00 MiB. GPU 0 has a total capacity of 23.56 GiB of which 14.31 MiB is free. Process 1517304 has 22.54 GiB memory in use. Including non-PyTorch memory, this process has 948.00 MiB memory in use. Of the allocated memory 630.59 MiB is allocated by PyTorch, and 11.41 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 310.00 MiB. GPU 0 has a total capacity of 23.56 GiB of which 14.31 MiB is free. Including non-PyTorch memory, this process has 948.00 MiB memory in use. Process 1524914 has 22.54 GiB memory in use. Of the allocated memory 630.59 MiB is allocated by PyTorch, and 11.41 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
 
 ../../nanoBragg/src/nanobrag_torch/simulator.py:106: OutOfMemoryError
 =========================== short test summary info ============================
 FAILED tests/architecture/test_nanobrag_partiality.py::test_square_lattice_applies_ncells[cuda]
-========================= 1 failed, 1 passed in 17.50s =========================
+========================= 1 failed, 1 passed in 11.02s =========================

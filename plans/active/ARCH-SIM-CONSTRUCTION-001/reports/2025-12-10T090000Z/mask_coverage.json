@@ -1175,5 +1175,38 @@
         "fallback_reason": null
       }
     ]
+  },
+  {
+    "timestamp": "2025-12-09T07:14:27.297293Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 1.0,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-09T07:14:31.271346Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 1.0,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-09T07:14:34.452649Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 1.0,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
   }
 ]

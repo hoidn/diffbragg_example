@@ -120,7 +120,7 @@
 - [ORCH-ROBUST-001] (Orchestration Robustness) — **pending** (stub — needs scoping before work can begin)
 - [ORCH-CLAUDE-PATH-FIX-001] (Claude Path Fix) — **pending** (orchestration tooling path resolution)
 - [ORCH-CLI-FALLBACK-001] (CLI Fallback) — **pending** (CLI resilience and fallback handling)
-- [SUPERVISOR] (Supervisor Agent Documentation & Roadmap) — **pending** (2025-11-24T153000Z: roadmap assessment complete, supervisor meta-documentation pending)
+- [SUPERVISOR] (Supervisor Agent Documentation & Roadmap) — **scoped_low_priority** (2025-12-09T020000Z: scoped as LOW priority living documentation; EC-1/2/3 defined; no blocking use cases; coordination patterns working well; revisit if agent coordination issues emerge)
 
 ---
 

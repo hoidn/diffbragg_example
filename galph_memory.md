@@ -1,3 +1,20 @@
+2025-12-09T020000Z focus=SUPERVISOR state=scoped dwell=0 action=verification_scoping artifacts=plans/active/SUPERVISOR/reports/2025-12-09T020000Z/ next_action=tier4_focus_or_await
+- Loop i=243 (Ralph): **PORTFOLIO VERIFICATION — OOM FIX CONFIRMED.**
+  **Verification Results:**
+  - Stage A smoke: ✓ PASSED (40.91s)
+  - Stage B shell modifiers: ✓ PASSED (578.90s)
+  - Stage B per-reflection: SKIPPED (fixture limitation)
+  - Partiality CPU: ✓ PASSED
+  - Partiality CUDA: FAILED (OOM in physics test, not refinement path — 400×400 + oversample=13)
+  **SUPERVISOR Scoping:**
+  - Initiative reclassified as LOW priority living documentation
+  - No blocking use cases; coordination patterns working well
+  - Exit criteria: EC-1 through EC-3 defined for future formalization if needed
+  **Portfolio Health:**
+  - Tier 0-3: All blocked or done
+  - Tier 4: Multiple pending (HARDEN-SUBMODULE-ROBUSTNESS, ORCH-* items)
+  ActionType: verification_scoping. DecisionStatus: oom_fix_confirmed. Next: Supervisor selects next Tier 4 focus or awaits user priorities.
+
 2025-12-09T010000Z focus=DB-AT-SUITE-CARE-001 state=done dwell=0 action=review_housekeeping artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T010000Z/ next_action=tier4_focus_selection
 - Loop i=242 (Galph): **PORTFOLIO LEDGER CLEANUP — DB-AT-SUITE-CARE-001 CLOSED.**
   **Previous Loop (i=241):** Ralph completed PERF-GPU-MEM-001 Phase C (commit `d421ce26`). Stage A smoke PASSED with `pixel_batch_size=32`. Physics unchanged (partiality 2/2 PASS).

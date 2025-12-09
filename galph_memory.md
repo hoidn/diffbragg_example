@@ -1,3 +1,14 @@
+2025-12-09T050000Z focus=ARCH-SIM-CONSTRUCTION-001 state=blocked_pending_environment dwell=0 action=patch_submission artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T050000Z/ next_action=await_upstream_merge
+- Loop i=247 (Ralph) continued: **ROOT CAUSE CLARIFIED — PATCHES NEED UPSTREAM MERGE.**
+  **Maintainer response:** `inbox/sincg_aggregation_bug_response_2025_12_09.md` correctly shows current codebase gives 0.0004% of expected.
+  **Key discovery:** DBEX archived 99.9995% results were from PATCHED version. Three patches exist in `patches/` but were applied to vendored `src/nanobrag-torch`, NOT the runtime at `/home/ollie/Documents/nanoBragg`.
+  **Three patches that achieved 99.9995%:**
+  1. `partiality_fix.patch` — float64 fractional HKL deltas (h-h0, k-k0, l-l0) for sincg
+  2. `square_lattice_steps_fix.patch` — integral normalization (no oversample² for SQUARE)
+  3. `omega_compensation.patch` — apply omega once AFTER Riemann-sum for SQUARE
+  **Follow-up filed:** `~/Documents/nanoBragg/inbox/sincg_aggregation_fix_patches_2025_12_09.md` provides patches and requests upstream merge.
+  ActionType: patch_submission. DecisionStatus: clarified_awaiting_merge. Next: Await upstream merge of three patches.
+
 2025-12-09T043349Z focus=ARCH-SIM-CONSTRUCTION-001 state=blocked_pending_environment dwell=0 action=maintainer_request_filed artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T043349Z/ next_action=await_upstream_response
 - Loop i=247 (Ralph): **MAINTAINER REQUEST FILED — ARCH-SIM-CONSTRUCTION-001 Option A executed.**
   **Action Taken:** Filed `~/Documents/nanoBragg/inbox/sincg_aggregation_bug_investigation_2025_12_09.md` per lifecycle_decision.md Option A.

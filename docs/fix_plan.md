@@ -163,7 +163,8 @@
 - Attempts History:
   * 2025-12-02T233717Z (Phase A.1 complete — see docs/fix_plan_archive.md for details.
   * 2026-01-13T150000Z — see docs/fix_plan_archive.md for details.
-  * 2025-12-09T043349Z (Loop i=247, Ralph) — **Maintainer request filed** per Option A from lifecycle_decision.md. Filed `~/Documents/nanoBragg/inbox/sincg_aggregation_bug_investigation_2025_12_09.md` with evidence: (1) sincg kernel verified correct (per-axis matches NumPy float64 reference to <1e-4%), (2) oversample=1 achieves 0.0005% error proving HKL/beam correct, (3) oversample>1 shows 9.4% of expected intensity, (4) F_latt amplitude 11% of expected (4206.5 vs 38,048), (5) deficit enters BEFORE omega application in raw subpixel sum. Request asks upstream to investigate subpixel accumulation logic in `compute_physics_for_position()` for SQUARE shape.
+  * 2025-12-09T043349Z (Loop i=247, Ralph) — **Maintainer request filed** per Option A from lifecycle_decision.md. Filed `~/Documents/nanoBragg/inbox/sincg_aggregation_bug_investigation_2025_12_09.md`.
+  * 2025-12-09T045000Z (Loop i=247, Ralph) — **Maintainer response received, root cause clarified.** Response `inbox/sincg_aggregation_bug_response_2025_12_09.md` correctly identifies that current codebase shows 0.0004% of expected. **DBEX archived 99.9995% results were from PATCHED version** — three patches (`partiality_fix.patch`, `square_lattice_steps_fix.patch`, `omega_compensation.patch`) were documented in `patches/environment_tag.md` but applied to vendored `src/nanobrag-torch`, not the runtime at `/home/ollie/Documents/nanoBragg`. **Follow-up filed:** `~/Documents/nanoBragg/inbox/sincg_aggregation_fix_patches_2025_12_09.md` provides the three patches that achieved 99.9995% and requests upstream merge.
   * ... (see docs/fix_plan_archive.md and plans/active/ARCH-SIM-CONSTRUCTION-001/reports/ for full Attempts History and metrics).
 
 ### [ARCH-IMPL-CONFORMANCE-001] Architecture / Implementation Contract Alignment

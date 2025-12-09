@@ -2712,5 +2712,74 @@
       },
       "checksum_mismatch": false
     }
+  },
+  {
+    "timestamp": "2025-12-09T03:30:34.721735Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 161.2926025390625,
+      "mean_unmasked": 134.30096435546875
+    },
+    "target": {
+      "mean_masked": 86.34793853759766,
+      "mean_unmasked": 0.3438844382762909
+    },
+    "telemetry_values": {
+      "target_mean_masked": 86.34793853759766,
+      "model_mean_masked": 86.34793853759766
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 1.8679380801758505,
+      "bragg_vs_target": 1.8679380801758505
+    },
+    "chi_squared": {
+      "per_pixel": 176528.24521072797,
+      "n_masked_pixels": 4176
+    },
+    "scale_factor_used": 11594.1767578125,
+    "baseline_alignment_factor": 1.0,
+    "cache_status": "cache_hit",
+    "mask_metadata": {
+      "telemetry": {
+        "loss_mask_pixel_count": 4176,
+        "panel_true_pixels": [
+          24,
+          24,
+          24,
+          24,
+          24,
+          36,
+          12,
+          36,
+          36,
+          36,
+          36,
+          24,
+          48,
+          24,
+          24,
+          36,
+          12,
+          24,
+          48,
+          24,
+          48,
+          48,
+          36,
+          24,
+          48,
+          36,
+          12,
+          12,
+          12
+        ],
+        "mask_checksum": "a121f854dc0265069ff0d62e4e4817adcf48d57e"
+      },
+      "reconstruction": {
+        "loss_mask_pixel_count": 4176,
+        "mask_checksum": "a121f854dc0265069ff0d62e4e4817adcf48d57e"
+      },
+      "checksum_mismatch": false
+    }
   }
 ]

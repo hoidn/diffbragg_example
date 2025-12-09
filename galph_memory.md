@@ -1,3 +1,17 @@
+2025-12-09T000000Z focus=PERF-GPU-MEM-001 state=ready_for_implementation dwell=0 action=phase_c_delegation artifacts=plans/active/PERF-GPU-MEM-001/reports/2025-12-09T000000Z/ next_action=ralph_phase_c_pixel_batching
+- Loop i=241 (Galph): **ARCH-GRADIENT-FLOW-001 COMPLETE — PIVOTING TO PERF-GPU-MEM-001 Phase C.**
+  **Previous Loop (i=240):** Ralph completed ARCH-GRADIENT-FLOW-001 Phase B.10 (commit `10319760`). All 6 DB-AT-010 gradcheck tests PASS. Root causes:
+  - #1 (upstream): Mosaic seed bug fixed in `1df032c2`
+  - #2 (DBEX): Variance-weighted chi-squared loss uses IRLS with detached variance; fix: use MSE loss path for gradcheck
+  GRADIENT-004 finding added. Initiative status: **done**.
+  **Portfolio Update:**
+  - ARCH-GRADIENT-FLOW-001: `in_progress` → **done** (Tier 0 unblocked)
+  - DB-AT-SUITE-CARE-001: `in_progress` (D.3/D.5 pending maintenance tasks, gradcheck blocker lifted)
+  - PERF-GPU-MEM-001: `unblocked` → Phase C ready (pixel_batch_size feature landed upstream)
+  **Focus Selection:** Per roadmap, Tier 0 has only blocked items. Tier 1 maintenance mode. Tier 3 PERF-GPU-MEM-001 Phase C is next actionable.
+  **Phase C Scope:** Test Stage A smoke with `pixel_batch_size=128` on 24GB GPU to validate OOM fix.
+  ActionType: implementation_ready. DecisionStatus: pivot_to_perf. Next: Ralph executes PERF-GPU-MEM-001 Phase C.
+
 2025-12-08T223000Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=0 action=phase_b_delegation artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T223000Z/ next_action=ralph_phase_b_integration
 - Loop i=239 (Galph): **EXITING MAINTENANCE MODE — TWO UPSTREAM RESPONSES RECEIVED.**
   **New Inbox Files (Dec 8 18:38):**

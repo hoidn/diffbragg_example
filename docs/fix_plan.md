@@ -96,7 +96,7 @@
 
 ### Tier 3: Performance & Memory
 **Goal:** Profile and optimize GPU memory usage to enable full smoke tests on 24GB GPUs.
-- [PERF-GPU-MEM-001] (GPU Memory Usage Analysis and Optimization) — **unblocked** (2025-12-09T060000Z: **UPSTREAM FEATURE IMPLEMENTED — Phase C ready.** Response `inbox/pixel-batching-implementation-response-2025-12-08.md`: `pixel_batch_size` parameter now fully functional. Orchestration-level chunking in `Simulator.run()` with `_run_chunked()`, `_compute_chunk_intensity()`, `estimate_memory()`. 13 tests pass (parity + gradcheck verified). **Next:** Phase C — test Stage A smoke with `pixel_batch_size=128` on 24GB GPU. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T060000Z/`)
+- [PERF-GPU-MEM-001] (GPU Memory Usage Analysis and Optimization) — **in_progress** (2025-12-09T000000Z: **Phase C started.** Upstream `pixel_batch_size` feature implemented and verified. Phase C goal: thread `pixel_batch_size=128` through DBEX and validate Stage A smoke completes without OOM on 24GB GPU. Artifacts: `plans/active/PERF-GPU-MEM-001/reports/2025-12-09T000000Z/`)
   - **Governed by:** RUNTIME-001
   - **Depends on:** nanobrag_torch chunked interpolation fix ✓ RESOLVED
   - **Exit Criteria:** (1) Memory profiling report ✓; (2) ≥30% peak memory reduction; (3) Stage A smoke completes on 24GB GPU; (4) Physics unchanged (partiality/gradcheck tests pass)
@@ -105,6 +105,7 @@
     * 2025-12-08T234600Z (Loop i=210, Ralph) — **Phase A complete (memory profiling)**. Created `profile_gpu_memory.py` probe (377 LOC < 400 limit). Profiled small detector: B=9,437,184 queries, peak=23.842 GB. OOM during reconstruction at `crystal.py:404`. Memory breakdown documented: sub_Fhkl (2.4 GB) + coordinate grids (1.7 GB) + autograd (10+ GB). Artifacts: `plans/active/PERF-GPU-MEM-001/reports/2025-12-08T224000Z/{memory_profile.md,memory_metrics.json}`.
     * 2025-12-09T000000Z (Loop i=211, Galph) — **Upstream request filed.** Phase B analysis complete (scaling laws already in Phase A report). Upstream chunked interpolation request filed: `~/Documents/nanoBragg/inbox/chunked_interpolation_request_2025_12_09.md`. Initiative status changed to blocked_pending_upstream.
     * 2025-12-09T060000Z (Loop i=238, Ralph) — **UPSTREAM FEATURE IMPLEMENTED — Phase C ready.** Response `inbox/pixel-batching-implementation-response-2025-12-08.md` confirms `pixel_batch_size` parameter now fully functional. Implementation: orchestration-level batching in `Simulator.run()` via `_run_chunked()`, `_compute_chunk_intensity()`, `estimate_memory()`. 13 new tests pass (parity + gradcheck verified). Recommended chunk sizes: 32-64 rows (8GB), 64-128 rows (12GB), 128-256 rows (24GB). **Next:** Phase C — test Stage A smoke with `pixel_batch_size=128` on 24GB GPU. Artifacts: `plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T060000Z/`.
+    * 2025-12-09T000000Z (Loop i=241, Galph) — **Phase C delegation.** ARCH-GRADIENT-FLOW-001 done (i=240). Pivoting to PERF-GPU-MEM-001 Phase C. Task: Thread `pixel_batch_size=128` through DBEX API, run Stage A smoke, validate OOM fix. input.md written. Artifacts: `plans/active/PERF-GPU-MEM-001/reports/2025-12-09T000000Z/`.
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.

@@ -1,3 +1,19 @@
+2025-12-08T223000Z focus=ARCH-GRADIENT-FLOW-001 state=ready_for_implementation dwell=0 action=phase_b_delegation artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T223000Z/ next_action=ralph_phase_b_integration
+- Loop i=239 (Galph): **EXITING MAINTENANCE MODE — TWO UPSTREAM RESPONSES RECEIVED.**
+  **New Inbox Files (Dec 8 18:38):**
+  - `mosaic-gradient-fix-response-2025-12-08.md` — **MOSAIC GRADIENT BUG FIXED** (commit `1df032c2`)
+  - `pixel-batching-implementation-response-2025-12-08.md` — **PIXEL BATCHING FEATURE COMPLETE** (`pixel_batch_size` now functional)
+  **Root Cause (Mosaic):** `torch.randn()` without seeded generator + no reparameterization trick. Fix: deterministic `torch.Generator` + `actual_angles = frozen_noise * scale_param`.
+  **DBEX Integration Requirements:**
+  1. Pull latest nanobrag_torch (commit `1df032c2` or later)
+  2. Set `mosaic_seed` in CrystalConfig for reproducibility (recommended)
+  3. Re-run DB-AT-010 gradcheck
+  **Portfolio Update:**
+  - ARCH-GRADIENT-FLOW-001: `in_progress` → Phase B.10 ready (gradcheck verification with upstream fix)
+  - PERF-GPU-MEM-001: `unblocked` → Phase C ready (test `pixel_batch_size=128` on 24GB GPU)
+  **Priority:** ARCH-GRADIENT-FLOW-001 first (Tier 0 blocker for Gradient-Safe profile).
+  ActionType: implementation_ready. DecisionStatus: upstream_fixes_received. Next: Ralph executes Phase B.10 (integrate fix, verify gradcheck).
+
 2025-12-08T215000Z focus=DB-AT-SUITE-CARE-001 state=maintenance_mode dwell=43 action=maintenance_check artifacts=plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-08T215000Z/ next_action=await_upstream_response
 - Loop i=238 (Galph): **MAINTENANCE CHECK — NO NEW UPSTREAM RESPONSES.**
   **Inbox/Outbox Check:** Verified nanoBragg outbox (last update Dec 7 19:55) and DBEX inbox (last update Dec 8 13:23) — no new responses to pending requests.

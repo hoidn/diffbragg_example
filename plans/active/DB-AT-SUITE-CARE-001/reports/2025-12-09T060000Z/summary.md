@@ -1,3 +1,77 @@
+### Turn Summary (Ralph i=238)
+
+UPSTREAM RESPONSES RECEIVED — Both blockers resolved. Mosaic gradient bug fixed (commit 1df032c2), pixel batching implemented (`pixel_batch_size` functional).
+ARCH-GRADIENT-FLOW-001 and PERF-GPU-MEM-001 are now unblocked. DB-AT-SUITE-CARE-001 exits maintenance mode.
+Next: Resume ARCH-GRADIENT-FLOW-001 Phase B.10 (verify upstream fix resolves DB-AT-010 gradcheck).
+Artifacts: plans/active/DB-AT-SUITE-CARE-001/reports/2025-12-09T060000Z/ (response_processing.md)
+
+---
+
+## Loop i=238 — Upstream Response Processing
+
+**Timestamp:** 2025-12-09T060000Z
+**Focus:** DB-AT-SUITE-CARE-001 — Portfolio Maintenance
+**Status:** MAINTENANCE MODE EXIT — Both upstream blockers resolved
+
+### Responses Received
+
+#### 1. Mosaic Gradient Bug (HIGH Priority) — FIXED
+
+**File:** `inbox/mosaic-gradient-fix-response-2025-12-08.md`
+**Received:** 2025-12-08T18:29
+
+**Root Cause:** Random sampling without reparameterization in `_generate_mosaic_rotations()` — `torch.randn()` used without seeded generator, causing gradcheck to compare gradients across different rotation matrices.
+
+**Fix:** Deterministic seeding + reparameterization trick:
+```python
+gen = torch.Generator(device=self.device)
+gen.manual_seed(seed & 0x7FFFFFFF)
+base_angle_scales = torch.randn(..., generator=gen)
+random_angles = base_angle_scales * mosaic_spread_rad  # gradient flows through scale
+```
+
+**Commit:** `1df032c2`
+
+**Integration Steps:**
+1. Pull latest nanobrag_torch (commit 1df032c2+)
+2. Set `mosaic_seed` in `CrystalConfig` for reproducibility
+3. Re-run DB-AT-010: `pytest tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck -v`
+
+**Unblocks:** ARCH-GRADIENT-FLOW-001
+
+#### 2. Pixel Batching (MEDIUM Priority) — IMPLEMENTED
+
+**File:** `inbox/pixel-batching-implementation-response-2025-12-08.md`
+**Received:** 2025-12-08T18:32
+
+**Implementation:** Orchestration-level pixel batching in `Simulator.run()` — processes detector in row-wise chunks, each chunk fully vectorized.
+
+**New Features:**
+- `Simulator._run_chunked()` — Orchestrates row-wise chunk processing
+- `Simulator._compute_chunk_intensity()` — Computes physics per chunk
+- `Simulator.estimate_memory()` — Memory estimation + chunk size recommendations
+- CLI: `-pixel_batch_size N`
+
+**Recommended Chunk Sizes:**
+| GPU Memory | Chunk Size |
+|------------|------------|
+| 8 GB       | 32-64 rows |
+| 12 GB      | 64-128 rows |
+| 24 GB      | 128-256 rows |
+| 40+ GB     | None (full) |
+
+**Unblocks:** PERF-GPU-MEM-001
+
+### Initiative Status Updates
+
+| Initiative | Previous | New Status | Next Action |
+|------------|----------|------------|-------------|
+| ARCH-GRADIENT-FLOW-001 | blocked_pending_upstream | **unblocked** | Phase B.10: verify upstream fix |
+| PERF-GPU-MEM-001 | blocked_pending_upstream | **unblocked** | Phase C: test chunked smoke |
+| DB-AT-SUITE-CARE-001 | maintenance_mode | **in_progress** | Resume portfolio work |
+
+---
+
 ### Turn Summary (Ralph i=237)
 
 Maintenance check completed — no new upstream responses. Verified nanoBragg outbox unchanged since Dec 7 19:55.

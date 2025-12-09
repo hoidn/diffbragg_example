@@ -129,7 +129,7 @@
 ### [ARCH-REFACTOR-001] Refinement Engine Modularization & Physics Separation
 - **Governed by:** REFINE-001, ARCH-ENGINE-002, ARCH-ENGINE-003, ARCH-FACTORY-001, ARCH-FACTORY-003
 - Depends on: ARCH-REFINE-FLOW-001, ARCH-REFINE-001, ARCH-STAGE-CONTEXT-001
-- Status: **in_progress** (2025-12-09: ARCH-SIM-CONSTRUCTION-001 resolved — no simulator bug existed; Phases A-C complete, Phase D.3 Test Harness Migration in progress)
+- Status: **in_progress** (2025-12-09: Phase D.3 Test Harness Migration complete — 3 files migrated from facade to Engine; Phase D.5 Facade Deletion ready)
 - Priority: Highest
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-02
@@ -141,6 +141,7 @@
   5. Stage A/B/C smoketests and DB‑AT selectors pass using the Engine path; DiffBragg backend continues to pass its smoketests.
 - Working Plan: `plans/active/ARCH-REFACTOR-001/implementation.md`
 - Attempts History:
+  * 2025-12-09T060000Z (Loop i=249, Ralph) — **Phase D.3 complete.** Migrated 3 files from `run_nanobrag_refinement` facade to direct `RefinementEngine` usage: (1) `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub`, (2) `dbex/tools/stage_a_adam.py::run_engine_zero_point_probe`, (3) `tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_forward_only`. Test collection verified (8/8 tests collected). Pre-existing test failures due to 0% HKL hit rate with small detector geometry (unrelated to migration). Artifacts: `plans/active/ARCH-REFACTOR-001/reports/2025-12-09T060000Z/`.
   * 2025-12-04T120500Z — see docs/fix_plan_archive.md for details.
   * 2025-12-02T233717Z — see docs/fix_plan_archive.md for details.
   * ... (see docs/fix_plan_archive.md and plans/active/ARCH-REFACTOR-001/reports/ for full Attempts History and metrics).

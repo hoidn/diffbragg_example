@@ -760,9 +760,6 @@ def test_stage_a_expansion_incremental_ub(
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
     - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub
     """
-    from dbex.refinement.config import RefinementConfig
-    from dbex.nanobrag_refinement import run_nanobrag_refinement
-
     print(f"\n[test_stage_a_expansion_incremental_ub] detector={smoke_detector_size}")
 
     hkl_grid, hkl_metadata = hkl_data
@@ -795,17 +792,21 @@ def test_stage_a_expansion_incremental_ub(
     )
 
     # Run refinement with perturbed geometry and baseline crystal for misset extraction
-    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
-        inputs=refinement_inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
         crystal=perturbed_crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
-        baseline_crystal=baseline_crystal
+        baseline_crystal=baseline_crystal,
     )
+    stages = [StageA()]  # Stage A only (incremental UB parameterization)
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+    # Extract terminal Bragg from Stage A artifacts
+    bragg_refined = engine._artifacts["stage_a"].bragg_full
 
     # Extract Stage A telemetry
     assert "stage_a" in telemetry_dict, "Stage A telemetry missing"

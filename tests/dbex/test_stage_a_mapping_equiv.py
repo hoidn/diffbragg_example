@@ -188,10 +188,10 @@ def test_db_at_027_zero_point_forward_only():
     from dbex.tools.stage_a_adam import build_dataload
     from dbex.vis.mapping import build_mapping_stage_a_context
     from dbex.nanobrag_bridge import build_structure_factor_grid
-    from dbex.nanobrag_refinement import (
-        RefinementConfig,
-        run_nanobrag_refinement,
-    )
+    from dbex.refinement.config import RefinementConfig
+    from dbex.refinement.context import build_refinement_context
+    from dbex.refinement.engine import RefinementEngine
+    from dbex.refinement.stage_a import StageA
     from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
 
     repo_root = Path(__file__).resolve().parents[2]
@@ -239,17 +239,22 @@ def test_db_at_027_zero_point_forward_only():
     config.log_scale_baseline = log_scale_baseline
 
     # Run Stage A engine once to obtain telemetry at zero iterations
-    bragg_full, telemetry_dict, _ = run_nanobrag_refinement(
-        inputs=mapping_context.inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=mapping_context.inputs,
         detector=dataload.detector,
         beam=dataload.beam,
         crystal=dataload.crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
     )
+    stages = [StageA()]  # Stage A only (zero-iteration probe)
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+    # Extract terminal Bragg from Stage A artifacts
+    bragg_full = engine._artifacts["stage_a"].bragg_full
 
-    telemetry_a = telemetry_dict.get("A")
+    telemetry_a = telemetry_dict.get("stage_a")
     assert telemetry_a is not None, "Stage A telemetry missing in zero-point forward-only probe"
 
     # Force initial → final in telemetry so reconstruction uses zero deltas

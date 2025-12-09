@@ -1618,8 +1618,8 @@ def run_engine_zero_point_probe(
     """RefinementEngine zero-point probe (DB-AT-027).
 
     Reuses `build_mapping_stage_a_context` to construct mapping baseline,
-    then runs `run_nanobrag_refinement` with Stage A only, `max_iter=0`,
-    through the RefinementEngine path, and reconstructs `bragg_stagea_zero` via
+    then runs RefinementEngine with Stage A only, `max_iter=0`,
+    and reconstructs `bragg_stagea_zero` via
     `build_final_bragg_from_stage_a_telemetry` with initial params copied
     to final slots. Computes mean/max |Δ| + chi² stats, and returns them
     for comparison against DB-AT-027 tolerances.
@@ -1653,10 +1653,10 @@ def run_engine_zero_point_probe(
     # Lazy import torch (ARCH-ENGINE-002)
     import torch
     from dbex.nanobrag_bridge import build_structure_factor_grid
-    from dbex.nanobrag_refinement import (
-        RefinementConfig,
-        run_nanobrag_refinement,
-    )
+    from dbex.refinement.config import RefinementConfig
+    from dbex.refinement.context import build_refinement_context
+    from dbex.refinement.engine import RefinementEngine
+    from dbex.refinement.stage_a import StageA
     from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
     from dbex.vis.mapping import build_mapping_stage_a_context
 
@@ -1703,18 +1703,21 @@ def run_engine_zero_point_probe(
     config.log_scale_baseline = log_scale_baseline
 
     # Run RefinementEngine to capture telemetry
-    _, telemetry, _ = run_nanobrag_refinement(
-        inputs=context.inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=context.inputs,
         detector=dataload.detector,
         beam=dataload.beam,
         crystal=dataload.crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
     )
+    stages = [StageA()]  # Stage A only (zero-iteration probe)
+    engine = RefinementEngine(stages, config=config)
+    telemetry = engine.run({"context": refinement_context})
 
-    # Extract Stage A telemetry (keyed as "A" for backward compatibility)
-    telemetry_a = telemetry.get("A")
+    # Extract Stage A telemetry
+    telemetry_a = telemetry.get("stage_a")
     if telemetry_a is None:
         raise RuntimeError(f"RefinementEngine failed to produce Stage A telemetry. Keys: {list(telemetry.keys())}")
 

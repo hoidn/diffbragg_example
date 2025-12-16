@@ -1,19 +1,19 @@
 {
-  "iteration": 1,
+  "iteration": 2,
   "phase": "extraction",
   "scores": {
-    "coverage": 0,
-    "accuracy": 100,
-    "consistency": 100
+    "coverage": 18,
+    "accuracy": 95,
+    "consistency": 95
   },
   "inventory": {
     "total_modules": 47,
     "total_behaviors": 85,
-    "spec_statements": 0
+    "spec_statements": 58
   },
   "modules": {
     "dbex/refine_one.py": {
-      "status": "pending",
+      "status": "partial",
       "priority": 1,
       "public_functions": [
         "create_parser",
@@ -24,11 +24,11 @@
         "main"
       ],
       "behaviors_found": 12,
-      "behaviors_specified": 0,
-      "notes": "CLI entry point with backend dispatch, sigma resolution, triptych generation"
+      "behaviors_specified": 4,
+      "notes": "CLI entry point with backend dispatch. Sigma resolution specified in spec-db-core.md. Remaining: CLI args, backend dispatch, triptych generation."
     },
     "dbex/data_load.py": {
-      "status": "pending",
+      "status": "partial",
       "priority": 1,
       "public_functions": [
         "load_sigma_readout_map",
@@ -37,8 +37,19 @@
         "DataLoad._initialize_sigma_readout_map"
       ],
       "behaviors_found": 8,
-      "behaviors_specified": 0,
-      "notes": "Data ingestion: MTZ, DIALS experiment/reflections, sigma maps, trusted masks"
+      "behaviors_specified": 6,
+      "notes": "Data ingestion mostly specified in spec-db-core.md (sigma loading, mask validation, shape contracts). Remaining: MTZ loading, background estimation."
+    },
+    "dbex/physics/loss.py": {
+      "status": "partial",
+      "priority": 2,
+      "public_functions": [
+        "_compute_variance_weighted_loss",
+        "compute_masked_mse_loss"
+      ],
+      "behaviors_found": 3,
+      "behaviors_specified": 3,
+      "notes": "Variance model and chi-squared loss fully specified in spec-db-core.md. Minor accuracy issue: spec says masked_pixels=0 returns 0, but impl raises ValueError."
     },
     "dbex/refinement/context.py": {
       "status": "pending",
@@ -60,7 +71,7 @@
       ],
       "behaviors_found": 15,
       "behaviors_specified": 0,
-      "notes": "Typed context dataclasses for refinement stages"
+      "notes": "Typed context dataclasses for refinement stages - need spec-db-workflow.md"
     },
     "dbex/refinement/engine.py": {
       "status": "pending",
@@ -73,7 +84,7 @@
       ],
       "behaviors_found": 6,
       "behaviors_specified": 0,
-      "notes": "Protocol-based refinement engine executing ordered Stage objects"
+      "notes": "Protocol-based refinement engine - need spec-db-workflow.md"
     },
     "dbex/refinement/stage_a.py": {
       "status": "pending",
@@ -84,7 +95,7 @@
       ],
       "behaviors_found": 8,
       "behaviors_specified": 0,
-      "notes": "Stage A LBFGS crystal orientation refinement"
+      "notes": "Stage A LBFGS crystal orientation refinement - need spec-db-workflow.md"
     },
     "dbex/refinement/stage_b.py": {
       "status": "pending",
@@ -95,7 +106,7 @@
       ],
       "behaviors_found": 6,
       "behaviors_specified": 0,
-      "notes": "Stage B Fhkl shell modifiers"
+      "notes": "Stage B Fhkl shell modifiers - need spec-db-workflow.md"
     },
     "dbex/refinement/stage_c.py": {
       "status": "pending",
@@ -106,7 +117,7 @@
       ],
       "behaviors_found": 6,
       "behaviors_specified": 0,
-      "notes": "Stage C detector distance refinement"
+      "notes": "Stage C detector distance refinement - need spec-db-workflow.md"
     },
     "dbex/io/writer.py": {
       "status": "pending",
@@ -116,7 +127,7 @@
       ],
       "behaviors_found": 4,
       "behaviors_specified": 0,
-      "notes": "HDF5 writer with ROI scoring and telemetry serialization"
+      "notes": "HDF5 writer with ROI scoring - need spec-db-interfaces.md (output format)"
     },
     "dbex/physics/forward.py": {
       "status": "pending",
@@ -126,18 +137,7 @@
       ],
       "behaviors_found": 3,
       "behaviors_specified": 0,
-      "notes": "Forward simulation with gradient preservation for testing"
-    },
-    "dbex/physics/loss.py": {
-      "status": "pending",
-      "priority": 2,
-      "public_functions": [
-        "_compute_variance_weighted_loss",
-        "compute_masked_mse_loss"
-      ],
-      "behaviors_found": 3,
-      "behaviors_specified": 0,
-      "notes": "Variance-weighted chi-squared and MSE loss functions"
+      "notes": "Forward simulation - need spec-db-workflow.md (simulation stage)"
     },
     "dbex/nanobrag_bridge.py": {
       "status": "pending",
@@ -149,7 +149,7 @@
       ],
       "behaviors_found": 5,
       "behaviors_specified": 0,
-      "notes": "Bridge to nanobrag_torch: HKL grid, calibration, MTZ loading"
+      "notes": "Bridge to nanobrag_torch - need spec-db-interfaces.md (API surface)"
     },
     "dbex/refinement/config.py": {
       "status": "pending",
@@ -171,7 +171,7 @@
       ],
       "behaviors_found": 4,
       "behaviors_specified": 0,
-      "notes": "Config factories for detector, beam, crystal from dxtbx objects"
+      "notes": "Config factories - need spec-db-interfaces.md (factory contracts)"
     },
     "dbex/refinement/helpers.py": {
       "status": "pending",
@@ -181,30 +181,43 @@
       ],
       "behaviors_found": 3,
       "behaviors_specified": 0,
-      "notes": "Unified simulator factory with calibration threading"
+      "notes": "Unified simulator factory"
     }
   },
   "modules_done": [],
   "task": {
-    "summary": "Extract foundational data contracts into spec-db-core.md",
-    "modules": ["dbex/data_load.py", "dbex/refine_one.py"],
-    "shard": "spec-db-core.md",
-    "sections": ["Units and Conventions", "Core Data Types", "Validation Rules", "Error Conditions"],
-    "behaviors_expected": 12,
+    "summary": "Populate spec-db-workflow.md with refinement pipeline stages",
+    "modules": ["dbex/refinement/engine.py", "dbex/refinement/stage_a.py", "dbex/refinement/stage_b.py", "dbex/refinement/stage_c.py", "dbex/refinement/context.py"],
+    "shard": "spec-db-workflow.md",
+    "sections": ["Pipeline Overview", "Stage Definitions", "Data Flow Contracts", "Checkpointing"],
+    "behaviors_expected": 41,
     "files_to_read": [
-      {"path": "dbex/data_load.py", "lines": "all", "look_for": "DataLoad class: data shape [panel,slow,fast], trusted_mask polarity True=include, sigma_readout contracts (>0, finite, shape alignment)"},
-      {"path": "dbex/data_load.py", "lines": "L43-132", "look_for": "load_sigma_readout_map: file format dispatch (.npy/.npz/pickle), shape validation, strictly positive + finite guards"},
-      {"path": "dbex/refine_one.py", "lines": "L125-175", "look_for": "_resolve_sigma_readout: priority order, ValueError for <=0 or missing source"},
-      {"path": "dbex/refine_one.py", "lines": "L239-270", "look_for": "Variance model: V = max(I_model + sigma_rdout^2, sigma_floor^2)"}
+      {"path": "dbex/refinement/engine.py", "lines": "all", "look_for": "RefinementEngine protocol: stages list, run() method, telemetry/artifacts properties, stage ordering requirements"},
+      {"path": "dbex/refinement/stage_a.py", "lines": "all", "look_for": "StageA: LBFGS optimization, crystal orientation parameters (rotX/rotY/rotZ), loss function, convergence criteria"},
+      {"path": "dbex/refinement/stage_b.py", "lines": "all", "look_for": "StageB: Fhkl shell modifiers, resolution shell parameters, baseline metrics"},
+      {"path": "dbex/refinement/stage_c.py", "lines": "all", "look_for": "StageC: detector distance refinement, retargeting logic, distance parameters"},
+      {"path": "dbex/refinement/context.py", "lines": "all", "look_for": "RefinementContext fields, JobContext fields, StageXContext contracts, telemetry state dataclasses"}
     ],
     "checklist": [
-      "REPLACE template Units section with actual units: photon-count (unless ADU with gain), meters for distances, Angstroms for wavelength",
-      "REPLACE template Core Data Types with: data array shape [panel, slow, fast] contract, trusted_mask polarity (True=include), sigma_readout_map requirements",
-      "REPLACE template Validation Rules with: sigma_readout >0, sigma_readout finite, sigma_readout shape == data shape, trusted_mask True-fraction >=50% guard",
-      "REPLACE template Error Conditions with: ValueError for non-positive sigma, ValueError for NaN/Inf sigma, FileNotFoundError for missing sigma map, ValueError for inverted mask polarity",
-      "ADD Variance Model subsection: V = max(I_model + sigma_rdout^2, sigma_floor^2) with sigma_floor default = 1.0",
-      "Cross-reference spec-db-workflow.md for ADU vs photon calibration policy"
+      "REPLACE template Pipeline Overview with actual 5-stage pipeline: Ingestion → Prep → Stage A (crystal) → Stage B (Fhkl, optional) → Stage C (detector, optional) → Output",
+      "REPLACE template Stage 1 with Ingestion stage: DataLoad inputs (expt, refl, mtz, mask), outputs (data, background, trusted_mask, F)",
+      "REPLACE template Stage 2 with Prep stage: prepare_refinement_inputs, sigma resolution, ADU→photon conversion",
+      "ADD Stage A definition: LBFGS optimizer, crystal rotation parameters (rotX, rotY, rotZ in milliradians), chi-squared loss, max_iter/tolerance criteria",
+      "ADD Stage B definition (optional): Fhkl shell modifiers, resolution binning, scale factors per shell",
+      "ADD Stage C definition (optional): detector distance refinement, retargeting with updated geometry",
+      "ADD Data Flow Contracts table: Context → Stage A → Stage B → Stage C, artifacts passed between stages",
+      "ADD Stage ordering requirement: A MUST complete before B, B MUST complete before C",
+      "Cross-reference spec-db-core.md for variance model used in loss computation"
     ]
   },
-  "notes": "Iteration 1: Previous task (iteration 0) was NOT completed - spec shards still contain only template placeholders. Reissuing with more explicit checklist. The writer MUST replace template content with actual normative statements extracted from implementation. Focus on data contracts that are foundational for all other specs."
+  "accuracy_issues": [
+    {
+      "location": "spec-db-core.md line 190",
+      "claim": "When `masked_pixels = 0`, loss SHALL return `0` (not error)",
+      "actual": "compute_masked_mse_loss raises ValueError when mask has no valid pixels",
+      "severity": "minor",
+      "resolution": "Update spec to match implementation (ValueError is safer behavior)"
+    }
+  ],
+  "notes": "Iteration 2: spec-db-core.md successfully populated in iteration 1 with 58 normative statements. Coverage improved from 0% to 18% (15/85 behaviors specified). One minor accuracy issue found (masked_pixels=0 behavior). Next priority: spec-db-workflow.md to capture the refinement pipeline stages (41 behaviors across engine, stage_a/b/c, context modules). This will significantly boost coverage."
 }

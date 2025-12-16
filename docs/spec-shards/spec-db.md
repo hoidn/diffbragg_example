@@ -58,6 +58,22 @@ If implementation differs from spec, the spec is correct and implementation must
 
 ---
 
+## Established Terminology
+
+| Term | Definition | Canonical Shard |
+|------|------------|-----------------|
+| ImageData | Raw detector pixels shaped `[panel, slow, fast]` | `spec-db-core.md` §Core Data Types |
+| TrustedMask | Boolean mask with `True=include` polarity | `spec-db-core.md` §Core Data Types |
+| SigmaReadoutMap | Per-pixel calibrated readout noise tensor | `spec-db-core.md` §Core Data Types |
+| Variance Model | `V = max(I_model + σ_rdout², σ_floor²)` | `spec-db-core.md` §Fundamental Computations |
+| Chi-Squared Loss | `χ² = Σ[(I_model - I_obs)² / V]` over masked pixels | `spec-db-core.md` §Fundamental Computations |
+| ADU | Analog-to-Digital Units (raw detector output) | `spec-db-core.md` §Units |
+| adu_per_photon | Calibration gain for ADU→photon conversion | `spec-db-core.md` §Units |
+| sigma_rdout | Readout noise (scalar or per-pixel) | `spec-db-core.md` §Core Data Types |
+| sigma_floor | Variance floor guard (prevents infinite weights) | `spec-db-core.md` §Fundamental Computations |
+
+---
+
 ## Cross-References
 
 - **Architecture:** `docs/architecture/` — How specs are implemented

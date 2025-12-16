@@ -1,0 +1,209 @@
+{
+  "iteration": 0,
+  "phase": "extraction",
+  "scores": {
+    "coverage": 0,
+    "accuracy": 100,
+    "consistency": 100
+  },
+  "inventory": {
+    "total_modules": 47,
+    "total_behaviors": 85,
+    "spec_statements": 0
+  },
+  "modules": {
+    "dbex/refine_one.py": {
+      "status": "pending",
+      "priority": 1,
+      "public_functions": [
+        "create_parser",
+        "_resolve_sigma_readout",
+        "run_diffbragg_backend",
+        "run_nanobrag_backend",
+        "_generate_triptych_report",
+        "main"
+      ],
+      "behaviors_found": 12,
+      "behaviors_specified": 0,
+      "notes": "CLI entry point with backend dispatch, sigma resolution, triptych generation"
+    },
+    "dbex/data_load.py": {
+      "status": "pending",
+      "priority": 1,
+      "public_functions": [
+        "load_sigma_readout_map",
+        "_load_external_lookup_sigma_map",
+        "DataLoad.__init__",
+        "DataLoad._initialize_sigma_readout_map"
+      ],
+      "behaviors_found": 8,
+      "behaviors_specified": 0,
+      "notes": "Data ingestion: MTZ, DIALS experiment/reflections, sigma maps, trusted masks"
+    },
+    "dbex/refinement/context.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "RefinementContext",
+        "build_refinement_context",
+        "JobContext",
+        "build_job_context",
+        "RefinementSharedContext",
+        "StageATelemetryState",
+        "StageBTelemetryState",
+        "StageCTelemetryState",
+        "StageAROIEntry",
+        "StageAContext",
+        "StageCContext",
+        "StageAInputContext",
+        "StageBInputContext"
+      ],
+      "behaviors_found": 15,
+      "behaviors_specified": 0,
+      "notes": "Typed context dataclasses for refinement stages"
+    },
+    "dbex/refinement/engine.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "RefinementEngine.__init__",
+        "RefinementEngine.run",
+        "RefinementEngine.telemetry",
+        "RefinementEngine.artifacts"
+      ],
+      "behaviors_found": 6,
+      "behaviors_specified": 0,
+      "notes": "Protocol-based refinement engine executing ordered Stage objects"
+    },
+    "dbex/refinement/stage_a.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "StageA.configure",
+        "StageA.run"
+      ],
+      "behaviors_found": 8,
+      "behaviors_specified": 0,
+      "notes": "Stage A LBFGS crystal orientation refinement"
+    },
+    "dbex/refinement/stage_b.py": {
+      "status": "pending",
+      "priority": 3,
+      "public_functions": [
+        "StageB.configure",
+        "StageB.run"
+      ],
+      "behaviors_found": 6,
+      "behaviors_specified": 0,
+      "notes": "Stage B Fhkl shell modifiers"
+    },
+    "dbex/refinement/stage_c.py": {
+      "status": "pending",
+      "priority": 3,
+      "public_functions": [
+        "StageC.configure",
+        "StageC.run"
+      ],
+      "behaviors_found": 6,
+      "behaviors_specified": 0,
+      "notes": "Stage C detector distance refinement"
+    },
+    "dbex/io/writer.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "write_torch_outputs"
+      ],
+      "behaviors_found": 4,
+      "behaviors_specified": 0,
+      "notes": "HDF5 writer with ROI scoring and telemetry serialization"
+    },
+    "dbex/physics/forward.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "simulate_forward_torch"
+      ],
+      "behaviors_found": 3,
+      "behaviors_specified": 0,
+      "notes": "Forward simulation with gradient preservation for testing"
+    },
+    "dbex/physics/loss.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "_compute_variance_weighted_loss",
+        "compute_masked_mse_loss"
+      ],
+      "behaviors_found": 3,
+      "behaviors_specified": 0,
+      "notes": "Variance-weighted chi-squared and MSE loss functions"
+    },
+    "dbex/nanobrag_bridge.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "build_structure_factor_grid",
+        "load_calibration_metadata",
+        "load_refined_mtz"
+      ],
+      "behaviors_found": 5,
+      "behaviors_specified": 0,
+      "notes": "Bridge to nanobrag_torch: HKL grid, calibration, MTZ loading"
+    },
+    "dbex/refinement/config.py": {
+      "status": "pending",
+      "priority": 3,
+      "public_functions": [
+        "RefinementConfig"
+      ],
+      "behaviors_found": 2,
+      "behaviors_specified": 0,
+      "notes": "Refinement configuration dataclass"
+    },
+    "dbex/refinement/config_factories.py": {
+      "status": "pending",
+      "priority": 2,
+      "public_functions": [
+        "create_detector_config",
+        "create_beam_config",
+        "create_crystal_config"
+      ],
+      "behaviors_found": 4,
+      "behaviors_specified": 0,
+      "notes": "Config factories for detector, beam, crystal from dxtbx objects"
+    },
+    "dbex/refinement/helpers.py": {
+      "status": "pending",
+      "priority": 3,
+      "public_functions": [
+        "create_unified_simulator"
+      ],
+      "behaviors_found": 3,
+      "behaviors_specified": 0,
+      "notes": "Unified simulator factory with calibration threading"
+    }
+  },
+  "modules_done": [],
+  "task": {
+    "summary": "Extract core data contracts from data_load.py and refine_one.py",
+    "modules": ["dbex/data_load.py", "dbex/refine_one.py"],
+    "shard": "spec-db-core.md",
+    "sections": ["Units and Conventions", "Core Data Types", "Validation Rules"],
+    "behaviors_expected": 15,
+    "files_to_read": [
+      {"path": "dbex/data_load.py", "lines": "all", "look_for": "DataLoad class fields, sigma_readout contracts, trusted_mask polarity"},
+      {"path": "dbex/refine_one.py", "lines": "L1-200", "look_for": "CLI argument types, sigma_rdout constraints, backend dispatch"},
+      {"path": "dbex/refine_one.py", "lines": "L277-350", "look_for": "nanobrag backend input preparation and validation"}
+    ],
+    "checklist": [
+      "Unit system: ADU vs photon, meters/mm conventions",
+      "Data array shape contracts: [panel, slow, fast]",
+      "Trusted mask polarity: True=include semantics",
+      "Sigma_readout: strictly positive, finite, provenance tracking",
+      "Variance model: V = max(I_model + sigma_rdout^2, sigma_floor^2)",
+      "Error conditions: ValueError for invalid sigma, mask shape mismatch"
+    ]
+  },
+  "notes": "Iteration 0 complete. Implementation has ~47 modules with ~85 public behaviors. Starting extraction with Priority 1 (entry points) into spec-db-core.md. Focus on data contracts first since they are foundational for workflow and runtime specs."
+}

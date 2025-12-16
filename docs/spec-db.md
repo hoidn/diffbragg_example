@@ -1,20 +1,80 @@
-# DBEX + PyTorch Spec — Index (Spec DB)
+# Specification Database Index
 
-This index lists the normative specification shards for the DiffBragg/DBEX + PyTorch workflow. The shards together form the contract that implementations SHALL satisfy.
+<!--
+Central index for all normative specification shards.
+Specs use RFC-2119 keywords: SHALL, MUST, MUST NOT, SHOULD, MAY
+-->
 
-- spec-db-core.md — Core physics, geometry, units, data contracts (reflections/ROIs/masks), inputs/outputs.
-- spec-db-runtime.md — PyTorch runtime guardrails (vectorization, device/dtype, compile, env), determinism.
-- spec-db-workflow.md — End‑to‑end pipeline: ingestion → background → masking → calibration → simulation → loss → staging.
-- spec-db-interfaces.md — CLI/API surface and precedence rules.
-- spec-db-conformance.md — Acceptance tests (DB‑AT‑XXX) and parity profiles.
-- spec-db-tracing.md — Tracing/instrumentation and parity workflows.
-- spec-db-vis.md — Visual diagnostics standards and plot definitions.
+---
 
-Backend summary (informative)
-- diffbragg — Default backend (legacy); not Spec‑DB conformant (diagnostic only).
-- nanobrag — Non‑default; Spec‑DB conformance target (DB‑AT profiles) and SHALL be selected via `--backend nanobrag`.
+## Shard Inventory
 
-References (informative unless noted)
-- docs/config_crosswalk.md — Normative by reference for detector/beam/crystal/config mapping when cited from `spec-db-core.md` §Geometry Mapping.
-- docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md — API detail.
-- plans/nanobrag_integration_plan.md — Execution plan implementing this spec.
+| Shard | Focus | Status |
+|-------|-------|--------|
+| [spec-db-core.md](./spec-shards/spec-db-core.md) | Core domain: units, data contracts, fundamental requirements | Pending |
+| [spec-db-runtime.md](./spec-shards/spec-db-runtime.md) | Execution guardrails, environment, determinism | Pending |
+| [spec-db-workflow.md](./spec-shards/spec-db-workflow.md) | Pipeline stages, data flow, processing order | Pending |
+| [spec-db-interfaces.md](./spec-shards/spec-db-interfaces.md) | CLI/API surface, parameter precedence | Pending |
+| [spec-db-conformance.md](./spec-shards/spec-db-conformance.md) | Acceptance test definitions, thresholds | Pending |
+
+---
+
+## How to Use Specs
+
+### Reading Specs
+
+- **Normative sections** - Requirements that implementations MUST follow
+- **Informative sections** - Guidance, examples, rationale (not binding)
+- **RFC-2119 keywords:**
+  - `SHALL` / `MUST` - Required
+  - `MUST NOT` - Prohibited
+  - `SHOULD` - Recommended
+  - `MAY` - Optional
+
+### Citing Specs
+
+Use section citations: `` `spec-db-core.md` Section Name ``
+
+Example: "Per `spec-db-core.md` Units, all distances SHALL be in meters."
+
+### Spec Precedence
+
+During Bootstrap (extracting specs from implementation):
+```
+IMPLEMENTATION > TEMPLATES > EXISTING SPECS
+```
+
+After Bootstrap Complete:
+```
+SPECS > ARCHITECTURE DOCS > IMPLEMENTATION
+```
+
+---
+
+## Adding New Specs
+
+1. Create new shard file: `spec-shards/spec-db-[name].md`
+2. Follow template structure (see ~/Documents/project-templates/docs/spec-shards/)
+3. Mark sections as `(Normative)` or `(Informative)`
+4. Add to this index
+5. Cross-reference from related shards
+
+---
+
+## Cross-References
+
+- **Architecture:** `docs/architecture/` - How specs are implemented
+- **Contracts:** `docs/architecture/dbex/` - IDL-style API contracts
+- **Tests:** Acceptance tests validate spec conformance
+
+---
+
+## Bootstrap Status
+
+Phase: **Inventory** (iteration 0)
+State file: `sync/spec_bootstrap_state.json`
+
+Thresholds:
+- Coverage: 80%
+- Accuracy: 85%
+- Consistency: 90%

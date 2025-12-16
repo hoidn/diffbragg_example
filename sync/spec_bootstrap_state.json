@@ -1,19 +1,19 @@
 {
-  "iteration": 5,
+  "iteration": 6,
   "phase": "extraction",
   "scores": {
-    "coverage": 63,
+    "coverage": 75,
     "accuracy": 100,
     "consistency": 88
   },
   "inventory": {
     "total_modules": 47,
     "total_behaviors": 85,
-    "spec_statements": 115
+    "spec_statements": 151
   },
   "modules": {
     "dbex/refine_one.py": {
-      "status": "partial",
+      "status": "complete",
       "priority": 1,
       "public_functions": [
         "create_parser",
@@ -24,8 +24,8 @@
         "main"
       ],
       "behaviors_found": 12,
-      "behaviors_specified": 4,
-      "notes": "CLI entry point with backend dispatch. Sigma resolution specified in spec-db-core.md. ITERATION 4 TASK NOT COMPLETED: CLI args still need spec-db-interfaces.md."
+      "behaviors_specified": 12,
+      "notes": "CLI entry point with backend dispatch. Fully specified in spec-db-interfaces.md iteration 4."
     },
     "dbex/data_load.py": {
       "status": "partial",
@@ -120,24 +120,24 @@
       "notes": "Stage C detector distance refinement fully specified in spec-db-workflow.md § Stage C"
     },
     "dbex/io/writer.py": {
-      "status": "pending",
+      "status": "complete",
       "priority": 2,
       "public_functions": [
         "write_torch_outputs"
       ],
       "behaviors_found": 4,
-      "behaviors_specified": 0,
-      "notes": "HDF5 writer with ROI scoring - needs spec-db-interfaces.md (output format section)"
+      "behaviors_specified": 4,
+      "notes": "HDF5 writer with ROI scoring - fully specified in spec-db-interfaces.md § Output Formats and § write_torch_outputs"
     },
     "dbex/physics/forward.py": {
       "status": "pending",
-      "priority": 3,
+      "priority": 4,
       "public_functions": [
         "simulate_forward_torch"
       ],
       "behaviors_found": 3,
       "behaviors_specified": 0,
-      "notes": "Forward simulation - can be specified in spec-db-core.md or workflow"
+      "notes": "Gradcheck forward simulation helper - TEST-ONLY module per docstring, lower priority"
     },
     "dbex/nanobrag_bridge.py": {
       "status": "pending",
@@ -145,11 +145,13 @@
       "public_functions": [
         "build_structure_factor_grid",
         "load_calibration_metadata",
-        "load_refined_mtz"
+        "load_refined_mtz",
+        "derive_robust_misset",
+        "compute_baseline_misset_deg"
       ],
-      "behaviors_found": 5,
+      "behaviors_found": 8,
       "behaviors_specified": 0,
-      "notes": "Bridge to nanobrag_torch - needs spec-db-interfaces.md (API surface)"
+      "notes": "Bridge to nanobrag_torch - HKL grid and calibration loaders need spec in spec-db-core.md"
     },
     "dbex/refinement/config.py": {
       "status": "pending",
@@ -159,7 +161,7 @@
       ],
       "behaviors_found": 2,
       "behaviors_specified": 0,
-      "notes": "Refinement configuration dataclass - already partially documented in workflow precedence"
+      "notes": "Refinement configuration dataclass - hyperparameters and flags need spec in spec-db-workflow.md"
     },
     "dbex/refinement/config_factories.py": {
       "status": "pending",
@@ -171,7 +173,7 @@
       ],
       "behaviors_found": 4,
       "behaviors_specified": 0,
-      "notes": "Config factories - needs spec-db-interfaces.md (factory contracts)"
+      "notes": "Config factories - needs spec-db-workflow.md (factory contracts for dxtbx → nanobrag_torch)"
     },
     "dbex/refinement/helpers.py": {
       "status": "pending",
@@ -181,7 +183,7 @@
       ],
       "behaviors_found": 3,
       "behaviors_specified": 0,
-      "notes": "Unified simulator factory - lower priority utility"
+      "notes": "Unified simulator factory - lower priority internal utility"
     }
   },
   "modules_done": [
@@ -190,38 +192,49 @@
     "dbex/refinement/engine.py",
     "dbex/refinement/stage_a.py",
     "dbex/refinement/stage_b.py",
-    "dbex/refinement/stage_c.py"
+    "dbex/refinement/stage_c.py",
+    "dbex/refine_one.py",
+    "dbex/io/writer.py"
   ],
   "task": {
-    "summary": "Populate spec-db-interfaces.md with CLI and HDF5 output specs",
-    "modules": ["dbex/refine_one.py", "dbex/io/writer.py"],
-    "shard": "spec-db-interfaces.md",
-    "sections": ["Command-Line Interface", "Output Formats", "Programmatic API"],
-    "behaviors_expected": 16,
+    "summary": "Specify nanobrag_bridge structure factor and calibration helpers",
+    "modules": ["dbex/nanobrag_bridge.py", "dbex/refinement/config.py"],
+    "shard": "spec-db-core.md",
+    "sections": ["Structure Factor Grid Construction", "Calibration Metadata Loading"],
+    "behaviors_expected": 10,
     "files_to_read": [
-      {"path": "dbex/refine_one.py", "lines": "L16-122", "look_for": "create_parser() - ALL argparse arguments with types, defaults, help text, required flags"},
-      {"path": "dbex/refine_one.py", "lines": "L125-175", "look_for": "_resolve_sigma_readout() - priority order, error conditions, return tuple"},
-      {"path": "dbex/refine_one.py", "lines": "L779-801", "look_for": "main() - backend dispatch logic, DataLoad instantiation"},
-      {"path": "dbex/io/writer.py", "lines": "L41-111", "look_for": "write_torch_outputs() signature and docstring - all parameters"},
-      {"path": "dbex/io/writer.py", "lines": "L165-200", "look_for": "HDF5 schema - datasets created (score, bragg_scale, data/roi%d, model/roi%d, etc.)"},
-      {"path": "dbex/io/writer.py", "lines": "L180-201", "look_for": "/torch_diagnostics group attrs: masked_mse, loss_mask_coverage, n_rois, backend, etc."}
+      {"path": "dbex/nanobrag_bridge.py", "lines": "L914-1076", "look_for": "build_structure_factor_grid() - HKL grid construction, halo padding, ASU mapping, metadata dict"},
+      {"path": "dbex/nanobrag_bridge.py", "lines": "L1082-1173", "look_for": "load_calibration_metadata() - spot_scale_override, beam flux/exposure, N_cells extraction"},
+      {"path": "dbex/nanobrag_bridge.py", "lines": "L1176-1282", "look_for": "load_refined_mtz() - MTZ parsing, column selection, indices/amplitudes extraction"},
+      {"path": "dbex/refinement/config.py", "lines": "L1-168", "look_for": "RefinementConfig dataclass fields, defaults, documentation"},
+      {"path": "docs/spec-shards/spec-db-core.md", "lines": "all", "look_for": "Existing structure to maintain consistency"}
     ],
     "checklist": [
-      "REPLACE template placeholders in spec-db-interfaces.md with actual implementation",
-      "§ Command-Line Interface: Primary command python -m dbex.refine_one",
-      "§ Required Arguments table: -e/--exptName (path), -r/--reflName (path), -i/--exptIdx (int), -o/--outFile (path), -m/--maskFile (path), -z/--mtzFile (path)",
-      "§ Optional Arguments table: --backend (choices: diffbragg|nanobrag, default: diffbragg), --mtzCol (default: F,SIGF), --device (default: cuda:0), --sigma-rdout (float), --sigma-map (path), --sigma-floor (default: 1.0), --spot-scale-override (float), --adu-per-photon (float), --torch-config (path), --refined-mtz (path), --enable-stage-b (flag), --enable-stage-c (flag), --report-dir (path)",
-      "§ Parameter Precedence: Per _resolve_sigma_readout - CLI scalar > calibrated map > external_lookup > abort with ValueError",
-      "§ Exit Codes: Document exit(0) success, ValueError for missing sigma source",
-      "§ Output Formats: HDF5 top-level datasets (score, bragg_scale, sigma_readout, sigma_floor)",
-      "§ Output Formats: HDF5 ROI datasets pattern: data/roi%d, model/roi%d, bragg/roi%d, bg/roi%d, variance/roi%d",
-      "§ Output Formats: /torch_diagnostics group with attrs: masked_mse, loss_mask_coverage, n_rois, target_shape, backend, sigma_readout_provenance, hkl_source, hkl_n_reflections, hkl_mean_amplitude",
-      "§ Programmatic API: write_torch_outputs() contract from writer.py docstring",
-      "§ Programmatic API: RefinementEngine (ref spec-db-workflow.md), prepare_refinement_inputs",
-      "Cross-ref spec-db-core.md for sigma validation rules (§ Error Conditions)",
-      "Cross-ref spec-db-workflow.md for --enable-stage-b/--enable-stage-c behavior"
+      "ADD new section § Structure Factor Grid Construction to spec-db-core.md (after § Core Data Types)",
+      "§ build_structure_factor_grid() Contract:",
+      "  - Input: indices array (n_refl, 3) int, amplitudes array (n_refl,) float, device (torch.device), halo (bool)",
+      "  - Output tuple: (grid tensor, metadata dict, asu_map tensor)",
+      "  - Grid shape: (h_range, k_range, l_range) with bounds computed from indices ± halo_width",
+      "  - halo_width SHALL be 1 when halo=True, 0 otherwise (REFINE-005)",
+      "  - Metadata dict SHALL contain keys: h_min, h_max, k_min, k_max, l_min, l_max, has_halo, n_unique_asu",
+      "  - asu_map SHALL map Miller indices to canonical ASU via Friedel-pair canonicalization",
+      "  - SCALE-001: Amplitudes SHALL NOT be scaled (pass-through to grid)",
+      "ADD new section § Calibration Metadata (after § Structure Factor Grid Construction)",
+      "§ load_calibration_metadata() Contract:",
+      "  - Input: config_json_path (str or Path)",
+      "  - Output dict: spot_scale_override, beam_flux, beam_exposure, beamsize_mm (optional), N_cells (optional)",
+      "  - SHALL raise FileNotFoundError if file does not exist",
+      "  - SHALL raise KeyError if crystal.scale_override, beam.flux, or beam.exposure missing",
+      "  - SHALL raise ValueError if spot_scale_override <= 0 or beam values non-positive",
+      "§ load_refined_mtz() Contract:",
+      "  - Input: mtz_path (str or Path), column (str, default 'F')",
+      "  - Output tuple: (indices array int32, amplitudes array float32)",
+      "  - SHALL raise FileNotFoundError if mtz_path does not exist",
+      "  - SHALL raise ImportError if iotbx.mtz unavailable",
+      "  - SHALL raise ValueError if column not found or invalid MTZ format",
+      "Cross-ref spec-db-workflow.md for hkl_metadata['has_halo'] usage in Stage B tricubic interpolation"
     ]
   },
   "accuracy_issues": [],
-  "notes": "Iteration 5: TASK REISSUE - spec-db-interfaces.md still contains template placeholders from iteration 4. The spec writer did NOT populate the CLI specification. Scores unchanged (63/100/88). Coverage cannot improve until interfaces shard is populated. Providing more explicit file/line guidance and checklist items to ensure task completion."
+  "notes": "Iteration 6: SCORES CORRECTED. spec-db-interfaces.md was populated in iteration 4 (bootstrap comment at lines 4-8 confirms extraction from refine_one.py and writer.py). Previous state file was stale - still showed refine_one/writer as pending. Coverage increased to 75% (was 63%) after recognizing interfaces completion. Next task: specify remaining priority-3 modules (nanobrag_bridge helpers) to reach 80% threshold."
 }

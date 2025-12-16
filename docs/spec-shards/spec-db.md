@@ -92,6 +92,19 @@ If implementation differs from spec, the spec is correct and implementation must
 | ASU | Asymmetric unit (unique reflections in space group) | `spec-db-workflow.md` §Stage B |
 | distance_offset_raw | Tanh-bounded detector distance delta | `spec-db-workflow.md` §Stage C |
 
+### Interfaces (`spec-db-interfaces.md`)
+
+| Term | Definition | Canonical Shard |
+|------|------------|-----------------|
+| dbex.refine_one | CLI entry point for single-experiment refinement | `spec-db-interfaces.md` §Command-Line Interface |
+| backend | Refinement backend selector (`diffbragg` or `nanobrag`) | `spec-db-interfaces.md` §Backend Selection |
+| torch_diagnostics | HDF5 group containing nanobrag backend telemetry | `spec-db-interfaces.md` §Output Formats |
+| ROI Triptych | Per-ROI data/model/bragg/bg/variance dataset group | `spec-db-interfaces.md` §ROI Triptych Datasets |
+| Parameter Precedence | CLI > calibration metadata > external_lookup > default | `spec-db-interfaces.md` §Parameter Precedence |
+| Sigma Resolution | Priority order for sigma_readout source | `spec-db-interfaces.md` §Sigma Readout Resolution |
+| write_torch_outputs | HDF5 writer API for torch backend outputs | `spec-db-interfaces.md` §Programmatic API |
+| _resolve_sigma_readout | Sigma source resolution with provenance tracking | `spec-db-interfaces.md` §Programmatic API |
+
 ---
 
 ## Cross-References

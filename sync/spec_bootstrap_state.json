@@ -1,5 +1,5 @@
 {
-  "iteration": 0,
+  "iteration": 1,
   "phase": "extraction",
   "scores": {
     "coverage": 0,
@@ -186,24 +186,25 @@
   },
   "modules_done": [],
   "task": {
-    "summary": "Extract core data contracts from data_load.py and refine_one.py",
+    "summary": "Extract foundational data contracts into spec-db-core.md",
     "modules": ["dbex/data_load.py", "dbex/refine_one.py"],
     "shard": "spec-db-core.md",
-    "sections": ["Units and Conventions", "Core Data Types", "Validation Rules"],
-    "behaviors_expected": 15,
+    "sections": ["Units and Conventions", "Core Data Types", "Validation Rules", "Error Conditions"],
+    "behaviors_expected": 12,
     "files_to_read": [
-      {"path": "dbex/data_load.py", "lines": "all", "look_for": "DataLoad class fields, sigma_readout contracts, trusted_mask polarity"},
-      {"path": "dbex/refine_one.py", "lines": "L1-200", "look_for": "CLI argument types, sigma_rdout constraints, backend dispatch"},
-      {"path": "dbex/refine_one.py", "lines": "L277-350", "look_for": "nanobrag backend input preparation and validation"}
+      {"path": "dbex/data_load.py", "lines": "all", "look_for": "DataLoad class: data shape [panel,slow,fast], trusted_mask polarity True=include, sigma_readout contracts (>0, finite, shape alignment)"},
+      {"path": "dbex/data_load.py", "lines": "L43-132", "look_for": "load_sigma_readout_map: file format dispatch (.npy/.npz/pickle), shape validation, strictly positive + finite guards"},
+      {"path": "dbex/refine_one.py", "lines": "L125-175", "look_for": "_resolve_sigma_readout: priority order, ValueError for <=0 or missing source"},
+      {"path": "dbex/refine_one.py", "lines": "L239-270", "look_for": "Variance model: V = max(I_model + sigma_rdout^2, sigma_floor^2)"}
     ],
     "checklist": [
-      "Unit system: ADU vs photon, meters/mm conventions",
-      "Data array shape contracts: [panel, slow, fast]",
-      "Trusted mask polarity: True=include semantics",
-      "Sigma_readout: strictly positive, finite, provenance tracking",
-      "Variance model: V = max(I_model + sigma_rdout^2, sigma_floor^2)",
-      "Error conditions: ValueError for invalid sigma, mask shape mismatch"
+      "REPLACE template Units section with actual units: photon-count (unless ADU with gain), meters for distances, Angstroms for wavelength",
+      "REPLACE template Core Data Types with: data array shape [panel, slow, fast] contract, trusted_mask polarity (True=include), sigma_readout_map requirements",
+      "REPLACE template Validation Rules with: sigma_readout >0, sigma_readout finite, sigma_readout shape == data shape, trusted_mask True-fraction >=50% guard",
+      "REPLACE template Error Conditions with: ValueError for non-positive sigma, ValueError for NaN/Inf sigma, FileNotFoundError for missing sigma map, ValueError for inverted mask polarity",
+      "ADD Variance Model subsection: V = max(I_model + sigma_rdout^2, sigma_floor^2) with sigma_floor default = 1.0",
+      "Cross-reference spec-db-workflow.md for ADU vs photon calibration policy"
     ]
   },
-  "notes": "Iteration 0 complete. Implementation has ~47 modules with ~85 public behaviors. Starting extraction with Priority 1 (entry points) into spec-db-core.md. Focus on data contracts first since they are foundational for workflow and runtime specs."
+  "notes": "Iteration 1: Previous task (iteration 0) was NOT completed - spec shards still contain only template placeholders. Reissuing with more explicit checklist. The writer MUST replace template content with actual normative statements extracted from implementation. Focus on data contracts that are foundational for all other specs."
 }

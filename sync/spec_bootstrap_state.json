@@ -1,5 +1,5 @@
 {
-  "iteration": 2,
+  "iteration": 3,
   "phase": "extraction",
   "scores": {
     "coverage": 18,
@@ -41,7 +41,7 @@
       "notes": "Data ingestion mostly specified in spec-db-core.md (sigma loading, mask validation, shape contracts). Remaining: MTZ loading, background estimation."
     },
     "dbex/physics/loss.py": {
-      "status": "partial",
+      "status": "complete",
       "priority": 2,
       "public_functions": [
         "_compute_variance_weighted_loss",
@@ -49,7 +49,7 @@
       ],
       "behaviors_found": 3,
       "behaviors_specified": 3,
-      "notes": "Variance model and chi-squared loss fully specified in spec-db-core.md. Minor accuracy issue: spec says masked_pixels=0 returns 0, but impl raises ValueError."
+      "notes": "Variance model and chi-squared loss fully specified in spec-db-core.md. One accuracy issue remains: spec says masked_pixels=0 returns 0, but impl raises ValueError."
     },
     "dbex/refinement/context.py": {
       "status": "pending",
@@ -186,28 +186,30 @@
   },
   "modules_done": [],
   "task": {
-    "summary": "Populate spec-db-workflow.md with refinement pipeline stages",
+    "summary": "Populate spec-db-workflow.md with refinement pipeline stages (RETRY)",
     "modules": ["dbex/refinement/engine.py", "dbex/refinement/stage_a.py", "dbex/refinement/stage_b.py", "dbex/refinement/stage_c.py", "dbex/refinement/context.py"],
     "shard": "spec-db-workflow.md",
     "sections": ["Pipeline Overview", "Stage Definitions", "Data Flow Contracts", "Checkpointing"],
     "behaviors_expected": 41,
     "files_to_read": [
       {"path": "dbex/refinement/engine.py", "lines": "all", "look_for": "RefinementEngine protocol: stages list, run() method, telemetry/artifacts properties, stage ordering requirements"},
-      {"path": "dbex/refinement/stage_a.py", "lines": "all", "look_for": "StageA: LBFGS optimization, crystal orientation parameters (rotX/rotY/rotZ), loss function, convergence criteria"},
-      {"path": "dbex/refinement/stage_b.py", "lines": "all", "look_for": "StageB: Fhkl shell modifiers, resolution shell parameters, baseline metrics"},
-      {"path": "dbex/refinement/stage_c.py", "lines": "all", "look_for": "StageC: detector distance refinement, retargeting logic, distance parameters"},
+      {"path": "dbex/refinement/stage_a.py", "lines": "L1-150", "look_for": "StageA: LBFGS optimization, crystal orientation parameters (rotX/rotY/rotZ), loss function, convergence criteria"},
+      {"path": "dbex/refinement/stage_b.py", "lines": "L1-150", "look_for": "StageB: Fhkl shell modifiers, resolution shell parameters, baseline metrics"},
+      {"path": "dbex/refinement/stage_c.py", "lines": "L1-150", "look_for": "StageC: detector distance refinement, retargeting logic, distance parameters"},
       {"path": "dbex/refinement/context.py", "lines": "all", "look_for": "RefinementContext fields, JobContext fields, StageXContext contracts, telemetry state dataclasses"}
     ],
     "checklist": [
-      "REPLACE template Pipeline Overview with actual 5-stage pipeline: Ingestion → Prep → Stage A (crystal) → Stage B (Fhkl, optional) → Stage C (detector, optional) → Output",
+      "REPLACE template Pipeline Overview diagram with actual 5-stage pipeline: Ingestion → Prep → Stage A (crystal) → Stage B (Fhkl, optional) → Stage C (detector, optional) → Output",
       "REPLACE template Stage 1 with Ingestion stage: DataLoad inputs (expt, refl, mtz, mask), outputs (data, background, trusted_mask, F)",
-      "REPLACE template Stage 2 with Prep stage: prepare_refinement_inputs, sigma resolution, ADU→photon conversion",
-      "ADD Stage A definition: LBFGS optimizer, crystal rotation parameters (rotX, rotY, rotZ in milliradians), chi-squared loss, max_iter/tolerance criteria",
-      "ADD Stage B definition (optional): Fhkl shell modifiers, resolution binning, scale factors per shell",
-      "ADD Stage C definition (optional): detector distance refinement, retargeting with updated geometry",
-      "ADD Data Flow Contracts table: Context → Stage A → Stage B → Stage C, artifacts passed between stages",
-      "ADD Stage ordering requirement: A MUST complete before B, B MUST complete before C",
-      "Cross-reference spec-db-core.md for variance model used in loss computation"
+      "REPLACE template Stage 2 with Prep stage: build_refinement_context, sigma resolution, ADU→photon conversion",
+      "ADD Stage A definition with normative requirements: RefinementStage protocol, LBFGS optimizer, parameters (log_scale, log_cell_*_delta, angle_*_raw, orientation_vec), chi-squared loss with detached variance, max_iter/tolerance criteria",
+      "ADD Stage B definition (optional): RefinementStage protocol, shell_modifier_raw parameters, resolution shell binning, scale factors per shell, freezes Stage A parameters",
+      "ADD Stage C definition (optional): RefinementStage protocol, detector distance refinement via distance_offset_raw, retargeting with Stage A context, freezes Stage A/B parameters",
+      "ADD Data Flow Contracts table: RefinementContext → Stage A → Stage B → Stage C, with fields passed (stage_a_telemetry, stage_a_ctx, etc.)",
+      "ADD RefinementEngine contract: accepts ordered list of RefinementStage objects, MUST NOT hardcode A→B→C flow, aggregates telemetry into Dict[str, RefinementTelemetry]",
+      "ADD Stage ordering requirement: A MUST complete before B (needs stage_a_telemetry), B MUST complete before C (optional dependency)",
+      "Cross-reference spec-db-core.md for variance model used in loss computation",
+      "FIX accuracy issue: Update spec-db-core.md line 190 to say 'When masked_pixels = 0, loss SHALL raise ValueError' (matches implementation)"
     ]
   },
   "accuracy_issues": [
@@ -216,8 +218,9 @@
       "claim": "When `masked_pixels = 0`, loss SHALL return `0` (not error)",
       "actual": "compute_masked_mse_loss raises ValueError when mask has no valid pixels",
       "severity": "minor",
-      "resolution": "Update spec to match implementation (ValueError is safer behavior)"
+      "resolution": "Update spec to match implementation (ValueError is safer behavior)",
+      "status": "pending"
     }
   ],
-  "notes": "Iteration 2: spec-db-core.md successfully populated in iteration 1 with 58 normative statements. Coverage improved from 0% to 18% (15/85 behaviors specified). One minor accuracy issue found (masked_pixels=0 behavior). Next priority: spec-db-workflow.md to capture the refinement pipeline stages (41 behaviors across engine, stage_a/b/c, context modules). This will significantly boost coverage."
+  "notes": "Iteration 3: spec-db-workflow.md task from iteration 2 was NOT completed - file remains a template. Retrying with expanded checklist. Added accuracy fix item to checklist. Coverage stalled at 18% (15/85 behaviors). Accuracy issue still pending (masked_pixels=0 behavior). Next iteration must populate workflow shard to make progress on coverage."
 }

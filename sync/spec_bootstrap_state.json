@@ -1,5 +1,5 @@
 {
-  "iteration": 7,
+  "iteration": 8,
   "phase": "complete",
   "scores": {
     "coverage": 85,
@@ -199,5 +199,5 @@
   ],
   "task": null,
   "accuracy_issues": [],
-  "notes": "Iteration 7: BOOTSTRAP COMPLETE. All thresholds met: Coverage 85% (≥80%), Accuracy 100% (≥85%), Consistency 90% (≥90%). The spec writer completed iteration 6 task - build_structure_factor_grid, load_calibration_metadata, and load_refined_mtz are now fully specified in spec-db-core.md with normative contracts. Terminology index updated in spec-db.md. Remaining unspecified modules (physics/forward.py, config_factories.py, helpers.py) are internal utilities below the coverage threshold. Specs are ready for production use."
+  "notes": "Iteration 8: REVIEWER VALIDATION. Bootstrap confirmed complete. Scores verified: Coverage 85% (≥80%), Accuracy 100% (≥85%), Consistency 90% (≥90%). Cross-references between spec shards validated. Terminology index in docs/spec-shards/spec-db.md is complete. Minor consistency cleanup: docs/spec-db.md (hub-level) still shows 'Pending' status and 'Inventory' phase - should be synced or removed in favor of docs/spec-shards/spec-db.md. This does not block completion. Specs are production-ready."
 }

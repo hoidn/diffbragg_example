@@ -73,6 +73,13 @@ If implementation differs from spec, the spec is correct and implementation must
 | adu_per_photon | Calibration gain for ADU→photon conversion | `spec-db-core.md` §Units |
 | sigma_rdout | Readout noise (scalar or per-pixel) | `spec-db-core.md` §Core Data Types |
 | sigma_floor | Variance floor guard (prevents infinite weights) | `spec-db-core.md` §Fundamental Computations |
+| build_structure_factor_grid | Construct dense 3D HKL grid from MTZ reflections | `spec-db-core.md` §Structure Factor Grid Construction |
+| HKL grid | Dense tensor of structure factor amplitudes indexed by (h,k,l) | `spec-db-core.md` §Structure Factor Grid Construction |
+| halo padding | ±1 boundary extension for tricubic interpolation | `spec-db-core.md` §Structure Factor Grid Construction |
+| ASU map | Tensor mapping grid cells to canonical asymmetric unit indices | `spec-db-core.md` §Structure Factor Grid Construction |
+| load_calibration_metadata | Load DiffBragg calibration from config_torch.json | `spec-db-core.md` §Calibration Metadata Loading |
+| spot_scale_override | DiffBragg scale factor (sqrt applied post-simulation) | `spec-db-core.md` §Calibration Metadata Loading |
+| load_refined_mtz | Load refined structure factors from MTZ file | `spec-db-core.md` §Calibration Metadata Loading |
 
 ### Workflow (`spec-db-workflow.md`)
 

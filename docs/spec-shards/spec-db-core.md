@@ -245,6 +245,164 @@ V = max(I_model + σ_readout², σ_floor²)
 
 ---
 
+## Structure Factor Grid Construction (Normative)
+
+### build_structure_factor_grid
+
+**Purpose:** Construct a dense 3D HKL grid and ASU mapping from MTZ reflections for nanobrag_torch simulation.
+
+**Signature:**
+```python
+build_structure_factor_grid(indices, amplitudes, device=None, halo=False) -> Tuple[torch.Tensor, Dict, torch.Tensor]
+```
+
+**Inputs:**
+
+| Parameter | Type | Contract |
+|-----------|------|----------|
+| `indices` | `array-like` | Shape SHALL be `(n_reflections, 3)`. Dtype SHALL be `int`. Miller indices `(h, k, l)`. |
+| `amplitudes` | `array-like` | Shape SHALL be `(n_reflections,)`. Dtype SHALL be `float`. Structure factor amplitudes `\|F\|`. |
+| `device` | `torch.device` or `None` | Optional. Defaults to `torch.device('cpu')` when `None`. |
+| `halo` | `bool` | Optional. Default `False`. When `True`, adds ±1 padding to each axis for tricubic interpolation (REFINE-005). |
+
+**Output:**
+Returns a tuple `(grid, metadata, asu_map)`:
+
+| Element | Type | Contract |
+|---------|------|----------|
+| `grid` | `torch.Tensor` | Shape `[h_range, k_range, l_range]`. Dtype `float32`. Dense grid of structure factor amplitudes. |
+| `metadata` | `dict` | Grid bounds and statistics (see table below). |
+| `asu_map` | `torch.Tensor` | Shape same as `grid`. Dtype `int32`. ASU index per voxel; `-1` for unpopulated cells. |
+
+**Metadata Dict Fields:**
+
+| Key | Type | Contract |
+|-----|------|----------|
+| `h_min`, `h_max` | `int` | HKL bounds along h-axis (including halo if enabled). |
+| `k_min`, `k_max` | `int` | HKL bounds along k-axis (including halo if enabled). |
+| `l_min`, `l_max` | `int` | HKL bounds along l-axis (including halo if enabled). |
+| `h_range`, `k_range`, `l_range` | `int` | Grid dimensions (h_max - h_min + 1, etc.). |
+| `n_reflections` | `int` | Total input reflections. |
+| `n_in_range` | `int` | Reflections mapped into grid. |
+| `in_range_fraction` | `float` | Fraction of reflections in range `[0.0, 1.0]`. |
+| `grid_nonzero` | `int` | Count of non-zero grid cells. |
+| `grid_min`, `grid_max`, `grid_mean` | `float` | Grid amplitude statistics. |
+| `has_halo` | `bool` | Whether halo padding was applied (REFINE-005). |
+| `n_unique_asu` | `int` | Number of unique ASU indices assigned. |
+
+**Behavior:**
+
+1. Grid bounds SHALL be computed from min/max of input `indices` along each axis.
+2. When `halo=True`, grid bounds SHALL be extended by ±1 on each axis (REFINE-005, TORCH-REFINE-002D).
+3. Halo cells SHALL be initialized to zero (default_F fallback prevention).
+4. Per SCALE-001: Amplitudes SHALL NOT be scaled by `spot_scale_override`. Scaling is applied post-simulation per SCALE-002.
+5. ASU mapping uses Friedel-pair canonicalization: `(h,k,l)` maps to `(h,k,l)` or `(-h,-k,-l)` deterministically.
+
+**Error Conditions:**
+
+| Condition | Behavior |
+|-----------|----------|
+| `torch` not importable | SHALL raise `ImportError` with message containing "torch is required" |
+
+**Cross-References:**
+- `spec-db-workflow.md` §Stage B: `metadata['has_halo']` controls tricubic interpolation behavior.
+- SCALE-001, SCALE-002: Structure factor scaling policy.
+- REFINE-005, TORCH-REFINE-002D: Halo padding for boundary interpolation.
+
+---
+
+## Calibration Metadata Loading (Normative)
+
+### load_calibration_metadata
+
+**Purpose:** Load DiffBragg calibration metadata from config_torch.json for intensity alignment.
+
+**Signature:**
+```python
+load_calibration_metadata(config_json_path) -> Dict[str, Any]
+```
+
+**Input:**
+
+| Parameter | Type | Contract |
+|-----------|------|----------|
+| `config_json_path` | `str` or `Path` | Path to `config_torch.json`. File SHALL exist. |
+
+**Output:**
+
+| Key | Type | Contract |
+|-----|------|----------|
+| `spot_scale_override` | `float` | DiffBragg scale factor. SHALL be `> 0`. Per SCALE-002, `sqrt(spot_scale_override)` is applied post-simulation. |
+| `beam_flux` | `float` | Beam flux in photons/s. SHALL be `> 0`. |
+| `beam_exposure` | `float` | Exposure time in seconds. SHALL be `> 0`. |
+| `beamsize_mm` | `float` or `None` | Beam size in mm. Optional; `None` when not present in config. |
+| `N_cells` | `tuple[int, int, int]` or `None` | Crystal mosaic domain counts. Optional; `None` when not present. |
+
+**Error Conditions:**
+
+| Condition | Behavior |
+|-----------|----------|
+| File does not exist | SHALL raise `FileNotFoundError` with path and expected format |
+| `crystal.scale_override` missing | SHALL raise `KeyError` with path and "scale_override" |
+| `beam.flux` or `beam.exposure` missing | SHALL raise `KeyError` with path and missing field |
+| `spot_scale_override <= 0` | SHALL raise `ValueError` with actual value and "must be positive" |
+| `beam_flux <= 0` or `beam_exposure <= 0` | SHALL raise `ValueError` with actual values |
+| `N_cells` present but length ≠ 3 | SHALL raise `ValueError` with actual length |
+
+**Cross-References:**
+- SCALE-002: Post-simulation sqrt(spot_scale_override) application.
+- `spec-db-interfaces.md` §Calibration Configuration: `--torch-config` CLI parameter.
+
+---
+
+### load_refined_mtz
+
+**Purpose:** Load refined structure factors from DiffBragg-refined MTZ file.
+
+**Signature:**
+```python
+load_refined_mtz(mtz_path, column="F") -> Tuple[np.ndarray, np.ndarray]
+```
+
+**Inputs:**
+
+| Parameter | Type | Contract |
+|-----------|------|----------|
+| `mtz_path` | `str` or `Path` | Path to refined MTZ file. File SHALL exist. |
+| `column` | `str` | MTZ column label for amplitude data. Default `"F"`. |
+
+**Output:**
+Returns a tuple `(indices, amplitudes)`:
+
+| Element | Type | Contract |
+|---------|------|----------|
+| `indices` | `np.ndarray` | Shape `(n_reflections, 3)`. Dtype `int32`. Miller indices. |
+| `amplitudes` | `np.ndarray` | Shape `(n_reflections,)`. Dtype `float32`. Refined `\|F\|` values. |
+
+**Behavior:**
+
+1. Per SCALE-001: Amplitudes SHALL NOT be scaled (pass-through).
+2. MTZ parsing uses `iotbx.mtz` to extract Miller arrays.
+3. Column matching searches for label containing `column` with type hint `"amplitude"`.
+4. Returns CPU numpy arrays (device-neutral per runtime checklist).
+
+**Error Conditions:**
+
+| Condition | Behavior |
+|-----------|----------|
+| File does not exist | SHALL raise `FileNotFoundError` with path |
+| `iotbx.mtz` not importable | SHALL raise `ImportError` with import error |
+| MTZ parsing fails | SHALL raise `ValueError` with path and parse error |
+| Column not found | SHALL raise `ValueError` listing available arrays |
+| Indices shape ≠ `(n, 3)` | SHALL raise `ValueError` with actual shape |
+| Amplitudes length ≠ indices length | SHALL raise `ValueError` with both shapes |
+
+**Cross-References:**
+- SCALE-003, SCALE-004: Refined MTZ for parity testing.
+- `spec-db-interfaces.md` §Refined MTZ Enforcement: `--refined-mtz` fail-fast behavior.
+
+---
+
 ## References (Informative)
 
 - DIALS documentation: trusted mask polarity convention

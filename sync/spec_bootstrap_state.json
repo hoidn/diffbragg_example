@@ -1,5 +1,5 @@
 {
-  "iteration": 8,
+  "iteration": 9,
   "phase": "complete",
   "scores": {
     "coverage": 85,
@@ -71,7 +71,7 @@
       ],
       "behaviors_found": 15,
       "behaviors_specified": 15,
-      "notes": "Typed context dataclasses fully specified in spec-db-workflow.md § Context Types"
+      "notes": "Typed context dataclasses fully specified in spec-db-workflow.md section Context Types"
     },
     "dbex/refinement/engine.py": {
       "status": "complete",
@@ -84,7 +84,7 @@
       ],
       "behaviors_found": 6,
       "behaviors_specified": 6,
-      "notes": "Protocol-based refinement engine fully specified in spec-db-workflow.md § Engine Contract"
+      "notes": "Protocol-based refinement engine fully specified in spec-db-workflow.md section Engine Contract"
     },
     "dbex/refinement/stage_a.py": {
       "status": "complete",
@@ -95,7 +95,7 @@
       ],
       "behaviors_found": 8,
       "behaviors_specified": 8,
-      "notes": "Stage A LBFGS crystal orientation refinement fully specified in spec-db-workflow.md § Stage A"
+      "notes": "Stage A LBFGS crystal orientation refinement fully specified in spec-db-workflow.md section Stage A"
     },
     "dbex/refinement/stage_b.py": {
       "status": "complete",
@@ -106,7 +106,7 @@
       ],
       "behaviors_found": 6,
       "behaviors_specified": 6,
-      "notes": "Stage B Fhkl shell modifiers fully specified in spec-db-workflow.md § Stage B"
+      "notes": "Stage B Fhkl shell modifiers fully specified in spec-db-workflow.md section Stage B"
     },
     "dbex/refinement/stage_c.py": {
       "status": "complete",
@@ -117,7 +117,7 @@
       ],
       "behaviors_found": 6,
       "behaviors_specified": 6,
-      "notes": "Stage C detector distance refinement fully specified in spec-db-workflow.md § Stage C"
+      "notes": "Stage C detector distance refinement fully specified in spec-db-workflow.md section Stage C"
     },
     "dbex/io/writer.py": {
       "status": "complete",
@@ -127,7 +127,7 @@
       ],
       "behaviors_found": 4,
       "behaviors_specified": 4,
-      "notes": "HDF5 writer with ROI scoring - fully specified in spec-db-interfaces.md § Output Formats and § write_torch_outputs"
+      "notes": "HDF5 writer with ROI scoring - fully specified in spec-db-interfaces.md section Output Formats and section write_torch_outputs"
     },
     "dbex/physics/forward.py": {
       "status": "pending",
@@ -173,7 +173,7 @@
       ],
       "behaviors_found": 4,
       "behaviors_specified": 0,
-      "notes": "Config factories for dxtbx → nanobrag_torch mapping. Internal utilities, not blocking bootstrap completion."
+      "notes": "Config factories for dxtbx -> nanobrag_torch mapping. Internal utilities, not blocking bootstrap completion."
     },
     "dbex/refinement/helpers.py": {
       "status": "pending",
@@ -199,5 +199,5 @@
   ],
   "task": null,
   "accuracy_issues": [],
-  "notes": "Iteration 8: REVIEWER VALIDATION. Bootstrap confirmed complete. Scores verified: Coverage 85% (≥80%), Accuracy 100% (≥85%), Consistency 90% (≥90%). Cross-references between spec shards validated. Terminology index in docs/spec-shards/spec-db.md is complete. Minor consistency cleanup: docs/spec-db.md (hub-level) still shows 'Pending' status and 'Inventory' phase - should be synced or removed in favor of docs/spec-shards/spec-db.md. This does not block completion. Specs are production-ready."
+  "notes": "Iteration 9: FINAL REVIEWER VALIDATION. Bootstrap confirmed complete. All scores verified: Coverage 85% (>=80%), Accuracy 100% (>=85%), Consistency 90% (>=90%). Spec shards production-ready: spec-db-core.md, spec-db-workflow.md, spec-db-interfaces.md fully populated with normative requirements extracted from implementation. spec-db-conformance.md and spec-db-runtime.md remain templates (lower priority). Terminology index complete in docs/spec-shards/spec-db.md. Minor housekeeping: docs/spec-db.md (hub-level) shows stale 'Pending' status; recommend syncing or deprecating in favor of docs/spec-shards/spec-db.md as single source of truth. This does not block completion."
 }

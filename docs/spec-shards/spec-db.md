@@ -60,6 +60,8 @@ If implementation differs from spec, the spec is correct and implementation must
 
 ## Established Terminology
 
+### Core Domain (`spec-db-core.md`)
+
 | Term | Definition | Canonical Shard |
 |------|------------|-----------------|
 | ImageData | Raw detector pixels shaped `[panel, slow, fast]` | `spec-db-core.md` §Core Data Types |
@@ -71,6 +73,24 @@ If implementation differs from spec, the spec is correct and implementation must
 | adu_per_photon | Calibration gain for ADU→photon conversion | `spec-db-core.md` §Units |
 | sigma_rdout | Readout noise (scalar or per-pixel) | `spec-db-core.md` §Core Data Types |
 | sigma_floor | Variance floor guard (prevents infinite weights) | `spec-db-core.md` §Fundamental Computations |
+
+### Workflow (`spec-db-workflow.md`)
+
+| Term | Definition | Canonical Shard |
+|------|------------|-----------------|
+| RefinementEngine | Protocol-based engine executing ordered Stage objects | `spec-db-workflow.md` §Engine Contract |
+| RefinementStage | Protocol interface for all refinement stages | `spec-db-workflow.md` §Engine Contract |
+| RefinementContext | Shared refinement state across all stages | `spec-db-workflow.md` §Data Flow Contracts |
+| JobContext | Job-level metadata and calibration state | `spec-db-workflow.md` §Data Flow Contracts |
+| RefinementTelemetry | Telemetry schema emitted by all stages | `spec-db-workflow.md` §Telemetry Schema |
+| Stage A | Crystal orientation and unit cell refinement (LBFGS) | `spec-db-workflow.md` §Stage Definitions |
+| Stage B | Structure factor shell/per-reflection modifiers | `spec-db-workflow.md` §Stage Definitions |
+| Stage C | Detector distance refinement (LBFGS) | `spec-db-workflow.md` §Stage Definitions |
+| StageAContext | Warm cache for Stage A (detector models, simulators) | `spec-db-workflow.md` §Stage Definitions |
+| canonical_baseline | Stage A final state snapshot for parity checks | `spec-db-workflow.md` §Stage Definitions |
+| shell_modifier | Per-resolution-shell F² multiplier | `spec-db-workflow.md` §Stage B |
+| ASU | Asymmetric unit (unique reflections in space group) | `spec-db-workflow.md` §Stage B |
+| distance_offset_raw | Tanh-bounded detector distance delta | `spec-db-workflow.md` §Stage C |
 
 ---
 

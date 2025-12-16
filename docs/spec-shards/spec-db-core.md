@@ -187,7 +187,7 @@ V = max(I_model + σ_readout², σ_floor²)
 **Constraints:**
 1. Summation SHALL only include pixels where `mask=True`.
 2. The ratio `clamped_pixels / masked_pixels` SHALL be reported in telemetry as `variance_floor_clamp_fraction`.
-3. When `masked_pixels = 0`, loss SHALL return `0` (not error).
+3. When `masked_pixels = 0`, loss SHALL raise `ValueError` with message "Loss mask contains no valid pixels".
 
 ---
 

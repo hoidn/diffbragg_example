@@ -1,5 +1,5 @@
 {
-  "iteration": 4,
+  "iteration": 5,
   "phase": "extraction",
   "scores": {
     "coverage": 63,
@@ -25,7 +25,7 @@
       ],
       "behaviors_found": 12,
       "behaviors_specified": 4,
-      "notes": "CLI entry point with backend dispatch. Sigma resolution specified in spec-db-core.md. Remaining: CLI args need spec-db-interfaces.md, backend dispatch needs workflow integration."
+      "notes": "CLI entry point with backend dispatch. Sigma resolution specified in spec-db-core.md. ITERATION 4 TASK NOT COMPLETED: CLI args still need spec-db-interfaces.md."
     },
     "dbex/data_load.py": {
       "status": "partial",
@@ -49,7 +49,7 @@
       ],
       "behaviors_found": 3,
       "behaviors_specified": 3,
-      "notes": "Variance model and chi-squared loss fully specified in spec-db-core.md. Accuracy issue RESOLVED: spec now correctly says ValueError is raised when masked_pixels=0."
+      "notes": "Variance model and chi-squared loss fully specified in spec-db-core.md."
     },
     "dbex/refinement/context.py": {
       "status": "complete",
@@ -193,32 +193,35 @@
     "dbex/refinement/stage_c.py"
   ],
   "task": {
-    "summary": "Populate spec-db-interfaces.md with CLI specification",
+    "summary": "Populate spec-db-interfaces.md with CLI and HDF5 output specs",
     "modules": ["dbex/refine_one.py", "dbex/io/writer.py"],
     "shard": "spec-db-interfaces.md",
     "sections": ["Command-Line Interface", "Output Formats", "Programmatic API"],
     "behaviors_expected": 16,
     "files_to_read": [
-      {"path": "dbex/refine_one.py", "lines": "L1-200", "look_for": "create_parser(), all argparse arguments, backend choices, required vs optional args"},
-      {"path": "dbex/refine_one.py", "lines": "L200-400", "look_for": "_resolve_sigma_readout priority order, run_diffbragg_backend, run_nanobrag_backend dispatch"},
-      {"path": "dbex/io/writer.py", "lines": "L1-150", "look_for": "write_torch_outputs signature, HDF5 schema (/torch_diagnostics), ROI triptych datasets"},
-      {"path": "docs/index.md", "lines": "L17-45", "look_for": "Current CLI usage examples for dbex.refine_one"}
+      {"path": "dbex/refine_one.py", "lines": "L16-122", "look_for": "create_parser() - ALL argparse arguments with types, defaults, help text, required flags"},
+      {"path": "dbex/refine_one.py", "lines": "L125-175", "look_for": "_resolve_sigma_readout() - priority order, error conditions, return tuple"},
+      {"path": "dbex/refine_one.py", "lines": "L779-801", "look_for": "main() - backend dispatch logic, DataLoad instantiation"},
+      {"path": "dbex/io/writer.py", "lines": "L41-111", "look_for": "write_torch_outputs() signature and docstring - all parameters"},
+      {"path": "dbex/io/writer.py", "lines": "L165-200", "look_for": "HDF5 schema - datasets created (score, bragg_scale, data/roi%d, model/roi%d, etc.)"},
+      {"path": "dbex/io/writer.py", "lines": "L180-201", "look_for": "/torch_diagnostics group attrs: masked_mse, loss_mask_coverage, n_rois, backend, etc."}
     ],
     "checklist": [
-      "REPLACE template Command-Line Interface with actual dbex.refine_one CLI",
-      "ADD Primary Command: python -m dbex.refine_one with all arguments from create_parser()",
-      "ADD Required Arguments table: -e/--exptName, -r/--reflName, -i/--exptIdx, -o/--outFile, -m/--maskFile, -z/--mtzFile",
-      "ADD Optional Arguments table: --backend, --device, --sigma-rdout, --sigma-map, --sigma-floor, --spot-scale-override, --adu-per-photon, --torch-config, --refined-mtz, --enable-stage-b, --enable-stage-c, --report-dir",
-      "ADD Parameter Precedence per spec-db-core.md: CLI scalar > calibrated map > external_lookup > abort",
-      "ADD Exit Codes: 0=success, 1=general error, 2=invalid arguments, 3=missing sigma source",
-      "ADD Output Formats section: HDF5 schema with /torch_diagnostics group",
-      "ADD /torch_diagnostics attributes: masked_mse, loss_mask_coverage, n_rois, target_shape, backend",
-      "ADD ROI triptych datasets: data_subims, bragg_subims, bg_subims, model_subims, scores, bragg_scales",
-      "ADD Programmatic API entry points: write_torch_outputs, RefinementEngine, prepare_refinement_inputs",
-      "Cross-reference spec-db-core.md for sigma validation rules",
-      "Cross-reference spec-db-workflow.md for stage enabling (--enable-stage-b, --enable-stage-c)"
+      "REPLACE template placeholders in spec-db-interfaces.md with actual implementation",
+      "§ Command-Line Interface: Primary command python -m dbex.refine_one",
+      "§ Required Arguments table: -e/--exptName (path), -r/--reflName (path), -i/--exptIdx (int), -o/--outFile (path), -m/--maskFile (path), -z/--mtzFile (path)",
+      "§ Optional Arguments table: --backend (choices: diffbragg|nanobrag, default: diffbragg), --mtzCol (default: F,SIGF), --device (default: cuda:0), --sigma-rdout (float), --sigma-map (path), --sigma-floor (default: 1.0), --spot-scale-override (float), --adu-per-photon (float), --torch-config (path), --refined-mtz (path), --enable-stage-b (flag), --enable-stage-c (flag), --report-dir (path)",
+      "§ Parameter Precedence: Per _resolve_sigma_readout - CLI scalar > calibrated map > external_lookup > abort with ValueError",
+      "§ Exit Codes: Document exit(0) success, ValueError for missing sigma source",
+      "§ Output Formats: HDF5 top-level datasets (score, bragg_scale, sigma_readout, sigma_floor)",
+      "§ Output Formats: HDF5 ROI datasets pattern: data/roi%d, model/roi%d, bragg/roi%d, bg/roi%d, variance/roi%d",
+      "§ Output Formats: /torch_diagnostics group with attrs: masked_mse, loss_mask_coverage, n_rois, target_shape, backend, sigma_readout_provenance, hkl_source, hkl_n_reflections, hkl_mean_amplitude",
+      "§ Programmatic API: write_torch_outputs() contract from writer.py docstring",
+      "§ Programmatic API: RefinementEngine (ref spec-db-workflow.md), prepare_refinement_inputs",
+      "Cross-ref spec-db-core.md for sigma validation rules (§ Error Conditions)",
+      "Cross-ref spec-db-workflow.md for --enable-stage-b/--enable-stage-c behavior"
     ]
   },
   "accuracy_issues": [],
-  "notes": "Iteration 4: Corrected scores after verifying spec-db-workflow.md was populated in iteration 2. Coverage jumped from 18% to 63% (54/85 behaviors specified). Accuracy now 100% after confirming spec-db-core.md line 190 was already fixed. Consistency at 88% due to template shards (interfaces, runtime, conformance). Next task: populate spec-db-interfaces.md with CLI specification to reach 80% coverage threshold."
+  "notes": "Iteration 5: TASK REISSUE - spec-db-interfaces.md still contains template placeholders from iteration 4. The spec writer did NOT populate the CLI specification. Scores unchanged (63/100/88). Coverage cannot improve until interfaces shard is populated. Providing more explicit file/line guidance and checklist items to ensure task completion."
 }

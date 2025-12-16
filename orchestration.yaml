@@ -54,3 +54,46 @@ tracked_output_extensions:
   - .npz
   - .json
   - .pkl
+
+# =============================================================================
+# Spec Bootstrap Configuration
+# =============================================================================
+# Use this section when bootstrapping specs from an existing implementation.
+# To run in bootstrap mode, set supervisor_prompt: spec_reviewer.md
+# and engineer_prompt: spec_writer.md (or use a dedicated driver script).
+
+spec_bootstrap:
+  # External templates directory — single source of truth for spec structure.
+  # Shards are discovered from {templates_dir}/docs/spec-shards/spec-*.md
+  templates_dir: ~/Documents/project-templates
+
+  # Local spec directory (where specs are written)
+  specs:
+    dir: docs/spec-shards
+
+  # Implementation source to extract specs from
+  implementation:
+    dirs:
+      - src/
+    entry_points: []  # Populate with main entry points, e.g., src/main.py
+    exclude:
+      - "**/__pycache__/**"
+      - "**/tests/**"
+      - "**/*.pyc"
+
+  # Exit thresholds (all must be met to complete bootstrap)
+  # Coverage: % of impl behaviors with normative specs
+  # Accuracy: % of spec clauses that match impl
+  # Consistency: coherence + discoverability (cross-refs, index, terminology)
+  scoring:
+    coverage: 80
+    accuracy: 85
+    consistency: 90
+
+  # State tracking (simplified schema)
+  state_file: sync/spec_bootstrap_state.json
+
+  # Prompts for bootstrap mode
+  prompts:
+    reviewer: spec_reviewer.md
+    writer: spec_writer.md

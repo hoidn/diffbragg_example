@@ -75,6 +75,56 @@ class OrchConfig:
     # Project root (set by find_config or load_config)
     project_root: Optional[Path] = None
 
+    # Spec bootstrap configuration (optional, for bootstrapping specs from impl)
+    spec_bootstrap: Optional["SpecBootstrapConfig"] = None
+
+
+@dataclass
+class SpecBootstrapConfig:
+    """Configuration for spec bootstrapping process."""
+
+    # External templates directory — the single source of truth for spec structure.
+    # Shards are discovered from {templates_dir}/docs/spec-shards/*.md
+    templates_dir: Path = field(default_factory=lambda: Path("~/Documents/project-templates").expanduser())
+
+    # Local spec directory (where specs are written)
+    specs_dir: Path = field(default_factory=lambda: Path("docs/spec-shards"))
+
+    # Implementation source
+    impl_dirs: list[str] = field(default_factory=lambda: ["src/"])
+    impl_entry_points: list[str] = field(default_factory=list)
+    impl_exclude: list[str] = field(default_factory=lambda: [
+        "**/__pycache__/**",
+        "**/tests/**",
+        "**/*.pyc",
+    ])
+
+    # Scoring thresholds
+    coverage_threshold: int = 80
+    accuracy_threshold: int = 85
+    consistency_threshold: int = 90
+
+    # State file
+    state_file: Path = field(default_factory=lambda: Path("sync/spec_bootstrap_state.json"))
+
+    # Prompts
+    reviewer_prompt: str = "spec_reviewer.md"
+    writer_prompt: str = "spec_writer.md"
+
+    def discover_shards(self) -> list[str]:
+        """
+        Discover spec shards from the templates directory.
+
+        Returns list of shard filenames (e.g., ['spec-db-core.md', 'spec-db-workflow.md']).
+        """
+        template_specs_dir = self.templates_dir / "docs" / "spec-shards"
+        if not template_specs_dir.is_dir():
+            return []
+        return sorted([
+            f.name for f in template_specs_dir.iterdir()
+            if f.is_file() and f.suffix == ".md" and f.name.startswith("spec-")
+        ])
+
 
 def find_config(start_dir: Optional[Path] = None) -> Optional[Path]:
     """
@@ -162,6 +212,54 @@ def load_config(config_path: Optional[Path] = None, warn_missing: bool = True) -
         cfg.report_extensions = list(data["report_extensions"])
     if "tracked_output_extensions" in data:
         cfg.tracked_output_extensions = list(data["tracked_output_extensions"])
+
+    # Parse spec_bootstrap section if present
+    if "spec_bootstrap" in data:
+        sb_data = data["spec_bootstrap"]
+        sb_cfg = SpecBootstrapConfig()
+
+        if "templates_dir" in sb_data:
+            sb_cfg.templates_dir = Path(sb_data["templates_dir"]).expanduser()
+
+        # Specs section
+        if "specs" in sb_data:
+            specs = sb_data["specs"]
+            if "dir" in specs:
+                sb_cfg.specs_dir = Path(specs["dir"])
+            # Note: shards are discovered from templates_dir, not configured
+
+        # Implementation section
+        if "implementation" in sb_data:
+            impl = sb_data["implementation"]
+            if "dirs" in impl:
+                sb_cfg.impl_dirs = list(impl["dirs"])
+            if "entry_points" in impl:
+                sb_cfg.impl_entry_points = list(impl["entry_points"])
+            if "exclude" in impl:
+                sb_cfg.impl_exclude = list(impl["exclude"])
+
+        # Scoring section
+        if "scoring" in sb_data:
+            scoring = sb_data["scoring"]
+            if "coverage" in scoring:
+                sb_cfg.coverage_threshold = int(scoring["coverage"])
+            if "accuracy" in scoring:
+                sb_cfg.accuracy_threshold = int(scoring["accuracy"])
+            if "consistency" in scoring:
+                sb_cfg.consistency_threshold = int(scoring["consistency"])
+
+        if "state_file" in sb_data:
+            sb_cfg.state_file = Path(sb_data["state_file"])
+
+        # Prompts section
+        if "prompts" in sb_data:
+            prompts = sb_data["prompts"]
+            if "reviewer" in prompts:
+                sb_cfg.reviewer_prompt = prompts["reviewer"]
+            if "writer" in prompts:
+                sb_cfg.writer_prompt = prompts["writer"]
+
+        cfg.spec_bootstrap = sb_cfg
 
     return cfg
 

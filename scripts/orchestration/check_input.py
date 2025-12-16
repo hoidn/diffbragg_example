@@ -8,15 +8,20 @@ import os
 import re
 import sys
 
+from .config import load_config
+
 
 SECTION_RE = re.compile(r"^\s*-\s*Findings Applied", re.IGNORECASE)
 FINDING_ID_RE = re.compile(r"\b[A-Z]+-[A-Z]+-\d+\b")
 
 
 def main() -> int:
+    # Load orchestration config (searches upward for orchestration.yaml)
+    cfg = load_config(warn_missing=False)
+
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="input.md", help="Path to input.md")
-    ap.add_argument("--findings", default="docs/findings.md", help="Path to findings.md")
+    ap.add_argument("--input", default=str(cfg.input_file), help="Path to input.md")
+    ap.add_argument("--findings", default=str(cfg.findings_file), help="Path to findings.md")
     args = ap.parse_args()
 
     if not os.path.exists(args.input):

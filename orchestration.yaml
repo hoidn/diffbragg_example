@@ -1,0 +1,56 @@
+# Orchestration configuration for DBEX project
+# See scripts/orchestration/config.py for schema documentation
+
+# Prompt paths
+prompts_dir: prompts
+supervisor_prompt: supervisor.md
+
+# State management
+state_file: sync/state.json
+
+# Doc/meta auto-commit whitelist (glob patterns)
+doc_whitelist:
+  - input.md
+  - galph_memory.md
+  - docs/fix_plan.md
+  - plans/**/*.md
+  - prompts/**/*.md
+  - .gitignore
+  - .gitmodules
+  - .gitattributes
+
+# Tracked output globs for auto-commit (e.g., regenerated fixtures)
+tracked_output_globs:
+  - tests/fixtures/**/*.npy
+  - tests/fixtures/**/*.npz
+  - tests/fixtures/**/*.json
+  - tests/fixtures/**/*.pkl
+
+# Key file paths
+findings_file: docs/findings.md
+input_file: input.md
+
+# Directories
+logs_dir: logs
+tmp_dir: tmp
+
+# Report extensions for auto-commit
+report_extensions:
+  - .png
+  - .jpeg
+  - .npy
+  - .txt
+  - .md
+  - .json
+  - .log
+  - .py
+  - .c
+  - .h
+  - .sh
+
+# Tracked output extensions
+tracked_output_extensions:
+  - .npy
+  - .npz
+  - .json
+  - .pkl

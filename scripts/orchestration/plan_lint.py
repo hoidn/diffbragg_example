@@ -13,6 +13,8 @@ import os
 import re
 import sys
 
+from .config import load_config
+
 
 CHECKLIST_RE = re.compile(r"^- \[.\] ([A-Z][0-9]+):")
 
@@ -30,8 +32,11 @@ def extract_checklist_ids(path: str):
 
 
 def main() -> int:
+    # Load orchestration config (searches upward for orchestration.yaml)
+    cfg = load_config(warn_missing=False)
+
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="input.md", help="Path to input.md")
+    ap.add_argument("--input", default=str(cfg.input_file), help="Path to input.md")
     ap.add_argument("--implementation", required=True, help="Path to implementation.md for the initiative")
     ap.add_argument("--max-inline", type=int, default=5, help="Max inline checklist items allowed in input.md")
     args = ap.parse_args()

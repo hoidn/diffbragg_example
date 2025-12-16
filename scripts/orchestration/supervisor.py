@@ -14,6 +14,7 @@ import shutil
 from .state import OrchestrationState
 from .git_bus import safe_pull, add, commit, push_to, short_head, assert_on_branch, current_branch, has_unpushed_commits, push_with_rebase
 from .autocommit import autocommit_reports
+from .config import load_config, stream_to_text_script, claude_cli_default
 
 
 def _log_file(prefix: str) -> Path:
@@ -69,18 +70,21 @@ def tee_run(cmd: list[str], stdin_file: Path | None, log_path: Path) -> int:
 
 
 def main() -> int:
+    # Load orchestration config (searches upward for orchestration.yaml)
+    cfg = load_config(warn_missing=False)
+
     ap = argparse.ArgumentParser(description="Supervisor (galph) orchestrator")
     ap.add_argument("--sync-via-git", action="store_true", help="Enable cross-machine synchronous mode via Git state")
     ap.add_argument("--sync-loops", type=int, default=int(os.getenv("SYNC_LOOPS", 20)), help="Number of iterations to run")
     ap.add_argument("--poll-interval", type=int, default=int(os.getenv("POLL_INTERVAL", 5)))
     ap.add_argument("--max-wait-sec", type=int, default=int(os.getenv("MAX_WAIT_SEC", 0)))
-    ap.add_argument("--state-file", type=Path, default=Path(os.getenv("STATE_FILE", "sync/state.json")))
+    ap.add_argument("--state-file", type=Path, default=Path(os.getenv("STATE_FILE", str(cfg.state_file))))
     ap.add_argument("--codex-cmd", type=str, default=os.getenv("CODEX_CMD", "codex"))
     ap.add_argument(
         "--claude-cmd",
         type=str,
-        default=os.getenv("CLAUDE_CMD", "/home/ollie/.claude/local/claude"),
-        help="Path or name of the Claude CLI executable (default: CLAUDE_CMD or ~/.claude/local/claude)",
+        default=os.getenv("CLAUDE_CMD", ""),
+        help="Path or name of the Claude CLI executable (default: CLAUDE_CMD or auto-detect)",
     )
     ap.add_argument(
         "--agent",
@@ -101,7 +105,7 @@ def main() -> int:
     ap.set_defaults(auto_commit_docs=True)
     ap.add_argument("--autocommit-whitelist", type=str,
                     # Include core meta files to avoid self-failing when supervisor updates repo hygiene
-                    default="input.md,galph_memory.md,docs/fix_plan.md,plans/**/*.md,prompts/**/*.md,.gitignore,.gitmodules,.gitattributes",
+                    default=",".join(cfg.doc_whitelist),
                     help="Comma-separated glob whitelist for supervisor auto-commit (doc/meta only)")
     ap.add_argument("--max-autocommit-bytes", type=int, default=int(os.getenv("MAX_AUTOCOMMIT_BYTES", "1048576")),
                     help="Maximum per-file size (bytes) eligible for auto-commit")
@@ -139,10 +143,10 @@ def main() -> int:
                     help="Disable auto commit of modified tracked outputs")
     ap.set_defaults(auto_commit_tracked_outputs=True)
     ap.add_argument("--tracked-output-globs", type=str,
-                    default=os.getenv("SUPERVISOR_TRACKED_OUTPUT_GLOBS", "tests/fixtures/**/*.npy,tests/fixtures/**/*.npz,tests/fixtures/**/*.json,tests/fixtures/**/*.pkl"),
+                    default=os.getenv("SUPERVISOR_TRACKED_OUTPUT_GLOBS", ",".join(cfg.tracked_output_globs)),
                     help="Comma-separated glob allowlist for tracked output paths (default targets test fixtures)")
     ap.add_argument("--tracked-output-extensions", type=str,
-                    default=os.getenv("SUPERVISOR_TRACKED_OUTPUT_EXTENSIONS", ".npy,.npz,.json,.pkl"),
+                    default=os.getenv("SUPERVISOR_TRACKED_OUTPUT_EXTENSIONS", ",".join(cfg.tracked_output_extensions)),
                     help="Comma-separated list of allowed file extensions for tracked outputs")
     ap.add_argument("--max-tracked-output-file-bytes", type=int,
                     default=int(os.getenv("SUPERVISOR_MAX_TRACKED_OUTPUT_FILE_BYTES", str(32 * 1024 * 1024))),
@@ -378,12 +382,15 @@ def main() -> int:
 
     # Resolve execution command per --agent (Claude vs Codex)
     def _claude_cmd() -> list[str] | None:
+        stream_script = stream_to_text_script()
+
         def _fmt(path: Path | str) -> list[str]:
             quoted = str(path).replace('"', '\\"')
+            script_path = str(stream_script).replace('"', '\\"')
             # Use stream-json for incremental events, then pretty-print to text.
             cmd_str = (
                 f'"{quoted}" -p --dangerously-skip-permissions --verbose '
-                f'--output-format stream-json | python -u scripts/orchestration/claude_stream_to_text.py'
+                f'--output-format stream-json | python -u "{script_path}"'
             )
             return ["/bin/bash", "-lc", cmd_str]
 
@@ -397,19 +404,10 @@ def main() -> int:
             if which:
                 return _fmt(which)
 
-        # Historical pinned locations (repo-local, then home-local).
-        repo_local = Path(".claude") / "local" / "claude"
-        if repo_local.is_file() and os.access(str(repo_local), os.X_OK):
-            return _fmt(repo_local)
-
-        default_path = Path("/home/ollie/.claude/local/claude")
-        if default_path.is_file() and os.access(str(default_path), os.X_OK):
-            return _fmt(default_path)
-
-        # Fallback: whatever "claude" resolves to on PATH.
-        which = shutil.which("claude")
-        if which:
-            return _fmt(which)
+        # Use portable default lookup (repo-local, home-local, PATH)
+        default_cli = claude_cli_default()
+        if default_cli:
+            return _fmt(default_cli)
         return None
 
     def _codex_cmd() -> list[str] | None:
@@ -459,7 +457,7 @@ def main() -> int:
 
     if not args.sync_via_git:
         # Legacy async mode: run N iterations back-to-back
-        prompt_file = Path("prompts/supervisor.md")
+        prompt_file = cfg.prompts_dir / cfg.supervisor_prompt
         for _ in range(args.sync_loops):
             iter_log_path = _log_file("supervisor-legacy-")
             try:
@@ -594,7 +592,7 @@ def main() -> int:
         push_to(branch_target, logp)
 
         # Execute one supervisor iteration (wrap with script(1) when available to preserve PTY behaviour)
-        prompt_file = Path("prompts/supervisor.md")
+        prompt_file = cfg.prompts_dir / cfg.supervisor_prompt
         try:
             cmd = _resolve_cmd()
         except RuntimeError as e:

@@ -13,6 +13,7 @@ import shlex
 from .state import OrchestrationState
 from .git_bus import safe_pull, add, commit, push_to, short_head, has_unpushed_commits, assert_on_branch, current_branch, push_with_rebase
 from .autocommit import autocommit_reports
+from .config import load_config, stream_to_text_script, claude_cli_default
 
 
 def _log_file(prefix: str) -> Path:
@@ -53,13 +54,16 @@ def tee_run(cmd: list[str], stdin_file: Path | None, log_path: Path) -> int:
 
 
 def main() -> int:
+    # Load orchestration config (searches upward for orchestration.yaml)
+    cfg = load_config(warn_missing=False)
+
     ap = argparse.ArgumentParser(description="Engineer (ralph) orchestrator")
     ap.add_argument("--sync-via-git", action="store_true", help="Enable cross-machine synchronous mode via Git state")
     ap.add_argument("--sync-loops", type=int, default=int(os.getenv("SYNC_LOOPS", 20)))
     ap.add_argument("--poll-interval", type=int, default=int(os.getenv("POLL_INTERVAL", 5)))
     ap.add_argument("--max-wait-sec", type=int, default=int(os.getenv("MAX_WAIT_SEC", 0)))
-    ap.add_argument("--state-file", type=Path, default=Path(os.getenv("STATE_FILE", "sync/state.json")))
-    ap.add_argument("--claude-cmd", type=str, default=os.getenv("CLAUDE_CMD", "/home/ollie/.claude/local/claude"))
+    ap.add_argument("--state-file", type=Path, default=Path(os.getenv("STATE_FILE", str(cfg.state_file))))
+    ap.add_argument("--claude-cmd", type=str, default=os.getenv("CLAUDE_CMD", ""))
     ap.add_argument("--codex-cmd", type=str, default=os.getenv("CODEX_CMD", "codex"))
     ap.add_argument("--agent", type=str, choices=["auto", "claude", "codex"], default=os.getenv("LOOP_AGENT", "auto"),
                     help="Model CLI used for engineer loops (auto: prefer Claude, fallback Codex).")
@@ -213,18 +217,21 @@ def main() -> int:
             push_to(branch_target, logp)
 
         # Execute one engineer loop
-        prompt_path = Path("prompts") / f"{args.prompt}.md"
+        prompt_path = cfg.prompts_dir / f"{args.prompt}.md"
         if not prompt_path.exists():
             logp(f"ERROR: prompt file not found: {prompt_path}")
             return 2
         # Resolve execution command per --agent (Claude vs Codex)
         def _claude_cmd() -> list[str] | None:
+            stream_script = stream_to_text_script()
+
             def _fmt(path: Path | str) -> list[str]:
                 quoted = str(path).replace('"', '\\"')
+                script_path = str(stream_script).replace('"', '\\"')
                 # Use stream-json for incremental events, then pretty-print to text.
                 cmd_str = (
                     f'"{quoted}" -p --dangerously-skip-permissions --verbose '
-                    f'--output-format stream-json | python -u scripts/orchestration/claude_stream_to_text.py'
+                    f'--output-format stream-json | python -u "{script_path}"'
                 )
                 return ["/bin/bash", "-lc", cmd_str]
 
@@ -238,19 +245,10 @@ def main() -> int:
                 if which:
                     return _fmt(which)
 
-            # Historical pinned locations (repo-local, then home-local).
-            repo_local = Path(".claude") / "local" / "claude"
-            if repo_local.is_file() and os.access(str(repo_local), os.X_OK):
-                return _fmt(repo_local)
-
-            default_path = Path("/home/ollie/.claude/local/claude")
-            if default_path.is_file() and os.access(str(default_path), os.X_OK):
-                return _fmt(default_path)
-
-            # Fallback: whatever "claude" resolves to on PATH.
-            which = shutil.which("claude")
-            if which:
-                return _fmt(which)
+            # Use portable default lookup (repo-local, home-local, PATH)
+            default_cli = claude_cli_default()
+            if default_cli:
+                return _fmt(default_cli)
             return None
 
         def _codex_cmd() -> list[str] | None:

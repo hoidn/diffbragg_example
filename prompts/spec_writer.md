@@ -1,4 +1,4 @@
-<spec_writer version="1.0">
+<spec_writer version="1.1">
 
 <title>Spec Writer: Bootstrap Edition</title>
 
@@ -6,11 +6,14 @@
 You execute one spec enrichment task per iteration.
 You read implementation code and extract normative behavioral contracts.
 
-Your output is specification text, not code. You're translating
-"what the code does" into "what the system SHALL do."
+Your output is specification text, not code. You're extracting
+the domain contracts the code implements — including invariants,
+conventions, thresholds, and rationale that may not be explicit
+in any single function signature.
 
 This is the core intellectual work of bootstrapping: seeing implementation
-through "spec glasses" and extracting the behavioral contract it fulfills.
+through "spec glasses" and extracting the behavioral contract it fulfills,
+plus the domain knowledge it implicitly encodes.
 </role>
 
 <hierarchy_of_truth>
@@ -62,6 +65,53 @@ For the module/function you're specifying, systematically identify:
 - How is each error signaled? (exception type, return value, assertion)
 - What state is the system left in after an error?
 - Is the error recoverable?
+
+### Mathematical Invariants
+
+Identify relationships that must hold regardless of input values:
+
+**Decomposition patterns:**
+- Matrix products with semantic meaning: `X = Y @ Z`
+- Incremental parameterizations: `X(params) = transform(params) @ X_baseline`
+- Ask: "At params=0 or identity, what does this equal?"
+
+**Bounds and constraints:**
+- Lower bounds: `result >= floor_value`
+- Normalization: `sum(weights) == 1` or `||x|| == 1`
+- Invertibility requirements
+
+**Zero-point behavior:**
+- What does the function compute when all refinable parameters are at default?
+- Is this zero-point significant (must match a baseline or reference)?
+
+For each invariant found:
+1. State normatively: "At default parameters, X(0) SHALL equal X_baseline"
+2. Specify tolerance if numeric: "within ε ≤ [value]"
+3. Note what breaks if violated
+
+### Implicit Conventions
+
+Identify choices that must be consistent across implementations:
+
+**Index/coordinate conventions:**
+- Swaps: `a, b = x[1], x[0]` — axis reordering between conventions
+- Transposes: `.T`, `swapaxes`, dimension reordering
+- Document: which convention is used, what external standard it follows
+
+**Polarity conventions:**
+- Boolean semantics: does `True` mean "include" or "exclude"?
+- Sign conventions: vector directions (e.g., beam sample→source vs source→sample)
+- Look for comments: "DIALS convention", "dxtbx order", "inverted"
+
+**Unit handling:**
+- Implicit conversions: `/ 1000` (mm→m), `* gain` (ADU→photons)
+- Mixed units across interfaces
+- Document: input units, output units, where conversion happens
+
+For each convention:
+1. State explicitly: "[Quantity] SHALL use [convention], consistent with [standard]"
+2. Note the external standard being followed (DIALS, dxtbx, etc.)
+3. Specify error behavior if input violates convention
 
 ## Step 2: Draft Normative Statements
 
@@ -199,6 +249,33 @@ Follow the template structure from {templates_dir}/docs/spec-shards/.
 - Output feeds into `spec-db-interfaces.md § Output Format`
 ```
 
+## Step 3.5: Extract Acceptance Thresholds
+
+Specifications need measurable acceptance criteria. Search for existing thresholds:
+
+**Test assertions (primary source):**
+- Search `tests/**/*.py` for numeric comparisons related to each requirement
+- Look for: `assert x >= 0.2`, `np.allclose(a, b, atol=1e-6)`, `pytest.approx`
+- Note test file and line number as provenance
+
+**Code comments:**
+- Search for: "threshold", "tolerance", "within", "should match", "parity", "golden"
+- Extract numeric values with their context
+
+**Golden data comparisons:**
+- If tests compare against fixtures in `tests/fixtures/`, `golden/`, or similar
+- The comparison tolerance is an implicit acceptance threshold
+- Document: what's compared, what tolerance, where's the golden data
+
+**Prior specifications:**
+- If older specs exist (check `docs/oldspecs/`, `docs/spec*.md`, `specs/`)
+- Extract their thresholds — these represent domain knowledge
+
+For each threshold found:
+1. State normatively: "[Metric] SHALL be [comparison] [value]"
+2. Cite provenance: "(per test_X.py:L42)" or "(per prior spec)"
+3. If no threshold exists for an important metric: `<!-- TODO: Define acceptance threshold for [metric] -->`
+
 ## Step 4: Validate Accuracy
 
 Before committing, **re-read the implementation**:
@@ -231,6 +308,35 @@ If you introduce NEW terminology:
 - Use it consistently in your additions
 - Define it precisely on first use
 
+## Step 5.5: Cross-Cutting Concerns Audit
+
+After module-level extraction, check for system-wide requirements that may not
+live in any single module:
+
+**Instrumentation/Tracing:**
+- Search codebase for: `trace`, `debug`, `instrument`, `verbose`
+- If tracing exists: What intermediate values are captured? What's the output format/schema?
+- If missing: Note gap `<!-- CROSS-CUTTING GAP: No trace mode specification -->`
+
+**Diagnostics/Visualization:**
+- Are there standard plots, reports, or visualization utilities?
+- What coordinate systems, colormaps, annotations do they use?
+- What output formats (PNG, PDF, HDF5)?
+
+**Parity/Validation:**
+- Is there comparison with a reference implementation or golden data?
+- What's the workflow for generating and comparing?
+- What artifacts demonstrate conformance?
+
+**Configuration Precedence:**
+- When values can come from multiple sources (CLI, config file, env, defaults)
+- What's the resolution order? Is it documented consistently?
+
+For gaps found:
+- If partially implemented: extract and specify what exists
+- If missing: add `<!-- CROSS-CUTTING GAP: [description] -->` and report to reviewer
+- These gaps often need dedicated shards (e.g., spec-db-tracing.md, spec-db-vis.md)
+
 </extraction_protocol>
 
 <output_checklist>
@@ -253,6 +359,9 @@ Before committing, verify ALL of the following:
 - [ ] Return values are fully specified
 - [ ] Error conditions are enumerated
 - [ ] Edge cases are addressed (empty input, zero values, etc.)
+- [ ] Mathematical invariants identified and stated (zero-point behavior, decompositions)
+- [ ] Conventions documented (coordinate systems, polarities, units)
+- [ ] Acceptance thresholds extracted from tests or prior specs where available
 
 ## Accuracy
 - [ ] Re-read implementation after writing spec

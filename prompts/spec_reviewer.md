@@ -1,4 +1,4 @@
-<spec_reviewer version="1.0">
+<spec_reviewer version="1.1">
 
 <title>Spec Reviewer: Bootstrap Edition</title>
 
@@ -28,6 +28,45 @@ all error handling in a subsystem, all data types for a feature).
 - {templates_dir}/docs/spec-shards/*.md → target structure and format
 - Implementation dirs listed in spec_bootstrap.implementation.dirs
 </required_reading>
+
+<prior_spec_mining>
+
+Before inventorying code, check for existing domain knowledge:
+
+## Search for Prior Specifications
+- `docs/spec*.md`, `docs/oldspecs/`, `specs/`, `*_spec.md`
+- Design documents, RFCs, architecture decision records
+- Domain glossaries or terminology documents
+
+## If Prior Specs Exist, Extract:
+1. **Domain concepts** — Named abstractions that may span multiple code modules
+   (e.g., "UB parameterization", "geometry mapping", "variance model")
+2. **Acceptance thresholds** — Numeric criteria for correctness
+   (e.g., "correlation ≥ 0.2", "tolerance ≤ 1e-12")
+3. **Invariants** — Mathematical or behavioral constraints
+   (e.g., "at zero parameters, A*(0) = U₀ @ B₀")
+4. **Conventions** — Coordinate systems, polarities, unit systems
+
+## Create Domain Checklist
+Track these alongside code behavior coverage:
+```json
+{
+  "domain_concepts": [
+    {"name": "variance model", "source": "oldspecs/spec-db-core.md", "status": "pending"},
+    {"name": "geometry mapping", "source": "oldspecs/spec-db-core.md", "status": "pending"}
+  ],
+  "thresholds": [
+    {"metric": "ROI correlation", "value": "≥ 0.2", "source": "oldspecs/spec-db-conformance.md"}
+  ]
+}
+```
+
+New specs should cover at minimum what prior specs covered.
+
+**Rationale:** Code implements domain requirements but doesn't explain them.
+Prior specs capture intent that pure code extraction will miss.
+
+</prior_spec_mining>
 
 <scoring_protocol>
 
@@ -93,6 +132,31 @@ This dimension covers both semantic consistency AND clarity/discoverability.
 
 Semantic issues weight 2x (count as 2 issues each).
 
+## Domain Completeness (0-100)
+
+Are domain concepts (not just code entities) adequately specified?
+
+**Protocol:**
+1. From prior specs, architecture docs, or domain glossary, enumerate domain abstractions
+2. For each abstraction, check: Is there a normative spec with invariants and acceptance criteria?
+3. domain_completeness = (specified_abstractions / total_abstractions) × 100
+
+**Detecting abstractions without prior specs:**
+- Terms appearing in multiple modules' docstrings (suggests shared concept)
+- Architecture document section headings
+- Test directory/file names (e.g., `test_ub_decomposition` → "UB decomposition")
+- Nouns in comments that aren't variable/class names
+
+**Specification levels:**
+- Fully specified: Has invariants AND acceptance thresholds (count as 1.0)
+- Partially specified: Has behavioral contract but no thresholds (count as 0.5)
+- Mentioned only: Referenced but no normative statements (count as 0)
+
+**Exit threshold:** domain_completeness ≥ 75% (configurable in orchestration.yaml)
+
+**Rationale:** Code coverage counts functions; domain completeness counts concepts.
+A system can have 100% code coverage but miss critical domain invariants.
+
 </scoring_protocol>
 
 <gap_identification>
@@ -111,6 +175,21 @@ Unspecified behaviors in main entry points, CLI, public APIs.
 Unspecified behaviors in core algorithms, data transformations.
 **Why medium-high:** These define what the system actually does.
 
+## Priority 3.5: Coverage Gaps — Domain Invariants
+Mathematical relationships, zero-point behaviors, and conventions that:
+- Span multiple functions/modules (not visible in any single signature)
+- Define "correctness" beyond input/output contracts
+- Were documented in prior specs but not yet in new specs
+
+**Detection:**
+- Compare domain checklist (from prior specs) against current spec coverage
+- Look for decomposition patterns (`X = Y @ Z`) without corresponding invariant specs
+- Check for convention-sensitive code (index swaps, polarity checks) without convention specs
+- Search for tolerance constants without normative threshold statements
+
+**Why high:** These are often the most critical correctness properties and the
+easiest to miss during code-focused extraction.
+
 ## Priority 4: Coverage Gaps — Data Types
 Unspecified data structures, type contracts, invariants.
 **Why medium:** Foundation for other specs.
@@ -119,7 +198,21 @@ Unspecified data structures, type contracts, invariants.
 Unspecified helper functions, internal modules.
 **Why lower:** Important but less visible.
 
-## Priority 6: Consistency Gaps
+## Priority 6: Cross-Cutting Gaps
+System-wide concerns that may not have dedicated modules:
+- Tracing/instrumentation (no spec-db-tracing.md or equivalent)
+- Visualization/diagnostics (no spec-db-vis.md or equivalent)
+- Parity/validation workflows (how to verify against reference)
+- Configuration precedence (resolution order for multi-source params)
+
+**Detection:**
+- Check for `<!-- CROSS-CUTTING GAP -->` markers left by writer
+- Search for trace/debug/verbose code without corresponding specs
+- Check if prior specs had dedicated shards that new specs lack
+
+**Why medium:** Important for debuggability and validation, but not core functionality.
+
+## Priority 7: Consistency Gaps
 Terminology drift, broken refs, minor contradictions.
 **Why lowest:** Fix after coverage is reasonable.
 
@@ -129,24 +222,31 @@ Terminology drift, broken refs, minor contradictions.
 
 On first run (iteration 0) or when phase="inventory":
 
-1. **Scan Implementation**
+1. **Mine Prior Specifications** (per `<prior_spec_mining>`)
+   - Search for existing specs in docs/oldspecs/, specs/, etc.
+   - Extract domain concepts, thresholds, invariants, conventions
+   - Create domain checklist for tracking
+
+2. **Scan Implementation**
    - List all Python files in implementation dirs
    - For each file, extract public functions/classes (no leading underscore)
    - Count total behaviors (functions + methods + significant branches)
 
-2. **Scan Existing Specs**
+3. **Scan Existing Specs**
    - List all spec shards
    - Count normative statements (lines with SHALL/MUST/SHOULD/MAY)
    - Map statements to implementation where possible
 
-3. **Produce Inventory**
+4. **Produce Inventory**
    Update state with:
    ```json
    {
      "inventory": {
        "total_modules": N,
        "total_behaviors": M,
-       "spec_statements": K
+       "spec_statements": K,
+       "domain_concepts": P,
+       "domain_concepts_specified": Q
      },
      "modules": {
        "src/module.py": {
@@ -155,11 +255,18 @@ On first run (iteration 0) or when phase="inventory":
          "behaviors_found": 5,
          "behaviors_specified": 0
        }
-     }
+     },
+     "domain_checklist": [
+       {"name": "UB parameterization", "source": "oldspecs", "status": "pending"},
+       {"name": "geometry mapping", "source": "oldspecs", "status": "pending"}
+     ],
+     "threshold_checklist": [
+       {"metric": "ROI correlation", "value": "≥ 0.2", "source": "oldspecs", "status": "pending"}
+     ]
    }
    ```
 
-4. **Set Phase**
+5. **Set Phase**
    After inventory, set phase="extraction"
 
 </inventory_phase>
@@ -176,7 +283,8 @@ Write to sync/spec_bootstrap_state.json:
   "scores": {
     "coverage": 45,
     "accuracy": 92,
-    "consistency": 88
+    "consistency": 88,
+    "domain_completeness": 60
   },
   "modules_done": [
     "src/core.py",
@@ -224,8 +332,13 @@ All scores meet thresholds:
 - coverage ≥ spec_bootstrap.scoring.coverage
 - accuracy ≥ spec_bootstrap.scoring.accuracy
 - consistency ≥ spec_bootstrap.scoring.consistency
+- domain_completeness ≥ spec_bootstrap.scoring.domain_completeness (default: 75)
 
 Action: Set phase="complete" in state, clear the task field. Bootstrap is done.
+
+**Important:** Do not declare completion based on code coverage alone. If domain
+concepts from prior specs remain unspecified, continue extraction even if code
+coverage threshold is met.
 
 ## Stall: No Progress
 3+ iterations with no score improvement (same scores within ±2).

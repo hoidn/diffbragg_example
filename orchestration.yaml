@@ -85,10 +85,12 @@ spec_bootstrap:
   # Coverage: % of impl behaviors with normative specs
   # Accuracy: % of spec clauses that match impl
   # Consistency: coherence + discoverability (cross-refs, index, terminology)
+  # Domain Completeness: % of domain concepts (from prior specs/arch docs) with normative specs
   scoring:
     coverage: 80
     accuracy: 85
     consistency: 90
+    domain_completeness: 75
 
   # State tracking (simplified schema)
   state_file: sync/spec_bootstrap_state.json

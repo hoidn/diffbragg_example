@@ -1,10 +1,11 @@
 {
-  "iteration": 9,
+  "iteration": 10,
   "phase": "complete",
   "scores": {
     "coverage": 85,
     "accuracy": 100,
-    "consistency": 90
+    "consistency": 90,
+    "domain_completeness": 88
   },
   "inventory": {
     "total_modules": 47,
@@ -199,5 +200,18 @@
   ],
   "task": null,
   "accuracy_issues": [],
-  "notes": "Iteration 9: FINAL REVIEWER VALIDATION. Bootstrap confirmed complete. All scores verified: Coverage 85% (>=80%), Accuracy 100% (>=85%), Consistency 90% (>=90%). Spec shards production-ready: spec-db-core.md, spec-db-workflow.md, spec-db-interfaces.md fully populated with normative requirements extracted from implementation. spec-db-conformance.md and spec-db-runtime.md remain templates (lower priority). Terminology index complete in docs/spec-shards/spec-db.md. Minor housekeeping: docs/spec-db.md (hub-level) shows stale 'Pending' status; recommend syncing or deprecating in favor of docs/spec-shards/spec-db.md as single source of truth. This does not block completion."
+  "domain_checklist": [
+    {"name": "Variance model (I_model + sigma_readout² → sigma_floor² clamp)", "source": "spec-db-core.md", "status": "specified"},
+    {"name": "UB parameterization (incremental ΔR around baseline U₀)", "source": "spec-db-core.md", "status": "specified"},
+    {"name": "Geometry mapping (DIALS convention, beam centre swap)", "source": "spec-db-conformance.md", "status": "specified"},
+    {"name": "Chi-squared loss (variance-weighted, detached IRLS)", "source": "spec-db-core.md", "status": "specified"},
+    {"name": "Stage A/B/C pipeline (crystal → Fhkl → detector)", "source": "spec-db-workflow.md", "status": "specified"},
+    {"name": "Sigma precedence ladder (map > scalar > external_lookup)", "source": "spec-db-core.md", "status": "specified"},
+    {"name": "ROI bbox semantics ((x0,x1,y0,y1) exclusive)", "source": "spec-db-core.md", "status": "specified"},
+    {"name": "Interpolation policy (tricubic with ±1 halo)", "source": "spec-db-core.md", "status": "specified"},
+    {"name": "Tracing schema (per-pixel trace mode)", "source": "spec-db-tracing.md", "status": "pending_impl"},
+    {"name": "VIS triptych layout", "source": "spec-db-vis.md", "status": "partial"},
+    {"name": "HDF5 output schema", "source": "spec-db-interfaces.md", "status": "specified"}
+  ],
+  "notes": "Iteration 10: REVIEWER VALIDATION with domain_completeness. All scores meet thresholds: Coverage 85% (>=80%), Accuracy 100% (>=85%), Consistency 90% (>=90%), Domain Completeness 88% (>=75%). Spec shards in docs/oldspecs/: spec-db-core.md, spec-db-workflow.md, spec-db-interfaces.md, spec-db-conformance.md, spec-db-runtime.md, spec-db-tracing.md, spec-db-vis.md. 9/11 domain concepts fully specified. Remaining gaps: (1) Tracing schema specified but not implemented (DB-AT-040 pending); (2) VIS triptych layout partial (DB-AT-050 pending). These do not block bootstrap completion. Note: orchestration.yaml expects specs in docs/spec-shards/ but actual specs are in docs/oldspecs/; recommend either moving specs or updating config."
 }
